@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+scikit-learn
+shapely
+geopandas
+python-multipart
+# Add pydantic if needed, but fastapi installs it
