@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { createClient } from "../../lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function SignUpPage() {
     const [fullName, setFullName] = useState("");
@@ -30,7 +35,6 @@ export default function SignUpPage() {
         }
 
         setLoading(true);
-        const supabase = createClient();
 
         const { error } = await supabase.auth.signUp({
             email,

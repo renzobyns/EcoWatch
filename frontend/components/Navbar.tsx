@@ -2,7 +2,12 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { createClient } from '../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function Navbar() {
     const [menuOpen, setMenuOpen] = useState(false);
@@ -10,7 +15,6 @@ export default function Navbar() {
 
     useEffect(() => {
         const fetchUser = async () => {
-            const supabase = createClient();
             const { data: { user: authUser } } = await supabase.auth.getUser();
             if (authUser) {
                 const { data: profile } = await supabase

@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "../../lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 interface Profile {
     full_name: string;
@@ -19,7 +24,6 @@ export default function ProfilePage() {
 
     useEffect(() => {
         const fetchProfile = async () => {
-            const supabase = createClient();
             const { data: { user } } = await supabase.auth.getUser();
 
             if (!user) {
@@ -42,7 +46,6 @@ export default function ProfilePage() {
     }, [router]);
 
     const handleSignOut = async () => {
-        const supabase = createClient();
         await supabase.auth.signOut();
         router.push("/");
     };
