@@ -1,0 +1,48 @@
+<!-- 
+    EcoWatch SJDM — Branded Email Template
+    Paste this into: Supabase → Authentication → Email Templates → "Confirm signup"
+    Replace the entire default HTML with this.
+-->
+<div style="background-color: #0a0f0d; padding: 40px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  <div style="max-width: 480px; margin: 0 auto; background: linear-gradient(145deg, #111916, #0d1210); border-radius: 20px; border: 1px solid rgba(52, 211, 153, 0.15); overflow: hidden;">
+    
+    <!-- Header -->
+    <div style="padding: 32px 32px 20px; text-align: center;">
+      <div style="width: 56px; height: 56px; margin: 0 auto 16px; background: white; border-radius: 14px; padding: 4px;">
+        <img src="https://eco-watch-eight.vercel.app/logo.png" alt="EcoWatch" style="width: 100%; height: 100%; object-fit: contain;" />
+      </div>
+      <h1 style="color: #34d399; font-size: 24px; font-weight: 800; margin: 0;">EcoWatch SJDM</h1>
+      <p style="color: rgba(255,255,255,0.4); font-size: 12px; margin: 8px 0 0; letter-spacing: 1px; text-transform: uppercase;">Environmental Monitoring System</p>
+    </div>
+    
+    <!-- Body -->
+    <div style="padding: 20px 32px 32px;">
+      <h2 style="color: white; font-size: 20px; font-weight: 700; margin: 0 0 8px; text-align: center;">Confirm Your Email</h2>
+      <p style="color: rgba(255,255,255,0.5); font-size: 14px; line-height: 1.6; text-align: center; margin: 0 0 24px;">
+        Click the button below to verify your email and activate your EcoWatch account.
+      </p>
+      
+      <!-- CTA Button -->
+      <div style="text-align: center;">
+        <a href="{{ .ConfirmationURL }}" style="display: inline-block; padding: 14px 40px; background: linear-gradient(135deg, #059669, #34d399); color: white; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 16px; box-shadow: 0 8px 24px rgba(52, 211, 153, 0.25);">
+          Verify My Email
+        </a>
+      </div>
+      
+      <!-- Divider -->
+      <div style="border-top: 1px solid rgba(255,255,255,0.06); margin: 28px 0 20px;"></div>
+      
+      <!-- Info -->
+      <p style="color: rgba(255,255,255,0.3); font-size: 11px; line-height: 1.5; text-align: center; margin: 0;">
+        If you didn't create an EcoWatch account, you can safely ignore this email.
+      </p>
+    </div>
+    
+    <!-- Footer -->
+    <div style="background: rgba(255,255,255,0.02); padding: 16px 32px; text-align: center; border-top: 1px solid rgba(255,255,255,0.04);">
+      <p style="color: rgba(255,255,255,0.2); font-size: 10px; margin: 0; letter-spacing: 0.5px;">
+        San Jose del Monte City &middot; Environment and Natural Resources Office
+      </p>
+    </div>
+  </div>
+</div>
