@@ -2,6 +2,26 @@
 
 All notable changes to the EcoWatch SJDM project will be documented in this file.
 
+## [Phase 3: Database & Authentication] - 2026-03-08
+
+### Added
+- **Supabase Integration**: Connected to cloud PostgreSQL database (ecowatch-sjdm) with PostGIS support.
+  - *Reason*: To store reports, user accounts, and enable Role-Based Access Control (RBAC).
+- **Database Schema**: Created `profiles` and `reports` tables with RLS policies and auto-profile trigger.
+  - *Reason*: To enforce security — citizens can't edit reports, only Barangay/CENRO admins can.
+- **Login Page** (`/login`): Email + password authentication with role-based redirect.
+  - *Reason*: Citizen → Home, Barangay → Barangay Portal, CENRO → Dashboard.
+- **Signup Page** (`/signup`): Public registration form with password confirmation.
+  - *Reason*: All public sign-ups default to the `citizen` role for safety.
+- **Supabase Client Utility** (`lib/supabase.ts`): Browser-side connection helper.
+  - *Reason*: Centralized database access for all frontend components.
+
+### Modified
+- **Navbar**: "Log In" button now links to `/login` (was a dead button).
+  - *Previous*: Static `<button>` with no action.
+  - *Changes*: Replaced with `<Link href="/login">` on both desktop and mobile.
+  - *Reason*: To allow users to actually navigate to the authentication pages.
+
 ## [Phase 2: Spatial Intelligence] - 2026-03-08
 
 ### Added
