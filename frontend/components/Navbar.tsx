@@ -1,10 +1,33 @@
 "use client";
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabase';
 
 export default function Navbar() {
     const [menuOpen, setMenuOpen] = useState(false);
+    const [user, setUser] = useState<{ name: string; initial: string } | null>(null);
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            const supabase = createClient();
+            const { data: { user: authUser } } = await supabase.auth.getUser();
+            if (authUser) {
+                const { data: profile } = await supabase
+                    .from("profiles")
+                    .select("full_name")
+                    .eq("id", authUser.id)
+                    .single();
+                if (profile) {
+                    setUser({
+                        name: profile.full_name,
+                        initial: profile.full_name.charAt(0).toUpperCase(),
+                    });
+                }
+            }
+        };
+        fetchUser();
+    }, []);
 
     const links = [
         { href: "/", label: "Home" },
@@ -35,9 +58,19 @@ export default function Navbar() {
                         <div className="h-4 w-px bg-white/10 mx-2" />
                         <Link href="/barangay" className="text-foreground/70 hover:text-primary transition-colors text-sm font-medium">Barangay Portal</Link>
                         <Link href="/dashboard" className="text-foreground/70 hover:text-primary transition-colors text-sm font-medium">CENRO Dashboard</Link>
-                        <Link href="/login" className="px-4 py-2 eco-gradient text-white rounded-full text-sm font-semibold hover:opacity-90 transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-primary/20">
-                            Log In
-                        </Link>
+
+                        {user ? (
+                            <Link href="/profile" className="flex items-center gap-2 group">
+                                <div className="w-9 h-9 rounded-full eco-gradient flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform">
+                                    {user.initial}
+                                </div>
+                                <span className="text-sm font-semibold text-foreground/80 group-hover:text-primary transition-colors">{user.name}</span>
+                            </Link>
+                        ) : (
+                            <Link href="/login" className="px-4 py-2 eco-gradient text-white rounded-full text-sm font-semibold hover:opacity-90 transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-primary/20">
+                                Log In
+                            </Link>
+                        )}
                     </div>
 
                     {/* Mobile Hamburger Button */}
@@ -67,9 +100,18 @@ export default function Navbar() {
                         </Link>
                     ))}
                     <div className="pt-2">
-                        <Link href="/login" onClick={() => setMenuOpen(false)} className="block w-full py-3 eco-gradient text-white rounded-xl text-sm font-semibold shadow-lg shadow-primary/20 text-center">
-                            Log In
-                        </Link>
+                        {user ? (
+                            <Link href="/profile" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 transition-colors">
+                                <div className="w-8 h-8 rounded-full eco-gradient flex items-center justify-center text-white text-xs font-bold shadow shadow-primary/20">
+                                    {user.initial}
+                                </div>
+                                <span className="text-sm font-semibold text-foreground/80">{user.name}</span>
+                            </Link>
+                        ) : (
+                            <Link href="/login" onClick={() => setMenuOpen(false)} className="block w-full py-3 eco-gradient text-white rounded-xl text-sm font-semibold shadow-lg shadow-primary/20 text-center">
+                                Log In
+                            </Link>
+                        )}
                     </div>
                 </div>
             </div>
