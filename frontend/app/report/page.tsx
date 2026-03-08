@@ -11,10 +11,10 @@ const SJDMMap = dynamic(() => import("@/components/MapComponent"), {
 export default function ReportPage() {
     const [location, setLocation] = useState<{ lat: number, lon: number } | null>(null);
     const [barangay, setBarangay] = useState<string | null>(null);
+    const [gpsLoading, setGpsLoading] = useState(false);
 
-    const handleLocationSelect = async (lat: number, lon: number) => {
+    const validateLocation = async (lat: number, lon: number) => {
         setLocation({ lat, lon });
-        // Auto-validate with backend
         try {
             const res = await fetch("http://127.0.0.1:8000/report/validate-location", {
                 method: "POST",
@@ -28,6 +28,18 @@ export default function ReportPage() {
         }
     };
 
+    const handleLocationSelect = (lat: number, lon: number) => validateLocation(lat, lon);
+
+    const handleGPS = () => {
+        if (!navigator.geolocation) return;
+        setGpsLoading(true);
+        navigator.geolocation.getCurrentPosition(
+            (pos) => { validateLocation(pos.coords.latitude, pos.coords.longitude); setGpsLoading(false); },
+            () => setGpsLoading(false),
+            { enableHighAccuracy: true }
+        );
+    };
+
     return (
         <div className="p-8 max-w-4xl mx-auto space-y-12">
             <div className="text-center space-y-2">
@@ -36,7 +48,15 @@ export default function ReportPage() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-2 space-y-3">
+                    <button
+                        onClick={handleGPS}
+                        disabled={gpsLoading}
+                        className="w-full flex items-center justify-center gap-2 py-3 glass border border-primary/30 text-primary rounded-xl text-sm font-bold hover:bg-primary/10 active:scale-95 transition-all disabled:opacity-50"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /><circle cx="12" cy="12" r="10" /></svg>
+                        {gpsLoading ? "Detecting your location..." : "📡  Use My Current Location (GPS)"}
+                    </button>
                     <SJDMMap height="500px" onLocationSelect={handleLocationSelect} />
                 </div>
 
