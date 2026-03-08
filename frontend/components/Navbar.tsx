@@ -10,12 +10,11 @@ export default function Navbar() {
                 <div className="flex justify-between h-16 items-center">
                     <div className="flex items-center">
                         <Link href="/" className="flex items-center gap-2 group">
-                            <div className="relative w-10 h-10 rounded-lg overflow-hidden shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform duration-300">
-                                <Image
+                            <div className="w-10 h-10 rounded-lg overflow-hidden shadow-lg shadow-primary/20 bg-white flex items-center justify-center p-0.5 group-hover:scale-110 transition-transform duration-300">
+                                <img
                                     src="/logo.png"
-                                    alt="EcoWatch Logo"
-                                    fill
-                                    className="object-cover"
+                                    alt="EcoWatch"
+                                    className="w-full h-full object-contain"
                                 />
                             </div>
                             <span className="text-2xl font-bold tracking-tight text-gradient">
