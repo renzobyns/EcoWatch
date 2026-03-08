@@ -5,6 +5,9 @@ import Navbar from "@/components/Navbar";
 export const metadata: Metadata = {
   title: "EcoWatch SJDM | Sustainable Environmental Monitoring",
   description: "Advanced geospatial reporting and monitoring for San Jose del Monte.",
+  icons: {
+    icon: "/logo.png",
+  },
 };
 
 export default function RootLayout({
