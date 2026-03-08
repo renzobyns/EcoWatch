@@ -2,6 +2,16 @@
 
 All notable changes to the EcoWatch SJDM project will be documented in this file.
 
+## [Phase 2: Spatial Intelligence] - 2026-03-08
+
+### Added
+- **Ray-Casting Algorithm**: Implemented `spatial_utils.py` using Shapely for precise point-in-polygon calculations.
+  - *Reason*: To eliminate manual reporting errors and auto-assign tasks to the correct Barangay.
+- **Interactive CSJDM Map**: Integrated a high-aesthetic Leaflet map with San Jose del Monte barangay boundaries.
+  - *Reason*: To allow citizens and CENRO to visually interact with the city's geography.
+- **Location Validation API**: Created `/report/validate-location` endpoint in FastAPI and `/spatial/barangays` to serve GeoJSON data.
+  - *Reason*: To allow the frontend to verify coordinates and visualize boundaries in real-time.
+
 ## [Phase 1: Foundation] - 2026-03-08
 
 ### Added
