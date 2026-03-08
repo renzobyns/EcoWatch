@@ -35,9 +35,9 @@ export default function Navbar() {
                         <div className="h-4 w-px bg-white/10 mx-2" />
                         <Link href="/barangay" className="text-foreground/70 hover:text-primary transition-colors text-sm font-medium">Barangay Portal</Link>
                         <Link href="/dashboard" className="text-foreground/70 hover:text-primary transition-colors text-sm font-medium">CENRO Dashboard</Link>
-                        <button className="px-4 py-2 eco-gradient text-white rounded-full text-sm font-semibold hover:opacity-90 transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-primary/20">
+                        <Link href="/login" className="px-4 py-2 eco-gradient text-white rounded-full text-sm font-semibold hover:opacity-90 transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-primary/20">
                             Log In
-                        </button>
+                        </Link>
                     </div>
 
                     {/* Mobile Hamburger Button */}
@@ -67,9 +67,9 @@ export default function Navbar() {
                         </Link>
                     ))}
                     <div className="pt-2">
-                        <button className="w-full py-3 eco-gradient text-white rounded-xl text-sm font-semibold shadow-lg shadow-primary/20">
+                        <Link href="/login" onClick={() => setMenuOpen(false)} className="block w-full py-3 eco-gradient text-white rounded-xl text-sm font-semibold shadow-lg shadow-primary/20 text-center">
                             Log In
-                        </button>
+                        </Link>
                     </div>
                 </div>
             </div>
