@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase";
+import { createClient } from "../../lib/supabase";
 
 export default function WelcomePage() {
     const [name, setName] = useState<string>("there");
