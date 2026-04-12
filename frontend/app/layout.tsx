@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import FloatingChat from "@/components/FloatingChat";
 
 export const metadata: Metadata = {
   title: "EcoWatch SJDM | Sustainable Environmental Monitoring",
@@ -22,6 +23,7 @@ export default function RootLayout({
         <main className="pt-16">
           {children}
         </main>
+        <FloatingChat />
       </body>
     </html>
   );

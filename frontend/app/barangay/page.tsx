@@ -12,13 +12,13 @@ export default function BarangayPortal() {
     const [activeTab, setActiveTab] = useState<"pending" | "resolved">("pending");
 
     return (
-        <div className="p-8 space-y-8">
+        <div className="p-4 md:p-8 space-y-6 md:space-y-8">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div className="space-y-1">
                     <div className="flex items-center gap-2 mb-2">
                         <span className="px-2 py-0.5 rounded bg-primary/20 text-primary text-[10px] font-bold uppercase tracking-widest border border-primary/20">Jurisdiction</span>
                     </div>
-                    <h1 className="text-4xl font-extrabold text-gradient">Barangay Muzon Portal</h1>
+                    <h1 className="text-3xl md:text-4xl font-extrabold text-gradient">Barangay Muzon Portal</h1>
                     <p className="text-foreground/60 font-medium">Managing Local Environmental Reports & Cleanup</p>
                 </div>
 

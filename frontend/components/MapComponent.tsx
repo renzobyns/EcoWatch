@@ -16,6 +16,8 @@ const fixLeafletIcons = () => {
     });
 };
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+
 interface MapProps {
     height?: string;
     onLocationSelect?: (lat: number, lon: number) => void;
@@ -24,19 +26,33 @@ interface MapProps {
 export default function SJDMMap({ height = "500px", onLocationSelect }: MapProps) {
     const [geoData, setGeoData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         fixLeafletIcons();
-        fetch("http://127.0.0.1:8000/spatial/barangays")
-            .then((res) => res.json())
-            .then((data) => {
+        const controller = new AbortController();
+
+        const fetchGeoData = async () => {
+            try {
+                const res = await fetch(`${API_URL}/spatial/barangays`, {
+                    signal: controller.signal,
+                });
+                if (!res.ok) throw new Error(`Server error: ${res.status}`);
+                const data = await res.json();
                 setGeoData(data);
+            } catch (err: any) {
+                if (err.name !== "AbortError") {
+                    console.error("Failed to load GeoJSON:", err);
+                    setError("Backend unavailable — map overlay disabled.");
+                }
+            } finally {
                 setLoading(false);
-            })
-            .catch((err) => {
-                console.error("Failed to load GeoJSON:", err);
-                setLoading(false);
-            });
+            }
+        };
+
+        fetchGeoData();
+
+        return () => controller.abort();
     }, []);
 
     const onEachBarangay = (feature: any, layer: any) => {
@@ -102,6 +118,12 @@ export default function SJDMMap({ height = "500px", onLocationSelect }: MapProps
                     />
                 )}
             </MapContainer>
+
+            {error && (
+                <div className="absolute top-4 left-4 z-[1000] glass px-3 py-1.5 rounded-lg text-[10px] font-bold text-yellow-400 border border-yellow-500/20 bg-yellow-500/5">
+                    {error}
+                </div>
+            )}
 
             <div className="absolute bottom-4 right-4 z-[1000] glass px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest text-primary/80 pointer-events-none">
                 SJDM Spatial Engine v1.0
