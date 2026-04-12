@@ -92,7 +92,7 @@ export default function Navbar() {
 
             {/* Mobile Dropdown Menu */}
             <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${menuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
-                <div className="glass border-t border-white/5 px-4 py-4 space-y-1">
+                <div className="glass border-t border-white/5 bg-[#0a0f0a]/95 backdrop-blur-2xl shadow-2xl shadow-black px-4 py-4 space-y-1">
                     {links.map((link) => (
                         <Link
                             key={link.href}

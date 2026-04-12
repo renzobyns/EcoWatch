@@ -4,7 +4,7 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-[calc(100vh-4rem)]">
       {/* Hero Section */}
-      <section className="relative flex-1 flex flex-col items-center justify-center px-4 overflow-hidden py-20">
+      <section className="relative flex-1 flex flex-col items-center justify-center px-4 overflow-hidden py-12 md:py-20">
         {/* Background Accents */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl h-96 bg-primary/20 blur-[120px] rounded-full -z-10" />
 
@@ -13,7 +13,7 @@ export default function Home() {
             Protecting San Jose del Monte's Waterways
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight">
+          <h1 className="text-4xl md:text-5xl lg:text-7xl font-extrabold tracking-tight">
             Stop Waterway <br />
             <span className="text-gradient">Pollution in Real-Time</span>
           </h1>
@@ -39,8 +39,8 @@ export default function Home() {
         </div>
 
         {/* Feature Cards Preview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto mt-24">
-          <div className="glass p-8 space-y-4 hover:border-primary/40 transition-colors">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto mt-16 md:mt-24">
+          <div className="glass p-6 md:p-8 space-y-4 hover:border-primary/40 transition-colors">
             <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.93 4.93 1.41 1.41" /><path d="m17.66 17.66 1.41 1.41" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="m6.34 17.66-1.41 1.41" /><path d="m19.07 4.93-1.41 1.41" /></svg>
             </div>
@@ -48,7 +48,7 @@ export default function Home() {
             <p className="text-foreground/60 text-sm">Mask R-CNN validation ensures every report is verified and legitimate.</p>
           </div>
 
-          <div className="glass p-8 space-y-4 hover:border-primary/40 transition-colors">
+          <div className="glass p-6 md:p-8 space-y-4 hover:border-primary/40 transition-colors">
             <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>
             </div>
@@ -56,7 +56,7 @@ export default function Home() {
             <p className="text-foreground/60 text-sm">Geospatial routing auto-assigns reports to the correct Barangay official.</p>
           </div>
 
-          <div className="glass p-8 space-y-4 hover:border-primary/40 transition-colors">
+          <div className="glass p-6 md:p-8 space-y-4 hover:border-primary/40 transition-colors">
             <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="m19 9-5 5-4-4-3 3" /></svg>
             </div>
