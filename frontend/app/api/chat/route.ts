@@ -8,7 +8,7 @@ EcoWatch is a system for San Jose del Monte (SJDM) to monitor and report waterwa
 Key areas of the website you should know about:
 - Report Issue (/report): Where users report environmental violations.
 - Barangay Portal (/barangay): Where barangay officials manage reports.
-- CENRO Dashboard (/dashboard): Where the City Environment and Natural Resources Office views analytics and heatmaps.
+- CENRO Dashboard (/cenro): Where the City Environment and Natural Resources Office views analytics and heatmaps.
 - Geospatial mapping: The app uses Maps to auto-assign reports and DBSCAN clustering for hotspots.
 - AI Verification: The app uses Mask R-CNN to validate reports.
 

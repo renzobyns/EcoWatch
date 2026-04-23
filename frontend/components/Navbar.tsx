@@ -34,10 +34,10 @@ export default function Navbar() {
     }, []);
 
     const links = [
-        { href: "/", label: "Home" },
-        { href: "/report", label: "Report Issue" },
-        { href: "/barangay", label: "Barangay Portal" },
-        { href: "/dashboard", label: "CENRO Dashboard" },
+        { href: "/", label: "Landing" },
+        { href: "/barangay", label: "Barangay" },
+        { href: "/cenro", label: "CENRO" },
+        { href: "/report", label: "Report" },
     ];
 
     return (
@@ -57,11 +57,10 @@ export default function Navbar() {
 
                     {/* Desktop Nav */}
                     <div className="hidden md:flex items-center space-x-8">
-                        <Link href="/" className="text-foreground/70 hover:text-primary transition-colors text-sm font-medium underline-offset-4 hover:underline">Home</Link>
-                        <Link href="/report" className="text-foreground/70 hover:text-primary transition-colors text-sm font-medium underline-offset-4 hover:underline">Report Issue</Link>
-                        <div className="h-4 w-px bg-white/10 mx-2" />
-                        <Link href="/barangay" className="text-foreground/70 hover:text-primary transition-colors text-sm font-medium">Barangay Portal</Link>
-                        <Link href="/dashboard" className="text-foreground/70 hover:text-primary transition-colors text-sm font-medium">CENRO Dashboard</Link>
+                        <Link href="/" className="text-foreground/70 hover:text-primary transition-colors text-sm font-medium underline-offset-4 hover:underline">Landing</Link>
+                        <Link href="/barangay" className="text-foreground/70 hover:text-primary transition-colors text-sm font-medium">Barangay</Link>
+                        <Link href="/cenro" className="text-foreground/70 hover:text-primary transition-colors text-sm font-medium">CENRO</Link>
+                        <Link href="/report" className="text-foreground/70 hover:text-primary transition-colors text-sm font-medium underline-offset-4 hover:underline">Report</Link>
 
                         {user ? (
                             <Link href="/profile" className="flex items-center gap-2 group">
