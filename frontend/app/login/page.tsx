@@ -38,7 +38,7 @@ export default function LoginPage() {
                 .single();
 
             if (profile?.role === "cenro") {
-                window.location.href = "/dashboard";
+                window.location.href = "/cenro";
             } else if (profile?.role === "barangay") {
                 window.location.href = "/barangay";
             } else {

@@ -2,74 +2,78 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <div className="flex flex-col min-h-[calc(100vh-4rem)]">
-      {/* Hero Section */}
-      <section className="relative flex-1 flex flex-col items-center justify-center px-4 overflow-hidden py-12 md:py-20">
-        {/* Background Accents */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl h-96 bg-primary/20 blur-[120px] rounded-full -z-10" />
+    <div className="flex flex-col min-h-[calc(100vh-4rem)] items-center justify-center bg-[#0a0f0a] relative overflow-hidden">
+      {/* Background Accents */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl h-96 bg-primary/20 blur-[120px] rounded-full -z-10" />
 
-        <div className="max-w-4xl mx-auto text-center space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-          <div className="inline-block px-4 py-1.5 rounded-full glass border-primary/20 text-primary text-sm font-semibold tracking-wide mb-4">
-            Protecting San Jose del Monte's Waterways
+      <div className="max-w-6xl w-full px-4 text-center space-y-12 z-10">
+        <div className="space-y-4">
+          <div className="inline-block px-4 py-1.5 rounded-full glass border-primary/20 text-primary text-xs font-bold tracking-widest uppercase mb-4">
+            System Testing Environment
           </div>
-
-          <h1 className="text-4xl md:text-5xl lg:text-7xl font-extrabold tracking-tight">
-            Stop Waterway <br />
-            <span className="text-gradient">Pollution in Real-Time</span>
+          <h1 className="text-5xl md:text-7xl font-black tracking-tight text-white mb-2">
+            EcoWatch <span className="text-gradient">SJDM</span>
           </h1>
-
-          <p className="text-lg md:text-xl text-foreground/70 max-w-2xl mx-auto leading-relaxed">
-            Scan. Report. Resolve. Join EcoWatch SJDM in monitoring illegal dumping using advanced AI and geospatial analytics to keep our community clean.
+          <p className="text-foreground/60 max-w-2xl mx-auto font-medium">
+            Select a module to begin testing the environmental monitoring workflows.
           </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-            <Link
-              href="/report"
-              className="w-full sm:w-auto px-8 py-4 eco-gradient text-white rounded-full text-lg font-bold shadow-xl shadow-primary/30 hover:shadow-primary/50 transition-all transform hover:-translate-y-1 active:scale-95 text-center"
-            >
-              Report a Violation
-            </Link>
-            <Link
-              href="/dashboard"
-              className="w-full sm:w-auto px-8 py-4 glass text-foreground rounded-full text-lg font-bold hover:bg-white/5 transition-all text-center border border-white/10"
-            >
-              View Analytics
-            </Link>
-          </div>
         </div>
 
-        {/* Feature Cards Preview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto mt-16 md:mt-24">
-          <div className="glass p-6 md:p-8 space-y-4 hover:border-primary/40 transition-colors">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.93 4.93 1.41 1.41" /><path d="m17.66 17.66 1.41 1.41" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="m6.34 17.66-1.41 1.41" /><path d="m19.07 4.93-1.41 1.41" /></svg>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-8">
+          {/* Module 1: Auth / Landing / Citizen */}
+          <Link href="/login" className="group">
+            <div className="glass p-8 h-full flex flex-col items-center justify-center space-y-6 border-white/5 hover:border-primary/40 hover:bg-white/5 transition-all duration-500 rounded-3xl transform hover:-translate-y-2">
+              <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+              </div>
+              <div className="text-center">
+                <h3 className="text-2xl font-bold text-white uppercase tracking-tight">Citizen Portal</h3>
+                <p className="text-xs text-foreground/50 mt-2">Authentication, Reporting, and Public Landing Page.</p>
+              </div>
+              <div className="px-6 py-2 rounded-full border border-primary/20 text-primary text-[10px] font-bold uppercase tracking-widest group-hover:bg-primary group-hover:text-white transition-colors">
+                Launch Module
+              </div>
             </div>
-            <h3 className="text-xl font-bold">AI Verification</h3>
-            <p className="text-foreground/60 text-sm">Mask R-CNN validation ensures every report is verified and legitimate.</p>
-          </div>
+          </Link>
 
-          <div className="glass p-6 md:p-8 space-y-4 hover:border-primary/40 transition-colors">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>
+          {/* Module 2: Barangay */}
+          <Link href="/barangay" className="group">
+            <div className="glass p-8 h-full flex flex-col items-center justify-center space-y-6 border-white/5 hover:border-emerald-500/40 hover:bg-white/5 transition-all duration-500 rounded-3xl transform hover:-translate-y-2">
+              <div className="w-20 h-20 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-transform">
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+              </div>
+              <div className="text-center">
+                <h3 className="text-2xl font-bold text-white uppercase tracking-tight">Barangay Site</h3>
+                <p className="text-xs text-foreground/50 mt-2">Local Jurisdictional Management & Cleanup Verification.</p>
+              </div>
+              <div className="px-6 py-2 rounded-full border border-emerald-500/20 text-emerald-500 text-[10px] font-bold uppercase tracking-widest group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                Launch Module
+              </div>
             </div>
-            <h3 className="text-xl font-bold">Smart Mapping</h3>
-            <p className="text-foreground/60 text-sm">Geospatial routing auto-assigns reports to the correct Barangay official.</p>
-          </div>
+          </Link>
 
-          <div className="glass p-6 md:p-8 space-y-4 hover:border-primary/40 transition-colors">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="m19 9-5 5-4-4-3 3" /></svg>
+          {/* Module 3: CENRO */}
+          <Link href="/cenro" className="group">
+            <div className="glass p-8 h-full flex flex-col items-center justify-center space-y-6 border-white/5 hover:border-blue-500/40 hover:bg-white/5 transition-all duration-500 rounded-3xl transform hover:-translate-y-2">
+              <div className="w-20 h-20 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 9h18" /><path d="M9 21V9" /></svg>
+              </div>
+              <div className="text-center">
+                <h3 className="text-2xl font-bold text-white uppercase tracking-tight">CENRO Dashboard</h3>
+                <p className="text-xs text-foreground/50 mt-2">City-Wide Spatial Analytics and DBSCAN Heatmaps.</p>
+              </div>
+              <div className="px-6 py-2 rounded-full border border-blue-500/20 text-blue-500 text-[10px] font-bold uppercase tracking-widest group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                Launch Module
+              </div>
             </div>
-            <h3 className="text-xl font-bold">Hotspot Heatmaps</h3>
-            <p className="text-foreground/60 text-sm">DBSCAN clustering helps CENRO identify and prioritize high-waste zones.</p>
-          </div>
+          </Link>
         </div>
-      </section>
+      </div>
 
-      {/* Footer Branding */}
-      <footer className="py-10 border-t border-white/5 text-center px-4">
-        <p className="text-xs text-foreground/40 font-medium tracking-widest uppercase">
-          San Jose del Monte City Environment and Natural Resources Office
+      {/* Footer */}
+      <footer className="absolute bottom-8 text-center w-full">
+        <p className="text-[10px] text-foreground/30 font-bold tracking-[0.2em] uppercase">
+          San Jose del Monte Environmental Monitoring System
         </p>
       </footer>
     </div>
