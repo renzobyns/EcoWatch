@@ -115,7 +115,7 @@ export default function LoginPage() {
                     <p className="text-xs text-white/40 mb-2">Default test accounts:</p>
                     <div className="flex justify-center gap-4 text-xs font-mono text-primary/80">
                         <span>citizen@test.com</span>
-                        <span>muzon@test.com</span>
+                        <span>barangay@test.com</span>
                         <span>cenro@test.com</span>
                     </div>
                     <p className="text-[10px] text-white/30 mt-1">password: password123</p>

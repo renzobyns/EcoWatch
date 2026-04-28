@@ -53,7 +53,7 @@ export default function Navbar() {
                             <Link href="/barangay" className="text-emerald-500 hover:text-emerald-400 transition-colors text-sm font-medium">Barangay Portal</Link>
                         )}
                         {user && user.role === 'cenro' && (
-                            <Link href="/cenro" className="text-blue-500 hover:text-blue-400 transition-colors text-sm font-medium">CENRO Dashboard</Link>
+                            <Link href="/cenro" className="text-emerald-500 hover:text-emerald-400 transition-colors text-sm font-medium">CENRO Dashboard</Link>
                         )}
 
                         {user ? (
@@ -111,7 +111,7 @@ export default function Navbar() {
                         </Link>
                     )}
                     {user && user.role === 'cenro' && (
-                        <Link href="/cenro" onClick={() => setMenuOpen(false)} className="block px-4 py-3 rounded-xl text-blue-500 hover:bg-white/5 transition-colors text-sm font-medium">
+                        <Link href="/cenro" onClick={() => setMenuOpen(false)} className="block px-4 py-3 rounded-xl text-emerald-500 hover:bg-white/5 transition-colors text-sm font-medium">
                             CENRO Dashboard
                         </Link>
                     )}
