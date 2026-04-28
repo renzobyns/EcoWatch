@@ -11,6 +11,11 @@ const MiniMap = dynamic(() => import("@/components/MiniMap"), {
     loading: () => <div className="w-full h-full bg-white/5 animate-pulse flex items-center justify-center"><p className="text-xs font-bold text-primary">Loading Map...</p></div>
 });
 
+const LocationPickerMap = dynamic(() => import("@/components/LocationPickerMap"), {
+    ssr: false,
+    loading: () => <div className="w-full h-48 bg-white/5 animate-pulse rounded-2xl flex items-center justify-center"><p className="text-xs font-bold text-primary">Loading Map...</p></div>
+});
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 export default function ReportPage() {
@@ -40,7 +45,7 @@ export default function ReportPage() {
                     setLat(position.coords.latitude);
                     setLon(position.coords.longitude);
                     setIsLocating(false);
-                    setStep(2);
+                    // Don't auto-advance to step 2, let them adjust the pin if needed
                 },
                 (err) => {
                     console.error("Location error:", err);
@@ -118,10 +123,13 @@ export default function ReportPage() {
         <div className="min-h-screen bg-[#0a0f0a] pt-24 pb-12 px-4 flex flex-col items-center">
             
             <div className="w-full max-w-lg mb-8 flex items-center justify-between">
-                <Link href="/" className="text-white hover:text-primary transition-colors flex items-center gap-2">
+                <button 
+                    onClick={() => step > 1 ? setStep(step - 1) : router.push("/")} 
+                    className="text-white hover:text-primary transition-colors flex items-center gap-2 font-bold"
+                >
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                     Back
-                </Link>
+                </button>
                 <div className="flex items-center gap-2">
                     <div className={`w-3 h-3 rounded-full ${step >= 1 ? 'bg-primary' : 'bg-white/20 shadow-inner border border-white/5'}`} />
                     <div className="w-8 h-0.5 bg-white/10" />
@@ -147,27 +155,42 @@ export default function ReportPage() {
                             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                         </div>
                         <h2 className="text-3xl font-black text-white mb-2">Pinpoint Location</h2>
-                        <p className="text-foreground/60 font-medium mb-8">
-                            We need your GPS coordinates to assign the cleanup team to the correct barangay.
+                        <p className="text-foreground/60 font-medium mb-6">
+                            We need your GPS coordinates to assign the cleanup team to the correct barangay. Drag the pin to adjust.
                         </p>
 
-                        <button 
-                            onClick={handleGetLocation}
-                            disabled={isLocating}
-                            className="w-full py-4 eco-gradient text-white rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70 disabled:hover:scale-100"
-                        >
-                            {isLocating ? (
-                                <>
+                        <div className="h-64 mb-6">
+                            <LocationPickerMap 
+                                initialLat={lat || 14.82} 
+                                initialLon={lon || 121.05} 
+                                onLocationChange={(newLat, newLon) => {
+                                    setLat(newLat);
+                                    setLon(newLon);
+                                }} 
+                            />
+                        </div>
+
+                        <div className="flex gap-4">
+                            <button 
+                                onClick={handleGetLocation}
+                                disabled={isLocating}
+                                className="flex-1 py-4 glass text-white rounded-2xl font-bold hover:bg-white/5 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:hover:scale-100"
+                            >
+                                {isLocating ? (
                                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    Acquiring GPS...
-                                </>
-                            ) : (
-                                <>
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
-                                    Use My Current Location
-                                </>
-                            )}
-                        </button>
+                                ) : (
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+                                )}
+                                Auto-Locate
+                            </button>
+                            <button 
+                                onClick={() => setStep(2)}
+                                disabled={!lat || !lon}
+                                className="flex-1 py-4 eco-gradient text-white rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:shadow-none"
+                            >
+                                Confirm Location
+                            </button>
+                        </div>
                     </div>
                 )}
 
@@ -178,44 +201,50 @@ export default function ReportPage() {
                             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                         </div>
                         <h2 className="text-3xl font-black text-white mb-2">Capture Evidence</h2>
-                        <p className="text-foreground/60 font-medium mb-8">
+                        <p className="text-foreground/60 font-medium mb-6">
                             Take a clear photo of the illegal waste. Our AI will verify the image before submission.
                         </p>
 
-                        <div className="mb-8 relative group cursor-pointer h-64 rounded-2xl border-2 border-dashed border-white/20 hover:border-primary/50 transition-colors overflow-hidden bg-black/50 flex flex-col items-center justify-center">
-                            <input 
-                                type="file" 
-                                accept="image/*" 
-                                capture="environment"
-                                onChange={handleImageChange}
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
-                            />
-                            
-                            {previewUrl ? (
+                        {previewUrl ? (
+                            <div className="mb-8 relative h-64 rounded-2xl overflow-hidden border border-white/10 group">
                                 <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
-                            ) : (
-                                <>
-                                    <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors text-white/50 group-hover:text-primary">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                <button 
+                                    onClick={() => {
+                                        setPreviewUrl(null);
+                                        setImage(null);
+                                    }}
+                                    className="absolute top-4 right-4 glass px-3 py-1.5 rounded-full text-xs font-bold text-white hover:bg-red-500/80 transition-colors shadow-xl opacity-0 group-hover:opacity-100"
+                                >
+                                    Remove
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-4 mb-8">
+                                <label className="cursor-pointer glass rounded-2xl border border-white/10 hover:border-primary/50 hover:bg-primary/5 transition-all p-6 flex flex-col items-center justify-center gap-3 group">
+                                    <input type="file" accept="image/*" capture="environment" onChange={handleImageChange} className="hidden" />
+                                    <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-white/50 group-hover:bg-primary/20 group-hover:text-primary transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                                     </div>
-                                    <p className="text-sm font-bold text-white/50 group-hover:text-primary transition-colors">Tap to open Camera / Gallery</p>
-                                </>
-                            )}
-                        </div>
+                                    <span className="text-sm font-bold text-white/70 text-center">Open Camera</span>
+                                </label>
+                                
+                                <label className="cursor-pointer glass rounded-2xl border border-white/10 hover:border-primary/50 hover:bg-primary/5 transition-all p-6 flex flex-col items-center justify-center gap-3 group">
+                                    <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                                    <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-white/50 group-hover:bg-primary/20 group-hover:text-primary transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                    </div>
+                                    <span className="text-sm font-bold text-white/70 text-center">Open Gallery</span>
+                                </label>
+                            </div>
+                        )}
 
                         <div className="flex gap-4">
                             <button 
-                                onClick={() => setStep(1)}
-                                className="flex-1 py-4 glass border border-white/10 text-white rounded-2xl font-bold hover:bg-white/5 transition-colors"
-                            >
-                                Back
-                            </button>
-                            <button 
                                 onClick={() => setStep(3)}
                                 disabled={!image}
-                                className="flex-1 py-4 eco-gradient text-white rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:shadow-none"
+                                className="w-full py-4 eco-gradient text-white rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:shadow-none"
                             >
-                                Continue
+                                Continue to Review
                             </button>
                         </div>
                     </div>
