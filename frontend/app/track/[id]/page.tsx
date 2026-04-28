@@ -39,9 +39,11 @@ export default function TrackReportPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#0a0f0a] flex flex-col items-center justify-center">
-                <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-4"></div>
-                <p className="text-primary font-bold animate-pulse">Locating Report...</p>
+            <div className="min-h-screen bg-[#0a0f0a] flex flex-col items-center justify-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-white p-1 shadow-[0_0_30px_rgba(16,185,129,0.3)] animate-pulse">
+                    <img src="/logo.png" alt="Loading..." className="w-full h-full object-contain" />
+                </div>
+                <div className="text-emerald-500 font-bold tracking-widest uppercase text-sm animate-pulse">Locating Report...</div>
             </div>
         );
     }
