@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
+import { LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
@@ -28,7 +29,7 @@ export default function CenroDashboard() {
     const [loading, setLoading] = useState(true);
     
     // UI State
-    const [activeTab, setActiveTab] = useState<'overview' | 'oversight'>('overview');
+    const [activeTab, setActiveTab] = useState<'command_center' | 'overview' | 'oversight'>('command_center');
     const [selectedReport, setSelectedReport] = useState<any>(null);
     
     // Action State
@@ -132,7 +133,33 @@ export default function CenroDashboard() {
         deployed: reports.filter(r => r.status === 'deployed').length,
         failed: reports.filter(r => r.status === 'failed_cleanup').length,
     };
+    const pending = stats.total - stats.resolved - stats.deployed - stats.failed;
     const successRate = stats.total > 0 ? ((stats.resolved / stats.total) * 100).toFixed(1) : 0;
+
+    // Variant A Data Processing
+    const barangayStats = BARANGAYS.map(b => {
+        const bReports = reports.filter(r => r.barangay === b);
+        const total = bReports.length;
+        const resolved = bReports.filter(r => r.status === 'resolved').length;
+        const rate = total > 0 ? (resolved / total) * 100 : 0;
+        return { name: b, total, resolved, rate };
+    }).filter(b => b.total > 0).sort((a, b) => b.rate - a.rate);
+
+    const recentFeed = [...reports].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 10);
+
+    const pieData = [
+        { name: 'Pending', value: pending, color: '#ef4444' },
+        { name: 'Deployed', value: stats.deployed, color: '#eab308' },
+        { name: 'Failed', value: stats.failed, color: '#f97316' },
+        { name: 'Resolved', value: stats.resolved, color: '#22c55e' }
+    ].filter(d => d.value > 0);
+
+    const dateMap: Record<string, number> = {};
+    [...reports].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()).forEach(r => {
+        const d = new Date(r.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        dateMap[d] = (dateMap[d] || 0) + 1;
+    });
+    const lineData = Object.entries(dateMap).map(([date, count]) => ({ date, count })).slice(-14);
 
     return (
         <div className="min-h-screen bg-[#0a0f0a] pt-24 pb-12 px-4 md:px-8">
@@ -148,21 +175,131 @@ export default function CenroDashboard() {
                     {/* Navigation Tabs */}
                     <div className="flex gap-2 bg-white/5 p-1 rounded-xl border border-white/10 mt-4 md:mt-0">
                         <button 
+                            onClick={() => setActiveTab('command_center')}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'command_center' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'text-white/50 hover:text-white'}`}
+                        >
+                            Command Center
+                        </button>
+                        <button 
                             onClick={() => setActiveTab('overview')}
-                            className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'overview' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'text-white/50 hover:text-white'}`}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'overview' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'text-white/50 hover:text-white'}`}
                         >
                             Overview Map
                         </button>
                         <button 
                             onClick={() => setActiveTab('oversight')}
-                            className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'oversight' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'text-white/50 hover:text-white'}`}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'oversight' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'text-white/50 hover:text-white'}`}
                         >
                             Oversight Queue
                         </button>
                     </div>
                 </div>
 
-                {activeTab === 'overview' ? (
+                {activeTab === 'command_center' && (
+                    /* COMMAND CENTER TAB (Variant A) */
+                    <div className="flex-1 flex flex-col gap-6 min-h-0 overflow-y-auto pr-2 custom-scrollbar">
+                        
+                        {/* Top Stats Bar */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
+                            <div className="glass p-4 rounded-2xl border border-white/10">
+                                <div className="text-[10px] text-white/50 uppercase tracking-widest font-bold mb-1">Total Reports</div>
+                                <div className="text-3xl font-black text-blue-400">{stats.total}</div>
+                            </div>
+                            <div className="glass p-4 rounded-2xl border border-white/10">
+                                <div className="text-[10px] text-white/50 uppercase tracking-widest font-bold mb-1">Active/Pending</div>
+                                <div className="text-3xl font-black text-red-400">{pending}</div>
+                            </div>
+                            <div className="glass p-4 rounded-2xl border border-white/10">
+                                <div className="text-[10px] text-white/50 uppercase tracking-widest font-bold mb-1">Teams Deployed</div>
+                                <div className="text-3xl font-black text-yellow-400">{stats.deployed}</div>
+                            </div>
+                            <div className="glass p-4 rounded-2xl border border-white/10">
+                                <div className="text-[10px] text-white/50 uppercase tracking-widest font-bold mb-1">Success Rate</div>
+                                <div className="text-3xl font-black text-green-400">{successRate}%</div>
+                            </div>
+                        </div>
+
+                        {/* Main Grid */}
+                        <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0">
+                            
+                            {/* Left: Charts */}
+                            <div className="lg:col-span-1 flex flex-col gap-6 min-h-0">
+                                <div className="flex-1 glass p-6 rounded-3xl border border-white/10 flex flex-col min-h-0">
+                                    <h3 className="text-xs font-bold text-white/50 uppercase tracking-widest mb-4 shrink-0">Status Breakdown</h3>
+                                    <div className="flex-1 relative min-h-[150px]">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart>
+                                                <Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={80} paddingAngle={5} dataKey="value">
+                                                    {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                                                </Pie>
+                                                <Tooltip contentStyle={{ backgroundColor: '#0a0f0a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }} />
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                    <div className="flex flex-wrap justify-center gap-4 mt-2 shrink-0">
+                                        {pieData.map(d => (
+                                            <div key={d.name} className="flex items-center gap-2 text-xs text-white/80"><div className="w-3 h-3 rounded-full" style={{backgroundColor: d.color}}></div>{d.name}</div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="flex-1 glass p-6 rounded-3xl border border-white/10 flex flex-col min-h-0">
+                                    <h3 className="text-xs font-bold text-white/50 uppercase tracking-widest mb-4 shrink-0">Trend (Last 14 Days)</h3>
+                                    <div className="flex-1 relative min-h-[150px]">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <LineChart data={lineData}>
+                                                <XAxis dataKey="date" stroke="rgba(255,255,255,0.2)" fontSize={10} tickMargin={10} />
+                                                <Tooltip contentStyle={{ backgroundColor: '#0a0f0a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }} />
+                                                <Line type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6' }} />
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Center: Map */}
+                            <div className="lg:col-span-1 glass rounded-3xl border border-white/10 overflow-hidden relative min-h-[300px]">
+                                <div className="absolute top-4 left-4 z-[1000] glass px-3 py-1.5 rounded-full text-[10px] font-bold text-white uppercase tracking-widest border border-white/20 pointer-events-none">Live City Map</div>
+                                <MapComponent height="100%" reports={reports} heatmaps={heatmaps} focusedBarangay={null} onBarangayClick={() => {}} />
+                            </div>
+
+                            {/* Right: Lists */}
+                            <div className="lg:col-span-1 flex flex-col gap-6 min-h-0">
+                                <div className="flex-1 glass p-6 rounded-3xl border border-white/10 flex flex-col min-h-0">
+                                    <h3 className="text-xs font-bold text-white/50 uppercase tracking-widest mb-4 shrink-0">Barangay Leaderboard</h3>
+                                    <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar">
+                                        {barangayStats.map((b, i) => (
+                                            <div key={b.name} className="flex items-center justify-between p-2 rounded-lg bg-white/5">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-6 h-6 rounded bg-black/50 flex items-center justify-center text-[10px] font-bold text-white/50">{i + 1}</div>
+                                                    <div className="text-sm font-bold text-white">{b.name}</div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="text-sm font-black text-green-400">{b.rate.toFixed(0)}%</div>
+                                                    <div className="text-[10px] text-white/40">{b.resolved}/{b.total} done</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="flex-1 glass p-6 rounded-3xl border border-white/10 flex flex-col min-h-0">
+                                    <h3 className="text-xs font-bold text-white/50 uppercase tracking-widest mb-4 shrink-0">Recent Activity</h3>
+                                    <div className="flex-1 overflow-y-auto pr-2 space-y-4 custom-scrollbar">
+                                        {recentFeed.map(r => (
+                                            <div key={r.id} className="relative pl-4 border-l border-white/10">
+                                                <div className="absolute w-2 h-2 rounded-full bg-blue-500 -left-[5px] top-1.5"></div>
+                                                <div className="text-xs font-bold text-white mb-0.5">Report {r.tracking_id}</div>
+                                                <div className="text-[10px] text-white/60 mb-1">{r.barangay} • {new Date(r.created_at).toLocaleString()}</div>
+                                                <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${r.status === 'resolved' ? 'bg-green-500/20 text-green-400' : r.status === 'deployed' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'}`}>{r.status}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'overview' && (
                     /* OVERVIEW TAB (Map + Stats) */
                     <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
                         {/* Left: Stats Column */}
