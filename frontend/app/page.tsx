@@ -1,81 +1,147 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
+import QRCodeModal from "@/components/QRCodeModal";
 
-export default function Home() {
-  return (
-    <div className="flex flex-col min-h-[calc(100vh-4rem)] items-center justify-center bg-[#0a0f0a] relative overflow-hidden">
-      {/* Background Accents */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl h-96 bg-primary/20 blur-[120px] rounded-full -z-10" />
-
-      <div className="max-w-6xl w-full px-4 text-center space-y-12 z-10">
-        <div className="space-y-4">
-          <div className="inline-block px-4 py-1.5 rounded-full glass border-primary/20 text-primary text-xs font-bold tracking-widest uppercase mb-4">
-            System Testing Environment
-          </div>
-          <h1 className="text-5xl md:text-7xl font-black tracking-tight text-white mb-2">
-            EcoWatch <span className="text-gradient">SJDM</span>
-          </h1>
-          <p className="text-foreground/60 max-w-2xl mx-auto font-medium">
-            Select a module to begin testing the environmental monitoring workflows.
-          </p>
+// Dynamically import MapComponent to prevent SSR issues with Leaflet
+const MapComponent = dynamic(() => import("@/components/MapComponent"), { 
+    ssr: false,
+    loading: () => (
+        <div className="w-full h-screen bg-[#0a0f0a] flex items-center justify-center">
+            <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
         </div>
+    )
+});
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-8">
-          {/* Module 1: Auth / Landing / Citizen */}
-          <Link href="/login" className="group">
-            <div className="glass p-8 h-full flex flex-col items-center justify-center space-y-6 border-white/5 hover:border-primary/40 hover:bg-white/5 transition-all duration-500 rounded-3xl transform hover:-translate-y-2">
-              <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
-              </div>
-              <div className="text-center">
-                <h3 className="text-2xl font-bold text-white uppercase tracking-tight">Citizen Portal</h3>
-                <p className="text-xs text-foreground/50 mt-2">Authentication, Reporting, and Public Landing Page.</p>
-              </div>
-              <div className="px-6 py-2 rounded-full border border-primary/20 text-primary text-[10px] font-bold uppercase tracking-widest group-hover:bg-primary group-hover:text-white transition-colors">
-                Launch Module
-              </div>
-            </div>
-          </Link>
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
-          {/* Module 2: Barangay */}
-          <Link href="/barangay" className="group">
-            <div className="glass p-8 h-full flex flex-col items-center justify-center space-y-6 border-white/5 hover:border-emerald-500/40 hover:bg-white/5 transition-all duration-500 rounded-3xl transform hover:-translate-y-2">
-              <div className="w-20 h-20 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-transform">
-                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
-              </div>
-              <div className="text-center">
-                <h3 className="text-2xl font-bold text-white uppercase tracking-tight">Barangay Site</h3>
-                <p className="text-xs text-foreground/50 mt-2">Local Jurisdictional Management & Cleanup Verification.</p>
-              </div>
-              <div className="px-6 py-2 rounded-full border border-emerald-500/20 text-emerald-500 text-[10px] font-bold uppercase tracking-widest group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                Launch Module
-              </div>
-            </div>
-          </Link>
+export default function LandingPage() {
+    const [reports, setReports] = useState<any[]>([]);
+    const [heatmaps, setHeatmaps] = useState<any[]>([]);
+    const [focusedBarangay, setFocusedBarangay] = useState<string | null>(null);
+    const [isSidebarOpen, setSidebarOpen] = useState(false);
+    const [isQRModalOpen, setQRModalOpen] = useState(false);
 
-          {/* Module 3: CENRO */}
-          <Link href="/cenro" className="group">
-            <div className="glass p-8 h-full flex flex-col items-center justify-center space-y-6 border-white/5 hover:border-blue-500/40 hover:bg-white/5 transition-all duration-500 rounded-3xl transform hover:-translate-y-2">
-              <div className="w-20 h-20 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
-                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 9h18" /><path d="M9 21V9" /></svg>
-              </div>
-              <div className="text-center">
-                <h3 className="text-2xl font-bold text-white uppercase tracking-tight">CENRO Dashboard</h3>
-                <p className="text-xs text-foreground/50 mt-2">City-Wide Spatial Analytics and DBSCAN Heatmaps.</p>
-              </div>
-              <div className="px-6 py-2 rounded-full border border-blue-500/20 text-blue-500 text-[10px] font-bold uppercase tracking-widest group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                Launch Module
-              </div>
+    useEffect(() => {
+        // Fetch reports
+        fetch(`${API_URL}/reports/recent`)
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data)) setReports(data);
+            })
+            .catch(err => console.error("Failed to load reports", err));
+
+        // Fetch heatmaps
+        fetch(`${API_URL}/spatial/heatmaps`)
+            .then(res => res.json())
+            .then(data => {
+                if (data && Array.isArray(data.hotspots)) setHeatmaps(data.hotspots);
+            })
+            .catch(err => console.error("Failed to load heatmaps", err));
+            
+        // Open sidebar slightly delayed for effect
+        const timer = setTimeout(() => setSidebarOpen(true), 1000);
+        return () => clearTimeout(timer);
+    }, []);
+
+    const filteredReports = focusedBarangay 
+        ? reports.filter(r => r.barangay === focusedBarangay)
+        : reports;
+
+    return (
+        <div className="relative w-full h-screen overflow-hidden bg-[#0a0f0a]">
+            {/* Full Screen Map */}
+            <div className="absolute inset-0 z-0 pt-16">
+                <MapComponent 
+                    height="100%" 
+                    reports={reports} 
+                    heatmaps={heatmaps}
+                    focusedBarangay={focusedBarangay}
+                    onBarangayClick={setFocusedBarangay}
+                />
             </div>
-          </Link>
+
+            {/* Floating Action Buttons (Bottom Left) */}
+            <div className="absolute bottom-6 left-6 z-40 flex flex-col gap-3">
+                <button 
+                    onClick={() => setQRModalOpen(true)}
+                    className="glass px-4 py-3 rounded-2xl flex items-center gap-3 text-white hover:bg-white/10 transition-all border border-white/10 shadow-xl shadow-black/50 group"
+                >
+                    <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><rect x="7" y="7" width="3" height="3"/><rect x="14" y="7" width="3" height="3"/><rect x="7" y="14" width="3" height="3"/><rect x="14" y="14" width="3" height="3"/></svg>
+                    </div>
+                    <div className="text-left hidden sm:block">
+                        <div className="text-xs text-foreground/50 font-bold uppercase tracking-widest">Share</div>
+                        <div className="text-sm font-bold">QR Code</div>
+                    </div>
+                </button>
+            </div>
+
+            {/* Toggle Sidebar Button (Mobile) */}
+            <button 
+                onClick={() => setSidebarOpen(!isSidebarOpen)}
+                className="md:hidden absolute top-24 right-4 z-40 glass p-3 rounded-full text-white shadow-xl"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </button>
+
+            {/* Collapsible Side Panel (Live Feed) */}
+            <div className={`absolute top-16 right-0 h-[calc(100vh-4rem)] w-full md:w-96 z-30 transition-transform duration-500 ease-in-out ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+                <div className="h-full glass border-l border-white/10 flex flex-col shadow-2xl">
+                    <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0">
+                        <div>
+                            <h2 className="text-lg font-black text-white flex items-center gap-2">
+                                <span className="relative flex h-3 w-3">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                                </span>
+                                LIVE FEED
+                            </h2>
+                            <p className="text-xs text-foreground/50 font-medium tracking-wide">
+                                {focusedBarangay ? `Showing reports in ${focusedBarangay}` : 'City-wide active reports'}
+                            </p>
+                        </div>
+                        <button onClick={() => setSidebarOpen(false)} className="md:hidden text-foreground/50 hover:text-white">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                        {filteredReports.length === 0 ? (
+                            <div className="text-center py-10 opacity-50">
+                                <p className="text-sm">No reports found.</p>
+                            </div>
+                        ) : (
+                            filteredReports.map((report) => (
+                                <div key={report.id} className="p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors cursor-pointer group">
+                                    <div className="flex items-start justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className={`w-2 h-2 rounded-full ${
+                                                report.status === 'resolved' ? 'bg-green-500' : 
+                                                report.status === 'deployed' ? 'bg-yellow-500' : 'bg-red-500'
+                                            }`} />
+                                            <span className="text-xs font-bold text-white uppercase tracking-wider">{report.status}</span>
+                                        </div>
+                                        <span className="text-[10px] text-foreground/40 font-medium">
+                                            {new Date(report.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                        </span>
+                                    </div>
+                                    <h4 className="text-sm font-bold text-white mb-1 group-hover:text-primary transition-colors">{report.barangay}</h4>
+                                    {report.notes && <p className="text-xs text-foreground/60 line-clamp-2 mb-3">{report.notes}</p>}
+                                    <Link href={report.tracking_url || "#"} className="text-xs font-bold text-primary hover:text-primary-dark underline-offset-2 hover:underline">
+                                        View Details →
+                                    </Link>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* QR Code Modal */}
+            {isQRModalOpen && <QRCodeModal onClose={() => setQRModalOpen(false)} />}
         </div>
-      </div>
-
-      {/* Footer */}
-      <footer className="absolute bottom-8 text-center w-full">
-        <p className="text-[10px] text-foreground/30 font-bold tracking-[0.2em] uppercase">
-          San Jose del Monte Environmental Monitoring System
-        </p>
-      </footer>
-    </div>
-  );
+    );
 }
