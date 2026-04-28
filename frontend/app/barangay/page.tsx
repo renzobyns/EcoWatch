@@ -240,6 +240,7 @@ export default function BarangayPortal() {
                                 </tbody>
                             </table>
                         )}
+                            </div>
                         </div>
                     </div>
 
@@ -373,7 +374,7 @@ export default function BarangayPortal() {
                                             <button 
                                                 onClick={() => handleResolve(selectedReport.id)}
                                                 disabled={!cleanupImage || actionLoading}
-                                                className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold shadow-lg shadow-blue-900/50 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+                                                className="w-full py-3 bg-primary hover:bg-emerald-400 text-white rounded-xl font-bold shadow-lg shadow-emerald-900/50 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
                                             >
                                                 {actionLoading ? "AI Verifying..." : "Mark as Resolved"}
                                             </button>

@@ -169,26 +169,26 @@ export default function CenroDashboard() {
                 <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 shrink-0">
                     <div>
                         <h1 className="text-3xl font-black text-white mb-1">CENRO Operations Hub</h1>
-                        <p className="text-blue-400 font-bold uppercase tracking-widest">City-Wide Oversight & Analytics</p>
+                        <p className="text-emerald-400 font-bold uppercase tracking-widest">City-Wide Oversight & Analytics</p>
                     </div>
                     
                     {/* Navigation Tabs */}
                     <div className="flex gap-2 bg-white/5 p-1 rounded-xl border border-white/10 mt-4 md:mt-0">
                         <button 
                             onClick={() => setActiveTab('command_center')}
-                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'command_center' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'text-white/50 hover:text-white'}`}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'command_center' ? 'bg-primary text-white shadow-lg shadow-emerald-900/50' : 'text-white/50 hover:text-white'}`}
                         >
                             Command Center
                         </button>
                         <button 
                             onClick={() => setActiveTab('overview')}
-                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'overview' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'text-white/50 hover:text-white'}`}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'overview' ? 'bg-primary text-white shadow-lg shadow-emerald-900/50' : 'text-white/50 hover:text-white'}`}
                         >
                             Overview Map
                         </button>
                         <button 
                             onClick={() => setActiveTab('oversight')}
-                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'oversight' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'text-white/50 hover:text-white'}`}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'oversight' ? 'bg-primary text-white shadow-lg shadow-emerald-900/50' : 'text-white/50 hover:text-white'}`}
                         >
                             Oversight Queue
                         </button>
@@ -203,7 +203,7 @@ export default function CenroDashboard() {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
                             <div className="glass p-4 rounded-2xl border border-white/10">
                                 <div className="text-[10px] text-white/50 uppercase tracking-widest font-bold mb-1">Total Reports</div>
-                                <div className="text-3xl font-black text-blue-400">{stats.total}</div>
+                                <div className="text-3xl font-black text-emerald-400">{stats.total}</div>
                             </div>
                             <div className="glass p-4 rounded-2xl border border-white/10">
                                 <div className="text-[10px] text-white/50 uppercase tracking-widest font-bold mb-1">Active/Pending</div>
@@ -249,7 +249,7 @@ export default function CenroDashboard() {
                                             <LineChart data={lineData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                                                 <XAxis dataKey="date" stroke="rgba(255,255,255,0.2)" fontSize={10} tickMargin={10} />
                                                 <Tooltip contentStyle={{ backgroundColor: '#0a0f0a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }} />
-                                                <Line type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#0a0f0a' }} />
+                                                <Line type="monotone" dataKey="count" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#0a0f0a' }} />
                                             </LineChart>
                                         </ResponsiveContainer>
                                     </div>
@@ -286,7 +286,7 @@ export default function CenroDashboard() {
                                     <div className="flex-1 overflow-y-auto pr-2 space-y-4 scrollbar-hide">
                                         {recentFeed.map(r => (
                                             <div key={r.id} className="relative pl-4 border-l border-white/10">
-                                                <div className="absolute w-2 h-2 rounded-full bg-blue-500 -left-[4px] top-1.5 shadow-[0_0_10px_rgba(59,130,246,0.8)]"></div>
+                                                <div className="absolute w-2 h-2 rounded-full bg-emerald-500 -left-[4px] top-1.5 shadow-[0_0_10px_rgba(16,185,129,0.8)]"></div>
                                                 <div className="text-xs font-bold text-white mb-0.5">Report {r.tracking_id}</div>
                                                 <div className="text-[10px] text-white/60 mb-2">{r.barangay} • {new Date(r.created_at).toLocaleString()}</div>
                                                 <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${r.status === 'resolved' ? 'bg-green-500/20 text-green-400' : r.status === 'deployed' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'}`}>{r.status}</span>
@@ -305,7 +305,7 @@ export default function CenroDashboard() {
                         {/* Left: Stats Column */}
                         <div className="flex-1 lg:max-w-xs flex flex-col gap-4">
                             <div className="glass p-6 rounded-3xl border border-white/10 shadow-2xl">
-                                <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 mb-4">
+                                <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-emerald-400 mb-4">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                                 </div>
                                 <div className="text-xs font-bold text-white/50 uppercase tracking-widest mb-1">Total Reports</div>
@@ -345,8 +345,8 @@ export default function CenroDashboard() {
                         <div className="flex-[3] glass rounded-3xl border border-white/10 overflow-hidden shadow-2xl relative min-h-[400px]">
                             <div className="absolute top-4 left-4 z-[1000] glass px-4 py-2 rounded-full text-xs font-bold text-white border border-white/20 shadow-lg pointer-events-none flex items-center gap-2">
                                 <span className="relative flex h-2 w-2">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                                 </span>
                                 City-Wide Live Map
                             </div>
@@ -384,7 +384,7 @@ export default function CenroDashboard() {
                                     {reports.map(report => (
                                         <tr key={report.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                                             <td className="p-4 font-mono text-sm text-white font-bold">{report.tracking_id}</td>
-                                            <td className="p-4 text-sm font-bold text-blue-300">{report.barangay}</td>
+                                            <td className="p-4 text-sm font-bold text-emerald-300">{report.barangay}</td>
                                             <td className="p-4">
                                                 <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
                                                     report.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
@@ -422,11 +422,11 @@ export default function CenroDashboard() {
             {/* Oversight Detail Modal */}
             {selectedReport && (
                 <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="glass p-0 max-w-2xl w-full rounded-3xl border border-blue-500/30 shadow-[0_0_50px_rgba(59,130,246,0.1)] relative overflow-hidden">
+                    <div className="glass p-0 max-w-2xl w-full rounded-3xl border border-emerald-500/30 shadow-[0_0_50px_rgba(16,185,129,0.1)] relative overflow-hidden">
                         
-                        <div className="bg-blue-900/40 border-b border-blue-500/30 px-6 py-4 flex items-center justify-between">
+                        <div className="bg-emerald-900/40 border-b border-emerald-500/30 px-6 py-4 flex items-center justify-between">
                             <div>
-                                <div className="text-[10px] text-blue-300 font-bold uppercase tracking-widest mb-1">Cenro Override Console</div>
+                                <div className="text-[10px] text-emerald-300 font-bold uppercase tracking-widest mb-1">Cenro Override Console</div>
                                 <h2 className="text-xl font-black text-white">Report {selectedReport.tracking_id}</h2>
                             </div>
                             <button 
@@ -440,7 +440,7 @@ export default function CenroDashboard() {
                         <div className="p-6 md:p-8 space-y-8">
                             
                             {actionError && (
-                                <div className="p-3 rounded-lg bg-blue-500/20 border border-blue-500/30 text-sm font-bold text-blue-300">
+                                <div className="p-3 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-sm font-bold text-emerald-300">
                                     {actionError}
                                 </div>
                             )}
@@ -453,7 +453,7 @@ export default function CenroDashboard() {
                                     <select 
                                         value={newBarangay}
                                         onChange={(e) => setNewBarangay(e.target.value)}
-                                        className="flex-1 bg-black/50 border border-white/10 rounded-xl px-4 text-sm text-white focus:outline-none focus:border-blue-500"
+                                        className="flex-1 bg-black/50 border border-white/10 rounded-xl px-4 text-sm text-white focus:outline-none focus:border-primary"
                                     >
                                         {BARANGAYS.map(b => (
                                             <option key={b} value={b}>{b}</option>
@@ -462,7 +462,7 @@ export default function CenroDashboard() {
                                     <button 
                                         onClick={() => handleReassign(selectedReport.id)}
                                         disabled={actionLoading || newBarangay === selectedReport.barangay}
-                                        className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold shadow-lg disabled:opacity-50 transition-colors whitespace-nowrap"
+                                        className="px-6 py-3 bg-primary hover:bg-emerald-400 text-white rounded-xl font-bold shadow-lg disabled:opacity-50 transition-colors whitespace-nowrap"
                                     >
                                         Update Route
                                     </button>
