@@ -2,42 +2,29 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export default function Navbar() {
     const [menuOpen, setMenuOpen] = useState(false);
-    const [user, setUser] = useState<{ name: string; initial: string } | null>(null);
+    const [user, setUser] = useState<{ name: string; initial: string; role: string } | null>(null);
 
     useEffect(() => {
-        const fetchUser = async () => {
-            const { data: { user: authUser } } = await supabase.auth.getUser();
-            if (authUser) {
-                const { data: profile } = await supabase
-                    .from("profiles")
-                    .select("full_name")
-                    .eq("id", authUser.id)
-                    .single();
-                if (profile) {
-                    setUser({
-                        name: profile.full_name,
-                        initial: profile.full_name.charAt(0).toUpperCase(),
-                    });
-                }
-            }
-        };
-        fetchUser();
+        // Local-first auth: check localStorage
+        const storedUser = localStorage.getItem('ecowatch_user');
+        if (storedUser) {
+            try {
+                const parsed = JSON.parse(storedUser);
+                setUser({
+                    name: parsed.full_name,
+                    initial: parsed.full_name.charAt(0).toUpperCase(),
+                    role: parsed.role
+                });
+            } catch(e) {}
+        }
     }, []);
 
-    const links = [
+    const publicLinks = [
         { href: "/", label: "Landing" },
-        { href: "/barangay", label: "Barangay" },
-        { href: "/cenro", label: "CENRO" },
-        { href: "/report", label: "Report" },
+        { href: "/report", label: "Report Issue" },
     ];
 
     return (
@@ -57,10 +44,18 @@ export default function Navbar() {
 
                     {/* Desktop Nav */}
                     <div className="hidden md:flex items-center space-x-8">
-                        <Link href="/" className="text-foreground/70 hover:text-primary transition-colors text-sm font-medium underline-offset-4 hover:underline">Landing</Link>
-                        <Link href="/barangay" className="text-foreground/70 hover:text-primary transition-colors text-sm font-medium">Barangay</Link>
-                        <Link href="/cenro" className="text-foreground/70 hover:text-primary transition-colors text-sm font-medium">CENRO</Link>
-                        <Link href="/report" className="text-foreground/70 hover:text-primary transition-colors text-sm font-medium underline-offset-4 hover:underline">Report</Link>
+                        {publicLinks.map((link) => (
+                            <Link key={link.href} href={link.href} className="text-foreground/70 hover:text-primary transition-colors text-sm font-medium">
+                                {link.label}
+                            </Link>
+                        ))}
+                        
+                        {user && user.role === 'barangay' && (
+                            <Link href="/barangay" className="text-emerald-500 hover:text-emerald-400 transition-colors text-sm font-medium">Barangay Portal</Link>
+                        )}
+                        {user && user.role === 'cenro' && (
+                            <Link href="/cenro" className="text-blue-500 hover:text-blue-400 transition-colors text-sm font-medium">CENRO Dashboard</Link>
+                        )}
 
                         {user ? (
                             <Link href="/profile" className="flex items-center gap-2 group">
@@ -92,7 +87,7 @@ export default function Navbar() {
             {/* Mobile Dropdown Menu */}
             <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${menuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
                 <div className="glass border-t border-white/5 bg-[#0a0f0a]/95 backdrop-blur-2xl shadow-2xl shadow-black px-4 py-4 space-y-1">
-                    {links.map((link) => (
+                    {publicLinks.map((link) => (
                         <Link
                             key={link.href}
                             href={link.href}
@@ -102,6 +97,16 @@ export default function Navbar() {
                             {link.label}
                         </Link>
                     ))}
+                    {user && user.role === 'barangay' && (
+                        <Link href="/barangay" onClick={() => setMenuOpen(false)} className="block px-4 py-3 rounded-xl text-emerald-500 hover:bg-white/5 transition-colors text-sm font-medium">
+                            Barangay Portal
+                        </Link>
+                    )}
+                    {user && user.role === 'cenro' && (
+                        <Link href="/cenro" onClick={() => setMenuOpen(false)} className="block px-4 py-3 rounded-xl text-blue-500 hover:bg-white/5 transition-colors text-sm font-medium">
+                            CENRO Dashboard
+                        </Link>
+                    )}
                     <div className="pt-2">
                         {user ? (
                             <Link href="/profile" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 transition-colors">
