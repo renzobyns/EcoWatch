@@ -57,14 +57,23 @@ export default function Navbar() {
                         )}
 
                         {user ? (
-                            <Link href="/profile" className="flex items-center gap-2 group">
-                                <div className="w-9 h-9 rounded-full eco-gradient flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform">
-                                    {user.initial}
+                            <div className="flex items-center gap-4">
+                                <div className="text-right hidden lg:block">
+                                    <div className="text-sm font-bold text-white">{user.name}</div>
+                                    <div className="text-[10px] text-white/50 uppercase tracking-widest">{user.role}</div>
                                 </div>
-                                <span className="text-sm font-semibold text-foreground/80 group-hover:text-primary transition-colors">{user.name}</span>
-                            </Link>
+                                <button 
+                                    onClick={() => {
+                                        localStorage.removeItem('ecowatch_user');
+                                        window.location.href = '/';
+                                    }}
+                                    className="text-xs font-bold text-red-400 hover:text-red-300 transition-colors"
+                                >
+                                    Sign Out
+                                </button>
+                            </div>
                         ) : (
-                            <Link href="/login" className="px-4 py-2 eco-gradient text-white rounded-full text-sm font-semibold hover:opacity-90 transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-primary/20">
+                            <Link href="/login" className="px-5 py-2 glass rounded-full text-sm font-bold text-white hover:bg-white/10 transition-colors border border-white/20">
                                 Log In
                             </Link>
                         )}
@@ -106,14 +115,18 @@ export default function Navbar() {
                             CENRO Dashboard
                         </Link>
                     )}
-                    <div className="pt-2">
+                    <div className="pt-2 border-t border-white/10 mt-2">
                         {user ? (
-                            <Link href="/profile" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 transition-colors">
-                                <div className="w-8 h-8 rounded-full eco-gradient flex items-center justify-center text-white text-xs font-bold shadow shadow-primary/20">
-                                    {user.initial}
-                                </div>
-                                <span className="text-sm font-semibold text-foreground/80">{user.name}</span>
-                            </Link>
+                            <button 
+                                onClick={() => {
+                                    localStorage.removeItem('ecowatch_user');
+                                    window.location.href = '/';
+                                }}
+                                className="w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-500/10 text-red-400 transition-colors"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                                <div className="text-sm font-bold">Sign Out</div>
+                            </button>
                         ) : (
                             <Link href="/login" onClick={() => setMenuOpen(false)} className="block w-full py-3 eco-gradient text-white rounded-xl text-sm font-semibold shadow-lg shadow-primary/20 text-center">
                                 Log In
