@@ -63,28 +63,58 @@ export default function LandingPage() {
                 />
             </div>
 
-            {/* Floating Action Buttons (Bottom Left) */}
-            <div className="absolute bottom-6 left-6 z-40 flex flex-col gap-3">
+            {/* Floating Action Buttons (Middle Left) */}
+            <div className="absolute top-1/2 -translate-y-1/2 left-6 z-[1000] flex flex-col gap-3">
+                {/* Refined Report Button */}
+                <Link 
+                    href="/report"
+                    className="glass px-4 py-3 rounded-2xl flex items-center gap-3 text-white transition-all shadow-xl hover:bg-white/10 group border border-red-500/20"
+                >
+                    <div className="relative w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center transition-transform group-hover:scale-110">
+                        {/* Soft Pulse Effect on Icon Only */}
+                        <div className="absolute inset-0 rounded-xl bg-red-500/20 animate-pulse"></div>
+                        <svg className="relative z-10 text-red-500" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    </div>
+                    <div className="text-left hidden sm:block pr-2">
+                        <div className="text-[10px] text-red-400/70 font-black uppercase tracking-[0.2em]">Live</div>
+                        <div className="text-sm font-black uppercase text-white/90">Report</div>
+                    </div>
+                </Link>
+
                 <button 
                     onClick={() => setQRModalOpen(true)}
-                    className="glass px-4 py-3 rounded-2xl flex items-center gap-3 text-white hover:bg-white/10 transition-all border border-white/10 shadow-xl shadow-black/50 group"
+                    className="eco-gradient px-4 py-3 rounded-2xl flex items-center gap-3 text-white hover:opacity-90 transition-all shadow-2xl shadow-primary/20 group hover:scale-[1.02] active:scale-95"
                 >
-                    <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><rect x="7" y="7" width="3" height="3"/><rect x="14" y="7" width="3" height="3"/><rect x="7" y="14" width="3" height="3"/><rect x="14" y="14" width="3" height="3"/></svg>
                     </div>
                     <div className="text-left hidden sm:block">
-                        <div className="text-xs text-foreground/50 font-bold uppercase tracking-widest">Share</div>
+                        <div className="text-[10px] text-white/70 font-black uppercase tracking-[0.2em]">Share</div>
                         <div className="text-sm font-bold">QR Code</div>
                     </div>
                 </button>
             </div>
 
-            {/* Toggle Sidebar Button (Mobile) */}
+
+            {/* Toggle Sidebar Button (Desktop & Mobile) */}
             <button 
                 onClick={() => setSidebarOpen(!isSidebarOpen)}
-                className="md:hidden absolute top-24 right-4 z-40 glass p-3 rounded-full text-white shadow-xl"
+                className={`absolute top-24 z-40 glass p-3 rounded-full text-white shadow-xl transition-all duration-500 ease-in-out ${isSidebarOpen ? 'right-[24rem] md:right-[25rem]' : 'right-4'}`}
             >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    width="20" 
+                    height="20" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                    className={`transition-transform duration-500 ${isSidebarOpen ? 'rotate-180' : 'rotate-0'}`}
+                >
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
             </button>
 
             {/* Collapsible Side Panel (Live Feed) */}
@@ -108,7 +138,7 @@ export default function LandingPage() {
                         </button>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide">
                         {filteredReports.length === 0 ? (
                             <div className="text-center py-10 opacity-50">
                                 <p className="text-sm">No reports found.</p>
