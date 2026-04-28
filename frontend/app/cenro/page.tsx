@@ -124,7 +124,14 @@ export default function CenroDashboard() {
     };
 
     if (loading || !user) {
-        return <div className="min-h-screen bg-[#0a0f0a] flex items-center justify-center text-white font-bold">Loading CENRO Dashboard...</div>;
+        return (
+            <div className="min-h-screen bg-[#0a0f0a] flex flex-col items-center justify-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-white p-1 shadow-[0_0_30px_rgba(16,185,129,0.3)] animate-pulse">
+                    <img src="/logo.png" alt="Loading..." className="w-full h-full object-contain" />
+                </div>
+                <div className="text-emerald-500 font-bold tracking-widest uppercase text-sm animate-pulse">Initializing Hub...</div>
+            </div>
+        );
     }
 
     const stats = {
