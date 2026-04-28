@@ -47,11 +47,19 @@
 | python-multipart | latest | File upload handling |
 
 ### Database
-| Layer | Technology | Purpose |
-|:------|:-----------|:--------|
-| Local Backend DB | **SQLite** (`ecowatch.db`) | Stores reports, spatial assignments, status tracking |
-| Auth & Profiles | **Supabase (PostgreSQL)** | User authentication, role management, profile data |
-| Spatial Data | **GeoJSON file** (`data/sjdm_barangays.geojson`) | Barangay boundary polygons for Ray-Casting |
+
+> **Strategy: LOCAL-FIRST development.** Everything runs on local SQLite during development and testing. No internet required. Supabase is used ONLY for production deployment later.
+
+| Layer | Technology (Dev) | Technology (Production) | Purpose |
+|:------|:-----------------|:-----------------------|:--------|
+| Reports + Auth + Profiles | **SQLite** (`ecowatch.db`) | Supabase (PostgreSQL) | All data in one local DB during dev |
+| Spatial Data | **GeoJSON file** (`data/sjdm_barangays.geojson`) | Same | Barangay boundary polygons for Ray-Casting |
+
+### Database GUI Tool
+| Tool | Purpose |
+|:-----|:--------|
+| **DB Browser for SQLite** | View tables, browse rows, run SQL queries — like phpMyAdmin but for SQLite. Download: [sqlitebrowser.org](https://sqlitebrowser.org/) |
+| **SQLite Viewer** (VS Code extension) | Quick table viewing inside VS Code without leaving your editor |
 
 ### AI / Machine Learning
 | Component | Technology | Status |
@@ -67,7 +75,7 @@
 | Frontend | Vercel |
 | Backend | Render or Railway |
 
-> **IMPORTANT**: Do NOT install Shadcn UI, Material UI, or any other component library. This project uses a **custom design system** (see Section 10). Do NOT attempt to migrate the database to PostgreSQL/PostGIS — the current SQLite + Shapely approach is intentional.
+> **IMPORTANT**: Do NOT install Shadcn UI, Material UI, or any other component library. This project uses a **custom design system** (see Section 10). All development is LOCAL-FIRST using SQLite — do NOT connect to Supabase during development.
 
 ---
 
@@ -160,7 +168,7 @@ EcoWatch/
 | `lat` | Float | NOT NULL | Latitude of the reported location |
 | `lon` | Float | NOT NULL | Longitude of the reported location |
 | `barangay` | String | Nullable, Indexed | Barangay name (computed by Ray-Casting) |
-| `reporter_id` | String | Nullable | Supabase user ID (null if anonymous) |
+| `reporter_id` | Integer | Nullable, FK → `users.id` | Local user ID (null if anonymous) |
 | `image_url` | String | Nullable | Path to uploaded image on local file system |
 | `cleanup_image_url` | String | Nullable | Path to cleanup verification photo |
 | `ai_confidence` | Float | Nullable | Mask R-CNN confidence score (0.0 to 1.0) |
@@ -183,9 +191,31 @@ class ReportStatus(str, Enum):
     FAILED_CLEANUP = "failed_cleanup"  # Cleanup photo still shows waste
 ```
 
-### 4.2 Supabase PostgreSQL (Auth & Profiles)
+### 4.2 Local SQLite — `users` Table (Auth)
 
-#### `profiles` Table (Supabase)
+> **This replaces Supabase Auth during development.** Simple local authentication so the system works fully offline.
+
+#### `users` Table
+| Column | Type | Constraints | Description |
+|:-------|:-----|:------------|:------------|
+| `id` | Integer | PK, Auto-increment | Unique user ID |
+| `email` | String | UNIQUE, NOT NULL | Login email |
+| `password_hash` | String | NOT NULL | Hashed password (bcrypt) |
+| `full_name` | String | NOT NULL | Display name |
+| `role` | String | NOT NULL, Default: `citizen` | One of: `citizen`, `barangay`, `cenro` |
+| `barangay_assignment` | String | Nullable | Which barangay this admin manages (only for `barangay` role) |
+| `created_at` | DateTime | Default: `utcnow` | Account creation time |
+
+> **Migration note for AI**: When deploying to production, this table will be replaced by Supabase Auth + a `profiles` table in Supabase PostgreSQL. The column structure stays the same — only the storage location changes.
+
+### 4.3 Production Schema (Supabase — FOR DEPLOYMENT ONLY)
+
+When ready to deploy, the `users` table above maps to:
+
+#### `auth.users` (Supabase managed)
+Handled automatically by Supabase Auth (email, password, sessions).
+
+#### `profiles` Table (Supabase PostgreSQL)
 | Column | Type | Constraints | Description |
 |:-------|:-----|:------------|:------------|
 | `id` | UUID | PK, FK → `auth.users.id` | Supabase auth user ID |
@@ -194,7 +224,7 @@ class ReportStatus(str, Enum):
 | `barangay_assignment` | String | Nullable | Which barangay this admin manages (only for `barangay` role) |
 | `created_at` | DateTime | Default: `now()` | Account creation time |
 
-> **Note for AI**: The `profiles` table is managed via Supabase Dashboard / SQL Editor, NOT through SQLAlchemy. The frontend queries it directly via `@supabase/supabase-js`.
+> **Note**: The `profiles` table is only used in production. During local development, everything lives in `ecowatch.db`.
 
 ---
 
@@ -651,16 +681,40 @@ uvicorn main:app --reload
 
 ### Environment Variables (`frontend/.env.local`)
 ```env
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=<your-supabase-url>
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-supabase-anon-key>
-
 # Backend API
 NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
 
-# Gemini AI
+# Gemini AI (optional — chat works with mock fallback if no key)
 GOOGLE_GEMINI_API_KEY=<your-gemini-api-key>
+
+# Supabase (PRODUCTION ONLY — not needed for local development)
+# NEXT_PUBLIC_SUPABASE_URL=<your-supabase-url>
+# NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-supabase-anon-key>
 ```
 
 ### Image Storage (Testing)
 Uploaded report images are saved to the **local backend file system** under `backend/uploads/`. This is for testing/prototype only. Production will use cloud storage (Supabase Storage or S3).
+
+### Database Viewer
+To view/edit the local database visually:
+1. Download **DB Browser for SQLite** from [sqlitebrowser.org](https://sqlitebrowser.org/)
+2. Open `ecowatch.db` from the project root
+3. Browse tables, run queries, edit data — just like phpMyAdmin
+
+---
+
+## 16. Deployment Strategy (LOCAL → PRODUCTION)
+
+> **Current phase: LOCAL DEVELOPMENT.** Everything runs offline on SQLite. When ready to deploy:
+
+| Step | Action |
+|:-----|:-------|
+| 1 | Set up Supabase project (create `profiles` table matching Section 4.3) |
+| 2 | Enable Supabase Auth (email/password provider) |
+| 3 | Swap local auth calls in frontend with `@supabase/supabase-js` auth calls |
+| 4 | Swap local user queries with Supabase `profiles` table queries |
+| 5 | Uncomment Supabase env vars in `.env.local` |
+| 6 | Deploy frontend to Vercel, backend to Render/Railway |
+| 7 | Migrate report data from SQLite to Supabase PostgreSQL (optional) |
+
+> The page layouts, components, status flows, and API endpoints stay EXACTLY the same. Only the auth provider and database connection change.
