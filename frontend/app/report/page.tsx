@@ -1,395 +1,285 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useState, useRef } from "react";
-import { QRCodeSVG } from "qrcode.react";
-import exifr from "exifr";
 
-const SJDMMap = dynamic(() => import("@/components/MapComponent"), {
+// We need a simple map to show the user's location
+const MiniMap = dynamic(() => import("@/components/MiniMap"), { 
     ssr: false,
-    loading: () => <div className="h-[400px] w-full glass animate-pulse flex items-center justify-center">Loading Map Engine...</div>
+    loading: () => <div className="w-full h-full bg-white/5 animate-pulse flex items-center justify-center"><p className="text-xs font-bold text-primary">Loading Map...</p></div>
 });
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
-type LocationSource = "exif" | "gps" | "manual" | null;
-
 export default function ReportPage() {
-    const [location, setLocation] = useState<{ lat: number; lon: number } | null>(null);
-    const [barangay, setBarangay] = useState<string | null>(null);
-    const [locationSource, setLocationSource] = useState<LocationSource>(null);
-    const [gpsLoading, setGpsLoading] = useState(false);
-
-    // Photo states
-    const [imageFile, setImageFile] = useState<File | null>(null);
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
-    const [exifFailed, setExifFailed] = useState(false);
-
-    // Form states
+    const router = useRouter();
+    const [step, setStep] = useState(1);
+    
+    // Form Data
+    const [lat, setLat] = useState<number | null>(null);
+    const [lon, setLon] = useState<number | null>(null);
+    const [image, setImage] = useState<File | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [notes, setNotes] = useState("");
+    
+    // UI States
+    const [isLocating, setIsLocating] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [submitResult, setSubmitResult] = useState<{ success: boolean; message: string } | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
-    // QR modal
-    const [showQR, setShowQR] = useState(false);
-    const qrRef = useRef<HTMLDivElement>(null);
-
-    // ------ Core: Validate a location against the backend ------
-    const validateLocation = async (lat: number, lon: number, source: LocationSource) => {
-        setLocation({ lat, lon });
-        setLocationSource(source);
-        setBarangay(null);
-        try {
-            const res = await fetch(`${API_URL}/report/validate-location`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ lat, lon }),
-            });
-            const data = await res.json();
-            if (data.barangay) setBarangay(data.barangay);
-        } catch (err) {
-            console.error("Location validation error:", err);
+    // Step 1: Get GPS Location
+    const handleGetLocation = () => {
+        setIsLocating(true);
+        setError(null);
+        
+        if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    setLat(position.coords.latitude);
+                    setLon(position.coords.longitude);
+                    setIsLocating(false);
+                    setStep(2);
+                },
+                (err) => {
+                    console.error("Location error:", err);
+                    setError("Failed to get location. Please enable GPS and try again.");
+                    setIsLocating(false);
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        } else {
+            setError("Geolocation is not supported by your browser.");
+            setIsLocating(false);
         }
     };
 
-    // ------ Photo upload + EXIF GPS extraction ------
-    const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!e.target.files || !e.target.files[0]) return;
-        const file = e.target.files[0];
-        setImageFile(file);
-        setImagePreview(URL.createObjectURL(file));
-        setExifFailed(false);
-
-        try {
-            // Extract GPS from EXIF metadata
-            const exifData = await exifr.gps(file);
-            if (exifData && exifData.latitude && exifData.longitude) {
-                // GPS found in photo — auto-fill location
-                validateLocation(exifData.latitude, exifData.longitude, "exif");
-            } else {
-                // No GPS in photo
-                setExifFailed(true);
-            }
-        } catch (err) {
-            console.error("EXIF extraction error:", err);
-            setExifFailed(true);
+    // Step 2: Handle Image Selection
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setImage(file);
+            const url = URL.createObjectURL(file);
+            setPreviewUrl(url);
+            setError(null);
         }
     };
 
-    // ------ W3C Geolocation API ------
-    const handleGPS = () => {
-        if (!navigator.geolocation) return;
-        setGpsLoading(true);
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                validateLocation(pos.coords.latitude, pos.coords.longitude, "gps");
-                setGpsLoading(false);
-            },
-            () => setGpsLoading(false),
-            { enableHighAccuracy: true }
-        );
-    };
-
-    // ------ Manual map pin ------
-    const handleLocationSelect = (lat: number, lon: number) => {
-        validateLocation(lat, lon, "manual");
-        setExifFailed(false);
-    };
-
-    // ------ Submit ------
+    // Step 3: Final Submission
     const handleSubmit = async () => {
-        if (!location || !imageFile) return;
+        if (!lat || !lon || !image) {
+            setError("Missing required data (Location or Image).");
+            return;
+        }
+
         setIsSubmitting(true);
-        setSubmitResult(null);
+        setError(null);
 
         const formData = new FormData();
-        formData.append("lat", location.lat.toString());
-        formData.append("lon", location.lon.toString());
-        formData.append("image", imageFile);
+        formData.append("lat", lat.toString());
+        formData.append("lon", lon.toString());
         if (notes) formData.append("notes", notes);
+        formData.append("image", image);
+
+        // Optional: Check if logged in to attach reporter_id
+        const storedUser = localStorage.getItem('ecowatch_user');
+        if (storedUser) {
+            try {
+                const parsed = JSON.parse(storedUser);
+                if (parsed.id) formData.append("reporter_id", parsed.id.toString());
+            } catch(e) {}
+        }
 
         try {
-            const res = await fetch(`${API_URL}/report/submit`, { method: "POST", body: formData });
+            const res = await fetch(`${API_URL}/report/submit`, {
+                method: "POST",
+                body: formData,
+            });
+
             const data = await res.json();
-            if (data.success) {
-                setSubmitResult({ success: true, message: `Success! Assigned to ${data.barangay_assigned}.` });
-                setLocation(null);
-                setBarangay(null);
-                setLocationSource(null);
-                setImageFile(null);
-                setImagePreview(null);
-                setNotes("");
-                setExifFailed(false);
+            
+            if (res.ok && data.success) {
+                // Success! Redirect to tracking page
+                router.push(data.tracking_url);
             } else {
-                setSubmitResult({ success: false, message: data.message || "AI Verification failed." });
+                // AI Rejected it or server error
+                setError(data.message || "Failed to submit report.");
             }
         } catch (err) {
-            console.error(err);
-            setSubmitResult({ success: false, message: "Network error connecting to AI Server." });
+            console.error("Submit error:", err);
+            setError("Network error. Could not connect to server.");
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    // ------ QR download/print ------
-    const getReportURL = () => {
-        const origin = typeof window !== "undefined" ? window.location.origin : "https://ecowatch-sjdm.vercel.app";
-        return `${origin}/report`;
-    };
-
-    const handleDownloadQR = () => {
-        if (!qrRef.current) return;
-        const svgElement = qrRef.current.querySelector("svg");
-        if (!svgElement) return;
-        const canvas = document.createElement("canvas");
-        canvas.width = 600;
-        canvas.height = 600;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-        const svgData = new XMLSerializer().serializeToString(svgElement);
-        const img = new Image();
-        img.onload = () => {
-            ctx.fillStyle = "white";
-            ctx.fillRect(0, 0, 600, 600);
-            ctx.drawImage(img, 50, 50, 500, 500);
-            const link = document.createElement("a");
-            link.download = "ecowatch-report-qr.png";
-            link.href = canvas.toDataURL("image/png");
-            link.click();
-        };
-        img.src = "data:image/svg+xml;base64," + btoa(svgData);
-    };
-
-    const handlePrintQR = () => {
-        if (!qrRef.current) return;
-        const svgElement = qrRef.current.querySelector("svg");
-        if (!svgElement) return;
-        const svgData = new XMLSerializer().serializeToString(svgElement);
-        const svgBlob = new Blob([svgData], { type: "image/svg+xml" });
-        const svgUrl = URL.createObjectURL(svgBlob);
-        const printWindow = window.open("", "_blank");
-        if (!printWindow) return;
-        printWindow.document.write(`<!DOCTYPE html><html><head><title>EcoWatch QR</title>
-            <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Inter',system-ui,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;background:white}
-            .card{text-align:center;padding:40px;border:3px solid #10b981;border-radius:20px;max-width:400px}
-            .qr{margin:24px 0}.title{font-size:24px;font-weight:800;color:#065f46}
-            .subtitle{font-size:11px;color:#6b7280;margin-top:4px;text-transform:uppercase;letter-spacing:2px;font-weight:700}
-            .instruction{font-size:12px;color:#4b5563;margin-top:16px;padding:12px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0}
-            @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head>
-            <body><div class="card"><div class="title">🌿 EcoWatch SJDM</div>
-            <div class="subtitle">Scan to Report Illegal Dumping</div>
-            <div class="qr"><img src="${svgUrl}" width="250" height="250"/></div>
-            <div class="instruction">📱 Scan this QR code with your phone camera to report waterway pollution in San Jose del Monte.</div>
-            </div></body></html>`);
-        printWindow.document.close();
-        setTimeout(() => printWindow.print(), 500);
-    };
-
-    const sourceLabel = {
-        exif: "Detected from Photo GPS",
-        gps: "W3C Geolocation API",
-        manual: "Manually Pinned",
-    };
-
     return (
-        <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6 md:space-y-8">
-            {/* Header */}
-            <div className="text-center space-y-2">
-                <h1 className="text-3xl md:text-4xl font-extrabold text-gradient">Report an Issue</h1>
-                <p className="text-foreground/60">Upload a photo of the violation. We'll auto-detect the location from it.</p>
+        <div className="min-h-screen bg-[#0a0f0a] pt-24 pb-12 px-4 flex flex-col items-center">
+            
+            <div className="w-full max-w-lg mb-8 flex items-center justify-between">
+                <Link href="/" className="text-white hover:text-primary transition-colors flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                    Back
+                </Link>
+                <div className="flex items-center gap-2">
+                    <div className={`w-3 h-3 rounded-full ${step >= 1 ? 'bg-primary' : 'bg-white/20 shadow-inner border border-white/5'}`} />
+                    <div className="w-8 h-0.5 bg-white/10" />
+                    <div className={`w-3 h-3 rounded-full ${step >= 2 ? 'bg-primary' : 'bg-white/20 shadow-inner border border-white/5'}`} />
+                    <div className="w-8 h-0.5 bg-white/10" />
+                    <div className={`w-3 h-3 rounded-full ${step >= 3 ? 'bg-primary' : 'bg-white/20 shadow-inner border border-white/5'}`} />
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Left: Photo + Map */}
-                <div className="lg:col-span-2 space-y-4">
+            <div className="w-full max-w-lg glass p-6 md:p-8 rounded-3xl border border-white/10 shadow-2xl relative overflow-hidden">
+                
+                {error && (
+                    <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-3">
+                        <svg className="text-red-500 shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        <p className="text-sm font-medium text-red-400">{error}</p>
+                    </div>
+                )}
 
-                    {/* Step 1: Photo Upload (Primary Action) */}
-                    <div className="glass p-6 rounded-xl space-y-4 border border-primary/10">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <span className="w-7 h-7 rounded-lg eco-gradient flex items-center justify-center text-white text-xs font-bold shadow shadow-primary/20">1</span>
-                                <h3 className="text-sm font-bold">Upload Evidence Photo</h3>
-                            </div>
-                            {imageFile && location && locationSource === "exif" && (
-                                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-primary/10 text-primary border border-primary/20 animate-in fade-in duration-300">
-                                    📍 GPS Auto-Detected
-                                </span>
-                            )}
+                {/* STEP 1: LOCATION */}
+                {step === 1 && (
+                    <div className="animate-in slide-in-from-right-8 duration-300">
+                        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-6 shadow-lg shadow-primary/20">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                         </div>
+                        <h2 className="text-3xl font-black text-white mb-2">Pinpoint Location</h2>
+                        <p className="text-foreground/60 font-medium mb-8">
+                            We need your GPS coordinates to assign the cleanup team to the correct barangay.
+                        </p>
 
-                        <label className="w-full h-44 bg-white/5 rounded-xl border-2 border-dashed border-primary/20 flex flex-col items-center justify-center text-foreground/40 hover:bg-white/10 hover:border-primary/40 transition-all cursor-pointer group relative overflow-hidden">
-                            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageChange} />
-                            {imagePreview ? (
-                                <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                        <button 
+                            onClick={handleGetLocation}
+                            disabled={isLocating}
+                            className="w-full py-4 eco-gradient text-white rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70 disabled:hover:scale-100"
+                        >
+                            {isLocating ? (
+                                <>
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    Acquiring GPS...
+                                </>
                             ) : (
                                 <>
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mb-2 group-hover:text-primary transition-colors"><rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" /></svg>
-                                    <p className="text-sm font-semibold group-hover:text-primary transition-colors">Tap to take a photo or upload</p>
-                                    <p className="text-[10px] text-foreground/30 mt-1">GPS location will be read from the image automatically</p>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+                                    Use My Current Location
                                 </>
                             )}
-                        </label>
-
-                        {/* EXIF Failed Warning — prompt for manual pin */}
-                        {exifFailed && !location && (
-                            <div className="p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-sm flex items-start gap-3 animate-in slide-in-from-top-2 duration-300">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                                <div>
-                                    <p className="font-bold">Couldn't detect location from photo</p>
-                                    <p className="text-xs text-yellow-400/70 mt-0.5">Your photo doesn't have GPS data. Please pin the location on the map below or use the GPS button.</p>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Step 2: Location (auto-filled or manual) */}
-                    <div className="glass p-6 rounded-xl space-y-4 border border-white/5">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shadow shadow-primary/20 ${location ? "eco-gradient text-white" : "bg-white/10 text-foreground/40"}`}>2</span>
-                                <h3 className="text-sm font-bold">{location ? "Location Confirmed" : "Confirm Location"}</h3>
-                            </div>
-                            {location && locationSource && (
-                                <span className="text-[10px] text-foreground/30 font-medium">
-                                    {sourceLabel[locationSource]}
-                                </span>
-                            )}
-                        </div>
-
-                        {/* GPS Button */}
-                        <button
-                            onClick={handleGPS}
-                            disabled={gpsLoading}
-                            className="w-full flex items-center justify-center gap-2 py-3 bg-white/5 border border-white/10 text-primary rounded-xl text-sm font-bold hover:bg-primary/10 active:scale-95 transition-all disabled:opacity-50"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /><circle cx="12" cy="12" r="10" /></svg>
-                            {gpsLoading ? "Detecting your location..." : "📡  Use My Current GPS Location"}
                         </button>
-
-                        <div className="flex items-center gap-3 text-[10px] text-foreground/20 uppercase font-bold tracking-widest">
-                            <div className="flex-1 h-px bg-white/5" />
-                            or pin on map
-                            <div className="flex-1 h-px bg-white/5" />
-                        </div>
-
-                        {/* Map */}
-                        <SJDMMap height="400px" onLocationSelect={handleLocationSelect} />
                     </div>
-                </div>
+                )}
 
-                {/* Right: Location info + form controls */}
-                <div className="space-y-6">
-                    {/* Location Card */}
-                    <div className="glass p-6 space-y-6 border-primary/10">
-                        <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                            <label className="text-xs font-bold uppercase tracking-wider text-primary/80">Detected Location</label>
-                            {location ? (
-                                <div className="mt-2 text-sm font-medium">
-                                    <p className="text-foreground text-lg font-bold">{barangay || "Verifying Barangay..."}</p>
-                                    <p className="text-foreground/40 text-xs mt-1">{location.lat.toFixed(6)}, {location.lon.toFixed(6)}</p>
-                                    {locationSource && (
-                                        <span className={`inline-block mt-2 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest border ${
-                                            locationSource === "exif"
-                                                ? "bg-primary/10 text-primary border-primary/20"
-                                                : locationSource === "gps"
-                                                ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                                                : "bg-white/10 text-foreground/50 border-white/10"
-                                        }`}>
-                                            {locationSource === "exif" ? "📷 from photo" : locationSource === "gps" ? "📡 from gps" : "📌 pinned"}
-                                        </span>
-                                    )}
-                                </div>
+                {/* STEP 2: CAMERA */}
+                {step === 2 && (
+                    <div className="animate-in slide-in-from-right-8 duration-300">
+                        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-6 shadow-lg shadow-primary/20">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                        </div>
+                        <h2 className="text-3xl font-black text-white mb-2">Capture Evidence</h2>
+                        <p className="text-foreground/60 font-medium mb-8">
+                            Take a clear photo of the illegal waste. Our AI will verify the image before submission.
+                        </p>
+
+                        <div className="mb-8 relative group cursor-pointer h-64 rounded-2xl border-2 border-dashed border-white/20 hover:border-primary/50 transition-colors overflow-hidden bg-black/50 flex flex-col items-center justify-center">
+                            <input 
+                                type="file" 
+                                accept="image/*" 
+                                capture="environment"
+                                onChange={handleImageChange}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+                            />
+                            
+                            {previewUrl ? (
+                                <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
                             ) : (
-                                <p className="mt-2 text-sm text-foreground/30 italic">Upload a photo to auto-detect, or pin on the map</p>
+                                <>
+                                    <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors text-white/50 group-hover:text-primary">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                    </div>
+                                    <p className="text-sm font-bold text-white/50 group-hover:text-primary transition-colors">Tap to open Camera / Gallery</p>
+                                </>
                             )}
                         </div>
 
-                        {/* Notes */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-semibold">Additional Notes (Optional)</label>
-                            <textarea
-                                className="w-full bg-white/5 rounded-xl border border-primary/20 p-3 text-sm focus:outline-none focus:border-primary/50 text-foreground"
-                                rows={2}
-                                placeholder="Describe the issue..."
-                                value={notes}
-                                onChange={(e) => setNotes(e.target.value)}
-                            ></textarea>
-                        </div>
-
-                        {/* Submit Result */}
-                        {submitResult && (
-                            <div className={`p-3 rounded-xl text-sm font-semibold ${submitResult.success ? "bg-primary/20 text-primary border border-primary/30" : "bg-red-500/20 text-red-500 border border-red-500/30"}`}>
-                                {submitResult.message}
-                            </div>
-                        )}
-
-                        {/* Submit Button */}
-                        <button
-                            disabled={!location || !imageFile || isSubmitting}
-                            type="button"
-                            onClick={handleSubmit}
-                            className="w-full py-4 eco-gradient text-white rounded-xl text-lg font-bold shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
-                        >
-                            {isSubmitting ? (
-                                <><svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Analyzing Image...</>
-                            ) : "Submit Report"}
-                        </button>
-                    </div>
-
-                    {/* QR Share Card */}
-                    <div className="glass p-5 rounded-xl border border-white/10 space-y-3">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-sm font-bold">Share EcoWatch</h3>
-                            <button
-                                onClick={() => setShowQR(!showQR)}
-                                className="text-[10px] text-primary font-bold uppercase tracking-widest hover:text-primary/80 transition-colors"
+                        <div className="flex gap-4">
+                            <button 
+                                onClick={() => setStep(1)}
+                                className="flex-1 py-4 glass border border-white/10 text-white rounded-2xl font-bold hover:bg-white/5 transition-colors"
                             >
-                                {showQR ? "Hide QR" : "Show QR"}
+                                Back
+                            </button>
+                            <button 
+                                onClick={() => setStep(3)}
+                                disabled={!image}
+                                className="flex-1 py-4 eco-gradient text-white rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:shadow-none"
+                            >
+                                Continue
                             </button>
                         </div>
-                        <p className="text-xs text-foreground/40">
-                            Print this QR code and post it around your area. Anyone can scan it to quickly report illegal dumping.
+                    </div>
+                )}
+
+                {/* STEP 3: REVIEW & SUBMIT */}
+                {step === 3 && (
+                    <div className="animate-in slide-in-from-right-8 duration-300">
+                        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-6 shadow-lg shadow-primary/20">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        </div>
+                        <h2 className="text-3xl font-black text-white mb-2">Final Details</h2>
+                        <p className="text-foreground/60 font-medium mb-8">
+                            Add any helpful notes for the barangay cleanup crew (optional).
                         </p>
 
-                        {showQR && (
-                            <div className="space-y-4 animate-in slide-in-from-top-2 fade-in duration-300">
-                                <div ref={qrRef} className="bg-white p-4 rounded-xl flex items-center justify-center mx-auto" style={{ width: "fit-content" }}>
-                                    <QRCodeSVG
-                                        value={getReportURL()}
-                                        size={180}
-                                        bgColor="#ffffff"
-                                        fgColor="#065f46"
-                                        level="H"
-                                        includeMargin={false}
-                                    />
+                        <div className="mb-8">
+                            <div className="flex gap-4 mb-6">
+                                <div className="w-24 h-24 rounded-xl overflow-hidden shrink-0 border border-white/10">
+                                    <img src={previewUrl!} alt="Preview" className="w-full h-full object-cover" />
                                 </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <button
-                                        onClick={handleDownloadQR}
-                                        className="py-2.5 rounded-xl border border-primary/20 text-primary text-xs font-bold hover:bg-primary/10 transition-colors active:scale-95 flex items-center justify-center gap-1.5"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                                        Save PNG
-                                    </button>
-                                    <button
-                                        onClick={handlePrintQR}
-                                        className="py-2.5 eco-gradient text-white rounded-xl text-xs font-bold shadow shadow-primary/20 hover:shadow-primary/40 transition-all active:scale-95 flex items-center justify-center gap-1.5"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                                        Print
-                                    </button>
+                                <div className="flex-1 h-24 rounded-xl overflow-hidden border border-white/10 relative bg-black/50">
+                                    <MiniMap lat={lat!} lon={lon!} />
+                                    <div className="absolute inset-0 bg-black/20 pointer-events-none shadow-inner rounded-xl" />
                                 </div>
                             </div>
-                        )}
-                    </div>
 
-                    {/* Info Note */}
-                    <div className="p-4 glass border-yellow-500/20 bg-yellow-500/5 rounded-xl">
-                        <p className="text-[10px] leading-tight text-white/60">
-                            <span className="font-bold text-yellow-500">NOTE:</span> All reports are verified using Mask R-CNN AI. False reports may lead to penalties.
-                        </p>
+                            <label className="block text-xs font-bold text-white/50 mb-2 uppercase tracking-wider">Additional Notes</label>
+                            <textarea 
+                                value={notes}
+                                onChange={(e) => setNotes(e.target.value)}
+                                placeholder="e.g. It's behind the old church, next to the bridge..."
+                                className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50 transition-colors resize-none h-32"
+                            />
+                        </div>
+
+                        <div className="flex gap-4">
+                            <button 
+                                onClick={() => setStep(2)}
+                                disabled={isSubmitting}
+                                className="flex-1 py-4 glass border border-white/10 text-white rounded-2xl font-bold hover:bg-white/5 transition-colors disabled:opacity-50"
+                            >
+                                Back
+                            </button>
+                            <button 
+                                onClick={handleSubmit}
+                                disabled={isSubmitting}
+                                className="flex-[2] py-4 eco-gradient text-white rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:hover:scale-100"
+                            >
+                                {isSubmitting ? (
+                                    <>
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        Running AI...
+                                    </>
+                                ) : (
+                                    <>
+                                        Submit Report
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                                    </>
+                                )}
+                            </button>
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     );
