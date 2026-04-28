@@ -6,4 +6,5 @@ scikit-learn
 shapely
 geopandas
 python-multipart
+bcrypt
 # Add pydantic if needed, but fastapi installs it
