@@ -197,7 +197,7 @@ export default function CenroDashboard() {
 
                 {activeTab === 'command_center' && (
                     /* COMMAND CENTER TAB (Variant A) */
-                    <div className="flex-1 flex flex-col gap-6 min-h-0 overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="flex-1 flex flex-col gap-6 min-h-0 overflow-y-auto scrollbar-hide pb-8">
                         
                         {/* Top Stats Bar */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
@@ -225,31 +225,31 @@ export default function CenroDashboard() {
                             {/* Left: Charts */}
                             <div className="lg:col-span-1 flex flex-col gap-6 min-h-0">
                                 <div className="flex-1 glass p-6 rounded-3xl border border-white/10 flex flex-col min-h-0">
-                                    <h3 className="text-xs font-bold text-white/50 uppercase tracking-widest mb-4 shrink-0">Status Breakdown</h3>
-                                    <div className="flex-1 relative min-h-[150px]">
+                                    <h3 className="text-xs font-bold text-white/50 uppercase tracking-widest mb-2 shrink-0">Status Breakdown</h3>
+                                    <div className="flex-1 relative min-h-[120px]">
                                         <ResponsiveContainer width="100%" height="100%">
                                             <PieChart>
-                                                <Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={80} paddingAngle={5} dataKey="value">
+                                                <Pie data={pieData} cx="50%" cy="50%" innerRadius={35} outerRadius={65} paddingAngle={5} dataKey="value">
                                                     {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                                                 </Pie>
                                                 <Tooltip contentStyle={{ backgroundColor: '#0a0f0a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }} />
                                             </PieChart>
                                         </ResponsiveContainer>
                                     </div>
-                                    <div className="flex flex-wrap justify-center gap-4 mt-2 shrink-0">
+                                    <div className="flex flex-wrap justify-center gap-3 mt-2 shrink-0">
                                         {pieData.map(d => (
-                                            <div key={d.name} className="flex items-center gap-2 text-xs text-white/80"><div className="w-3 h-3 rounded-full" style={{backgroundColor: d.color}}></div>{d.name}</div>
+                                            <div key={d.name} className="flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider text-white/80"><div className="w-2.5 h-2.5 rounded-full" style={{backgroundColor: d.color}}></div>{d.name}</div>
                                         ))}
                                     </div>
                                 </div>
                                 <div className="flex-1 glass p-6 rounded-3xl border border-white/10 flex flex-col min-h-0">
                                     <h3 className="text-xs font-bold text-white/50 uppercase tracking-widest mb-4 shrink-0">Trend (Last 14 Days)</h3>
-                                    <div className="flex-1 relative min-h-[150px]">
+                                    <div className="flex-1 relative min-h-[120px]">
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <LineChart data={lineData}>
+                                            <LineChart data={lineData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                                                 <XAxis dataKey="date" stroke="rgba(255,255,255,0.2)" fontSize={10} tickMargin={10} />
                                                 <Tooltip contentStyle={{ backgroundColor: '#0a0f0a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }} />
-                                                <Line type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6' }} />
+                                                <Line type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#0a0f0a' }} />
                                             </LineChart>
                                         </ResponsiveContainer>
                                     </div>
@@ -266,16 +266,16 @@ export default function CenroDashboard() {
                             <div className="lg:col-span-1 flex flex-col gap-6 min-h-0">
                                 <div className="flex-1 glass p-6 rounded-3xl border border-white/10 flex flex-col min-h-0">
                                     <h3 className="text-xs font-bold text-white/50 uppercase tracking-widest mb-4 shrink-0">Barangay Leaderboard</h3>
-                                    <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar">
+                                    <div className="flex-1 overflow-y-auto pr-2 space-y-3 scrollbar-hide">
                                         {barangayStats.map((b, i) => (
-                                            <div key={b.name} className="flex items-center justify-between p-2 rounded-lg bg-white/5">
+                                            <div key={b.name} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-6 h-6 rounded bg-black/50 flex items-center justify-center text-[10px] font-bold text-white/50">{i + 1}</div>
                                                     <div className="text-sm font-bold text-white">{b.name}</div>
                                                 </div>
                                                 <div className="text-right">
                                                     <div className="text-sm font-black text-green-400">{b.rate.toFixed(0)}%</div>
-                                                    <div className="text-[10px] text-white/40">{b.resolved}/{b.total} done</div>
+                                                    <div className="text-[10px] text-white/40 uppercase tracking-widest">{b.resolved}/{b.total} done</div>
                                                 </div>
                                             </div>
                                         ))}
@@ -283,12 +283,12 @@ export default function CenroDashboard() {
                                 </div>
                                 <div className="flex-1 glass p-6 rounded-3xl border border-white/10 flex flex-col min-h-0">
                                     <h3 className="text-xs font-bold text-white/50 uppercase tracking-widest mb-4 shrink-0">Recent Activity</h3>
-                                    <div className="flex-1 overflow-y-auto pr-2 space-y-4 custom-scrollbar">
+                                    <div className="flex-1 overflow-y-auto pr-2 space-y-4 scrollbar-hide">
                                         {recentFeed.map(r => (
                                             <div key={r.id} className="relative pl-4 border-l border-white/10">
-                                                <div className="absolute w-2 h-2 rounded-full bg-blue-500 -left-[5px] top-1.5"></div>
+                                                <div className="absolute w-2 h-2 rounded-full bg-blue-500 -left-[4px] top-1.5 shadow-[0_0_10px_rgba(59,130,246,0.8)]"></div>
                                                 <div className="text-xs font-bold text-white mb-0.5">Report {r.tracking_id}</div>
-                                                <div className="text-[10px] text-white/60 mb-1">{r.barangay} • {new Date(r.created_at).toLocaleString()}</div>
+                                                <div className="text-[10px] text-white/60 mb-2">{r.barangay} • {new Date(r.created_at).toLocaleString()}</div>
                                                 <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${r.status === 'resolved' ? 'bg-green-500/20 text-green-400' : r.status === 'deployed' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'}`}>{r.status}</span>
                                             </div>
                                         ))}
@@ -359,7 +359,9 @@ export default function CenroDashboard() {
                             />
                         </div>
                     </div>
-                ) : (
+                )}
+
+                {activeTab === 'oversight' && (
                     /* OVERSIGHT QUEUE TAB */
                     <div className="flex-1 glass rounded-3xl border border-white/10 flex flex-col min-h-0 shadow-2xl">
                         <div className="p-6 border-b border-white/10 shrink-0">
