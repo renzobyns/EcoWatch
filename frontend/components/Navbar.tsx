@@ -23,7 +23,6 @@ export default function Navbar() {
     }, []);
 
     const publicLinks = [
-        { href: "/", label: "Landing" },
         { href: "/report", label: "Report Issue" },
     ];
 
