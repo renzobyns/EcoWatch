@@ -2,6 +2,42 @@
 
 All notable changes to the EcoWatch SJDM project will be documented in this file.
 
+## [Phase 6: Final Polish & Optimization] - 2026-04-29
+
+### Added
+- **Dynamic Loading States**: Implemented high-aesthetic pulsating logo skeleton screens for all portal transitions.
+  - *Reason*: To improve UX by providing visual feedback during data fetching and auth checks.
+- **Empty State Illustrations**: Added descriptive "No reports found" messages for all table views.
+  - *Reason*: To prevent UI confusion when no data is available in specific filters.
+- **Unified Branding**: Enforced Emerald/Primary color palette across all dashboards and navbar links.
+  - *Reason*: To maintain professional "Eco-Government" brand consistency.
+
+### Fixed
+- **Chart Layouts**: Adjusted Pie and Line chart radius and margins to prevent clipping on small screens.
+- **Scrollbar Clipping**: Implemented `scrollbar-hide` utility to clean up the dashboard layout while maintaining functionality.
+
+## [Phase 5: CENRO Dashboard] - 2026-04-28
+
+### Added
+- **Command Center Dashboard**: Dense analytical hub with city-wide KPIs and Recharts visualization.
+  - *Reason*: For strategic oversight of city-wide environmental status.
+- **DBSCAN Hotspot Intelligence**: Dynamic list of high-density report clusters calculated in the backend.
+  - *Reason*: To allow CENRO to prioritize resources for major dumping zones.
+- **Barangay Performance Leaderboard**: Ranking system based on resolution rates and active caseload.
+  - *Reason*: To hold barangay officials accountable for their jurisdiction.
+- **Administrative Overrides**: Ability for CENRO to reassign reports or force-close tickets bypassing AI.
+  - *Reason*: To handle edge cases or incorrect jurisdictional assignments.
+
+## [Phase 4: Barangay Portal] - 2026-04-20
+
+### Added
+- **Jurisdictional Management**: Secure portal for barangay officials showing only reports in their area.
+  - *Reason*: To decentralize task management and empower local officials.
+- **Cleanup Verification Workflow**: Photo upload system with AI re-verification for resolving reports.
+  - *Reason*: To ensure waste is actually removed before a ticket is closed.
+- **Split-Screen Layout**: 60/40 design combining a detailed report queue with a jurisdictional map.
+  - *Reason*: For efficient task management and spatial orientation for field teams.
+
 ## [Phase 3: Database & Authentication] - 2026-03-08
 
 ### Added

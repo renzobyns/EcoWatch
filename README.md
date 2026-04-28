@@ -39,7 +39,14 @@ EcoWatch is a specialized geospatial reporting and environmental monitoring syst
 2. `python -m venv venv`
 3. `.\venv\Scripts\activate` (Windows)
 4. `pip install -r requirements.txt`
-5. `uvicorn main:app --reload`
+5. `python seed_test_data.py` (Optional: Seeds the DB with test users/reports)
+6. `uvicorn main:app --reload`
+
+## 🔑 Test Accounts
+For local testing, the following pre-seeded accounts are available:
+- **Citizen**: `citizen@test.com` | `password123`
+- **Barangay Admin**: `barangay@test.com` | `password123` (Assigned: Muzon)
+- **CENRO Official**: `cenro@test.com` | `password123`
 
 ## 📝 License
 Capstone Project - 3rd Year 2nd Sem
