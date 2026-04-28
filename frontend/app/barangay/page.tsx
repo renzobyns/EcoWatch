@@ -6,6 +6,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
+const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 export default function BarangayPortal() {
@@ -14,7 +15,7 @@ export default function BarangayPortal() {
     const [reports, setReports] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedReport, setSelectedReport] = useState<any>(null);
-    const [filter, setFilter] = useState<'active' | 'resolved'>('active');
+    const [filter, setFilter] = useState<'pending' | 'deployed' | 'resolved'>('pending');
 
     // Action States
     const [actionLoading, setActionLoading] = useState(false);
@@ -118,65 +119,76 @@ export default function BarangayPortal() {
         return <div className="min-h-screen bg-[#0a0f0a] flex items-center justify-center text-white font-bold">Loading Portal...</div>;
     }
 
-    const activeReports = reports.filter(r => r.status !== 'resolved');
-    const resolvedReports = reports.filter(r => r.status === 'resolved');
-    const displayReports = filter === 'active' ? activeReports : resolvedReports;
+    const displayReports = reports.filter(r => {
+        if (filter === 'pending') return r.status === 'pending' || r.status === 'verified';
+        if (filter === 'deployed') return r.status === 'deployed' || r.status === 'failed_cleanup';
+        return r.status === 'resolved';
+    });
 
     const stats = {
         pending: reports.filter(r => r.status === 'pending' || r.status === 'verified').length,
         deployed: reports.filter(r => r.status === 'deployed' || r.status === 'failed_cleanup').length,
-        resolved: resolvedReports.length
+        resolved: reports.filter(r => r.status === 'resolved').length
     };
 
     return (
         <div className="min-h-screen bg-[#0a0f0a] pt-24 pb-12 px-4 md:px-8">
-            <div className="max-w-7xl mx-auto">
+            <div className="max-w-[1600px] mx-auto h-[calc(100vh-8rem)] flex flex-col">
                 
                 {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 shrink-0">
                     <div>
                         <h1 className="text-3xl font-black text-white mb-1">Barangay Dashboard</h1>
                         <p className="text-emerald-400 font-bold uppercase tracking-widest">{user.barangay_assignment}</p>
                     </div>
                 </div>
 
-                {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                    <div className="glass p-6 rounded-2xl border border-white/5">
-                        <div className="text-sm font-bold text-white/50 uppercase tracking-widest mb-2">New / Pending</div>
-                        <div className="text-4xl font-black text-red-400">{stats.pending}</div>
-                    </div>
-                    <div className="glass p-6 rounded-2xl border border-white/5">
-                        <div className="text-sm font-bold text-white/50 uppercase tracking-widest mb-2">Deployed Teams</div>
-                        <div className="text-4xl font-black text-yellow-400">{stats.deployed}</div>
-                    </div>
-                    <div className="glass p-6 rounded-2xl border border-white/5">
-                        <div className="text-sm font-bold text-white/50 uppercase tracking-widest mb-2">Resolved Issues</div>
-                        <div className="text-4xl font-black text-green-400">{stats.resolved}</div>
-                    </div>
-                </div>
-
-                {/* Main Content */}
-                <div className="glass rounded-3xl border border-white/10 overflow-hidden shadow-2xl">
+                {/* Main Content Split: 60/40 */}
+                <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
                     
-                    {/* Tabs */}
-                    <div className="flex border-b border-white/10">
-                        <button 
-                            onClick={() => setFilter('active')}
-                            className={`flex-1 py-4 text-sm font-bold uppercase tracking-widest transition-colors ${filter === 'active' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-white/50 hover:bg-white/5 hover:text-white'}`}
-                        >
-                            Active Reports
-                        </button>
-                        <button 
-                            onClick={() => setFilter('resolved')}
-                            className={`flex-1 py-4 text-sm font-bold uppercase tracking-widest transition-colors ${filter === 'resolved' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-white/50 hover:bg-white/5 hover:text-white'}`}
-                        >
-                            Resolved
-                        </button>
-                    </div>
+                    {/* Left: Report Queue (60%) */}
+                    <div className="flex-[3] flex flex-col gap-4 min-h-0">
+                        {/* Stats Cards */}
+                        <div className="grid grid-cols-3 gap-4 shrink-0">
+                            <div className="glass p-4 rounded-2xl border border-white/5">
+                                <div className="text-[10px] font-bold text-white/50 uppercase tracking-widest mb-1">Pending</div>
+                                <div className="text-3xl font-black text-red-400">{stats.pending}</div>
+                            </div>
+                            <div className="glass p-4 rounded-2xl border border-white/5">
+                                <div className="text-[10px] font-bold text-white/50 uppercase tracking-widest mb-1">Deployed</div>
+                                <div className="text-3xl font-black text-yellow-400">{stats.deployed}</div>
+                            </div>
+                            <div className="glass p-4 rounded-2xl border border-white/5">
+                                <div className="text-[10px] font-bold text-white/50 uppercase tracking-widest mb-1">Resolved</div>
+                                <div className="text-3xl font-black text-green-400">{stats.resolved}</div>
+                            </div>
+                        </div>
 
-                    {/* Table/List */}
-                    <div className="overflow-x-auto">
+                        <div className="glass rounded-3xl border border-white/10 flex flex-col flex-1 min-h-0 shadow-2xl">
+                            {/* Tabs */}
+                            <div className="flex border-b border-white/10 shrink-0">
+                                <button 
+                                    onClick={() => setFilter('pending')}
+                                    className={`flex-1 py-4 text-xs font-bold uppercase tracking-widest transition-colors ${filter === 'pending' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-white/50 hover:bg-white/5 hover:text-white'}`}
+                                >
+                                    Pending
+                                </button>
+                                <button 
+                                    onClick={() => setFilter('deployed')}
+                                    className={`flex-1 py-4 text-xs font-bold uppercase tracking-widest transition-colors ${filter === 'deployed' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-white/50 hover:bg-white/5 hover:text-white'}`}
+                                >
+                                    Deployed
+                                </button>
+                                <button 
+                                    onClick={() => setFilter('resolved')}
+                                    className={`flex-1 py-4 text-xs font-bold uppercase tracking-widest transition-colors ${filter === 'resolved' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-white/50 hover:bg-white/5 hover:text-white'}`}
+                                >
+                                    Done
+                                </button>
+                            </div>
+
+                            {/* Table Container */}
+                            <div className="flex-1 overflow-y-auto">
                         {displayReports.length === 0 ? (
                             <div className="p-12 text-center text-white/50 font-bold">No reports found in this category.</div>
                         ) : (
@@ -220,7 +232,7 @@ export default function BarangayPortal() {
                                                     }}
                                                     className="px-4 py-2 glass border border-white/10 text-white text-xs font-bold rounded-lg hover:bg-white/10 transition-colors"
                                                 >
-                                                    View Details
+                                                    Manage
                                                 </button>
                                             </td>
                                         </tr>
@@ -228,6 +240,21 @@ export default function BarangayPortal() {
                                 </tbody>
                             </table>
                         )}
+                        </div>
+                    </div>
+
+                    {/* Right: Map View (40%) */}
+                    <div className="flex-[2] glass rounded-3xl border border-white/10 overflow-hidden shadow-2xl relative min-h-[400px]">
+                        <div className="absolute top-4 left-4 z-[1000] glass px-3 py-1.5 rounded-full text-xs font-bold text-white border border-white/20 shadow-lg pointer-events-none">
+                            Assigned Locations
+                        </div>
+                        <MapComponent 
+                            height="100%" 
+                            reports={reports} 
+                            heatmaps={[]}
+                            focusedBarangay={user.barangay_assignment}
+                            onBarangayClick={() => {}}
+                        />
                     </div>
                 </div>
             </div>
