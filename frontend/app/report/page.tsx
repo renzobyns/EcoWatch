@@ -34,28 +34,50 @@ export default function ReportPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Step 1: Get GPS Location
+    // Step 1: Get GPS Location with Robust Error Handling
     const handleGetLocation = () => {
         setIsLocating(true);
         setError(null);
         
-        if ("geolocation" in navigator) {
+        try {
+            if (!navigator.geolocation) {
+                throw new Error("Your browser does not support Geolocation.");
+            }
+
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     setLat(position.coords.latitude);
                     setLon(position.coords.longitude);
                     setIsLocating(false);
-                    // Don't auto-advance to step 2, let them adjust the pin if needed
                 },
                 (err) => {
-                    console.error("Location error:", err);
-                    setError("Failed to get location. Please enable GPS and try again.");
                     setIsLocating(false);
+                    let userFriendlyError = "Unable to get your location.";
+                    
+                    switch (err.code) {
+                        case err.PERMISSION_DENIED:
+                            userFriendlyError = "Permission denied. Please allow location access in your browser settings.";
+                            break;
+                        case err.POSITION_UNAVAILABLE:
+                            userFriendlyError = "Location information is unavailable. Try moving to an open area.";
+                            break;
+                        case err.TIMEOUT:
+                            userFriendlyError = "Location request timed out. You can manually drag the pin instead.";
+                            break;
+                    }
+                    
+                    console.error("GPS Error:", err);
+                    setError(userFriendlyError);
                 },
-                { enableHighAccuracy: true, timeout: 10000 }
+                { 
+                    enableHighAccuracy: true, 
+                    timeout: 15000, 
+                    maximumAge: 0 
+                }
             );
-        } else {
-            setError("Geolocation is not supported by your browser.");
+        } catch (err: any) {
+            console.error("Location Logic Failure:", err);
+            setError(err.message || "An unexpected error occurred while accessing GPS.");
             setIsLocating(false);
         }
     };
@@ -155,14 +177,14 @@ export default function ReportPage() {
                             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                         </div>
                         <h2 className="text-3xl font-black text-white mb-2">Pinpoint Location</h2>
-                        <p className="text-foreground/60 font-medium mb-6">
-                            We need your GPS coordinates to assign the cleanup team to the correct barangay. Drag the pin to adjust.
+                        <p className="text-sm text-white/50 font-medium mb-6">
+                            We use your coordinates to route the report to the correct <span className="text-primary">Barangay Hall</span> automatically.
                         </p>
 
-                        <div className="h-64 mb-6">
+                        <div className="h-[400px] mb-6 rounded-2xl overflow-hidden border border-white/10 shadow-inner">
                             <LocationPickerMap 
-                                initialLat={lat || 14.82} 
-                                initialLon={lon || 121.05} 
+                                initialLat={lat} 
+                                initialLon={lon} 
                                 onLocationChange={(newLat, newLon) => {
                                     setLat(newLat);
                                     setLon(newLon);
@@ -170,25 +192,25 @@ export default function ReportPage() {
                             />
                         </div>
 
-                        <div className="flex gap-4">
+                        <div className="flex flex-col sm:flex-row gap-3">
                             <button 
                                 onClick={handleGetLocation}
                                 disabled={isLocating}
-                                className="flex-1 py-4 glass text-white rounded-2xl font-bold hover:bg-white/5 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:hover:scale-100"
+                                className="flex-1 py-4 glass text-white rounded-2xl font-bold hover:bg-white/10 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70 disabled:hover:scale-100 group"
                             >
                                 {isLocating ? (
                                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                 ) : (
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="group-hover:text-primary transition-colors"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3m10-10h-3M5 12H2"/></svg>
                                 )}
-                                Auto-Locate
+                                {isLocating ? "Locating..." : "Use my location"}
                             </button>
                             <button 
                                 onClick={() => setStep(2)}
                                 disabled={!lat || !lon}
                                 className="flex-1 py-4 eco-gradient text-white rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:shadow-none"
                             >
-                                Confirm Location
+                                Confirm & Continue
                             </button>
                         </div>
                     </div>
