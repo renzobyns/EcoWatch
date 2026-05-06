@@ -45,6 +45,7 @@ class Report(Base):
 
     # Image evidence
     image_url = Column(String, nullable=True)  # Path to uploaded photo
+    ai_mask_url = Column(String, nullable=True)  # Path to AI detection overlay image
     cleanup_image_url = Column(String, nullable=True)  # Path to cleanup verification photo
     ai_confidence = Column(Float, nullable=True)  # Mask R-CNN score (0.0 to 1.0)
 

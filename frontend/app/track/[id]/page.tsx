@@ -17,6 +17,7 @@ export default function TrackReportPage() {
     const [report, setReport] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [showAiMask, setShowAiMask] = useState(false);
 
     useEffect(() => {
         const fetchReport = async () => {
@@ -153,10 +154,27 @@ export default function TrackReportPage() {
                     {/* Report Details */}
                     <div className="p-6 md:p-8 grid md:grid-cols-2 gap-8">
                         <div>
-                            <h3 className="text-sm font-bold text-white/50 uppercase tracking-widest mb-4">Evidence Photo</h3>
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-sm font-bold text-white/50 uppercase tracking-widest">Evidence Photo</h3>
+                                {report.ai_mask_url && (
+                                    <button 
+                                        onClick={() => setShowAiMask(!showAiMask)}
+                                        className={`px-3 py-1 text-xs font-bold rounded-full transition-all flex items-center gap-2 ${showAiMask ? 'bg-primary text-white shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                        {showAiMask ? "Hide AI Mask" : "View AI Mask"}
+                                    </button>
+                                )}
+                            </div>
                             <div className="w-full aspect-square rounded-2xl overflow-hidden bg-black/50 border border-white/10 relative">
                                 {report.image_url ? (
-                                    <img src={`${API_URL}${report.image_url}`} alt="Report Evidence" className="w-full h-full object-cover" />
+                                    <>
+                                        <img 
+                                            src={`${API_URL}${showAiMask && report.ai_mask_url ? report.ai_mask_url : report.image_url}`} 
+                                            alt="Report Evidence" 
+                                            className="w-full h-full object-cover transition-opacity duration-300" 
+                                        />
+                                    </>
                                 ) : (
                                     <div className="absolute inset-0 flex items-center justify-center text-white/20">No Image</div>
                                 )}
