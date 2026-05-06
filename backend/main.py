@@ -71,6 +71,7 @@ class ReportResponse(BaseModel):
     barangay: Optional[str] = None
     reporter_id: Optional[int] = None
     image_url: Optional[str] = None
+    ai_mask_url: Optional[str] = None
     cleanup_image_url: Optional[str] = None
     ai_confidence: Optional[float] = None
     status: str
@@ -223,35 +224,48 @@ async def submit_report(
     4. Generate tracking ID + URL
     5. Save to database
     """
-    # 1. Save image
+    # 1. Read image bytes for AI verification
+    image_bytes = await image.read()
+    
+    # 2. Run Mask R-CNN verification
+    verification_result = verifier.verify_image(image_bytes)
+    
+    # 3. Save image to disk (reset file pointer)
+    await image.seek(0)
     image_url = await save_upload(image, prefix="report")
-    
-    # Re-read for AI (save_upload consumed the bytes)
-    # For the mock verifier, we just pass empty bytes
-    verification_result = verifier.verify_image(b"mock")
-    
-    # Determine initial status based on AI result
+
+    ai_mask_url = None
+    # 4. Determine initial status based on AI result
     if not verification_result["verified"]:
         status = models.ReportStatus.REJECTED
     else:
         status = models.ReportStatus.VERIFIED
+        # Generate and save the mask image
+        mask_bytes = verifier.generate_mask_image()
+        if mask_bytes:
+            mask_filename = f"mask_{uuid.uuid4().hex[:8]}.jpg"
+            mask_filepath = os.path.join(UPLOAD_DIR, mask_filename)
+            with open(mask_filepath, "wb") as f:
+                f.write(mask_bytes)
+            ai_mask_url = f"/uploads/{mask_filename}"
     
-    # 2. Spatial assignment
+    # 5. Spatial assignment
     spatial_result = spatial_utils.get_barangay_from_coords(lat, lon)
     barangay = spatial_result.get("barangay") if "error" not in spatial_result else "Unknown"
     
-    # 3. Generate tracking
+    # 6. Generate tracking
     tracking_id = generate_tracking_id(db)
     tracking_slug = generate_tracking_slug()
     tracking_url = f"/track/{tracking_slug}"
     
-    # 4. Create Report
+    # 7. Create Report
     new_report = models.Report(
         lat=lat,
         lon=lon,
         barangay=barangay,
         reporter_id=reporter_id,
         image_url=image_url,
+        ai_mask_url=ai_mask_url,
         ai_confidence=verification_result["confidence"],
         status=status,
         notes=notes,
@@ -366,12 +380,14 @@ async def resolve_report(
             detail=f"Cannot resolve. Report status is '{report.status}', must be 'deployed'."
         )
     
-    # Save cleanup image
+    # Read cleanup image bytes for AI verification
+    cleanup_bytes = await cleanup_image.read()
+    verification = verifier.verify_image(cleanup_bytes)
+    
+    # Save cleanup image to disk
+    await cleanup_image.seek(0)
     cleanup_url = await save_upload(cleanup_image, prefix="cleanup")
     report.cleanup_image_url = cleanup_url
-    
-    # AI re-verification on cleanup photo
-    verification = verifier.verify_image(b"mock_cleanup")
     
     if verification["verified"]:
         # AI still sees waste → cleanup failed
