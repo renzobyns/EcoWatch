@@ -19,7 +19,7 @@ const BARANGAYS = [
     "San Martin IV", "San Pedro", "San Rafael I", "San Rafael II",
     "San Rafael III", "San Rafael IV", "San Rafael V", "San Roque",
     "Sto. Cristo", "Tungkong Mangga", "Graceville", "Gumaoc Central",
-    "Gumaoc East", "Gumaoc West", "Graceville", "Poblacion", "Poblacion I"
+    "Gumaoc East", "Gumaoc West", "Poblacion", "Poblacion I"
 ];
 
 export default function CenroDashboard() {
