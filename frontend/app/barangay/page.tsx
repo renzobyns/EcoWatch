@@ -217,14 +217,20 @@ export default function BarangayPortal() {
     };
 
     return (
-        <div className="min-h-screen bg-[#0a0f0a] pt-24 pb-12 px-4 md:px-8">
-            <div className="max-w-[1600px] mx-auto h-[calc(100vh-8rem)] flex flex-col">
+        <div className="min-h-screen bg-[#0a0f0a] pt-24 pb-12 px-4 md:px-8 relative overflow-hidden">
+            {/* Pro Max Background Accents */}
+            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none" />
+
+            <div className="max-w-[1600px] mx-auto h-[calc(100vh-8rem)] flex flex-col relative z-10">
 
                 {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 shrink-0">
+                <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 shrink-0 animate-slide-up">
                     <div>
-                        <h1 className="text-3xl font-black text-white mb-1">Barangay Dashboard</h1>
-                        <p className="text-emerald-400 font-bold uppercase tracking-widest">{user.barangay_assignment}</p>
+                        <h1 className="text-4xl font-black text-white mb-2 tracking-tight">Barangay <span className="text-primary">Dashboard</span></h1>
+                        <p className="text-emerald-400 font-bold uppercase tracking-[0.2em] text-xs px-3 py-1 bg-emerald-400/10 rounded-full w-fit border border-emerald-400/20">
+                            {user.barangay_assignment}
+                        </p>
                     </div>
                 </div>
 
@@ -234,22 +240,31 @@ export default function BarangayPortal() {
                     {/* Left: Report Queue (60%) */}
                     <div className="flex-[3] flex flex-col gap-4 min-h-0">
                         {/* Stats Cards */}
-                        <div className="grid grid-cols-3 gap-4 shrink-0">
-                            <div className="glass p-4 rounded-2xl border border-white/5">
-                                <div className="text-[10px] font-bold text-white/50 uppercase tracking-widest mb-1">Pending</div>
-                                <div className="text-3xl font-black text-red-400">{stats.pending}</div>
+                        <div className="grid grid-cols-3 gap-6 shrink-0 animate-slide-up stagger-1">
+                            <div className="glass-pro p-6 rounded-3xl bento-card">
+                                <div className="text-[11px] font-bold text-white/40 uppercase tracking-[0.1em] mb-2">Pending Reports</div>
+                                <div className="text-4xl font-black text-red-400 tracking-tighter">{stats.pending}</div>
+                                <div className="mt-4 w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                                    <div className="h-full bg-red-400/50" style={{ width: '40%' }}></div>
+                                </div>
                             </div>
-                            <div className="glass p-4 rounded-2xl border border-white/5">
-                                <div className="text-[10px] font-bold text-white/50 uppercase tracking-widest mb-1">Deployed</div>
-                                <div className="text-3xl font-black text-yellow-400">{stats.deployed}</div>
+                            <div className="glass-pro p-6 rounded-3xl bento-card">
+                                <div className="text-[11px] font-bold text-white/40 uppercase tracking-[0.1em] mb-2">Teams Deployed</div>
+                                <div className="text-4xl font-black text-yellow-400 tracking-tighter">{stats.deployed}</div>
+                                <div className="mt-4 w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                                    <div className="h-full bg-yellow-400/50" style={{ width: '60%' }}></div>
+                                </div>
                             </div>
-                            <div className="glass p-4 rounded-2xl border border-white/5">
-                                <div className="text-[10px] font-bold text-white/50 uppercase tracking-widest mb-1">Resolved</div>
-                                <div className="text-3xl font-black text-green-400">{stats.resolved}</div>
+                            <div className="glass-pro p-6 rounded-3xl bento-card">
+                                <div className="text-[11px] font-bold text-white/40 uppercase tracking-[0.1em] mb-2">Resolved Today</div>
+                                <div className="text-4xl font-black text-green-400 tracking-tighter">{stats.resolved}</div>
+                                <div className="mt-4 w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                                    <div className="h-full bg-green-400/50" style={{ width: '80%' }}></div>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="glass rounded-3xl border border-white/10 flex flex-col flex-1 min-h-0 shadow-2xl">
+                        <div className="glass-pro rounded-[2.5rem] flex flex-col flex-1 min-h-0 shadow-2xl animate-slide-up stagger-2 overflow-hidden">
                             {/* Filter Bar (B1 + B4) */}
                             <div className="flex flex-col lg:flex-row gap-3 p-4 border-b border-white/10 shrink-0">
                                 <div className="relative flex-1 min-w-[200px]">
@@ -421,9 +436,15 @@ export default function BarangayPortal() {
                     </div>
 
                     {/* Right: Map View (40%) */}
-                    <div className="flex-[2] glass rounded-3xl border border-white/10 overflow-hidden shadow-2xl relative min-h-[400px]">
-                        <div className="absolute top-4 left-4 z-[1000] glass px-3 py-1.5 rounded-full text-xs font-bold text-white border border-white/20 shadow-lg pointer-events-none">
-                            Assigned Locations
+                    <div className="flex-[2] glass-pro rounded-[2.5rem] overflow-hidden shadow-2xl relative min-h-[400px] animate-slide-up stagger-3">
+                        <div className="absolute top-6 left-6 z-[1000] glass-pro px-4 py-2 rounded-full text-[11px] font-bold text-white uppercase tracking-widest pointer-events-none">
+                            <span className="flex items-center gap-2">
+                                <span className="relative flex h-2 w-2">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                </span>
+                                Assigned Locations
+                            </span>
                         </div>
                         <MapComponent
                             height="100%"
