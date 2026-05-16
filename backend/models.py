@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
@@ -24,6 +24,7 @@ class User(Base):
     full_name = Column(String, nullable=False)
     role = Column(String, nullable=False, default="citizen")  # citizen | barangay | cenro
     barangay_assignment = Column(String, nullable=True)  # Only for barangay role
+    is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationship
@@ -61,3 +62,16 @@ class Report(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     deployed_at = Column(DateTime, nullable=True)
     resolved_at = Column(DateTime, nullable=True)
+
+
+class AuditLog(Base):
+    """Append-only audit trail for override actions (deploy / resolve / reassign / force-close)."""
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    action = Column(String, nullable=False, index=True)
+    target_type = Column(String, nullable=False, default="report")
+    target_id = Column(Integer, nullable=True, index=True)
+    details = Column(Text, nullable=True)  # JSON-encoded dict
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)

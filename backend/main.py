@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -84,6 +84,50 @@ class ReportResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ─────────────────────────────────────────────────────────
+# AUTH / RBAC DEPENDENCIES
+# ─────────────────────────────────────────────────────────
+
+def get_current_user(
+    x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
+    db: Session = Depends(get_db),
+) -> models.User:
+    """Resolve the calling user from the X-User-Id header. Raises 401 if missing/invalid/disabled."""
+    if not x_user_id:
+        raise HTTPException(status_code=401, detail="Missing X-User-Id header")
+    try:
+        user_id = int(x_user_id)
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid X-User-Id header")
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="Invalid or disabled user")
+    return user
+
+
+def require_role(*roles: str):
+    """Dependency factory: ensures the current user has one of the given roles."""
+    def checker(user: models.User = Depends(get_current_user)) -> models.User:
+        if user.role not in roles:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Requires role: {', '.join(roles)}"
+            )
+        return user
+    return checker
+
+
+def write_audit(db: Session, user_id: int, action: str, target_id: Optional[int], details: dict):
+    """Append an AuditLog row. Caller must commit() the session afterwards."""
+    db.add(models.AuditLog(
+        user_id=user_id,
+        action=action,
+        target_type="report",
+        target_id=target_id,
+        details=json.dumps(details),
+    ))
 
 
 # ─────────────────────────────────────────────────────────
@@ -176,8 +220,11 @@ async def login(req: LoginRequest, db: Session = Depends(get_db)):
     }
 
 @app.get("/auth/users", response_model=List[UserResponse])
-async def list_users(db: Session = Depends(get_db)):
-    """List all users (admin/testing only)."""
+async def list_users(
+    db: Session = Depends(get_db),
+    _user: models.User = Depends(require_role("cenro")),
+):
+    """List all users (CENRO-only)."""
     return db.query(models.User).all()
 
 
@@ -337,23 +384,28 @@ async def get_barangay_reports(name: str, db: Session = Depends(get_db)):
 # ─────────────────────────────────────────────────────────
 
 @app.put("/report/{report_id}/deploy")
-async def deploy_report(report_id: int, db: Session = Depends(get_db)):
+async def deploy_report(
+    report_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("barangay")),
+):
     """Barangay marks a report as deployed (sweepers dispatched)."""
     report = db.query(models.Report).filter(models.Report.id == report_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
-    
+
     if report.status != models.ReportStatus.VERIFIED:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail=f"Cannot deploy. Report status is '{report.status}', must be 'verified'."
         )
-    
+
     report.status = models.ReportStatus.DEPLOYED
     report.deployed_at = datetime.utcnow()
+    write_audit(db, user.id, "deploy", report.id, {"tracking_id": report.tracking_id})
     db.commit()
     db.refresh(report)
-    
+
     return {
         "success": True,
         "message": f"Report {report.tracking_id} deployed successfully.",
@@ -364,7 +416,8 @@ async def deploy_report(report_id: int, db: Session = Depends(get_db)):
 async def resolve_report(
     report_id: int,
     cleanup_image: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("barangay")),
 ):
     """
     Barangay uploads cleanup photo.
@@ -373,22 +426,22 @@ async def resolve_report(
     report = db.query(models.Report).filter(models.Report.id == report_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
-    
+
     if report.status != models.ReportStatus.DEPLOYED:
         raise HTTPException(
             status_code=400,
             detail=f"Cannot resolve. Report status is '{report.status}', must be 'deployed'."
         )
-    
+
     # Read cleanup image bytes for AI verification
     cleanup_bytes = await cleanup_image.read()
     verification = verifier.verify_image(cleanup_bytes)
-    
+
     # Save cleanup image to disk
     await cleanup_image.seek(0)
     cleanup_url = await save_upload(cleanup_image, prefix="cleanup")
     report.cleanup_image_url = cleanup_url
-    
+
     if verification["verified"]:
         # AI still sees waste → cleanup failed
         report.status = models.ReportStatus.FAILED_CLEANUP
@@ -396,7 +449,11 @@ async def resolve_report(
         # AI sees no waste → cleanup successful
         report.status = models.ReportStatus.RESOLVED
         report.resolved_at = datetime.utcnow()
-    
+
+    write_audit(db, user.id, "resolve", report.id, {
+        "tracking_id": report.tracking_id,
+        "outcome": report.status,
+    })
     db.commit()
     db.refresh(report)
     
@@ -416,18 +473,24 @@ async def resolve_report(
 async def reassign_report(
     report_id: int,
     new_barangay: str = Form(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("cenro")),
 ):
     """CENRO override: reassign a report to a different barangay."""
     report = db.query(models.Report).filter(models.Report.id == report_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
-    
+
     old_barangay = report.barangay
     report.barangay = new_barangay
+    write_audit(db, user.id, "reassign", report.id, {
+        "tracking_id": report.tracking_id,
+        "from": old_barangay,
+        "to": new_barangay,
+    })
     db.commit()
     db.refresh(report)
-    
+
     return {
         "success": True,
         "message": f"Report {report.tracking_id} reassigned from '{old_barangay}' to '{new_barangay}'.",
@@ -435,22 +498,72 @@ async def reassign_report(
     }
 
 @app.put("/report/{report_id}/force-close")
-async def force_close_report(report_id: int, db: Session = Depends(get_db)):
+async def force_close_report(
+    report_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("cenro")),
+):
     """CENRO override: force-close/resolve a report directly."""
     report = db.query(models.Report).filter(models.Report.id == report_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
-    
+
+    previous_status = report.status
     report.status = models.ReportStatus.RESOLVED
     report.resolved_at = datetime.utcnow()
+    write_audit(db, user.id, "force_close", report.id, {
+        "tracking_id": report.tracking_id,
+        "previous_status": previous_status,
+    })
     db.commit()
     db.refresh(report)
-    
+
     return {
         "success": True,
         "message": f"Report {report.tracking_id} force-closed by CENRO.",
         "report": ReportResponse.model_validate(report)
     }
+
+
+# ─────────────────────────────────────────────────────────
+# AUDIT LOG (CENRO-only)
+# ─────────────────────────────────────────────────────────
+
+@app.get("/audit-log")
+async def get_audit_log(
+    limit: int = 50,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    _user: models.User = Depends(require_role("cenro")),
+):
+    """Newest-first audit trail of override actions."""
+    rows = (
+        db.query(models.AuditLog, models.User.email)
+        .outerjoin(models.User, models.AuditLog.user_id == models.User.id)
+        .order_by(models.AuditLog.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+    entries = []
+    for log, user_email in rows:
+        try:
+            details = json.loads(log.details) if log.details else {}
+        except (ValueError, TypeError):
+            details = {"raw": log.details}
+        entries.append({
+            "id": log.id,
+            "user_id": log.user_id,
+            "user_email": user_email,
+            "action": log.action,
+            "target_type": log.target_type,
+            "target_id": log.target_id,
+            "details": details,
+            "created_at": log.created_at,
+        })
+
+    return {"entries": entries, "limit": limit, "offset": offset}
 
 
 # ─────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { api, ApiError } from "@/lib/api";
 
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
@@ -60,17 +61,11 @@ export default function BarangayPortal() {
         setActionLoading(true);
         setActionError(null);
         try {
-            const res = await fetch(`${API_URL}/report/${reportId}/deploy`, { method: "PUT" });
-            const data = await res.json();
-            if (res.ok) {
-                // Update local state
-                setReports(reports.map(r => r.id === reportId ? { ...r, status: 'deployed' } : r));
-                setSelectedReport({ ...selectedReport, status: 'deployed' });
-            } else {
-                setActionError(data.detail || "Failed to deploy.");
-            }
+            await api(`/report/${reportId}/deploy`, { method: "PUT" });
+            setReports(reports.map(r => r.id === reportId ? { ...r, status: 'deployed' } : r));
+            setSelectedReport({ ...selectedReport, status: 'deployed' });
         } catch (err) {
-            setActionError("Network error.");
+            setActionError(err instanceof ApiError ? err.message : "Network error.");
         } finally {
             setActionLoading(false);
         }
@@ -88,28 +83,21 @@ export default function BarangayPortal() {
         formData.append("cleanup_image", cleanupImage);
 
         try {
-            const res = await fetch(`${API_URL}/report/${reportId}/resolve`, {
+            const data = await api(`/report/${reportId}/resolve`, {
                 method: "POST",
-                body: formData
+                body: formData,
             });
-            const data = await res.json();
-            
-            if (res.ok) {
-                // Status could be 'resolved' or 'failed_cleanup' depending on AI
-                setReports(reports.map(r => r.id === reportId ? { ...r, status: data.status, cleanup_image_url: data.report.cleanup_image_url } : r));
-                setSelectedReport({ ...selectedReport, status: data.status, cleanup_image_url: data.report.cleanup_image_url });
-                setCleanupImage(null);
-                setCleanupPreview(null);
-                if (data.status === 'failed_cleanup') {
-                    setActionError("AI detected waste is still present. Please clean thoroughly and try again.");
-                } else {
-                    setSelectedReport(null); // Close modal on success
-                }
+            setReports(reports.map(r => r.id === reportId ? { ...r, status: data.status, cleanup_image_url: data.report.cleanup_image_url } : r));
+            setSelectedReport({ ...selectedReport, status: data.status, cleanup_image_url: data.report.cleanup_image_url });
+            setCleanupImage(null);
+            setCleanupPreview(null);
+            if (data.status === 'failed_cleanup') {
+                setActionError("AI detected waste is still present. Please clean thoroughly and try again.");
             } else {
-                setActionError(data.detail || "Failed to resolve.");
+                setSelectedReport(null); // Close modal on success
             }
         } catch (err) {
-            setActionError("Network error.");
+            setActionError(err instanceof ApiError ? err.message : "Network error.");
         } finally {
             setActionLoading(false);
         }

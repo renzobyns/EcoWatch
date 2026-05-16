@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
+import { api, ApiError } from "@/lib/api";
 
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
@@ -83,20 +84,15 @@ export default function CenroDashboard() {
         formData.append("new_barangay", newBarangay);
 
         try {
-            const res = await fetch(`${API_URL}/report/${reportId}/reassign`, {
+            await api(`/report/${reportId}/reassign`, {
                 method: "PUT",
-                body: formData
+                body: formData,
             });
-            const data = await res.json();
-            if (res.ok) {
-                setReports(reports.map(r => r.id === reportId ? { ...r, barangay: newBarangay } : r));
-                setSelectedReport({ ...selectedReport, barangay: newBarangay });
-                setActionError("Successfully reassigned.");
-            } else {
-                setActionError(data.detail || "Failed to reassign.");
-            }
+            setReports(reports.map(r => r.id === reportId ? { ...r, barangay: newBarangay } : r));
+            setSelectedReport({ ...selectedReport, barangay: newBarangay });
+            setActionError("Successfully reassigned.");
         } catch (err) {
-            setActionError("Network error.");
+            setActionError(err instanceof ApiError ? err.message : "Network error.");
         } finally {
             setActionLoading(false);
         }
@@ -108,16 +104,11 @@ export default function CenroDashboard() {
         setActionError(null);
 
         try {
-            const res = await fetch(`${API_URL}/report/${reportId}/force-close`, { method: "PUT" });
-            const data = await res.json();
-            if (res.ok) {
-                setReports(reports.map(r => r.id === reportId ? { ...r, status: 'resolved' } : r));
-                setSelectedReport({ ...selectedReport, status: 'resolved' });
-            } else {
-                setActionError(data.detail || "Failed to force close.");
-            }
+            await api(`/report/${reportId}/force-close`, { method: "PUT" });
+            setReports(reports.map(r => r.id === reportId ? { ...r, status: 'resolved' } : r));
+            setSelectedReport({ ...selectedReport, status: 'resolved' });
         } catch (err) {
-            setActionError("Network error.");
+            setActionError(err instanceof ApiError ? err.message : "Network error.");
         } finally {
             setActionLoading(false);
         }
