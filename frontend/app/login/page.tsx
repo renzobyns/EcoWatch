@@ -127,37 +127,38 @@ export default function LoginPage() {
 
                     <form onSubmit={handleLogin} className="space-y-4">
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest px-1">Email Address</label>
-                            <input 
-                                type="email" 
+                            <label className="text-[11px] font-bold text-white/60 uppercase tracking-widest px-1">Email Address</label>
+                            <input
+                                type="email"
                                 required
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="w-full bg-white/5 border border-white/10 rounded-xl p-3.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-primary/50 focus:bg-white/[0.08] transition-all"
+                                className="w-full bg-white/5 border border-white/10 rounded-xl p-3.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/30 focus:bg-white/[0.08] transition-all"
                                 placeholder="name@company.com"
                             />
                         </div>
 
                         <div className="space-y-1.5">
                             <div className="flex justify-between items-center px-1">
-                                <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Password</label>
+                                <label className="text-[11px] font-bold text-white/60 uppercase tracking-widest">Password</label>
                                 <Link href="/auth/reset" className="text-[9px] font-bold text-primary hover:text-primary-dark uppercase tracking-widest transition-colors">
                                     Forgot Password?
                                 </Link>
                             </div>
                             <div className="relative group">
-                                <input 
+                                <input
                                     type={showPassword ? "text" : "password"}
                                     required
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3.5 pr-12 text-sm text-white focus:outline-none focus:border-primary/50 focus:bg-white/[0.08] transition-all"
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3.5 pr-12 text-sm text-white focus:outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/30 focus:bg-white/[0.08] transition-all"
                                     placeholder="••••••••"
                                 />
-                                <button 
+                                <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-primary transition-colors"
+                                    aria-label={showPassword ? "Hide password" : "Show password"}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-primary transition-colors cursor-pointer"
                                 >
                                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>

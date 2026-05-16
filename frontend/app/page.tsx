@@ -97,9 +97,10 @@ export default function LandingPage() {
 
 
             {/* Toggle Sidebar Button (Desktop & Mobile) */}
-            <button 
+            <button
                 onClick={() => setSidebarOpen(!isSidebarOpen)}
-                className={`absolute top-24 z-40 glass p-3 rounded-full text-white shadow-xl transition-all duration-500 ease-in-out ${isSidebarOpen ? 'right-[24rem] md:right-[25rem]' : 'right-4'}`}
+                aria-label={isSidebarOpen ? "Close live feed" : "Open live feed"}
+                className={`absolute top-24 z-40 glass p-3 rounded-full text-white shadow-xl transition-all duration-500 ease-in-out cursor-pointer ${isSidebarOpen ? 'right-[24rem] md:right-[25rem]' : 'right-4'}`}
             >
                 <svg 
                     xmlns="http://www.w3.org/2000/svg" 
@@ -133,7 +134,7 @@ export default function LandingPage() {
                                 {focusedBarangay ? `Showing reports in ${focusedBarangay}` : 'City-wide active reports'}
                             </p>
                         </div>
-                        <button onClick={() => setSidebarOpen(false)} className="md:hidden text-foreground/50 hover:text-white">
+                        <button onClick={() => setSidebarOpen(false)} aria-label="Close live feed" className="md:hidden text-foreground/50 hover:text-white cursor-pointer">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                         </button>
                     </div>

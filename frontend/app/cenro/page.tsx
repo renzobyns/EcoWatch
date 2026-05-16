@@ -450,18 +450,24 @@ export default function CenroDashboard() {
     const lineData = Object.entries(dateMap).map(([date, count]) => ({ date, count })).slice(-14);
 
     return (
-        <div className="min-h-screen bg-[#0a0f0a] pt-24 pb-12 px-4 md:px-8">
-            <div className="max-w-[1600px] mx-auto h-[calc(100vh-8rem)] flex flex-col">
+        <div className="min-h-screen bg-[#0a0f0a] pt-24 pb-12 px-4 md:px-8 relative overflow-hidden">
+            {/* Pro Max Background Accents */}
+            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none" />
+
+            <div className="max-w-[1600px] mx-auto h-[calc(100vh-8rem)] flex flex-col relative z-10">
 
                 {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 shrink-0 gap-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 shrink-0 gap-4 animate-slide-up">
                     <div>
-                        <h1 className="text-3xl font-black text-white mb-1">CENRO Operations Hub</h1>
-                        <p className="text-emerald-400 font-bold uppercase tracking-widest">City-Wide Oversight & Analytics</p>
+                        <h1 className="text-4xl font-black text-white mb-2 tracking-tight">CENRO <span className="text-primary">Ops Hub</span></h1>
+                        <p className="text-emerald-400 font-bold uppercase tracking-[0.2em] text-xs px-3 py-1 bg-emerald-400/10 rounded-full w-fit border border-emerald-400/20">
+                            City-Wide Oversight & Analytics
+                        </p>
                     </div>
 
                     {/* Navigation Tabs */}
-                    <div className="flex gap-2 bg-white/5 p-1 rounded-xl border border-white/10 overflow-x-auto">
+                    <div className="flex gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10 overflow-x-auto backdrop-blur-md">
                         {([
                             ['command_center', 'Command Center'],
                             ['overview', 'Overview Map'],
@@ -496,36 +502,37 @@ export default function CenroDashboard() {
                                     Export Analytics CSV
                                 </button>
                             </div>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div className="glass p-4 rounded-2xl border border-white/10">
-                                    <div className="text-[10px] text-white/50 uppercase tracking-widest font-bold mb-1">Total Reports</div>
-                                    <div className="text-3xl font-black text-emerald-400">{stats.total}</div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 animate-slide-up stagger-1">
+                                <div className="glass-pro p-6 rounded-3xl bento-card">
+                                    <div className="text-[11px] text-white/50 uppercase tracking-widest font-bold mb-2">Total Reports</div>
+                                    <div className="text-4xl font-black text-emerald-400 tracking-tighter">{stats.total}</div>
                                 </div>
-                                <div className="glass p-4 rounded-2xl border border-white/10">
-                                    <div className="text-[10px] text-white/50 uppercase tracking-widest font-bold mb-1">Active/Pending</div>
-                                    <div className="text-3xl font-black text-red-400">{pending}</div>
+                                <div className="glass-pro p-6 rounded-3xl bento-card">
+                                    <div className="text-[11px] text-white/50 uppercase tracking-widest font-bold mb-2">Active/Pending</div>
+                                    <div className="text-4xl font-black text-red-400 tracking-tighter">{pending}</div>
                                 </div>
-                                <div className="glass p-4 rounded-2xl border border-white/10">
-                                    <div className="text-[10px] text-white/50 uppercase tracking-widest font-bold mb-1">Teams Deployed</div>
-                                    <div className="text-3xl font-black text-yellow-400">{stats.deployed}</div>
+                                <div className="glass-pro p-6 rounded-3xl bento-card">
+                                    <div className="text-[11px] text-white/50 uppercase tracking-widest font-bold mb-2">Teams Deployed</div>
+                                    <div className="text-4xl font-black text-yellow-400 tracking-tighter">{stats.deployed}</div>
                                 </div>
-                                <div className="glass p-4 rounded-2xl border border-white/10">
-                                    <div className="text-[10px] text-white/50 uppercase tracking-widest font-bold mb-1">Success Rate</div>
-                                    <div className="text-3xl font-black text-green-400">{successRate}%</div>
+                                <div className="glass-pro p-6 rounded-3xl bento-card">
+                                    <div className="text-[11px] text-white/50 uppercase tracking-widest font-bold mb-2">Success Rate</div>
+                                    <div className="text-4xl font-black text-green-400 tracking-tighter">{successRate}%</div>
                                 </div>
                             </div>
                         </div>
 
                         {/* C3 — SLA Breaches Card */}
-                        <div className="glass p-5 rounded-3xl border border-white/10 shrink-0">
-                            <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
-                                <div className="flex items-center gap-3">
-                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${slaBreaches.length > 0 ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
-                                        <AlertTriangle size={20} />
+                        <div className="glass-pro p-6 rounded-[2.5rem] border border-white/10 shrink-0 animate-slide-up stagger-2 overflow-hidden relative">
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/5 rounded-full blur-[80px] pointer-events-none" />
+                            <div className="flex items-center justify-between mb-4 flex-wrap gap-4 relative z-10">
+                                <div className="flex items-center gap-4">
+                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${slaBreaches.length > 0 ? 'bg-red-500/20 text-red-400 shadow-[0_0_20px_rgba(239,68,68,0.2)]' : 'bg-green-500/20 text-green-400'}`}>
+                                        <AlertTriangle size={28} />
                                     </div>
                                     <div>
-                                        <div className="text-[10px] font-bold text-white/50 uppercase tracking-widest">SLA Breaches (≥ 3 days open)</div>
-                                        <div className={`text-2xl font-black ${slaBreaches.length > 0 ? 'text-red-400' : 'text-green-400'}`}>{slaBreaches.length}</div>
+                                        <div className="text-[11px] font-bold text-white/40 uppercase tracking-widest mb-1">SLA Breaches (≥ 3 days open)</div>
+                                        <div className={`text-3xl font-black ${slaBreaches.length > 0 ? 'text-red-400' : 'text-green-400'}`}>{slaBreaches.length}</div>
                                     </div>
                                 </div>
                                 {slaBreaches.length > 0 && (
@@ -573,33 +580,36 @@ export default function CenroDashboard() {
                         <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0">
 
                             {/* Left: Charts */}
-                            <div className="lg:col-span-1 flex flex-col gap-6 min-h-0">
-                                <div className="flex-1 glass p-6 rounded-3xl border border-white/10 flex flex-col min-h-0">
-                                    <h3 className="text-xs font-bold text-white/50 uppercase tracking-widest mb-2 shrink-0">Status Breakdown</h3>
-                                    <div className="flex-1 relative min-h-[120px]">
+                            <div className="lg:col-span-1 flex flex-col gap-6 min-h-0 animate-slide-up stagger-3">
+                                <div className="flex-1 glass-pro p-8 rounded-[2.5rem] flex flex-col min-h-0 bento-card">
+                                    <h3 className="text-[11px] font-bold text-white/40 uppercase tracking-widest mb-6 shrink-0">Status Breakdown</h3>
+                                    <div className="flex-1 relative min-h-[160px]">
                                         <ResponsiveContainer width="100%" height="100%">
                                             <PieChart>
-                                                <Pie data={pieData} cx="50%" cy="50%" innerRadius={35} outerRadius={65} paddingAngle={5} dataKey="value">
-                                                    {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                                                <Pie data={pieData} cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={8} dataKey="value">
+                                                    {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />)}
                                                 </Pie>
-                                                <Tooltip contentStyle={{ backgroundColor: '#0a0f0a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }} />
+                                                <Tooltip 
+                                                    contentStyle={{ backgroundColor: 'rgba(10, 15, 10, 0.9)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px' }}
+                                                    itemStyle={{ color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
+                                                />
                                             </PieChart>
                                         </ResponsiveContainer>
                                     </div>
-                                    <div className="flex flex-wrap justify-center gap-3 mt-2 shrink-0">
+                                    <div className="flex flex-wrap justify-center gap-4 mt-6 shrink-0">
                                         {pieData.map(d => (
-                                            <div key={d.name} className="flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider text-white/80"><div className="w-2.5 h-2.5 rounded-full" style={{backgroundColor: d.color}}></div>{d.name}</div>
+                                            <div key={d.name} className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest text-white/60"><div className="w-2 h-2 rounded-full shadow-[0_0_8px_currentColor]" style={{backgroundColor: d.color, color: d.color}}></div>{d.name}</div>
                                         ))}
                                     </div>
                                 </div>
-                                <div className="flex-1 glass p-6 rounded-3xl border border-white/10 flex flex-col min-h-0">
-                                    <h3 className="text-xs font-bold text-white/50 uppercase tracking-widest mb-4 shrink-0">Trend (Last 14 Days)</h3>
-                                    <div className="flex-1 relative min-h-[120px]">
+                                <div className="flex-1 glass-pro p-8 rounded-[2.5rem] flex flex-col min-h-0 bento-card">
+                                    <h3 className="text-[11px] font-bold text-white/40 uppercase tracking-widest mb-8 shrink-0">City-Wide Trend</h3>
+                                    <div className="flex-1 relative min-h-[160px]">
                                         <ResponsiveContainer width="100%" height="100%">
                                             <LineChart data={lineData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                                                <XAxis dataKey="date" stroke="rgba(255,255,255,0.2)" fontSize={10} tickMargin={10} />
-                                                <Tooltip contentStyle={{ backgroundColor: '#0a0f0a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }} />
-                                                <Line type="monotone" dataKey="count" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#0a0f0a' }} />
+                                                <XAxis dataKey="date" stroke="rgba(255,255,255,0.2)" fontSize={10} tickMargin={15} axisLine={false} tickLine={false} />
+                                                <Tooltip contentStyle={{ backgroundColor: 'rgba(10, 15, 10, 0.9)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px' }} />
+                                                <Line type="monotone" dataKey="count" stroke="#10b981" strokeWidth={4} dot={{ r: 6, fill: '#10b981', strokeWidth: 3, stroke: '#0a0f0a' }} activeDot={{ r: 8, fill: '#34d399' }} />
                                             </LineChart>
                                         </ResponsiveContainer>
                                     </div>
@@ -613,33 +623,33 @@ export default function CenroDashboard() {
                             </div>
 
                             {/* Right: Lists */}
-                            <div className="lg:col-span-1 flex flex-col gap-6 min-h-0">
-                                <div className="flex-1 glass p-6 rounded-3xl border border-white/10 flex flex-col min-h-0">
-                                    <h3 className="text-xs font-bold text-white/50 uppercase tracking-widest mb-4 shrink-0">Barangay Leaderboard</h3>
-                                    <div className="flex-1 overflow-y-auto pr-2 space-y-3 scrollbar-hide">
+                            <div className="lg:col-span-1 flex flex-col gap-6 min-h-0 animate-slide-up stagger-4">
+                                <div className="flex-1 glass-pro p-8 rounded-[2.5rem] flex flex-col min-h-0 bento-card">
+                                    <h3 className="text-[11px] font-bold text-white/40 uppercase tracking-widest mb-6 shrink-0">Barangay Rankings</h3>
+                                    <div className="flex-1 overflow-y-auto pr-2 space-y-4 scrollbar-hide">
                                         {barangayStats.map((b, i) => (
-                                            <div key={b.name} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-6 h-6 rounded bg-black/50 flex items-center justify-center text-[10px] font-bold text-white/50">{i + 1}</div>
-                                                    <div className="text-sm font-bold text-white">{b.name}</div>
+                                            <div key={b.name} className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.03] border border-white/[0.05] hover:bg-white/[0.08] transition-colors group">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-8 h-8 rounded-lg bg-black/50 flex items-center justify-center text-xs font-black text-white/30 group-hover:text-primary transition-colors">{i + 1}</div>
+                                                    <div className="text-sm font-bold text-white/90">{b.name}</div>
                                                 </div>
                                                 <div className="text-right">
-                                                    <div className="text-sm font-black text-green-400">{b.rate.toFixed(0)}%</div>
-                                                    <div className="text-[10px] text-white/40 uppercase tracking-widest">{b.resolved}/{b.total} done</div>
+                                                    <div className="text-sm font-black text-emerald-400">{b.rate.toFixed(0)}%</div>
+                                                    <div className="text-[10px] text-white/30 uppercase tracking-widest font-bold">{b.resolved} reports</div>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
-                                <div className="flex-1 glass p-6 rounded-3xl border border-white/10 flex flex-col min-h-0">
-                                    <h3 className="text-xs font-bold text-white/50 uppercase tracking-widest mb-4 shrink-0">Recent Activity</h3>
-                                    <div className="flex-1 overflow-y-auto pr-2 space-y-4 scrollbar-hide">
+                                <div className="flex-1 glass-pro p-8 rounded-[2.5rem] flex flex-col min-h-0 bento-card">
+                                    <h3 className="text-[11px] font-bold text-white/40 uppercase tracking-widest mb-6 shrink-0">Live City Feed</h3>
+                                    <div className="flex-1 overflow-y-auto pr-2 space-y-5 scrollbar-hide">
                                         {recentFeed.map(r => (
-                                            <div key={r.id} className="relative pl-4 border-l border-white/10">
-                                                <div className="absolute w-2 h-2 rounded-full bg-emerald-500 -left-[4px] top-1.5 shadow-[0_0_10px_rgba(16,185,129,0.8)]"></div>
-                                                <div className="text-xs font-bold text-white mb-0.5">Report {r.tracking_id}</div>
-                                                <div className="text-[10px] text-white/60 mb-2">{r.barangay} • {new Date(r.created_at).toLocaleString()}</div>
-                                                <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${r.status === 'resolved' ? 'bg-green-500/20 text-green-400' : r.status === 'deployed' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'}`}>{r.status}</span>
+                                            <div key={r.id} className="relative pl-6 border-l border-white/5">
+                                                <div className="absolute w-2.5 h-2.5 rounded-full bg-emerald-500 -left-[5px] top-1.5 shadow-[0_0_15px_rgba(16,185,129,0.8)]"></div>
+                                                <div className="text-[13px] font-black text-white mb-1 tracking-tight">Report {r.tracking_id}</div>
+                                                <div className="text-[11px] text-white/40 mb-3 font-medium uppercase tracking-wider">{r.barangay} • {new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                                <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest ${r.status === 'resolved' ? 'bg-green-500/20 text-green-400' : r.status === 'deployed' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'}`}>{r.status}</span>
                                             </div>
                                         ))}
                                     </div>
