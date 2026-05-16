@@ -1,6 +1,6 @@
+import logging
 import os
 import sys
-import traceback
 import numpy as np
 import cv2
 import io
@@ -16,6 +16,8 @@ if BACKEND_DIR not in sys.path:
 # Model weights path
 MODEL_PATH = os.path.join(BACKEND_DIR, "models", "mask_rcnn_garbage.h5")
 
+logger = logging.getLogger(__name__)
+
 
 class AIVerifier:
     """
@@ -30,13 +32,11 @@ class AIVerifier:
         if os.path.exists(MODEL_PATH):
             try:
                 self._load_model()
-            except Exception as e:
-                print(f"[WARNING] Failed to load Mask R-CNN model: {e}")
-                traceback.print_exc()
-                print("   Falling back to mock mode.")
+            except Exception:
+                logger.exception("Failed to load Mask R-CNN model. Falling back to mock mode.")
         else:
-            print(f"[WARNING] Model not found at: {MODEL_PATH}")
-            print("   Running in mock mode. Download mask_rcnn_garbage.h5 from Google Drive.")
+            logger.warning("Model not found at: %s", MODEL_PATH)
+            logger.warning("Running in mock mode. Download mask_rcnn_garbage.h5 from Google Drive.")
 
     def _load_model(self):
         """Load the Mask R-CNN model with trained weights."""
@@ -60,7 +60,7 @@ class AIVerifier:
         )
         self.model.load_weights(MODEL_PATH, by_name=True)
         self.is_loaded = True
-        print("[OK] Mask R-CNN model loaded successfully!")
+        logger.info("Mask R-CNN model loaded successfully!")
 
     def verify_image(self, image_bytes: bytes) -> dict:
         """
@@ -117,7 +117,7 @@ class AIVerifier:
             }
 
         except Exception as e:
-            print(f"[ERROR] Detection error: {e}")
+            logger.exception("Detection error")
             return {
                 "verified": False,
                 "confidence": 0.0,

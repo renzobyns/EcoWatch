@@ -1,19 +1,32 @@
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, List
 import spatial_utils
+import csv
+import io
 import json
+import logging
 import os
+import secrets
 import uuid
 import bcrypt
-from datetime import datetime
+from datetime import datetime, timedelta
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from database import engine, get_db
 import models
 from ai_verifier import verifier
 import analytics
+
+# Root logger configuration — single source of formatted output
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 # Create DB tables
 models.Base.metadata.create_all(bind=engine)
@@ -60,9 +73,21 @@ class UserResponse(BaseModel):
     full_name: str
     role: str
     barangay_assignment: Optional[str] = None
+    is_active: bool = True
 
     class Config:
         from_attributes = True
+
+
+class CreateBarangayUserRequest(BaseModel):
+    email: str
+    full_name: str
+    barangay_assignment: str
+
+
+class CreateBarangayUserResponse(BaseModel):
+    user: UserResponse
+    temporary_password: str
 
 class ReportResponse(BaseModel):
     id: int
@@ -119,12 +144,19 @@ def require_role(*roles: str):
     return checker
 
 
-def write_audit(db: Session, user_id: int, action: str, target_id: Optional[int], details: dict):
+def write_audit(
+    db: Session,
+    user_id: int,
+    action: str,
+    target_id: Optional[int],
+    details: dict,
+    target_type: str = "report",
+):
     """Append an AuditLog row. Caller must commit() the session afterwards."""
     db.add(models.AuditLog(
         user_id=user_id,
         action=action,
-        target_type="report",
+        target_type=target_type,
         target_id=target_id,
         details=json.dumps(details),
     ))
@@ -151,16 +183,45 @@ def verify_password(password: str, hashed: str) -> bool:
     """Verify a password against its bcrypt hash."""
     return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
 
-async def save_upload(image: UploadFile, prefix: str = "report") -> str:
-    """Save an uploaded file to disk and return the relative URL path."""
-    ext = os.path.splitext(image.filename)[1] or ".jpg"
+ALLOWED_IMAGE_MIME = ("image/jpeg", "image/png")
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
+
+
+def validate_image(image: UploadFile, contents: bytes) -> None:
+    """Reject uploads that are not JPEG/PNG or exceed the 10 MB cap."""
+    if image.content_type not in ALLOWED_IMAGE_MIME:
+        raise HTTPException(
+            status_code=400,
+            detail="Only JPEG or PNG images are allowed.",
+        )
+    if len(contents) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail="Image must be 10 MB or smaller.",
+        )
+
+
+async def save_upload(
+    image: UploadFile,
+    prefix: str = "report",
+    contents: Optional[bytes] = None,
+) -> str:
+    """Save an uploaded file to disk and return the relative URL path.
+
+    If `contents` is provided, reuse it (avoids double-reading large files).
+    Otherwise read from the UploadFile. Always validates MIME + size.
+    """
+    if contents is None:
+        contents = await image.read()
+    validate_image(image, contents)
+
+    ext = os.path.splitext(image.filename or "")[1] or ".jpg"
     filename = f"{prefix}_{uuid.uuid4().hex[:8]}{ext}"
     filepath = os.path.join(UPLOAD_DIR, filename)
-    
-    contents = await image.read()
+
     with open(filepath, "wb") as f:
         f.write(contents)
-    
+
     return f"/uploads/{filename}"
 
 
@@ -207,7 +268,12 @@ async def login(req: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == req.email).first()
     if not user or not verify_password(req.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    
+    if not user.is_active:
+        raise HTTPException(
+            status_code=403,
+            detail="Account disabled. Contact CENRO administrator.",
+        )
+
     return {
         "success": True,
         "user": {
@@ -224,8 +290,95 @@ async def list_users(
     db: Session = Depends(get_db),
     _user: models.User = Depends(require_role("cenro")),
 ):
-    """List all users (CENRO-only)."""
+    """List all users (CENRO-only). Kept for backward compatibility — prefer GET /users."""
     return db.query(models.User).all()
+
+
+# ─────────────────────────────────────────────────────────
+# USER MANAGEMENT (CENRO-only)
+# ─────────────────────────────────────────────────────────
+
+@app.get("/users", response_model=List[UserResponse])
+async def list_users_filtered(
+    role: Optional[str] = None,
+    is_active: Optional[bool] = None,
+    db: Session = Depends(get_db),
+    _admin: models.User = Depends(require_role("cenro")),
+):
+    """List users with optional role and is_active filters (CENRO-only). Newest first."""
+    query = db.query(models.User)
+    if role:
+        query = query.filter(models.User.role == role)
+    if is_active is not None:
+        query = query.filter(models.User.is_active == is_active)
+    return query.order_by(models.User.created_at.desc()).all()
+
+
+@app.post("/users", response_model=CreateBarangayUserResponse)
+async def create_barangay_user(
+    req: CreateBarangayUserRequest,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(require_role("cenro")),
+):
+    """CENRO creates a new barangay account. Returns the auto-generated password once."""
+    if not req.email or not req.full_name or not req.barangay_assignment:
+        raise HTTPException(status_code=400, detail="email, full_name, and barangay_assignment are required")
+
+    existing = db.query(models.User).filter(models.User.email == req.email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    temporary_password = secrets.token_urlsafe(9)  # ~12 chars
+    new_user = models.User(
+        email=req.email,
+        password_hash=hash_password(temporary_password),
+        full_name=req.full_name,
+        role="barangay",
+        barangay_assignment=req.barangay_assignment,
+        is_active=True,
+    )
+    db.add(new_user)
+    db.flush()  # populate new_user.id before audit row
+
+    write_audit(
+        db, admin.id, "create_user", new_user.id,
+        {"email": new_user.email, "role": new_user.role, "barangay": new_user.barangay_assignment},
+        target_type="user",
+    )
+    db.commit()
+    db.refresh(new_user)
+
+    return CreateBarangayUserResponse(
+        user=UserResponse.model_validate(new_user),
+        temporary_password=temporary_password,
+    )
+
+
+@app.put("/users/{user_id}/disable")
+async def disable_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(require_role("cenro")),
+):
+    """Soft-delete a user account by setting is_active=False (CENRO-only)."""
+    if user_id == admin.id:
+        raise HTTPException(status_code=400, detail="Cannot disable your own account")
+
+    target = db.query(models.User).filter(models.User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not target.is_active:
+        raise HTTPException(status_code=400, detail="User is already disabled")
+
+    target.is_active = False
+    write_audit(
+        db, admin.id, "disable_user", target.id,
+        {"email": target.email, "previous_status": "active"},
+        target_type="user",
+    )
+    db.commit()
+
+    return {"success": True, "message": f"User {target.email} disabled."}
 
 
 # ─────────────────────────────────────────────────────────
@@ -271,15 +424,15 @@ async def submit_report(
     4. Generate tracking ID + URL
     5. Save to database
     """
-    # 1. Read image bytes for AI verification
+    # 1. Read image bytes for AI verification (validates MIME + size below)
     image_bytes = await image.read()
-    
+    validate_image(image, image_bytes)
+
     # 2. Run Mask R-CNN verification
     verification_result = verifier.verify_image(image_bytes)
-    
-    # 3. Save image to disk (reset file pointer)
-    await image.seek(0)
-    image_url = await save_upload(image, prefix="report")
+
+    # 3. Save image to disk (reuse bytes — avoids re-reading 10 MB)
+    image_url = await save_upload(image, prefix="report", contents=image_bytes)
 
     ai_mask_url = None
     # 4. Determine initial status based on AI result
@@ -359,24 +512,159 @@ async def track_report(tracking_slug: str, db: Session = Depends(get_db)):
     
     return ReportResponse.model_validate(report)
 
+def _apply_report_filters(
+    query,
+    status: Optional[str],
+    date_from: Optional[datetime],
+    date_to: Optional[datetime],
+    search: Optional[str],
+):
+    """Shared filter logic for /reports/recent and /reports/barangay/{name}."""
+    if status:
+        query = query.filter(models.Report.status == status.lower())
+    else:
+        query = query.filter(models.Report.status != models.ReportStatus.REJECTED)
+    if date_from:
+        query = query.filter(models.Report.created_at >= date_from)
+    if date_to:
+        query = query.filter(models.Report.created_at <= date_to)
+    if search:
+        like = f"%{search}%"
+        query = query.filter(or_(
+            models.Report.tracking_id.ilike(like),
+            models.Report.notes.ilike(like),
+        ))
+    return query
+
+
 @app.get("/reports/recent", response_model=List[ReportResponse])
-async def get_recent_reports(db: Session = Depends(get_db)):
-    """Fetch all non-rejected reports for map display."""
-    reports = db.query(models.Report).filter(
-        models.Report.status != models.ReportStatus.REJECTED
-    ).order_by(models.Report.created_at.desc()).all()
-    
-    return reports
+async def get_recent_reports(
+    status: Optional[str] = None,
+    date_from: Optional[datetime] = None,
+    date_to: Optional[datetime] = None,
+    search: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+):
+    """Fetch reports for map display. Filters: status, date range, search (tracking_id or notes)."""
+    limit = min(max(limit, 1), 200)
+    offset = max(offset, 0)
+    query = _apply_report_filters(
+        db.query(models.Report), status, date_from, date_to, search
+    )
+    return (
+        query.order_by(models.Report.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
 
 @app.get("/reports/barangay/{name}", response_model=List[ReportResponse])
-async def get_barangay_reports(name: str, db: Session = Depends(get_db)):
-    """Get all reports for a specific barangay (for barangay portal)."""
-    reports = db.query(models.Report).filter(
-        models.Report.barangay == name,
-        models.Report.status != models.ReportStatus.REJECTED
-    ).order_by(models.Report.created_at.desc()).all()
-    
-    return reports
+async def get_barangay_reports(
+    name: str,
+    status: Optional[str] = None,
+    date_from: Optional[datetime] = None,
+    date_to: Optional[datetime] = None,
+    search: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+):
+    """Get reports for a specific barangay (barangay portal)."""
+    limit = min(max(limit, 1), 200)
+    offset = max(offset, 0)
+    query = db.query(models.Report).filter(models.Report.barangay == name)
+    query = _apply_report_filters(query, status, date_from, date_to, search)
+    return (
+        query.order_by(models.Report.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+
+@app.get("/reports/sla-breaches", response_model=List[ReportResponse])
+async def get_sla_breaches(days: int = 3, db: Session = Depends(get_db)):
+    """List reports past the SLA threshold (still pending/verified/deployed after N days)."""
+    days = max(1, days)
+    threshold = datetime.utcnow() - timedelta(days=days)
+    return (
+        db.query(models.Report)
+        .filter(
+            models.Report.status.in_([
+                models.ReportStatus.PENDING,
+                models.ReportStatus.VERIFIED,
+                models.ReportStatus.DEPLOYED,
+            ]),
+            models.Report.created_at < threshold,
+        )
+        .order_by(models.Report.created_at.asc())
+        .all()
+    )
+
+
+@app.get("/reports/export")
+async def export_reports(
+    barangay: Optional[str] = None,
+    date_from: Optional[datetime] = None,
+    date_to: Optional[datetime] = None,
+    status: Optional[str] = None,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """Export filtered reports as CSV. Barangay users restricted to their assignment."""
+    if user.role not in ("cenro", "barangay"):
+        raise HTTPException(status_code=403, detail="Requires CENRO or barangay role")
+
+    query = db.query(models.Report, models.User.email).outerjoin(
+        models.User, models.Report.reporter_id == models.User.id
+    )
+
+    if user.role == "barangay":
+        if not user.barangay_assignment:
+            raise HTTPException(status_code=400, detail="Barangay user missing assignment")
+        query = query.filter(models.Report.barangay == user.barangay_assignment)
+    elif barangay:
+        query = query.filter(models.Report.barangay == barangay)
+
+    if date_from:
+        query = query.filter(models.Report.created_at >= date_from)
+    if date_to:
+        query = query.filter(models.Report.created_at <= date_to)
+    if status:
+        query = query.filter(models.Report.status == status.lower())
+
+    rows = query.order_by(models.Report.created_at.desc()).all()
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow([
+        "tracking_id", "created_at", "barangay", "status", "lat", "lon",
+        "ai_confidence", "reporter_email", "deployed_at", "resolved_at", "notes",
+    ])
+    for report, reporter_email in rows:
+        writer.writerow([
+            report.tracking_id or "",
+            report.created_at.isoformat() if report.created_at else "",
+            report.barangay or "",
+            report.status,
+            report.lat,
+            report.lon,
+            report.ai_confidence if report.ai_confidence is not None else "",
+            reporter_email or "",
+            report.deployed_at.isoformat() if report.deployed_at else "",
+            report.resolved_at.isoformat() if report.resolved_at else "",
+            (report.notes or "").replace("\n", " ").replace("\r", " "),
+        ])
+
+    filename = f"ecowatch_reports_{datetime.utcnow().strftime('%Y%m%d')}.csv"
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # ─────────────────────────────────────────────────────────
@@ -433,13 +721,13 @@ async def resolve_report(
             detail=f"Cannot resolve. Report status is '{report.status}', must be 'deployed'."
         )
 
-    # Read cleanup image bytes for AI verification
+    # Read cleanup image bytes for AI verification (validates MIME + size below)
     cleanup_bytes = await cleanup_image.read()
+    validate_image(cleanup_image, cleanup_bytes)
     verification = verifier.verify_image(cleanup_bytes)
 
-    # Save cleanup image to disk
-    await cleanup_image.seek(0)
-    cleanup_url = await save_upload(cleanup_image, prefix="cleanup")
+    # Save cleanup image to disk (reuse bytes)
+    cleanup_url = await save_upload(cleanup_image, prefix="cleanup", contents=cleanup_bytes)
     report.cleanup_image_url = cleanup_url
 
     if verification["verified"]:
