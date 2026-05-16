@@ -52,6 +52,9 @@ Thumbs.db
 # Database
 backend/ecowatch.db
 
+# Dynamic Uploads
+backend/uploads/
+
 # Mask R-CNN (cloned repo + model weights + inference library)
 maskrcnn/
 *.h5
