@@ -14,7 +14,7 @@ import secrets
 import uuid
 import bcrypt
 from datetime import datetime, timedelta
-from sqlalchemy import or_
+from sqlalchemy import or_, text
 from sqlalchemy.orm import Session
 from database import engine, get_db
 import models
@@ -30,6 +30,18 @@ logger = logging.getLogger(__name__)
 
 # Create DB tables
 models.Base.metadata.create_all(bind=engine)
+
+# Idempotent column adds for existing DBs (SQLAlchemy create_all doesn't ALTER).
+# Safe to leave permanently: each statement raises on existing column and we swallow.
+with engine.connect() as _conn:
+    for _ddl in (
+        "ALTER TABLE reports ADD COLUMN deployment_notes TEXT",
+    ):
+        try:
+            _conn.execute(text(_ddl))
+            _conn.commit()
+        except Exception:
+            pass  # column already exists
 
 # Ensure uploads directory exists
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
@@ -101,6 +113,7 @@ class ReportResponse(BaseModel):
     ai_confidence: Optional[float] = None
     status: str
     notes: Optional[str] = None
+    deployment_notes: Optional[str] = None
     tracking_id: Optional[str] = None
     tracking_url: Optional[str] = None
     created_at: datetime
@@ -674,6 +687,7 @@ async def export_reports(
 @app.put("/report/{report_id}/deploy")
 async def deploy_report(
     report_id: int,
+    deployment_notes: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     user: models.User = Depends(require_role("barangay")),
 ):
@@ -688,9 +702,14 @@ async def deploy_report(
             detail=f"Cannot deploy. Report status is '{report.status}', must be 'verified'."
         )
 
+    notes_clean = (deployment_notes or "").strip() or None
     report.status = models.ReportStatus.DEPLOYED
     report.deployed_at = datetime.utcnow()
-    write_audit(db, user.id, "deploy", report.id, {"tracking_id": report.tracking_id})
+    report.deployment_notes = notes_clean
+    audit_details = {"tracking_id": report.tracking_id}
+    if notes_clean:
+        audit_details["deployment_notes"] = notes_clean[:500]
+    write_audit(db, user.id, "deploy", report.id, audit_details)
     db.commit()
     db.refresh(report)
 

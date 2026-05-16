@@ -53,6 +53,7 @@ class Report(Base):
     # Status & metadata
     status = Column(String, default=ReportStatus.PENDING)
     notes = Column(Text, nullable=True)
+    deployment_notes = Column(Text, nullable=True)  # Set when barangay dispatches a team
 
     # Tracking (for anonymous access)
     tracking_id = Column(String, unique=True, nullable=True)  # e.g. "EW-0042"
