@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
 
 export default function Navbar() {
     const [menuOpen, setMenuOpen] = useState(false);
@@ -33,22 +34,22 @@ export default function Navbar() {
 
                     {/* Logo */}
                     <Link href="/" className="flex items-center gap-2 group">
-                        <div className="w-10 h-10 rounded-lg overflow-hidden shadow-lg shadow-primary/20 bg-white flex items-center justify-center p-0.5 group-hover:scale-110 transition-transform duration-300">
+                        <div className="w-8 h-8 rounded-md overflow-hidden shadow-md shadow-primary/20 bg-white flex items-center justify-center p-0.5 group-hover:scale-110 transition-transform duration-300">
                             <img src="/logo.png" alt="EcoWatch" className="w-full h-full object-contain" />
                         </div>
-                        <span className="text-2xl font-bold tracking-tight text-gradient">
-                            EcoWatch <span className="text-foreground/50 text-sm font-medium">SJDM</span>
+                        <span className="text-lg font-semibold tracking-tight text-gradient">
+                            EcoWatch <span className="text-foreground/50 text-xs font-medium">SJDM</span>
                         </span>
                     </Link>
 
                     {/* Desktop Nav */}
-                    <div className="hidden md:flex items-center space-x-8">
+                    <div className="hidden md:flex items-center space-x-6">
                         {publicLinks.map((link) => (
                             <Link key={link.href} href={link.href} className="text-foreground/70 hover:text-primary transition-colors text-sm font-medium">
                                 {link.label}
                             </Link>
                         ))}
-                        
+
                         {user && user.role === 'barangay' && (
                             <Link href="/barangay" className="text-emerald-500 hover:text-emerald-400 transition-colors text-sm font-medium">Barangay Portal</Link>
                         )}
@@ -57,31 +58,31 @@ export default function Navbar() {
                         )}
 
                         {user ? (
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-3">
                                 <div className="text-right hidden lg:block">
-                                    <div className="text-sm font-bold text-white">{user.name}</div>
+                                    <div className="text-sm font-semibold text-white leading-tight">{user.name}</div>
                                     <div className="text-[10px] text-white/50 uppercase tracking-widest">{user.role}</div>
                                 </div>
-                                <button 
+                                <button
                                     onClick={() => {
                                         localStorage.removeItem('ecowatch_user');
                                         window.location.href = '/';
                                     }}
-                                    className="text-xs font-bold text-red-400 hover:text-red-300 transition-colors"
+                                    className="text-sm font-medium text-red-400 hover:text-red-300 transition-colors"
                                 >
                                     Sign Out
                                 </button>
                             </div>
                         ) : (
-                            <Link href="/login" className="px-5 py-2 glass rounded-full text-sm font-bold text-white hover:bg-white/10 transition-colors border border-white/20">
-                                Log In
-                            </Link>
+                            <Button asChild variant="outline" size="sm">
+                                <Link href="/login">Log In</Link>
+                            </Button>
                         )}
                     </div>
 
                     {/* Mobile Hamburger Button */}
                     <button
-                        className="md:hidden flex flex-col justify-center items-center w-11 h-11 gap-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+                        className="md:hidden flex flex-col justify-center items-center w-10 h-10 gap-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
                         onClick={() => setMenuOpen(!menuOpen)}
                         aria-label="Toggle menu"
                     >
@@ -100,7 +101,7 @@ export default function Navbar() {
                             key={link.href}
                             href={link.href}
                             onClick={() => setMenuOpen(false)}
-                            className="block px-4 py-3 rounded-xl text-foreground/80 hover:bg-white/5 hover:text-primary transition-colors text-sm font-medium"
+                            className="block px-4 py-2.5 rounded-lg text-foreground/80 hover:bg-white/5 hover:text-primary transition-colors text-sm font-medium"
                         >
                             {link.label}
                         </Link>
@@ -117,20 +118,20 @@ export default function Navbar() {
                     )}
                     <div className="pt-2 border-t border-white/10 mt-2">
                         {user ? (
-                            <button 
+                            <button
                                 onClick={() => {
                                     localStorage.removeItem('ecowatch_user');
                                     window.location.href = '/';
                                 }}
-                                className="w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-500/10 text-red-400 transition-colors"
+                                className="w-full text-left flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-red-500/10 text-red-400 transition-colors"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                                <div className="text-sm font-bold">Sign Out</div>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                                <div className="text-sm font-medium">Sign Out</div>
                             </button>
                         ) : (
-                            <Link href="/login" onClick={() => setMenuOpen(false)} className="block w-full py-3 eco-gradient text-white rounded-xl text-sm font-semibold shadow-lg shadow-primary/20 text-center">
-                                Log In
-                            </Link>
+                            <Button asChild className="w-full">
+                                <Link href="/login" onClick={() => setMenuOpen(false)}>Log In</Link>
+                            </Button>
                         )}
                     </div>
                 </div>

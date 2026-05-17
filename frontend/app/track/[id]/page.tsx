@@ -55,11 +55,11 @@ export default function TrackReportPage() {
                 <div className="w-24 h-24 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 mb-6">
                     <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
                 </div>
-                <h1 className="text-3xl font-black text-white mb-2">Report Not Found</h1>
+                <h1 className="text-2xl font-bold text-white mb-2">Report Not Found</h1>
                 <p className="text-foreground/60 mb-8 max-w-md">
                     We couldn't find a report with tracking ID "{trackingId}". It may have been rejected by the AI or the ID is incorrect.
                 </p>
-                <Link href="/" className="px-8 py-3 eco-gradient text-white font-bold rounded-full">Return Home</Link>
+                <Link href="/" className="h-11 px-7 inline-flex items-center eco-gradient text-white text-sm font-semibold rounded-lg">Return Home</Link>
             </div>
         );
     }
@@ -74,29 +74,29 @@ export default function TrackReportPage() {
     if (isFailed) currentStepIndex = 2; // Deployed, but failed resolving
 
     return (
-        <div className="min-h-screen bg-[#0a0f0a] pt-24 pb-12 px-4 flex flex-col items-center">
+        <div className="min-h-screen bg-[#0a0f0a] pt-20 pb-12 px-4 flex flex-col items-center">
             <div className="w-full max-w-2xl">
-                
+
                 {/* Header */}
-                <div className="flex items-center justify-between mb-8">
-                    <Link href="/" className="text-white hover:text-primary transition-colors flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                <div className="flex items-center justify-between mb-6">
+                    <Link href="/" className="text-white/80 hover:text-primary transition-colors flex items-center gap-2 text-sm font-medium">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                         Back to Map
                     </Link>
                     <div className="text-right">
-                        <div className="text-xs font-bold text-foreground/50 uppercase tracking-widest">Tracking ID</div>
-                        <div className="text-xl font-black text-primary">{report.tracking_id}</div>
+                        <div className="text-[11px] font-semibold text-foreground/50 uppercase tracking-widest">Tracking ID</div>
+                        <div className="text-base font-semibold text-primary">{report.tracking_id}</div>
                     </div>
                 </div>
 
                 {/* Main Card */}
-                <div className="glass rounded-3xl border border-white/10 shadow-2xl overflow-hidden mb-8">
+                <div className="glass rounded-2xl border border-white/10 shadow-2xl overflow-hidden mb-8">
                     {/* Status Banner */}
                     <div className={`p-6 text-center border-b border-white/10 ${
                         report.status === 'resolved' ? 'bg-green-500/10' :
                         isRejected || isFailed ? 'bg-red-500/10' : 'bg-primary/10'
                     }`}>
-                        <h2 className={`text-2xl font-black uppercase tracking-widest ${
+                        <h2 className={`text-xl font-semibold uppercase tracking-widest ${
                             report.status === 'resolved' ? 'text-green-500' :
                             isRejected || isFailed ? 'text-red-500' : 'text-primary'
                         }`}>
@@ -202,7 +202,7 @@ export default function TrackReportPage() {
                         <div className="space-y-6">
                             <div>
                                 <h3 className="text-xs font-bold text-white/50 uppercase tracking-widest mb-1">Assigned Barangay</h3>
-                                <p className="text-xl font-black text-white">{report.barangay || "Locating..."}</p>
+                                <p className="text-lg font-semibold text-white">{report.barangay || "Locating..."}</p>
                             </div>
 
                             <div>

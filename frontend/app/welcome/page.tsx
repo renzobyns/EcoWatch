@@ -38,34 +38,34 @@ export default function WelcomePage() {
                 </div>
 
                 <div className="space-y-3">
-                    <h1 className="text-4xl font-extrabold text-gradient">Welcome, {name}!</h1>
-                    <p className="text-foreground/60">
+                    <h1 className="text-3xl font-bold text-gradient">Welcome, {name}!</h1>
+                    <p className="text-sm text-foreground/60">
                         Your email has been verified. You&apos;re now an official EcoWatch SJDM citizen reporter.
                     </p>
                 </div>
 
-                <div className="glass p-6 rounded-2xl border border-white/10 space-y-4 text-left">
-                    <p className="text-sm font-bold text-foreground/80">Here&apos;s what you can do now:</p>
+                <div className="glass p-5 rounded-2xl border border-white/10 space-y-3.5 text-left">
+                    <p className="text-sm font-semibold text-foreground/80">Here&apos;s what you can do now:</p>
                     <div className="space-y-3">
                         <div className="flex items-start gap-3">
-                            <span className="w-8 h-8 rounded-lg eco-gradient flex items-center justify-center text-white text-sm font-bold shrink-0 shadow shadow-primary/20">1</span>
+                            <span className="w-7 h-7 rounded-md eco-gradient flex items-center justify-center text-white text-xs font-semibold shrink-0 shadow shadow-primary/20">1</span>
                             <div>
                                 <p className="font-semibold text-sm">Report illegal dumping</p>
-                                <p className="text-xs text-foreground/40">Snap a photo and pin the location on our map</p>
+                                <p className="text-xs text-foreground/40 mt-0.5">Snap a photo and pin the location on our map</p>
                             </div>
                         </div>
                         <div className="flex items-start gap-3">
-                            <span className="w-8 h-8 rounded-lg eco-gradient flex items-center justify-center text-white text-sm font-bold shrink-0 shadow shadow-primary/20">2</span>
+                            <span className="w-7 h-7 rounded-md eco-gradient flex items-center justify-center text-white text-xs font-semibold shrink-0 shadow shadow-primary/20">2</span>
                             <div>
                                 <p className="font-semibold text-sm">Track your reports</p>
-                                <p className="text-xs text-foreground/40">See real-time status from Pending to Resolved</p>
+                                <p className="text-xs text-foreground/40 mt-0.5">See real-time status from Pending to Resolved</p>
                             </div>
                         </div>
                         <div className="flex items-start gap-3">
-                            <span className="w-8 h-8 rounded-lg eco-gradient flex items-center justify-center text-white text-sm font-bold shrink-0 shadow shadow-primary/20">3</span>
+                            <span className="w-7 h-7 rounded-md eco-gradient flex items-center justify-center text-white text-xs font-semibold shrink-0 shadow shadow-primary/20">3</span>
                             <div>
                                 <p className="font-semibold text-sm">Help keep SJDM clean</p>
-                                <p className="text-xs text-foreground/40">Every report helps our AI identify pollution hotspots</p>
+                                <p className="text-xs text-foreground/40 mt-0.5">Every report helps our AI identify pollution hotspots</p>
                             </div>
                         </div>
                     </div>
@@ -74,13 +74,13 @@ export default function WelcomePage() {
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                     <Link
                         href="/report"
-                        className="px-8 py-4 eco-gradient text-white rounded-xl text-lg font-bold shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all active:scale-95 text-center"
+                        className="h-11 px-6 inline-flex items-center justify-center eco-gradient text-white rounded-lg text-sm font-semibold shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all active:scale-95"
                     >
                         Report a Violation
                     </Link>
                     <Link
                         href="/profile"
-                        className="px-8 py-4 glass text-foreground rounded-xl text-lg font-bold hover:bg-white/5 transition-all text-center border border-white/10"
+                        className="h-11 px-6 inline-flex items-center justify-center glass text-foreground rounded-lg text-sm font-semibold hover:bg-white/5 transition-all border border-white/10"
                     >
                         View My Profile
                     </Link>

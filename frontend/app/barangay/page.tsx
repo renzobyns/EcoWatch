@@ -217,7 +217,7 @@ export default function BarangayPortal() {
     };
 
     return (
-        <div className="min-h-screen bg-[#0a0f0a] pt-24 pb-12 px-4 md:px-8 relative overflow-hidden">
+        <div className="min-h-screen bg-[#0a0f0a] pt-20 pb-10 px-4 md:px-8 relative overflow-hidden">
             {/* Pro Max Background Accents */}
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none" />
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none" />
@@ -225,40 +225,40 @@ export default function BarangayPortal() {
             <div className="max-w-[1600px] mx-auto h-[calc(100vh-8rem)] flex flex-col relative z-10">
 
                 {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 shrink-0 animate-slide-up">
+                <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 shrink-0 animate-slide-up">
                     <div>
-                        <h1 className="text-4xl font-black text-white mb-2 tracking-tight">Barangay <span className="text-primary">Dashboard</span></h1>
-                        <p className="text-emerald-400 font-bold uppercase tracking-[0.2em] text-xs px-3 py-1 bg-emerald-400/10 rounded-full w-fit border border-emerald-400/20">
+                        <h1 className="text-2xl font-bold text-white mb-2 tracking-tight">Barangay <span className="text-primary">Dashboard</span></h1>
+                        <p className="text-emerald-400 font-semibold uppercase tracking-[0.18em] text-[11px] px-2.5 py-0.5 bg-emerald-400/10 rounded-full w-fit border border-emerald-400/20">
                             {user.barangay_assignment}
                         </p>
                     </div>
                 </div>
 
                 {/* Main Content Split: 60/40 */}
-                <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
+                <div className="flex-1 flex flex-col lg:flex-row gap-5 min-h-0">
 
                     {/* Left: Report Queue (60%) */}
                     <div className="flex-[3] flex flex-col gap-4 min-h-0">
                         {/* Stats Cards */}
-                        <div className="grid grid-cols-3 gap-6 shrink-0 animate-slide-up stagger-1">
-                            <div className="glass-pro p-6 rounded-3xl bento-card">
-                                <div className="text-[11px] font-bold text-white/40 uppercase tracking-[0.1em] mb-2">Pending Reports</div>
-                                <div className="text-4xl font-black text-red-400 tracking-tighter">{stats.pending}</div>
-                                <div className="mt-4 w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                        <div className="grid grid-cols-3 gap-4 shrink-0 animate-slide-up stagger-1">
+                            <div className="glass-pro p-5 rounded-2xl bento-card">
+                                <div className="text-[11px] font-semibold text-white/40 uppercase tracking-[0.1em] mb-1.5">Pending Reports</div>
+                                <div className="text-3xl font-bold text-red-400 tracking-tight">{stats.pending}</div>
+                                <div className="mt-3 w-full h-1 bg-white/5 rounded-full overflow-hidden">
                                     <div className="h-full bg-red-400/50" style={{ width: '40%' }}></div>
                                 </div>
                             </div>
-                            <div className="glass-pro p-6 rounded-3xl bento-card">
-                                <div className="text-[11px] font-bold text-white/40 uppercase tracking-[0.1em] mb-2">Teams Deployed</div>
-                                <div className="text-4xl font-black text-yellow-400 tracking-tighter">{stats.deployed}</div>
-                                <div className="mt-4 w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                            <div className="glass-pro p-5 rounded-2xl bento-card">
+                                <div className="text-[11px] font-semibold text-white/40 uppercase tracking-[0.1em] mb-1.5">Teams Deployed</div>
+                                <div className="text-3xl font-bold text-yellow-400 tracking-tight">{stats.deployed}</div>
+                                <div className="mt-3 w-full h-1 bg-white/5 rounded-full overflow-hidden">
                                     <div className="h-full bg-yellow-400/50" style={{ width: '60%' }}></div>
                                 </div>
                             </div>
-                            <div className="glass-pro p-6 rounded-3xl bento-card">
-                                <div className="text-[11px] font-bold text-white/40 uppercase tracking-[0.1em] mb-2">Resolved Today</div>
-                                <div className="text-4xl font-black text-green-400 tracking-tighter">{stats.resolved}</div>
-                                <div className="mt-4 w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                            <div className="glass-pro p-5 rounded-2xl bento-card">
+                                <div className="text-[11px] font-semibold text-white/40 uppercase tracking-[0.1em] mb-1.5">Resolved Today</div>
+                                <div className="text-3xl font-bold text-green-400 tracking-tight">{stats.resolved}</div>
+                                <div className="mt-3 w-full h-1 bg-white/5 rounded-full overflow-hidden">
                                     <div className="h-full bg-green-400/50" style={{ width: '80%' }}></div>
                                 </div>
                             </div>
@@ -325,19 +325,19 @@ export default function BarangayPortal() {
                             <div className="flex border-b border-white/10 shrink-0">
                                 <button
                                     onClick={() => setFilter('pending')}
-                                    className={`flex-1 py-4 text-xs font-bold uppercase tracking-widest transition-colors ${filter === 'pending' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-white/50 hover:bg-white/5 hover:text-white'}`}
+                                    className={`flex-1 py-3 text-[11px] font-semibold uppercase tracking-widest transition-colors ${filter === 'pending' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-white/50 hover:bg-white/5 hover:text-white'}`}
                                 >
                                     Pending
                                 </button>
                                 <button
                                     onClick={() => setFilter('deployed')}
-                                    className={`flex-1 py-4 text-xs font-bold uppercase tracking-widest transition-colors ${filter === 'deployed' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-white/50 hover:bg-white/5 hover:text-white'}`}
+                                    className={`flex-1 py-3 text-[11px] font-semibold uppercase tracking-widest transition-colors ${filter === 'deployed' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-white/50 hover:bg-white/5 hover:text-white'}`}
                                 >
                                     Deployed
                                 </button>
                                 <button
                                     onClick={() => setFilter('resolved')}
-                                    className={`flex-1 py-4 text-xs font-bold uppercase tracking-widest transition-colors ${filter === 'resolved' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-white/50 hover:bg-white/5 hover:text-white'}`}
+                                    className={`flex-1 py-3 text-[11px] font-semibold uppercase tracking-widest transition-colors ${filter === 'resolved' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-white/50 hover:bg-white/5 hover:text-white'}`}
                                 >
                                     Done
                                 </button>
@@ -460,12 +460,12 @@ export default function BarangayPortal() {
             {/* Report Detail Modal */}
             {selectedReport && (
                 <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="glass p-0 max-w-4xl w-full max-h-[90vh] overflow-y-auto rounded-3xl border border-white/10 shadow-2xl relative animate-in zoom-in-95 duration-300">
+                    <div className="glass p-0 max-w-4xl w-full max-h-[90vh] overflow-y-auto rounded-2xl border border-white/10 shadow-2xl relative animate-in zoom-in-95 duration-300">
 
                         {/* Modal Header */}
                         <div className="sticky top-0 z-10 glass border-b border-white/10 px-6 py-4 flex items-center justify-between">
                             <div>
-                                <h2 className="text-xl font-black text-white">Report {selectedReport.tracking_id}</h2>
+                                <h2 className="text-lg font-semibold text-white">Report {selectedReport.tracking_id}</h2>
                                 <p className="text-xs text-white/50 font-bold uppercase tracking-widest">{selectedReport.status}</p>
                             </div>
                             <button
@@ -524,7 +524,7 @@ export default function BarangayPortal() {
 
                                 {/* Action Area */}
                                 <div className="bg-white/5 p-6 rounded-2xl border border-white/10">
-                                    <h3 className="text-sm font-black text-white uppercase tracking-widest mb-4 border-b border-white/10 pb-2">Take Action</h3>
+                                    <h3 className="text-xs font-semibold text-white uppercase tracking-widest mb-4 border-b border-white/10 pb-2">Take Action</h3>
 
                                     {selectedReport.status === 'verified' && (
                                         <div>

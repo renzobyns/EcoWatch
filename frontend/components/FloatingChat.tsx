@@ -196,8 +196,8 @@ export default function FloatingChat() {
                     {/* Pulse effect rings */}
                     <div className="absolute -inset-2 rounded-full border border-primary/30 animate-ping opacity-75"></div>
                     
-                    <div className="w-14 h-14 rounded-full eco-gradient shadow-xl shadow-primary/30 flex items-center justify-center text-white transform transition-transform group-hover:scale-110 active:scale-95">
-                        <MessageCircle size={28} />
+                    <div className="w-12 h-12 rounded-full eco-gradient shadow-xl shadow-primary/30 flex items-center justify-center text-white transform transition-transform group-hover:scale-110 active:scale-95">
+                        <MessageCircle size={22} />
                     </div>
                     
                     {/* Tooltip */}
