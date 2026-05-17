@@ -66,31 +66,31 @@ export default function LandingPage() {
             {/* Floating Action Buttons (Middle Left) */}
             <div className="absolute top-1/2 -translate-y-1/2 left-6 z-[1000] flex flex-col gap-3">
                 {/* Refined Report Button */}
-                <Link 
+                <Link
                     href="/report"
-                    className="glass px-4 py-3 rounded-2xl flex items-center gap-3 text-white transition-all shadow-xl hover:bg-white/10 group border border-red-500/20"
+                    className="glass px-3.5 py-2.5 rounded-xl flex items-center gap-2.5 text-white transition-all shadow-xl hover:bg-white/10 group border border-red-500/20"
                 >
-                    <div className="relative w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center transition-transform group-hover:scale-110">
+                    <div className="relative w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center transition-transform group-hover:scale-110">
                         {/* Soft Pulse Effect on Icon Only */}
-                        <div className="absolute inset-0 rounded-xl bg-red-500/20 animate-pulse"></div>
-                        <svg className="relative z-10 text-red-500" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        <div className="absolute inset-0 rounded-lg bg-red-500/20 animate-pulse"></div>
+                        <svg className="relative z-10 text-red-500" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                     </div>
-                    <div className="text-left hidden sm:block pr-2">
-                        <div className="text-[10px] text-red-400/70 font-black uppercase tracking-[0.2em]">Live</div>
-                        <div className="text-sm font-black uppercase text-white/90">Report</div>
+                    <div className="text-left hidden sm:block pr-1.5">
+                        <div className="text-[10px] text-red-400/70 font-bold uppercase tracking-[0.18em]">Live</div>
+                        <div className="text-sm font-semibold uppercase text-white/90">Report</div>
                     </div>
                 </Link>
 
-                <button 
+                <button
                     onClick={() => setQRModalOpen(true)}
-                    className="eco-gradient px-4 py-3 rounded-2xl flex items-center gap-3 text-white hover:opacity-90 transition-all shadow-2xl shadow-primary/20 group hover:scale-[1.02] active:scale-95"
+                    className="eco-gradient px-3.5 py-2.5 rounded-xl flex items-center gap-2.5 text-white hover:opacity-90 transition-all shadow-2xl shadow-primary/20 group hover:scale-[1.02] active:scale-95"
                 >
-                    <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><rect x="7" y="7" width="3" height="3"/><rect x="14" y="7" width="3" height="3"/><rect x="7" y="14" width="3" height="3"/><rect x="14" y="14" width="3" height="3"/></svg>
+                    <div className="w-9 h-9 rounded-lg bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><rect x="7" y="7" width="3" height="3"/><rect x="14" y="7" width="3" height="3"/><rect x="7" y="14" width="3" height="3"/><rect x="14" y="14" width="3" height="3"/></svg>
                     </div>
                     <div className="text-left hidden sm:block">
-                        <div className="text-[10px] text-white/70 font-black uppercase tracking-[0.2em]">Share</div>
-                        <div className="text-sm font-bold">QR Code</div>
+                        <div className="text-[10px] text-white/70 font-bold uppercase tracking-[0.18em]">Share</div>
+                        <div className="text-sm font-semibold">QR Code</div>
                     </div>
                 </button>
             </div>
@@ -121,16 +121,16 @@ export default function LandingPage() {
             {/* Collapsible Side Panel (Live Feed) */}
             <div className={`absolute top-16 right-0 h-[calc(100vh-4rem)] w-full md:w-96 z-30 transition-transform duration-500 ease-in-out ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
                 <div className="h-full glass border-l border-white/10 flex flex-col shadow-2xl">
-                    <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0">
+                    <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between shrink-0">
                         <div>
-                            <h2 className="text-lg font-black text-white flex items-center gap-2">
-                                <span className="relative flex h-3 w-3">
+                            <h2 className="text-sm font-semibold text-white flex items-center gap-2 tracking-wider">
+                                <span className="relative flex h-2.5 w-2.5">
                                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
                                 </span>
                                 LIVE FEED
                             </h2>
-                            <p className="text-xs text-foreground/50 font-medium tracking-wide">
+                            <p className="text-xs text-foreground/50 font-medium tracking-wide mt-0.5">
                                 {focusedBarangay ? `Showing reports in ${focusedBarangay}` : 'City-wide active reports'}
                             </p>
                         </div>
@@ -146,22 +146,22 @@ export default function LandingPage() {
                             </div>
                         ) : (
                             filteredReports.map((report) => (
-                                <div key={report.id} className="p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors cursor-pointer group">
-                                    <div className="flex items-start justify-between mb-2">
+                                <div key={report.id} className="p-3.5 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors cursor-pointer group">
+                                    <div className="flex items-start justify-between mb-1.5">
                                         <div className="flex items-center gap-2">
-                                            <div className={`w-2 h-2 rounded-full ${
-                                                report.status === 'resolved' ? 'bg-green-500' : 
+                                            <div className={`w-1.5 h-1.5 rounded-full ${
+                                                report.status === 'resolved' ? 'bg-green-500' :
                                                 report.status === 'deployed' ? 'bg-yellow-500' : 'bg-red-500'
                                             }`} />
-                                            <span className="text-xs font-bold text-white uppercase tracking-wider">{report.status}</span>
+                                            <span className="text-[11px] font-semibold text-white uppercase tracking-wider">{report.status}</span>
                                         </div>
                                         <span className="text-[10px] text-foreground/40 font-medium">
                                             {new Date(report.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                         </span>
                                     </div>
-                                    <h4 className="text-sm font-bold text-white mb-1 group-hover:text-primary transition-colors">{report.barangay}</h4>
-                                    {report.notes && <p className="text-xs text-foreground/60 line-clamp-2 mb-3">{report.notes}</p>}
-                                    <Link href={report.tracking_url || "#"} className="text-xs font-bold text-primary hover:text-primary-dark underline-offset-2 hover:underline">
+                                    <h4 className="text-sm font-semibold text-white mb-1 group-hover:text-primary transition-colors">{report.barangay}</h4>
+                                    {report.notes && <p className="text-xs text-foreground/60 line-clamp-2 mb-2.5">{report.notes}</p>}
+                                    <Link href={report.tracking_url || "#"} className="text-xs font-medium text-primary hover:text-primary-dark underline-offset-2 hover:underline">
                                         View Details →
                                     </Link>
                                 </div>

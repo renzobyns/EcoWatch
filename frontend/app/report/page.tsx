@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 // We need a simple map to show the user's location
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { 
@@ -142,14 +144,14 @@ export default function ReportPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#0a0f0a] pt-24 pb-12 px-4 flex flex-col items-center">
-            
-            <div className="w-full max-w-lg mb-8 flex items-center justify-between">
-                <button 
-                    onClick={() => step > 1 ? setStep(step - 1) : router.push("/")} 
-                    className="text-white hover:text-primary transition-colors flex items-center gap-2 font-bold"
+        <div className="min-h-screen bg-[#0a0f0a] pt-20 pb-12 px-4 flex flex-col items-center">
+
+            <div className="w-full max-w-lg mb-6 flex items-center justify-between">
+                <button
+                    onClick={() => step > 1 ? setStep(step - 1) : router.push("/")}
+                    className="text-white/80 hover:text-primary transition-colors flex items-center gap-2 text-sm font-medium"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                     Back
                 </button>
                 <div className="flex items-center gap-2">
@@ -161,11 +163,11 @@ export default function ReportPage() {
                 </div>
             </div>
 
-            <div className="w-full max-w-lg glass p-6 md:p-8 rounded-3xl border border-white/10 shadow-2xl relative overflow-hidden">
-                
+            <div className="w-full max-w-lg glass p-6 md:p-7 rounded-2xl border border-white/10 shadow-2xl relative overflow-hidden">
+
                 {error && (
-                    <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-3">
-                        <svg className="text-red-500 shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <div className="mb-5 p-3.5 rounded-lg bg-red-500/10 border border-red-500/20 flex items-start gap-3">
+                        <svg className="text-red-500 shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                         <p className="text-sm font-medium text-red-400">{error}</p>
                     </div>
                 )}
@@ -173,45 +175,48 @@ export default function ReportPage() {
                 {/* STEP 1: LOCATION */}
                 {step === 1 && (
                     <div className="animate-in slide-in-from-right-8 duration-300">
-                        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-6 shadow-lg shadow-primary/20">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-5 shadow-md shadow-primary/20">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                         </div>
-                        <h2 className="text-3xl font-black text-white mb-2">Pinpoint Location</h2>
-                        <p className="text-sm text-white/50 font-medium mb-6">
+                        <h2 className="text-2xl font-bold text-white mb-1.5">Pinpoint Location</h2>
+                        <p className="text-sm text-white/50 font-medium mb-5">
                             We use your coordinates to route the report to the correct <span className="text-primary">Barangay Hall</span> automatically.
                         </p>
 
-                        <div className="h-[400px] mb-6 rounded-2xl overflow-hidden border border-white/10 shadow-inner">
-                            <LocationPickerMap 
-                                initialLat={lat} 
-                                initialLon={lon} 
+                        <div className="h-[380px] mb-5 rounded-xl overflow-hidden border border-white/10 shadow-inner">
+                            <LocationPickerMap
+                                initialLat={lat}
+                                initialLon={lon}
                                 onLocationChange={(newLat, newLon) => {
                                     setLat(newLat);
                                     setLon(newLon);
-                                }} 
+                                }}
                             />
                         </div>
 
-                        <div className="flex flex-col sm:flex-row gap-3">
-                            <button 
+                        <div className="flex flex-col sm:flex-row gap-2.5">
+                            <Button
                                 onClick={handleGetLocation}
                                 disabled={isLocating}
-                                className="flex-1 py-4 glass text-white rounded-2xl font-bold hover:bg-white/10 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70 disabled:hover:scale-100 group"
+                                variant="outline"
+                                size="lg"
+                                className="flex-1 group"
                             >
                                 {isLocating ? (
-                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                 ) : (
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="group-hover:text-primary transition-colors"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3m10-10h-3M5 12H2"/></svg>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="group-hover:text-primary transition-colors"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3m10-10h-3M5 12H2"/></svg>
                                 )}
                                 {isLocating ? "Locating..." : "Use my location"}
-                            </button>
-                            <button 
+                            </Button>
+                            <Button
                                 onClick={() => setStep(2)}
                                 disabled={!lat || !lon}
-                                className="flex-1 py-4 eco-gradient text-white rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:shadow-none"
+                                size="lg"
+                                className="flex-1"
                             >
                                 Confirm & Continue
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 )}
@@ -219,55 +224,56 @@ export default function ReportPage() {
                 {/* STEP 2: CAMERA */}
                 {step === 2 && (
                     <div className="animate-in slide-in-from-right-8 duration-300">
-                        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-6 shadow-lg shadow-primary/20">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                        <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-5 shadow-md shadow-primary/20">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                         </div>
-                        <h2 className="text-3xl font-black text-white mb-2">Capture Evidence</h2>
-                        <p className="text-foreground/60 font-medium mb-6">
+                        <h2 className="text-2xl font-bold text-white mb-1.5">Capture Evidence</h2>
+                        <p className="text-sm text-foreground/60 font-medium mb-5">
                             Take a clear photo of the illegal waste. Our AI will verify the image before submission.
                         </p>
 
                         {previewUrl ? (
-                            <div className="mb-8 relative h-64 rounded-2xl overflow-hidden border border-white/10 group">
+                            <div className="mb-6 relative h-60 rounded-xl overflow-hidden border border-white/10 group">
                                 <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
-                                <button 
+                                <button
                                     onClick={() => {
                                         setPreviewUrl(null);
                                         setImage(null);
                                     }}
-                                    className="absolute top-4 right-4 glass px-3 py-1.5 rounded-full text-xs font-bold text-white hover:bg-red-500/80 transition-colors shadow-xl opacity-0 group-hover:opacity-100"
+                                    className="absolute top-3 right-3 glass px-2.5 py-1 rounded-md text-xs font-semibold text-white hover:bg-red-500/80 transition-colors shadow-xl opacity-0 group-hover:opacity-100"
                                 >
                                     Remove
                                 </button>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-2 gap-4 mb-8">
-                                <label className="cursor-pointer glass rounded-2xl border border-white/10 hover:border-primary/50 hover:bg-primary/5 transition-all p-6 flex flex-col items-center justify-center gap-3 group">
+                            <div className="grid grid-cols-2 gap-3 mb-6">
+                                <label className="cursor-pointer glass rounded-xl border border-white/10 hover:border-primary/50 hover:bg-primary/5 transition-all p-5 flex flex-col items-center justify-center gap-2.5 group">
                                     <input type="file" accept="image/*" capture="environment" onChange={handleImageChange} className="hidden" />
-                                    <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-white/50 group-hover:bg-primary/20 group-hover:text-primary transition-colors">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/50 group-hover:bg-primary/20 group-hover:text-primary transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                                     </div>
-                                    <span className="text-sm font-bold text-white/70 text-center">Open Camera</span>
+                                    <span className="text-sm font-semibold text-white/70 text-center">Open Camera</span>
                                 </label>
-                                
-                                <label className="cursor-pointer glass rounded-2xl border border-white/10 hover:border-primary/50 hover:bg-primary/5 transition-all p-6 flex flex-col items-center justify-center gap-3 group">
+
+                                <label className="cursor-pointer glass rounded-xl border border-white/10 hover:border-primary/50 hover:bg-primary/5 transition-all p-5 flex flex-col items-center justify-center gap-2.5 group">
                                     <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-                                    <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-white/50 group-hover:bg-primary/20 group-hover:text-primary transition-colors">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/50 group-hover:bg-primary/20 group-hover:text-primary transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                                     </div>
-                                    <span className="text-sm font-bold text-white/70 text-center">Open Gallery</span>
+                                    <span className="text-sm font-semibold text-white/70 text-center">Open Gallery</span>
                                 </label>
                             </div>
                         )}
 
-                        <div className="flex gap-4">
-                            <button 
+                        <div className="flex gap-3">
+                            <Button
                                 onClick={() => setStep(3)}
                                 disabled={!image}
-                                className="w-full py-4 eco-gradient text-white rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:shadow-none"
+                                size="lg"
+                                className="w-full"
                             >
                                 Continue to Review
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 )}
@@ -275,59 +281,62 @@ export default function ReportPage() {
                 {/* STEP 3: REVIEW & SUBMIT */}
                 {step === 3 && (
                     <div className="animate-in slide-in-from-right-8 duration-300">
-                        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-6 shadow-lg shadow-primary/20">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-5 shadow-md shadow-primary/20">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                         </div>
-                        <h2 className="text-3xl font-black text-white mb-2">Final Details</h2>
-                        <p className="text-foreground/60 font-medium mb-8">
+                        <h2 className="text-2xl font-bold text-white mb-1.5">Final Details</h2>
+                        <p className="text-sm text-foreground/60 font-medium mb-6">
                             Add any helpful notes for the barangay cleanup crew (optional).
                         </p>
 
-                        <div className="mb-8">
-                            <div className="flex gap-4 mb-6">
-                                <div className="w-24 h-24 rounded-xl overflow-hidden shrink-0 border border-white/10">
+                        <div className="mb-6">
+                            <div className="flex gap-3 mb-5">
+                                <div className="w-20 h-20 rounded-lg overflow-hidden shrink-0 border border-white/10">
                                     <img src={previewUrl!} alt="Preview" className="w-full h-full object-cover" />
                                 </div>
-                                <div className="flex-1 h-24 rounded-xl overflow-hidden border border-white/10 relative bg-black/50">
+                                <div className="flex-1 h-20 rounded-lg overflow-hidden border border-white/10 relative bg-black/50">
                                     <MiniMap lat={lat!} lon={lon!} />
-                                    <div className="absolute inset-0 bg-black/20 pointer-events-none shadow-inner rounded-xl" />
+                                    <div className="absolute inset-0 bg-black/20 pointer-events-none shadow-inner rounded-lg" />
                                 </div>
                             </div>
 
-                            <label className="block text-xs font-bold text-white/50 mb-2 uppercase tracking-wider">Additional Notes</label>
-                            <textarea 
+                            <label className="block text-[11px] font-semibold text-white/50 mb-1.5 uppercase tracking-wider">Additional Notes</label>
+                            <Textarea
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
                                 placeholder="e.g. It's behind the old church, next to the bridge..."
-                                className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50 transition-colors resize-none h-32"
+                                className="h-28 bg-black/50"
                             />
                         </div>
 
-                        <div className="flex gap-4">
-                            <button 
+                        <div className="flex gap-3">
+                            <Button
                                 onClick={() => setStep(2)}
                                 disabled={isSubmitting}
-                                className="flex-1 py-4 glass border border-white/10 text-white rounded-2xl font-bold hover:bg-white/5 transition-colors disabled:opacity-50"
+                                variant="outline"
+                                size="lg"
+                                className="flex-1"
                             >
                                 Back
-                            </button>
-                            <button 
+                            </Button>
+                            <Button
                                 onClick={handleSubmit}
                                 disabled={isSubmitting}
-                                className="flex-[2] py-4 eco-gradient text-white rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:hover:scale-100"
+                                size="lg"
+                                className="flex-[2]"
                             >
                                 {isSubmitting ? (
                                     <>
-                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                         Running AI...
                                     </>
                                 ) : (
                                     <>
                                         Submit Report
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                                     </>
                                 )}
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 )}

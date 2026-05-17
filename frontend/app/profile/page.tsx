@@ -82,11 +82,11 @@ export default function ProfilePage() {
                         {profile.full_name.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                        <h1 className="text-2xl font-extrabold">{profile.full_name}</h1>
+                        <h1 className="text-xl font-bold">{profile.full_name}</h1>
                         <p className="text-foreground/50 text-sm">{email}</p>
                     </div>
                     <div className="flex items-center justify-center gap-3">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${roleBadge.color}`}>
+                        <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${roleBadge.color}`}>
                             {roleBadge.label}
                         </span>
                         <span className="text-xs text-foreground/30">Joined {joinDate}</span>
@@ -95,7 +95,7 @@ export default function ProfilePage() {
 
                 {/* Report History (placeholder) */}
                 <div className="glass p-6 rounded-2xl border border-white/10 space-y-4">
-                    <h2 className="text-lg font-bold">My Reports</h2>
+                    <h2 className="text-base font-semibold">My Reports</h2>
                     <div className="p-8 text-center text-foreground/30 border border-dashed border-white/10 rounded-xl">
                         <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-3 text-foreground/20">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -111,10 +111,10 @@ export default function ProfilePage() {
 
                 {/* Account Actions */}
                 <div className="glass p-6 rounded-2xl border border-white/10 space-y-4">
-                    <h2 className="text-lg font-bold">Account</h2>
+                    <h2 className="text-base font-semibold">Account</h2>
                     <button
                         onClick={handleSignOut}
-                        className="w-full py-3 rounded-xl border border-red-500/20 text-red-400 font-semibold text-sm hover:bg-red-500/10 transition-colors active:scale-95"
+                        className="w-full h-10 rounded-lg border border-red-500/20 text-red-400 font-semibold text-sm hover:bg-red-500/10 transition-colors active:scale-95"
                     >
                         Sign Out
                     </button>
