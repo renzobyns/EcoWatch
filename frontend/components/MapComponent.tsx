@@ -5,6 +5,7 @@ import { MapContainer, TileLayer, GeoJSON, Marker, Popup, CircleMarker, useMap }
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import Link from "next/link";
+import { useTheme } from "@/components/ThemeProvider";
 
 // Fix for default leaflet icons
 const fixLeafletIcons = () => {
@@ -70,6 +71,7 @@ interface MapProps {
 }
 
 export default function SJDMMap({ height = "100vh", reports = [], heatmaps = [], focusedBarangay = null, onBarangayClick }: MapProps) {
+    const { theme } = useTheme();
     const [geoData, setGeoData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -129,9 +131,14 @@ export default function SJDMMap({ height = "100vh", reports = [], heatmaps = [],
         });
     };
 
+    const tileUrl = theme === "dark"
+        ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+        : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+    const mapBg = theme === "dark" ? "#09090b" : "#e8efe9";
+
     if (loading) {
         return (
-            <div style={{ height }} className="w-full bg-[#0a0f0a] flex flex-col items-center justify-center">
+            <div style={{ height }} className="w-full bg-background flex flex-col items-center justify-center">
                 <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-4"></div>
                 <p className="text-primary font-bold animate-pulse uppercase tracking-widest text-sm">Initializing Map Engine...</p>
             </div>
@@ -139,19 +146,20 @@ export default function SJDMMap({ height = "100vh", reports = [], heatmaps = [],
     }
 
     return (
-        <div className="relative w-full h-full bg-[#09090b]">
+        <div className="relative w-full h-full" style={{ background: mapBg }}>
             <MapContainer
                 center={[14.82, 121.05]}
                 zoom={12}
                 zoomControl={false}
                 scrollWheelZoom={true}
-                style={{ height, width: "100%", background: "#09090b" }}
+                style={{ height, width: "100%", background: mapBg }}
             >
                 <MapController focusedBarangay={focusedBarangay} geoData={geoData} />
-                
+
                 <TileLayer
+                    key={theme}
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                    url={tileUrl}
                 />
                 
                 {/* GeoJSON Boundaries */}
@@ -217,7 +225,7 @@ export default function SJDMMap({ height = "100vh", reports = [], heatmaps = [],
                                         </span>
                                         <span className="text-xs text-gray-400 font-medium">{new Date(report.created_at).toLocaleDateString()}</span>
                                     </div>
-                                    <p className="text-sm font-bold text-white mb-1">{report.barangay}</p>
+                                    <p className="text-sm font-bold text-foreground mb-1">{report.barangay}</p>
                                     {report.notes && <p className="text-xs text-gray-300 mb-3 line-clamp-2">{report.notes}</p>}
                                     
                                     <Link href={report.tracking_url || "#"} className="block w-full py-2 text-center rounded bg-primary/20 hover:bg-primary/40 text-primary text-xs font-bold transition-colors">
@@ -232,9 +240,9 @@ export default function SJDMMap({ height = "100vh", reports = [], heatmaps = [],
 
             {/* Back to City View Button */}
             {focusedBarangay && (
-                <button 
+                <button
                     onClick={() => onBarangayClick && onBarangayClick(null)}
-                    className="absolute top-24 left-4 z-[1000] glass px-4 py-2 rounded-full text-xs font-bold text-white hover:bg-white/10 transition-colors flex items-center gap-2 shadow-xl shadow-black/50"
+                    className="absolute top-24 left-4 z-[1000] glass px-4 py-2 rounded-full text-xs font-bold text-foreground hover:bg-foreground/10 transition-colors flex items-center gap-2 shadow-xl shadow-black/50"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                     Back to City View

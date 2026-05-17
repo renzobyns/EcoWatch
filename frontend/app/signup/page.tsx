@@ -63,14 +63,14 @@ export default function SignUpPage() {
 
     if (success) {
         return (
-            <div className="h-screen h-[100dvh] bg-[#0a0f0a] flex items-center justify-center p-6 overflow-hidden">
+            <div className="h-screen h-[100dvh] -mt-16 bg-background flex items-center justify-center p-6 overflow-hidden">
                 <div className="glass p-8 rounded-2xl max-w-md w-full text-center space-y-5 border border-primary/20 shadow-2xl animate-in zoom-in-95 duration-300">
                     <div className="w-16 h-16 mx-auto rounded-full eco-gradient flex items-center justify-center text-white shadow-xl shadow-primary/30">
                         <CheckCircle2 size={32} />
                     </div>
                     <div className="space-y-1.5">
-                        <h2 className="text-2xl font-bold text-white tracking-tight">Account Created!</h2>
-                        <p className="text-white/50 text-sm leading-relaxed">
+                        <h2 className="text-2xl font-bold text-foreground tracking-tight">Account Created!</h2>
+                        <p className="text-foreground/60 text-sm leading-relaxed">
                             We've sent a confirmation link to <span className="text-primary font-semibold">{email}</span>. Please verify your email to start reporting.
                         </p>
                     </div>
@@ -83,9 +83,9 @@ export default function SignUpPage() {
     }
 
     return (
-        <div className="h-screen h-[100dvh] bg-[#0a0f0a] flex overflow-hidden">
-            {/* Left Side: Features (Desktop) */}
-            <div className="hidden lg:flex w-1/2 relative overflow-hidden bg-[#051105] border-r border-white/5 p-8 xl:p-12 flex-col justify-between">
+        <div className="h-screen h-[100dvh] -mt-16 bg-background flex overflow-hidden">
+            {/* Left Side: Features (Desktop) — stays dark in both themes */}
+            <div className="dark hidden lg:flex w-1/2 relative overflow-hidden bg-[#051105] text-white border-r border-white/5 p-8 xl:p-12 flex-col justify-between">
                 <div className="absolute top-[-10%] right-[-10%] w-96 h-96 bg-primary/20 rounded-full blur-[120px]"></div>
                 
                 <div className="relative z-10 flex items-center gap-3">
@@ -129,14 +129,14 @@ export default function SignUpPage() {
 
             {/* Right Side: Sign Up Form */}
             <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-6 sm:p-12 overflow-y-auto">
-                <Link href="/" className="absolute top-6 left-6 text-white/50 hover:text-white transition-colors flex items-center gap-2">
+                <Link href="/" className="absolute top-6 left-6 text-foreground/50 hover:text-foreground transition-colors flex items-center gap-2">
                     <ArrowLeft size={18} />
                 </Link>
 
                 <div className="w-full max-w-md py-4">
                     <div className="mb-7">
-                        <h2 className="text-xl lg:text-2xl font-bold text-white mb-1">Create an account</h2>
-                        <p className="text-sm text-white/50">Start your journey as a citizen reporter.</p>
+                        <h2 className="text-xl lg:text-2xl font-bold text-foreground mb-1">Create an account</h2>
+                        <p className="text-sm text-foreground/50">Start your journey as a citizen reporter.</p>
                     </div>
 
                     {error && (
@@ -147,9 +147,9 @@ export default function SignUpPage() {
 
                     <form onSubmit={handleSignUp} className="space-y-4">
                         <div className="space-y-1.5">
-                            <label className="text-[11px] font-semibold text-white/60 uppercase tracking-widest px-1">Full Name</label>
+                            <label className="text-[11px] font-semibold text-foreground/60 uppercase tracking-widest px-1">Full Name</label>
                             <div className="relative group">
-                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-primary transition-colors pointer-events-none z-10">
+                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/30 group-focus-within:text-primary transition-colors pointer-events-none z-10">
                                     <User size={16} />
                                 </div>
                                 <Input
@@ -164,9 +164,9 @@ export default function SignUpPage() {
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-[11px] font-semibold text-white/60 uppercase tracking-widest px-1">Email Address</label>
+                            <label className="text-[11px] font-semibold text-foreground/60 uppercase tracking-widest px-1">Email Address</label>
                             <div className="relative group">
-                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-primary transition-colors pointer-events-none z-10">
+                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/30 group-focus-within:text-primary transition-colors pointer-events-none z-10">
                                     <Mail size={16} />
                                 </div>
                                 <Input
@@ -182,7 +182,7 @@ export default function SignUpPage() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div className="space-y-1.5">
-                                <label className="text-[11px] font-semibold text-white/60 uppercase tracking-widest px-1">Password</label>
+                                <label className="text-[11px] font-semibold text-foreground/60 uppercase tracking-widest px-1">Password</label>
                                 <div className="relative group">
                                     <Input
                                         type={showPassword ? "text" : "password"}
@@ -192,13 +192,13 @@ export default function SignUpPage() {
                                         className="pr-9"
                                         placeholder="••••••"
                                     />
-                                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/20 hover:text-primary transition-colors">
+                                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-foreground/30 hover:text-primary transition-colors">
                                         {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                                     </button>
                                 </div>
                             </div>
                             <div className="space-y-1.5">
-                                <label className="text-[11px] font-semibold text-white/60 uppercase tracking-widest px-1">Confirm</label>
+                                <label className="text-[11px] font-semibold text-foreground/60 uppercase tracking-widest px-1">Confirm</label>
                                 <div className="relative group">
                                     <Input
                                         type={showConfirm ? "text" : "password"}
@@ -208,7 +208,7 @@ export default function SignUpPage() {
                                         className="pr-9"
                                         placeholder="••••••"
                                     />
-                                    <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/20 hover:text-primary transition-colors">
+                                    <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-foreground/30 hover:text-primary transition-colors">
                                         {showConfirm ? <EyeOff size={14} /> : <Eye size={14} />}
                                     </button>
                                 </div>
@@ -225,14 +225,14 @@ export default function SignUpPage() {
                     </form>
 
                     <div className="mt-7 space-y-5">
-                        <p className="text-center text-xs text-white/40">
+                        <p className="text-center text-xs text-foreground/50">
                             Already have an account?{" "}
                             <Link href="/login" className="text-primary font-semibold hover:underline underline-offset-4">
                                 Sign In
                             </Link>
                         </p>
 
-                        <p className="text-[10px] text-white/20 text-center leading-relaxed">
+                        <p className="text-[10px] text-foreground/30 text-center leading-relaxed">
                             By signing up, you agree to help keep SJDM clean and report environmental issues responsibly.
                         </p>
                     </div>

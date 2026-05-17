@@ -40,7 +40,7 @@ export default function TrackReportPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#0a0f0a] flex flex-col items-center justify-center gap-4">
+            <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
                 <div className="w-16 h-16 rounded-2xl bg-white p-1 shadow-[0_0_30px_rgba(16,185,129,0.3)] animate-pulse">
                     <img src="/logo.png" alt="Loading..." className="w-full h-full object-contain" />
                 </div>
@@ -51,11 +51,11 @@ export default function TrackReportPage() {
 
     if (error || !report) {
         return (
-            <div className="min-h-screen bg-[#0a0f0a] flex flex-col items-center justify-center p-4 text-center">
+            <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-center">
                 <div className="w-24 h-24 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 mb-6">
                     <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
                 </div>
-                <h1 className="text-2xl font-bold text-white mb-2">Report Not Found</h1>
+                <h1 className="text-2xl font-bold text-foreground mb-2">Report Not Found</h1>
                 <p className="text-foreground/60 mb-8 max-w-md">
                     We couldn't find a report with tracking ID "{trackingId}". It may have been rejected by the AI or the ID is incorrect.
                 </p>
@@ -74,12 +74,12 @@ export default function TrackReportPage() {
     if (isFailed) currentStepIndex = 2; // Deployed, but failed resolving
 
     return (
-        <div className="min-h-screen bg-[#0a0f0a] pt-20 pb-12 px-4 flex flex-col items-center">
+        <div className="min-h-screen bg-background pt-20 pb-12 px-4 flex flex-col items-center">
             <div className="w-full max-w-2xl">
 
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
-                    <Link href="/" className="text-white/80 hover:text-primary transition-colors flex items-center gap-2 text-sm font-medium">
+                    <Link href="/" className="text-foreground/80 hover:text-primary transition-colors flex items-center gap-2 text-sm font-medium">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                         Back to Map
                     </Link>
@@ -90,9 +90,9 @@ export default function TrackReportPage() {
                 </div>
 
                 {/* Main Card */}
-                <div className="glass rounded-2xl border border-white/10 shadow-2xl overflow-hidden mb-8">
+                <div className="glass rounded-2xl border border-border shadow-2xl overflow-hidden mb-8">
                     {/* Status Banner */}
-                    <div className={`p-6 text-center border-b border-white/10 ${
+                    <div className={`p-6 text-center border-b border-border ${
                         report.status === 'resolved' ? 'bg-green-500/10' :
                         isRejected || isFailed ? 'bg-red-500/10' : 'bg-primary/10'
                     }`}>
@@ -114,10 +114,10 @@ export default function TrackReportPage() {
 
                     {/* Progress Bar (Only show if not rejected) */}
                     {!isRejected && (
-                        <div className="p-8 border-b border-white/5 bg-black/20">
+                        <div className="p-8 border-b border-border bg-black/20">
                             <div className="relative">
                                 {/* Track Line */}
-                                <div className="absolute top-1/2 left-0 w-full h-1 bg-white/10 -translate-y-1/2 rounded-full" />
+                                <div className="absolute top-1/2 left-0 w-full h-1 bg-foreground/10 -translate-y-1/2 rounded-full" />
                                 {/* Fill Line */}
                                 <div 
                                     className={`absolute top-1/2 left-0 h-1 -translate-y-1/2 rounded-full transition-all duration-1000 ${isFailed ? 'bg-red-500' : 'eco-gradient'}`}
@@ -136,11 +136,11 @@ export default function TrackReportPage() {
                                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors z-10 
                                                     ${isActive && !isErrorStep ? 'bg-primary text-white shadow-[0_0_15px_rgba(34,197,94,0.5)]' : 
                                                       isErrorStep ? 'bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 
-                                                      'bg-[#1a1a1a] border-2 border-white/20 text-foreground/30'}`}
+                                                      'bg-[#1a1a1a] border-2 border-foreground/20 text-foreground/30'}`}
                                                 >
                                                     {isActive && !isErrorStep ? "✓" : isErrorStep ? "✕" : idx + 1}
                                                 </div>
-                                                <span className={`mt-3 text-[10px] font-bold uppercase tracking-widest ${isActive ? 'text-white' : 'text-foreground/40'}`}>
+                                                <span className={`mt-3 text-[10px] font-bold uppercase tracking-widest ${isActive ? 'text-foreground' : 'text-foreground/40'}`}>
                                                     {stepLabel}
                                                 </span>
                                             </div>
@@ -155,18 +155,18 @@ export default function TrackReportPage() {
                     <div className="p-6 md:p-8 grid md:grid-cols-2 gap-8">
                         <div>
                             <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-sm font-bold text-white/50 uppercase tracking-widest">Evidence Photo</h3>
+                                <h3 className="text-sm font-bold text-foreground/50 uppercase tracking-widest">Evidence Photo</h3>
                                 {report.ai_mask_url && (
                                     <button 
                                         onClick={() => setShowAiMask(!showAiMask)}
-                                        className={`px-3 py-1 text-xs font-bold rounded-full transition-all flex items-center gap-2 ${showAiMask ? 'bg-primary text-white shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+                                        className={`px-3 py-1 text-xs font-bold rounded-full transition-all flex items-center gap-2 ${showAiMask ? 'bg-primary text-white shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-foreground/10 text-foreground/70 hover:bg-foreground/20'}`}
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                                         {showAiMask ? "Hide AI Mask" : "View AI Mask"}
                                     </button>
                                 )}
                             </div>
-                            <div className="w-full aspect-square rounded-2xl overflow-hidden bg-black/50 border border-white/10 relative">
+                            <div className="w-full aspect-square rounded-2xl overflow-hidden bg-black/50 border border-border relative">
                                 {report.image_url ? (
                                     <>
                                         <img 
@@ -176,14 +176,14 @@ export default function TrackReportPage() {
                                         />
                                     </>
                                 ) : (
-                                    <div className="absolute inset-0 flex items-center justify-center text-white/20">No Image</div>
+                                    <div className="absolute inset-0 flex items-center justify-center text-foreground/30">No Image</div>
                                 )}
                                 
                                 {/* AI Confidence Badge */}
                                 {report.ai_confidence && (
                                     <div className="absolute bottom-3 right-3 glass px-3 py-1.5 rounded-lg border border-primary/30 flex items-center gap-2 backdrop-blur-md">
                                         <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                                        <span className="text-xs font-bold text-white">AI Confidence: {(report.ai_confidence * 100).toFixed(0)}%</span>
+                                        <span className="text-xs font-bold text-foreground">AI Confidence: {(report.ai_confidence * 100).toFixed(0)}%</span>
                                     </div>
                                 )}
                             </div>
@@ -191,8 +191,8 @@ export default function TrackReportPage() {
                             {/* Cleanup Photo (if resolved or failed) */}
                             {report.cleanup_image_url && (
                                 <div className="mt-4">
-                                    <h3 className="text-sm font-bold text-white/50 uppercase tracking-widest mb-2">Cleanup Verification</h3>
-                                    <div className="w-full h-32 rounded-xl overflow-hidden border border-white/10 relative">
+                                    <h3 className="text-sm font-bold text-foreground/50 uppercase tracking-widest mb-2">Cleanup Verification</h3>
+                                    <div className="w-full h-32 rounded-xl overflow-hidden border border-border relative">
                                         <img src={`${API_URL}${report.cleanup_image_url}`} alt="Cleanup" className="w-full h-full object-cover" />
                                     </div>
                                 </div>
@@ -201,29 +201,29 @@ export default function TrackReportPage() {
 
                         <div className="space-y-6">
                             <div>
-                                <h3 className="text-xs font-bold text-white/50 uppercase tracking-widest mb-1">Assigned Barangay</h3>
-                                <p className="text-lg font-semibold text-white">{report.barangay || "Locating..."}</p>
+                                <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-widest mb-1">Assigned Barangay</h3>
+                                <p className="text-lg font-semibold text-foreground">{report.barangay || "Locating..."}</p>
                             </div>
 
                             <div>
-                                <h3 className="text-xs font-bold text-white/50 uppercase tracking-widest mb-1">Date Reported</h3>
-                                <p className="text-base font-medium text-white/90">
+                                <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-widest mb-1">Date Reported</h3>
+                                <p className="text-base font-medium text-foreground/90">
                                     {new Date(report.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
                                 </p>
                             </div>
 
                             {report.notes && (
                                 <div>
-                                    <h3 className="text-xs font-bold text-white/50 uppercase tracking-widest mb-1">Citizen Notes</h3>
-                                    <p className="text-sm text-white/80 bg-white/5 p-4 rounded-xl border border-white/5 italic">
+                                    <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-widest mb-1">Citizen Notes</h3>
+                                    <p className="text-sm text-foreground/80 bg-foreground/5 p-4 rounded-xl border border-border italic">
                                         "{report.notes}"
                                     </p>
                                 </div>
                             )}
 
                             <div>
-                                <h3 className="text-xs font-bold text-white/50 uppercase tracking-widest mb-2">Location Map</h3>
-                                <div className="w-full h-32 rounded-xl overflow-hidden border border-white/10 bg-black relative">
+                                <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-widest mb-2">Location Map</h3>
+                                <div className="w-full h-32 rounded-xl overflow-hidden border border-border bg-black relative">
                                     <MiniMap lat={report.lat} lon={report.lon} />
                                     <div className="absolute inset-0 bg-black/20 pointer-events-none shadow-inner rounded-xl" />
                                 </div>

@@ -10,12 +10,12 @@ import { Textarea } from "@/components/ui/textarea";
 // We need a simple map to show the user's location
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { 
     ssr: false,
-    loading: () => <div className="w-full h-full bg-white/5 animate-pulse flex items-center justify-center"><p className="text-xs font-bold text-primary">Loading Map...</p></div>
+    loading: () => <div className="w-full h-full bg-foreground/5 animate-pulse flex items-center justify-center"><p className="text-xs font-bold text-primary">Loading Map...</p></div>
 });
 
 const LocationPickerMap = dynamic(() => import("@/components/LocationPickerMap"), {
     ssr: false,
-    loading: () => <div className="w-full h-48 bg-white/5 animate-pulse rounded-2xl flex items-center justify-center"><p className="text-xs font-bold text-primary">Loading Map...</p></div>
+    loading: () => <div className="w-full h-48 bg-foreground/5 animate-pulse rounded-2xl flex items-center justify-center"><p className="text-xs font-bold text-primary">Loading Map...</p></div>
 });
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -144,26 +144,26 @@ export default function ReportPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#0a0f0a] pt-20 pb-12 px-4 flex flex-col items-center">
+        <div className="min-h-screen bg-background pt-20 pb-12 px-4 flex flex-col items-center">
 
             <div className="w-full max-w-lg mb-6 flex items-center justify-between">
                 <button
                     onClick={() => step > 1 ? setStep(step - 1) : router.push("/")}
-                    className="text-white/80 hover:text-primary transition-colors flex items-center gap-2 text-sm font-medium"
+                    className="text-foreground/80 hover:text-primary transition-colors flex items-center gap-2 text-sm font-medium"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                     Back
                 </button>
                 <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full ${step >= 1 ? 'bg-primary' : 'bg-white/20 shadow-inner border border-white/5'}`} />
-                    <div className="w-8 h-0.5 bg-white/10" />
-                    <div className={`w-3 h-3 rounded-full ${step >= 2 ? 'bg-primary' : 'bg-white/20 shadow-inner border border-white/5'}`} />
-                    <div className="w-8 h-0.5 bg-white/10" />
-                    <div className={`w-3 h-3 rounded-full ${step >= 3 ? 'bg-primary' : 'bg-white/20 shadow-inner border border-white/5'}`} />
+                    <div className={`w-3 h-3 rounded-full ${step >= 1 ? 'bg-primary' : 'bg-foreground/20 shadow-inner border border-border'}`} />
+                    <div className="w-8 h-0.5 bg-foreground/10" />
+                    <div className={`w-3 h-3 rounded-full ${step >= 2 ? 'bg-primary' : 'bg-foreground/20 shadow-inner border border-border'}`} />
+                    <div className="w-8 h-0.5 bg-foreground/10" />
+                    <div className={`w-3 h-3 rounded-full ${step >= 3 ? 'bg-primary' : 'bg-foreground/20 shadow-inner border border-border'}`} />
                 </div>
             </div>
 
-            <div className="w-full max-w-lg glass p-6 md:p-7 rounded-2xl border border-white/10 shadow-2xl relative overflow-hidden">
+            <div className="w-full max-w-lg glass p-6 md:p-7 rounded-2xl border border-border shadow-2xl relative overflow-hidden">
 
                 {error && (
                     <div className="mb-5 p-3.5 rounded-lg bg-red-500/10 border border-red-500/20 flex items-start gap-3">
@@ -178,12 +178,12 @@ export default function ReportPage() {
                         <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-5 shadow-md shadow-primary/20">
                             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                         </div>
-                        <h2 className="text-2xl font-bold text-white mb-1.5">Pinpoint Location</h2>
-                        <p className="text-sm text-white/50 font-medium mb-5">
+                        <h2 className="text-2xl font-bold text-foreground mb-1.5">Pinpoint Location</h2>
+                        <p className="text-sm text-foreground/50 font-medium mb-5">
                             We use your coordinates to route the report to the correct <span className="text-primary">Barangay Hall</span> automatically.
                         </p>
 
-                        <div className="h-[380px] mb-5 rounded-xl overflow-hidden border border-white/10 shadow-inner">
+                        <div className="h-[380px] mb-5 rounded-xl overflow-hidden border border-border shadow-inner">
                             <LocationPickerMap
                                 initialLat={lat}
                                 initialLon={lon}
@@ -203,7 +203,7 @@ export default function ReportPage() {
                                 className="flex-1 group"
                             >
                                 {isLocating ? (
-                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    <div className="w-4 h-4 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" />
                                 ) : (
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="group-hover:text-primary transition-colors"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3m10-10h-3M5 12H2"/></svg>
                                 )}
@@ -227,40 +227,40 @@ export default function ReportPage() {
                         <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-5 shadow-md shadow-primary/20">
                             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                         </div>
-                        <h2 className="text-2xl font-bold text-white mb-1.5">Capture Evidence</h2>
+                        <h2 className="text-2xl font-bold text-foreground mb-1.5">Capture Evidence</h2>
                         <p className="text-sm text-foreground/60 font-medium mb-5">
                             Take a clear photo of the illegal waste. Our AI will verify the image before submission.
                         </p>
 
                         {previewUrl ? (
-                            <div className="mb-6 relative h-60 rounded-xl overflow-hidden border border-white/10 group">
+                            <div className="mb-6 relative h-60 rounded-xl overflow-hidden border border-border group">
                                 <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
                                 <button
                                     onClick={() => {
                                         setPreviewUrl(null);
                                         setImage(null);
                                     }}
-                                    className="absolute top-3 right-3 glass px-2.5 py-1 rounded-md text-xs font-semibold text-white hover:bg-red-500/80 transition-colors shadow-xl opacity-0 group-hover:opacity-100"
+                                    className="absolute top-3 right-3 glass px-2.5 py-1 rounded-md text-xs font-semibold text-foreground hover:bg-red-500/80 hover:text-white transition-colors shadow-xl opacity-0 group-hover:opacity-100"
                                 >
                                     Remove
                                 </button>
                             </div>
                         ) : (
                             <div className="grid grid-cols-2 gap-3 mb-6">
-                                <label className="cursor-pointer glass rounded-xl border border-white/10 hover:border-primary/50 hover:bg-primary/5 transition-all p-5 flex flex-col items-center justify-center gap-2.5 group">
+                                <label className="cursor-pointer glass rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 transition-all p-5 flex flex-col items-center justify-center gap-2.5 group">
                                     <input type="file" accept="image/*" capture="environment" onChange={handleImageChange} className="hidden" />
-                                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/50 group-hover:bg-primary/20 group-hover:text-primary transition-colors">
+                                    <div className="w-10 h-10 rounded-full bg-foreground/5 flex items-center justify-center text-foreground/50 group-hover:bg-primary/20 group-hover:text-primary transition-colors">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                                     </div>
-                                    <span className="text-sm font-semibold text-white/70 text-center">Open Camera</span>
+                                    <span className="text-sm font-semibold text-foreground/70 text-center">Open Camera</span>
                                 </label>
 
-                                <label className="cursor-pointer glass rounded-xl border border-white/10 hover:border-primary/50 hover:bg-primary/5 transition-all p-5 flex flex-col items-center justify-center gap-2.5 group">
+                                <label className="cursor-pointer glass rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 transition-all p-5 flex flex-col items-center justify-center gap-2.5 group">
                                     <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-                                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/50 group-hover:bg-primary/20 group-hover:text-primary transition-colors">
+                                    <div className="w-10 h-10 rounded-full bg-foreground/5 flex items-center justify-center text-foreground/50 group-hover:bg-primary/20 group-hover:text-primary transition-colors">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                                     </div>
-                                    <span className="text-sm font-semibold text-white/70 text-center">Open Gallery</span>
+                                    <span className="text-sm font-semibold text-foreground/70 text-center">Open Gallery</span>
                                 </label>
                             </div>
                         )}
@@ -284,28 +284,28 @@ export default function ReportPage() {
                         <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-5 shadow-md shadow-primary/20">
                             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                         </div>
-                        <h2 className="text-2xl font-bold text-white mb-1.5">Final Details</h2>
+                        <h2 className="text-2xl font-bold text-foreground mb-1.5">Final Details</h2>
                         <p className="text-sm text-foreground/60 font-medium mb-6">
                             Add any helpful notes for the barangay cleanup crew (optional).
                         </p>
 
                         <div className="mb-6">
                             <div className="flex gap-3 mb-5">
-                                <div className="w-20 h-20 rounded-lg overflow-hidden shrink-0 border border-white/10">
+                                <div className="w-20 h-20 rounded-lg overflow-hidden shrink-0 border border-border">
                                     <img src={previewUrl!} alt="Preview" className="w-full h-full object-cover" />
                                 </div>
-                                <div className="flex-1 h-20 rounded-lg overflow-hidden border border-white/10 relative bg-black/50">
+                                <div className="flex-1 h-20 rounded-lg overflow-hidden border border-border relative bg-black/50">
                                     <MiniMap lat={lat!} lon={lon!} />
                                     <div className="absolute inset-0 bg-black/20 pointer-events-none shadow-inner rounded-lg" />
                                 </div>
                             </div>
 
-                            <label className="block text-[11px] font-semibold text-white/50 mb-1.5 uppercase tracking-wider">Additional Notes</label>
+                            <label className="block text-[11px] font-semibold text-foreground/50 mb-1.5 uppercase tracking-wider">Additional Notes</label>
                             <Textarea
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
                                 placeholder="e.g. It's behind the old church, next to the bridge..."
-                                className="h-28 bg-black/50"
+                                className="h-28"
                             />
                         </div>
 

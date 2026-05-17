@@ -407,7 +407,7 @@ export default function CenroDashboard() {
 
     if (loading || !user) {
         return (
-            <div className="min-h-screen bg-[#0a0f0a] flex flex-col items-center justify-center gap-4">
+            <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
                 <div className="w-16 h-16 rounded-2xl bg-white p-1 shadow-[0_0_30px_rgba(16,185,129,0.3)] animate-pulse">
                     <img src="/logo.png" alt="Loading..." className="w-full h-full object-contain" />
                 </div>
@@ -450,7 +450,7 @@ export default function CenroDashboard() {
     const lineData = Object.entries(dateMap).map(([date, count]) => ({ date, count })).slice(-14);
 
     return (
-        <div className="min-h-screen bg-[#0a0f0a] pt-20 pb-10 px-4 md:px-8 relative overflow-hidden">
+        <div className="min-h-screen bg-background pt-20 pb-10 px-4 md:px-8 relative overflow-hidden">
             {/* Pro Max Background Accents */}
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none" />
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none" />
@@ -460,14 +460,14 @@ export default function CenroDashboard() {
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 shrink-0 gap-4 animate-slide-up">
                     <div>
-                        <h1 className="text-2xl font-bold text-white mb-2 tracking-tight">CENRO <span className="text-primary">Ops Hub</span></h1>
+                        <h1 className="text-2xl font-bold text-foreground mb-2 tracking-tight">CENRO <span className="text-primary">Ops Hub</span></h1>
                         <p className="text-emerald-400 font-semibold uppercase tracking-[0.18em] text-[11px] px-2.5 py-0.5 bg-emerald-400/10 rounded-full w-fit border border-emerald-400/20">
                             City-Wide Oversight & Analytics
                         </p>
                     </div>
 
                     {/* Navigation Tabs */}
-                    <div className="flex gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10 overflow-x-auto backdrop-blur-md">
+                    <div className="flex gap-2 bg-foreground/5 p-1.5 rounded-2xl border border-border overflow-x-auto backdrop-blur-md">
                         {([
                             ['command_center', 'Command Center'],
                             ['overview', 'Overview Map'],
@@ -478,7 +478,7 @@ export default function CenroDashboard() {
                             <button
                                 key={key}
                                 onClick={() => setActiveTab(key)}
-                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === key ? 'bg-primary text-white shadow-lg shadow-emerald-900/50' : 'text-white/50 hover:text-white'}`}
+                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === key ? 'bg-primary text-white shadow-lg shadow-emerald-900/50' : 'text-foreground/50 hover:text-foreground'}`}
                             >
                                 {label}
                             </button>
@@ -504,26 +504,26 @@ export default function CenroDashboard() {
                             </div>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 animate-slide-up stagger-1">
                                 <div className="glass-pro p-5 rounded-2xl bento-card">
-                                    <div className="text-[11px] text-white/50 uppercase tracking-widest font-semibold mb-1.5">Total Reports</div>
+                                    <div className="text-[11px] text-foreground/50 uppercase tracking-widest font-semibold mb-1.5">Total Reports</div>
                                     <div className="text-3xl font-bold text-emerald-400 tracking-tight">{stats.total}</div>
                                 </div>
                                 <div className="glass-pro p-5 rounded-2xl bento-card">
-                                    <div className="text-[11px] text-white/50 uppercase tracking-widest font-semibold mb-1.5">Active/Pending</div>
+                                    <div className="text-[11px] text-foreground/50 uppercase tracking-widest font-semibold mb-1.5">Active/Pending</div>
                                     <div className="text-3xl font-bold text-red-400 tracking-tight">{pending}</div>
                                 </div>
                                 <div className="glass-pro p-5 rounded-2xl bento-card">
-                                    <div className="text-[11px] text-white/50 uppercase tracking-widest font-semibold mb-1.5">Teams Deployed</div>
+                                    <div className="text-[11px] text-foreground/50 uppercase tracking-widest font-semibold mb-1.5">Teams Deployed</div>
                                     <div className="text-3xl font-bold text-yellow-400 tracking-tight">{stats.deployed}</div>
                                 </div>
                                 <div className="glass-pro p-5 rounded-2xl bento-card">
-                                    <div className="text-[11px] text-white/50 uppercase tracking-widest font-semibold mb-1.5">Success Rate</div>
+                                    <div className="text-[11px] text-foreground/50 uppercase tracking-widest font-semibold mb-1.5">Success Rate</div>
                                     <div className="text-3xl font-bold text-green-400 tracking-tight">{successRate}%</div>
                                 </div>
                             </div>
                         </div>
 
                         {/* C3 — SLA Breaches Card */}
-                        <div className="glass-pro p-6 rounded-[2.5rem] border border-white/10 shrink-0 animate-slide-up stagger-2 overflow-hidden relative">
+                        <div className="glass-pro p-6 rounded-[2.5rem] border border-border shrink-0 animate-slide-up stagger-2 overflow-hidden relative">
                             <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/5 rounded-full blur-[80px] pointer-events-none" />
                             <div className="flex items-center justify-between mb-4 flex-wrap gap-4 relative z-10">
                                 <div className="flex items-center gap-4">
@@ -531,7 +531,7 @@ export default function CenroDashboard() {
                                         <AlertTriangle size={28} />
                                     </div>
                                     <div>
-                                        <div className="text-[11px] font-bold text-white/40 uppercase tracking-widest mb-1">SLA Breaches (≥ 3 days open)</div>
+                                        <div className="text-[11px] font-bold text-foreground/40 uppercase tracking-widest mb-1">SLA Breaches (≥ 3 days open)</div>
                                         <div className={`text-2xl font-bold ${slaBreaches.length > 0 ? 'text-red-400' : 'text-green-400'}`}>{slaBreaches.length}</div>
                                     </div>
                                 </div>
@@ -552,15 +552,15 @@ export default function CenroDashboard() {
                                 )}
                             </div>
                             {slaBreaches.length === 0 ? (
-                                <p className="text-xs text-white/40 italic">No active breaches — everything is on schedule.</p>
+                                <p className="text-xs text-foreground/40 italic">No active breaches — everything is on schedule.</p>
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                     {slaBreaches.slice(0, 3).map((r) => {
                                         const sla = slaInfo(r.created_at, r.status);
                                         return (
-                                            <div key={r.id} className="p-3 rounded-xl bg-black/30 border border-red-500/20">
+                                            <div key={r.id} className="p-3 rounded-xl bg-foreground/5 border border-red-500/20">
                                                 <div className="flex items-center justify-between mb-1">
-                                                    <div className="font-mono text-xs font-bold text-white">{r.tracking_id}</div>
+                                                    <div className="font-mono text-xs font-bold text-foreground">{r.tracking_id}</div>
                                                     {sla && (
                                                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${SLA_PILL_CLASSES[sla.color]}`}>
                                                             {sla.days}d open
@@ -568,7 +568,7 @@ export default function CenroDashboard() {
                                                     )}
                                                 </div>
                                                 <div className="text-[11px] text-emerald-300 font-bold">{r.barangay || "Unassigned"}</div>
-                                                <div className="text-[10px] text-white/40 uppercase tracking-wider mt-1">{r.status}</div>
+                                                <div className="text-[10px] text-foreground/40 uppercase tracking-wider mt-1">{r.status}</div>
                                             </div>
                                         );
                                     })}
@@ -582,7 +582,7 @@ export default function CenroDashboard() {
                             {/* Left: Charts */}
                             <div className="lg:col-span-1 flex flex-col gap-6 min-h-0 animate-slide-up stagger-3">
                                 <div className="flex-1 glass-pro p-8 rounded-[2.5rem] flex flex-col min-h-0 bento-card">
-                                    <h3 className="text-[11px] font-bold text-white/40 uppercase tracking-widest mb-6 shrink-0">Status Breakdown</h3>
+                                    <h3 className="text-[11px] font-bold text-foreground/40 uppercase tracking-widest mb-6 shrink-0">Status Breakdown</h3>
                                     <div className="flex-1 relative min-h-[160px]">
                                         <ResponsiveContainer width="100%" height="100%">
                                             <PieChart>
@@ -598,12 +598,12 @@ export default function CenroDashboard() {
                                     </div>
                                     <div className="flex flex-wrap justify-center gap-4 mt-6 shrink-0">
                                         {pieData.map(d => (
-                                            <div key={d.name} className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest text-white/60"><div className="w-2 h-2 rounded-full shadow-[0_0_8px_currentColor]" style={{backgroundColor: d.color, color: d.color}}></div>{d.name}</div>
+                                            <div key={d.name} className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest text-foreground/60"><div className="w-2 h-2 rounded-full shadow-[0_0_8px_currentColor]" style={{backgroundColor: d.color, color: d.color}}></div>{d.name}</div>
                                         ))}
                                     </div>
                                 </div>
                                 <div className="flex-1 glass-pro p-8 rounded-[2.5rem] flex flex-col min-h-0 bento-card">
-                                    <h3 className="text-[11px] font-bold text-white/40 uppercase tracking-widest mb-8 shrink-0">City-Wide Trend</h3>
+                                    <h3 className="text-[11px] font-bold text-foreground/40 uppercase tracking-widest mb-8 shrink-0">City-Wide Trend</h3>
                                     <div className="flex-1 relative min-h-[160px]">
                                         <ResponsiveContainer width="100%" height="100%">
                                             <LineChart data={lineData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
@@ -617,38 +617,38 @@ export default function CenroDashboard() {
                             </div>
 
                             {/* Center: Map */}
-                            <div className="lg:col-span-1 glass rounded-2xl border border-white/10 overflow-hidden relative min-h-[300px]">
-                                <div className="absolute top-4 left-4 z-[1000] glass px-3 py-1.5 rounded-full text-[10px] font-bold text-white uppercase tracking-widest border border-white/20 pointer-events-none">Live City Map</div>
+                            <div className="lg:col-span-1 glass rounded-2xl border border-border overflow-hidden relative min-h-[300px]">
+                                <div className="absolute top-4 left-4 z-[1000] glass px-3 py-1.5 rounded-full text-[10px] font-bold text-foreground uppercase tracking-widest border border-foreground/20 pointer-events-none">Live City Map</div>
                                 <MapComponent height="100%" reports={reports} heatmaps={heatmaps} focusedBarangay={null} onBarangayClick={() => {}} />
                             </div>
 
                             {/* Right: Lists */}
                             <div className="lg:col-span-1 flex flex-col gap-6 min-h-0 animate-slide-up stagger-4">
                                 <div className="flex-1 glass-pro p-8 rounded-[2.5rem] flex flex-col min-h-0 bento-card">
-                                    <h3 className="text-[11px] font-bold text-white/40 uppercase tracking-widest mb-6 shrink-0">Barangay Rankings</h3>
+                                    <h3 className="text-[11px] font-bold text-foreground/40 uppercase tracking-widest mb-6 shrink-0">Barangay Rankings</h3>
                                     <div className="flex-1 overflow-y-auto pr-2 space-y-4 scrollbar-hide">
                                         {barangayStats.map((b, i) => (
-                                            <div key={b.name} className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.03] border border-white/[0.05] hover:bg-white/[0.08] transition-colors group">
+                                            <div key={b.name} className="flex items-center justify-between p-4 rounded-2xl bg-foreground/[0.03] border border-border hover:bg-foreground/[0.08] transition-colors group">
                                                 <div className="flex items-center gap-4">
-                                                    <div className="w-8 h-8 rounded-lg bg-black/50 flex items-center justify-center text-xs font-semibold text-white/30 group-hover:text-primary transition-colors">{i + 1}</div>
-                                                    <div className="text-sm font-bold text-white/90">{b.name}</div>
+                                                    <div className="w-8 h-8 rounded-lg bg-foreground/5 flex items-center justify-center text-xs font-semibold text-foreground/30 group-hover:text-primary transition-colors">{i + 1}</div>
+                                                    <div className="text-sm font-bold text-foreground/90">{b.name}</div>
                                                 </div>
                                                 <div className="text-right">
                                                     <div className="text-sm font-semibold text-emerald-400">{b.rate.toFixed(0)}%</div>
-                                                    <div className="text-[10px] text-white/30 uppercase tracking-widest font-bold">{b.resolved} reports</div>
+                                                    <div className="text-[10px] text-foreground/30 uppercase tracking-widest font-bold">{b.resolved} reports</div>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                                 <div className="flex-1 glass-pro p-8 rounded-[2.5rem] flex flex-col min-h-0 bento-card">
-                                    <h3 className="text-[11px] font-bold text-white/40 uppercase tracking-widest mb-6 shrink-0">Live City Feed</h3>
+                                    <h3 className="text-[11px] font-bold text-foreground/40 uppercase tracking-widest mb-6 shrink-0">Live City Feed</h3>
                                     <div className="flex-1 overflow-y-auto pr-2 space-y-5 scrollbar-hide">
                                         {recentFeed.map(r => (
-                                            <div key={r.id} className="relative pl-6 border-l border-white/5">
+                                            <div key={r.id} className="relative pl-6 border-l border-border">
                                                 <div className="absolute w-2.5 h-2.5 rounded-full bg-emerald-500 -left-[5px] top-1.5 shadow-[0_0_15px_rgba(16,185,129,0.8)]"></div>
-                                                <div className="text-[13px] font-semibold text-white mb-1 tracking-tight">Report {r.tracking_id}</div>
-                                                <div className="text-[11px] text-white/40 mb-3 font-medium uppercase tracking-wider">{r.barangay} • {new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                                <div className="text-[13px] font-semibold text-foreground mb-1 tracking-tight">Report {r.tracking_id}</div>
+                                                <div className="text-[11px] text-foreground/40 mb-3 font-medium uppercase tracking-wider">{r.barangay} • {new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                                                 <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-widest ${r.status === 'resolved' ? 'bg-green-500/20 text-green-400' : r.status === 'deployed' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'}`}>{r.status}</span>
                                             </div>
                                         ))}
@@ -664,36 +664,36 @@ export default function CenroDashboard() {
                     <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
                         {/* Left: Stats Column */}
                         <div className="flex-1 lg:max-w-xs flex flex-col gap-4">
-                            <div className="glass p-6 rounded-2xl border border-white/10 shadow-2xl">
+                            <div className="glass p-6 rounded-2xl border border-border shadow-2xl">
                                 <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-emerald-400 mb-4">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                                 </div>
-                                <div className="text-xs font-bold text-white/50 uppercase tracking-widest mb-1">Total Reports</div>
-                                <div className="text-3xl font-bold text-white">{stats.total}</div>
+                                <div className="text-xs font-bold text-foreground/50 uppercase tracking-widest mb-1">Total Reports</div>
+                                <div className="text-3xl font-bold text-foreground">{stats.total}</div>
                             </div>
 
-                            <div className="glass p-6 rounded-2xl border border-white/10 shadow-2xl">
+                            <div className="glass p-6 rounded-2xl border border-border shadow-2xl">
                                 <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 mb-4">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                                 </div>
-                                <div className="text-xs font-bold text-white/50 uppercase tracking-widest mb-1">City Success Rate</div>
+                                <div className="text-xs font-bold text-foreground/50 uppercase tracking-widest mb-1">City Success Rate</div>
                                 <div className="text-3xl font-bold text-green-400">{successRate}%</div>
-                                <p className="text-xs text-white/40 mt-2">{stats.resolved} resolved out of {stats.total}</p>
+                                <p className="text-xs text-foreground/40 mt-2">{stats.resolved} resolved out of {stats.total}</p>
                             </div>
 
-                            <div className="glass p-6 rounded-2xl border border-white/10 shadow-2xl">
-                                <div className="text-xs font-bold text-white/50 uppercase tracking-widest mb-4">Active Hotspots</div>
+                            <div className="glass p-6 rounded-2xl border border-border shadow-2xl">
+                                <div className="text-xs font-bold text-foreground/50 uppercase tracking-widest mb-4">Active Hotspots</div>
                                 {heatmaps.length === 0 ? (
-                                    <p className="text-sm text-white/40 italic">No significant hotspots detected.</p>
+                                    <p className="text-sm text-foreground/40 italic">No significant hotspots detected.</p>
                                 ) : (
                                     <div className="space-y-3">
                                         {heatmaps.map((h, i) => (
-                                            <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
+                                            <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-foreground/5 border border-border">
                                                 <div>
-                                                    <div className="text-sm font-bold text-white">Cluster {h.cluster_id}</div>
+                                                    <div className="text-sm font-bold text-foreground">Cluster {h.cluster_id}</div>
                                                     <div className="text-[10px] text-red-400 uppercase tracking-wider">{h.intensity} Intensity</div>
                                                 </div>
-                                                <div className="text-lg font-semibold text-white/80">{h.report_count}</div>
+                                                <div className="text-lg font-semibold text-foreground/80">{h.report_count}</div>
                                             </div>
                                         ))}
                                     </div>
@@ -702,8 +702,8 @@ export default function CenroDashboard() {
                         </div>
 
                         {/* Right: Map */}
-                        <div className="flex-[3] glass rounded-2xl border border-white/10 overflow-hidden shadow-2xl relative min-h-[400px]">
-                            <div className="absolute top-4 left-4 z-[1000] glass px-4 py-2 rounded-full text-xs font-bold text-white border border-white/20 shadow-lg pointer-events-none flex items-center gap-2">
+                        <div className="flex-[3] glass rounded-2xl border border-border overflow-hidden shadow-2xl relative min-h-[400px]">
+                            <div className="absolute top-4 left-4 z-[1000] glass px-4 py-2 rounded-full text-xs font-bold text-foreground border border-foreground/20 shadow-lg pointer-events-none flex items-center gap-2">
                                 <span className="relative flex h-2 w-2">
                                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -723,28 +723,28 @@ export default function CenroDashboard() {
 
                 {activeTab === 'oversight' && (
                     /* OVERSIGHT QUEUE TAB */
-                    <div className="flex-1 glass rounded-2xl border border-white/10 flex flex-col min-h-0 shadow-2xl">
-                        <div className="p-6 border-b border-white/10 shrink-0">
-                            <h2 className="text-lg font-semibold text-white">Global Report Queue</h2>
-                            <p className="text-sm text-white/50">Manage overrides and cross-barangay assignments.</p>
+                    <div className="flex-1 glass rounded-2xl border border-border flex flex-col min-h-0 shadow-2xl">
+                        <div className="p-6 border-b border-border shrink-0">
+                            <h2 className="text-lg font-semibold text-foreground">Global Report Queue</h2>
+                            <p className="text-sm text-foreground/50">Manage overrides and cross-barangay assignments.</p>
                         </div>
 
                         {/* C4 — Filter Bar */}
-                        <div className="flex flex-col lg:flex-row gap-3 p-4 border-b border-white/10 shrink-0">
+                        <div className="flex flex-col lg:flex-row gap-3 p-4 border-b border-border shrink-0">
                             <div className="relative flex-1 min-w-[200px]">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={16} />
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={16} />
                                 <input
                                     type="text"
                                     value={oversightSearch}
                                     onChange={(e) => setOversightSearch(e.target.value)}
                                     placeholder="Search tracking ID or notes…"
-                                    className="w-full pl-9 pr-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-sm placeholder:text-white/40 focus:border-primary focus:outline-none"
+                                    className="w-full pl-9 pr-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm placeholder:text-foreground/40 focus:border-primary focus:outline-none"
                                 />
                             </div>
                             <select
                                 value={oversightStatus}
                                 onChange={(e) => setOversightStatus(e.target.value)}
-                                className="px-2 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-xs focus:border-primary focus:outline-none"
+                                className="px-2 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-xs focus:border-primary focus:outline-none"
                             >
                                 {STATUS_OPTIONS.map((s) => (
                                     <option key={s || "all"} value={s}>{s ? s : "All statuses"}</option>
@@ -753,7 +753,7 @@ export default function CenroDashboard() {
                             <select
                                 value={oversightBarangay}
                                 onChange={(e) => setOversightBarangay(e.target.value)}
-                                className="px-2 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-xs focus:border-primary focus:outline-none"
+                                className="px-2 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-xs focus:border-primary focus:outline-none"
                             >
                                 <option value="">All barangays</option>
                                 {BARANGAYS.map((b) => (
@@ -761,21 +761,21 @@ export default function CenroDashboard() {
                                 ))}
                             </select>
                             <div className="flex items-center gap-2">
-                                <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">From</label>
+                                <label className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest">From</label>
                                 <input
                                     type="date"
                                     value={oversightDateFrom}
                                     onChange={(e) => setOversightDateFrom(e.target.value)}
-                                    className="px-2 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-xs focus:border-primary focus:outline-none"
+                                    className="px-2 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-xs focus:border-primary focus:outline-none"
                                 />
                             </div>
                             <div className="flex items-center gap-2">
-                                <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">To</label>
+                                <label className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest">To</label>
                                 <input
                                     type="date"
                                     value={oversightDateTo}
                                     onChange={(e) => setOversightDateTo(e.target.value)}
-                                    className="px-2 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-xs focus:border-primary focus:outline-none"
+                                    className="px-2 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-xs focus:border-primary focus:outline-none"
                                 />
                             </div>
                         </div>
@@ -783,7 +783,7 @@ export default function CenroDashboard() {
                         <div className="flex-1 overflow-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="border-b border-white/5 text-xs text-white/40 uppercase tracking-widest bg-black/20 sticky top-0 z-10">
+                                    <tr className="border-b border-border text-xs text-foreground/40 uppercase tracking-widest bg-black/20 sticky top-0 z-10">
                                         <th className="p-4">Tracking ID</th>
                                         <th className="p-4">Barangay</th>
                                         <th className="p-4">Status</th>
@@ -795,28 +795,28 @@ export default function CenroDashboard() {
                                 <tbody>
                                     {queueLoading ? (
                                         Array.from({ length: 5 }).map((_, i) => (
-                                            <tr key={i} className="border-b border-white/5">
+                                            <tr key={i} className="border-b border-border">
                                                 {Array.from({ length: 6 }).map((__, j) => (
-                                                    <td key={j} className="p-4"><div className="h-3 bg-white/10 rounded animate-pulse" /></td>
+                                                    <td key={j} className="p-4"><div className="h-3 bg-foreground/10 rounded animate-pulse" /></td>
                                                 ))}
                                             </tr>
                                         ))
                                     ) : displayedQueueReports.length === 0 ? (
-                                        <tr><td colSpan={6} className="p-12 text-center text-white/50 font-bold">No reports match the current filters.</td></tr>
+                                        <tr><td colSpan={6} className="p-12 text-center text-foreground/50 font-bold">No reports match the current filters.</td></tr>
                                     ) : (
                                         displayedQueueReports.map(report => {
                                             const sla = slaInfo(report.created_at, report.status);
                                             return (
-                                                <tr key={report.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                                                    <td className="p-4 font-mono text-sm text-white font-bold">{report.tracking_id}</td>
+                                                <tr key={report.id} className="border-b border-border hover:bg-foreground/5 transition-colors">
+                                                    <td className="p-4 font-mono text-sm text-foreground font-bold">{report.tracking_id}</td>
                                                     <td className="p-4 text-sm font-bold text-emerald-300">{report.barangay}</td>
                                                     <td className="p-4">
                                                         <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
                                                             report.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
                                                             report.status === 'deployed' ? 'bg-yellow-500/20 text-yellow-400' :
                                                             report.status === 'failed_cleanup' ? 'bg-red-500/20 text-red-400' :
-                                                            report.status === 'rejected' ? 'bg-white/5 text-white/40' :
-                                                            'bg-white/10 text-white'
+                                                            report.status === 'rejected' ? 'bg-foreground/5 text-foreground/40' :
+                                                            'bg-foreground/10 text-foreground'
                                                         }`}>
                                                             {report.status}
                                                         </span>
@@ -825,10 +825,10 @@ export default function CenroDashboard() {
                                                         {sla ? (
                                                             <span className={`px-2 py-1 rounded-md text-[11px] font-bold ${SLA_PILL_CLASSES[sla.color]}`}>{sla.days}d</span>
                                                         ) : (
-                                                            <span className="text-white/30 text-sm">—</span>
+                                                            <span className="text-foreground/30 text-sm">—</span>
                                                         )}
                                                     </td>
-                                                    <td className="p-4 text-sm text-white/60">
+                                                    <td className="p-4 text-sm text-foreground/60">
                                                         {new Date(report.created_at).toLocaleDateString()}
                                                     </td>
                                                     <td className="p-4 text-right">
@@ -837,7 +837,7 @@ export default function CenroDashboard() {
                                                                 setSelectedReport(report);
                                                                 setNewBarangay(report.barangay);
                                                             }}
-                                                            className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-lg transition-colors border border-white/5"
+                                                            className="px-4 py-2 bg-foreground/10 hover:bg-foreground/20 text-foreground text-xs font-bold rounded-lg transition-colors border border-border"
                                                         >
                                                             Oversight
                                                         </button>
@@ -854,18 +854,18 @@ export default function CenroDashboard() {
 
                 {activeTab === 'audit' && (
                     /* C1 — AUDIT LOG TAB */
-                    <div className="flex-1 glass rounded-2xl border border-white/10 flex flex-col min-h-0 shadow-2xl">
-                        <div className="p-6 border-b border-white/10 shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div className="flex-1 glass rounded-2xl border border-border flex flex-col min-h-0 shadow-2xl">
+                        <div className="p-6 border-b border-border shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-3">
                             <div>
-                                <h2 className="text-lg font-semibold text-white">Audit Log</h2>
-                                <p className="text-sm text-white/50">Every override action — who, when, what, why.</p>
+                                <h2 className="text-lg font-semibold text-foreground">Audit Log</h2>
+                                <p className="text-sm text-foreground/50">Every override action — who, when, what, why.</p>
                             </div>
                             <div className="flex items-center gap-3">
-                                <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Action</label>
+                                <label className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest">Action</label>
                                 <select
                                     value={auditAction}
                                     onChange={(e) => setAuditAction(e.target.value)}
-                                    className="px-2 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-xs focus:border-primary focus:outline-none"
+                                    className="px-2 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-xs focus:border-primary focus:outline-none"
                                 >
                                     {ACTION_FILTER_OPTIONS.map((a) => (
                                         <option key={a} value={a}>{a === "all" ? "All actions" : a}</option>
@@ -877,7 +877,7 @@ export default function CenroDashboard() {
                         <div className="flex-1 overflow-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="border-b border-white/5 text-xs text-white/40 uppercase tracking-widest bg-black/20 sticky top-0 z-10">
+                                    <tr className="border-b border-border text-xs text-foreground/40 uppercase tracking-widest bg-black/20 sticky top-0 z-10">
                                         <th className="p-4">Timestamp</th>
                                         <th className="p-4">User</th>
                                         <th className="p-4">Action</th>
@@ -888,29 +888,29 @@ export default function CenroDashboard() {
                                 <tbody>
                                     {auditLoading && auditEntries.length === 0 ? (
                                         Array.from({ length: 5 }).map((_, i) => (
-                                            <tr key={i} className="border-b border-white/5">
+                                            <tr key={i} className="border-b border-border">
                                                 {Array.from({ length: 5 }).map((__, j) => (
-                                                    <td key={j} className="p-4"><div className="h-3 bg-white/10 rounded animate-pulse" /></td>
+                                                    <td key={j} className="p-4"><div className="h-3 bg-foreground/10 rounded animate-pulse" /></td>
                                                 ))}
                                             </tr>
                                         ))
                                     ) : displayedAuditEntries.length === 0 ? (
-                                        <tr><td colSpan={5} className="p-12 text-center text-white/50 font-bold">No audit entries match this filter.</td></tr>
+                                        <tr><td colSpan={5} className="p-12 text-center text-foreground/50 font-bold">No audit entries match this filter.</td></tr>
                                     ) : (
                                         displayedAuditEntries.map((e) => {
                                             const detailsStr = e.details && Object.keys(e.details).length ? JSON.stringify(e.details) : "";
                                             const targetLabel = e.details?.tracking_id || `${e.target_type} #${e.target_id ?? "—"}`;
                                             return (
-                                                <tr key={e.id} className="border-b border-white/5 hover:bg-white/5">
-                                                    <td className="p-4 text-xs text-white/70 whitespace-nowrap">{new Date(e.created_at).toLocaleString()}</td>
-                                                    <td className="p-4 text-sm text-white">{e.user_email || "—"}</td>
+                                                <tr key={e.id} className="border-b border-border hover:bg-foreground/5">
+                                                    <td className="p-4 text-xs text-foreground/70 whitespace-nowrap">{new Date(e.created_at).toLocaleString()}</td>
+                                                    <td className="p-4 text-sm text-foreground">{e.user_email || "—"}</td>
                                                     <td className="p-4">
-                                                        <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider ${ACTION_PILL_CLASSES[e.action] || 'bg-white/10 text-white'}`}>
+                                                        <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider ${ACTION_PILL_CLASSES[e.action] || 'bg-foreground/10 text-foreground'}`}>
                                                             {e.action}
                                                         </span>
                                                     </td>
                                                     <td className="p-4 text-xs font-mono text-emerald-300">{targetLabel}</td>
-                                                    <td className="p-4 text-[11px] text-white/60 font-mono max-w-md truncate" title={detailsStr}>
+                                                    <td className="p-4 text-[11px] text-foreground/60 font-mono max-w-md truncate" title={detailsStr}>
                                                         {detailsStr.length > 80 ? detailsStr.slice(0, 80) + "…" : detailsStr}
                                                     </td>
                                                 </tr>
@@ -922,11 +922,11 @@ export default function CenroDashboard() {
                         </div>
 
                         {auditHasMore && (
-                            <div className="p-4 border-t border-white/10 shrink-0 flex justify-center">
+                            <div className="p-4 border-t border-border shrink-0 flex justify-center">
                                 <button
                                     onClick={() => fetchAuditLog(auditOffset + 50)}
                                     disabled={auditLoading}
-                                    className="px-6 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-bold uppercase tracking-widest hover:bg-white/10 disabled:opacity-50"
+                                    className="px-6 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-xs font-bold uppercase tracking-widest hover:bg-foreground/10 disabled:opacity-50"
                                 >
                                     {auditLoading ? "Loading…" : "Load more"}
                                 </button>
@@ -937,11 +937,11 @@ export default function CenroDashboard() {
 
                 {activeTab === 'users' && (
                     /* C2 — USER MANAGEMENT TAB */
-                    <div className="flex-1 glass rounded-2xl border border-white/10 flex flex-col min-h-0 shadow-2xl">
-                        <div className="p-6 border-b border-white/10 shrink-0 flex items-center justify-between gap-3">
+                    <div className="flex-1 glass rounded-2xl border border-border flex flex-col min-h-0 shadow-2xl">
+                        <div className="p-6 border-b border-border shrink-0 flex items-center justify-between gap-3">
                             <div>
-                                <h2 className="text-lg font-semibold text-white">Barangay Accounts</h2>
-                                <p className="text-sm text-white/50">Onboard new barangays and disable retired accounts.</p>
+                                <h2 className="text-lg font-semibold text-foreground">Barangay Accounts</h2>
+                                <p className="text-sm text-foreground/50">Onboard new barangays and disable retired accounts.</p>
                             </div>
                             <button
                                 onClick={() => setShowCreateUserModal(true)}
@@ -955,7 +955,7 @@ export default function CenroDashboard() {
                         <div className="flex-1 overflow-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="border-b border-white/5 text-xs text-white/40 uppercase tracking-widest bg-black/20 sticky top-0 z-10">
+                                    <tr className="border-b border-border text-xs text-foreground/40 uppercase tracking-widest bg-black/20 sticky top-0 z-10">
                                         <th className="p-4">Email</th>
                                         <th className="p-4">Full Name</th>
                                         <th className="p-4">Barangay</th>
@@ -966,19 +966,19 @@ export default function CenroDashboard() {
                                 <tbody>
                                     {usersLoading ? (
                                         Array.from({ length: 5 }).map((_, i) => (
-                                            <tr key={i} className="border-b border-white/5">
+                                            <tr key={i} className="border-b border-border">
                                                 {Array.from({ length: 5 }).map((__, j) => (
-                                                    <td key={j} className="p-4"><div className="h-3 bg-white/10 rounded animate-pulse" /></td>
+                                                    <td key={j} className="p-4"><div className="h-3 bg-foreground/10 rounded animate-pulse" /></td>
                                                 ))}
                                             </tr>
                                         ))
                                     ) : barangayUsers.length === 0 ? (
-                                        <tr><td colSpan={5} className="p-12 text-center text-white/50 font-bold">No barangay accounts yet. Click &quot;Add Barangay Account&quot; to onboard the first one.</td></tr>
+                                        <tr><td colSpan={5} className="p-12 text-center text-foreground/50 font-bold">No barangay accounts yet. Click &quot;Add Barangay Account&quot; to onboard the first one.</td></tr>
                                     ) : (
                                         barangayUsers.map((u) => (
-                                            <tr key={u.id} className="border-b border-white/5 hover:bg-white/5">
-                                                <td className="p-4 text-sm text-white">{u.email}</td>
-                                                <td className="p-4 text-sm text-white/80">{u.full_name}</td>
+                                            <tr key={u.id} className="border-b border-border hover:bg-foreground/5">
+                                                <td className="p-4 text-sm text-foreground">{u.email}</td>
+                                                <td className="p-4 text-sm text-foreground/80">{u.full_name}</td>
                                                 <td className="p-4 text-sm font-bold text-emerald-300">{u.barangay_assignment || "—"}</td>
                                                 <td className="p-4">
                                                     <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${u.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
@@ -995,7 +995,7 @@ export default function CenroDashboard() {
                                                             {disabling.has(u.id) ? "Disabling…" : "Disable"}
                                                         </button>
                                                     ) : (
-                                                        <span className="text-white/30 text-sm">—</span>
+                                                        <span className="text-foreground/30 text-sm">—</span>
                                                     )}
                                                 </td>
                                             </tr>
@@ -1016,11 +1016,11 @@ export default function CenroDashboard() {
                         <div className="bg-emerald-900/40 border-b border-emerald-500/30 px-6 py-4 flex items-center justify-between">
                             <div>
                                 <div className="text-[10px] text-emerald-300 font-bold uppercase tracking-widest mb-1">Cenro Override Console</div>
-                                <h2 className="text-lg font-semibold text-white">Report {selectedReport.tracking_id}</h2>
+                                <h2 className="text-lg font-semibold text-foreground">Report {selectedReport.tracking_id}</h2>
                             </div>
                             <button
                                 onClick={() => setSelectedReport(null)}
-                                className="p-2 text-white/50 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-colors"
+                                className="p-2 text-foreground/50 hover:text-foreground bg-foreground/5 hover:bg-foreground/10 rounded-full transition-colors"
                             >
                                 <X size={20} />
                             </button>
@@ -1030,13 +1030,13 @@ export default function CenroDashboard() {
 
                             {/* Reassign Action */}
                             <div className="space-y-3">
-                                <h3 className="text-sm font-bold text-white uppercase tracking-widest border-b border-white/10 pb-2">1. Reassign Barangay</h3>
-                                <p className="text-xs text-white/50">If the algorithm assigned this to the wrong jurisdiction, override it here.</p>
+                                <h3 className="text-sm font-bold text-foreground uppercase tracking-widest border-b border-border pb-2">1. Reassign Barangay</h3>
+                                <p className="text-xs text-foreground/50">If the algorithm assigned this to the wrong jurisdiction, override it here.</p>
                                 <div className="flex gap-4">
                                     <select
                                         value={newBarangay}
                                         onChange={(e) => setNewBarangay(e.target.value)}
-                                        className="flex-1 bg-black/50 border border-white/10 rounded-xl px-4 text-sm text-white focus:outline-none focus:border-primary"
+                                        className="flex-1 bg-foreground/5 border border-border rounded-xl px-4 text-sm text-foreground focus:outline-none focus:border-primary"
                                     >
                                         {BARANGAYS.map(b => (
                                             <option key={b} value={b}>{b}</option>
@@ -1054,8 +1054,8 @@ export default function CenroDashboard() {
 
                             {/* Force Close Action */}
                             <div className="space-y-3">
-                                <h3 className="text-sm font-bold text-white uppercase tracking-widest border-b border-white/10 pb-2">2. Administrative Override</h3>
-                                <p className="text-xs text-white/50">Force-close this ticket. Use this if AI verification is repeatedly failing but visual inspection confirms cleanup.</p>
+                                <h3 className="text-sm font-bold text-foreground uppercase tracking-widest border-b border-border pb-2">2. Administrative Override</h3>
+                                <p className="text-xs text-foreground/50">Force-close this ticket. Use this if AI verification is repeatedly failing but visual inspection confirms cleanup.</p>
                                 <button
                                     onClick={() => handleForceClose(selectedReport.id)}
                                     disabled={actionLoading || selectedReport.status === 'resolved'}
@@ -1076,38 +1076,38 @@ export default function CenroDashboard() {
                 <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
                     <div className="glass max-w-md w-full rounded-2xl border border-emerald-500/30 overflow-hidden">
                         <div className="bg-emerald-900/40 border-b border-emerald-500/30 px-6 py-4 flex items-center justify-between">
-                            <h2 className="text-base font-semibold text-white">New Barangay Account</h2>
-                            <button onClick={() => setShowCreateUserModal(false)} className="p-2 text-white/50 hover:text-white bg-white/5 hover:bg-white/10 rounded-full">
+                            <h2 className="text-base font-semibold text-foreground">New Barangay Account</h2>
+                            <button onClick={() => setShowCreateUserModal(false)} className="p-2 text-foreground/50 hover:text-foreground bg-foreground/5 hover:bg-foreground/10 rounded-full">
                                 <X size={18} />
                             </button>
                         </div>
                         <div className="p-6 space-y-4">
                             <div>
-                                <label className="text-[10px] font-bold text-white/50 uppercase tracking-widest mb-1 block">Email</label>
+                                <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1 block">Email</label>
                                 <input
                                     type="email"
                                     value={createForm.email}
                                     onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
                                     placeholder="barangay@example.gov.ph"
-                                    className="w-full px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-sm focus:border-primary focus:outline-none"
+                                    className="w-full px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:border-primary focus:outline-none"
                                 />
                             </div>
                             <div>
-                                <label className="text-[10px] font-bold text-white/50 uppercase tracking-widest mb-1 block">Full Name</label>
+                                <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1 block">Full Name</label>
                                 <input
                                     type="text"
                                     value={createForm.full_name}
                                     onChange={(e) => setCreateForm({ ...createForm, full_name: e.target.value })}
                                     placeholder="Juan dela Cruz"
-                                    className="w-full px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-sm focus:border-primary focus:outline-none"
+                                    className="w-full px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:border-primary focus:outline-none"
                                 />
                             </div>
                             <div>
-                                <label className="text-[10px] font-bold text-white/50 uppercase tracking-widest mb-1 block">Barangay Assignment</label>
+                                <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1 block">Barangay Assignment</label>
                                 <select
                                     value={createForm.barangay_assignment}
                                     onChange={(e) => setCreateForm({ ...createForm, barangay_assignment: e.target.value })}
-                                    className="w-full px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-sm focus:border-primary focus:outline-none"
+                                    className="w-full px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:border-primary focus:outline-none"
                                 >
                                     <option value="">Select barangay…</option>
                                     {BARANGAYS.map((b) => (
@@ -1115,7 +1115,7 @@ export default function CenroDashboard() {
                                     ))}
                                 </select>
                             </div>
-                            <p className="text-[11px] text-white/40 italic">A temporary password will be generated and shown once after submission.</p>
+                            <p className="text-[11px] text-foreground/40 italic">A temporary password will be generated and shown once after submission.</p>
                             <button
                                 onClick={handleCreateUser}
                                 disabled={createPending}
@@ -1134,20 +1134,20 @@ export default function CenroDashboard() {
                     <div className="glass max-w-md w-full rounded-2xl border border-yellow-500/30 overflow-hidden">
                         <div className="bg-yellow-900/30 border-b border-yellow-500/30 px-6 py-4 flex items-center justify-between">
                             <h2 className="text-base font-semibold text-yellow-200">Temporary Credentials</h2>
-                            <button onClick={() => setCreatedCredential(null)} className="p-2 text-white/50 hover:text-white bg-white/5 hover:bg-white/10 rounded-full">
+                            <button onClick={() => setCreatedCredential(null)} className="p-2 text-foreground/50 hover:text-foreground bg-foreground/5 hover:bg-foreground/10 rounded-full">
                                 <X size={18} />
                             </button>
                         </div>
                         <div className="p-6 space-y-4">
                             <p className="text-xs text-yellow-200 font-bold">⚠ This password will not be shown again. Share it with the new account holder now.</p>
                             <div>
-                                <label className="text-[10px] font-bold text-white/50 uppercase tracking-widest mb-1 block">Email</label>
-                                <div className="px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-sm font-mono">{createdCredential.email}</div>
+                                <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1 block">Email</label>
+                                <div className="px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm font-mono">{createdCredential.email}</div>
                             </div>
                             <div>
-                                <label className="text-[10px] font-bold text-white/50 uppercase tracking-widest mb-1 block">Temporary Password</label>
+                                <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1 block">Temporary Password</label>
                                 <div className="flex items-center gap-2">
-                                    <div className="flex-1 px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-sm font-mono select-all break-all">{createdCredential.password}</div>
+                                    <div className="flex-1 px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm font-mono select-all break-all">{createdCredential.password}</div>
                                     <button
                                         onClick={handleCopyPassword}
                                         className="px-3 py-2 rounded-lg bg-primary/20 border border-primary/30 text-primary hover:bg-primary/30 transition-colors"
@@ -1159,7 +1159,7 @@ export default function CenroDashboard() {
                             </div>
                             <button
                                 onClick={() => setCreatedCredential(null)}
-                                className="w-full py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold transition-colors"
+                                className="w-full py-3 bg-foreground/10 hover:bg-foreground/20 text-foreground rounded-xl font-bold transition-colors"
                             >
                                 Done
                             </button>

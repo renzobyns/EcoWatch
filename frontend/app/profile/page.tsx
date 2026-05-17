@@ -64,7 +64,7 @@ export default function ProfilePage() {
         citizen: { label: "Citizen Reporter", color: "bg-primary/20 text-primary" },
         barangay: { label: "Barangay Admin", color: "bg-blue-500/20 text-blue-400" },
         cenro: { label: "CENRO Admin", color: "bg-yellow-500/20 text-yellow-400" },
-    }[profile.role] || { label: "User", color: "bg-white/10 text-foreground/60" };
+    }[profile.role] || { label: "User", color: "bg-foreground/10 text-foreground/60" };
 
     const joinDate = new Date(profile.created_at).toLocaleDateString("en-PH", {
         year: "numeric",
@@ -77,7 +77,7 @@ export default function ProfilePage() {
             <div className="max-w-2xl mx-auto space-y-8">
 
                 {/* Profile Header */}
-                <div className="glass p-8 rounded-2xl border border-white/10 text-center space-y-4">
+                <div className="glass p-8 rounded-2xl border border-border text-center space-y-4">
                     <div className="w-20 h-20 mx-auto rounded-full eco-gradient flex items-center justify-center text-3xl font-bold text-white shadow-lg shadow-primary/30">
                         {profile.full_name.charAt(0).toUpperCase()}
                     </div>
@@ -94,9 +94,9 @@ export default function ProfilePage() {
                 </div>
 
                 {/* Report History (placeholder) */}
-                <div className="glass p-6 rounded-2xl border border-white/10 space-y-4">
+                <div className="glass p-6 rounded-2xl border border-border space-y-4">
                     <h2 className="text-base font-semibold">My Reports</h2>
-                    <div className="p-8 text-center text-foreground/30 border border-dashed border-white/10 rounded-xl">
+                    <div className="p-8 text-center text-foreground/30 border border-dashed border-border rounded-xl">
                         <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-3 text-foreground/20">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                             <polyline points="14,2 14,8 20,8" />
@@ -110,7 +110,7 @@ export default function ProfilePage() {
                 </div>
 
                 {/* Account Actions */}
-                <div className="glass p-6 rounded-2xl border border-white/10 space-y-4">
+                <div className="glass p-6 rounded-2xl border border-border space-y-4">
                     <h2 className="text-base font-semibold">Account</h2>
                     <button
                         onClick={handleSignOut}
