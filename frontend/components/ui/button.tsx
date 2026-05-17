@@ -11,9 +11,9 @@ const buttonVariants = cva(
             variant: {
                 default: "eco-gradient text-white shadow-lg shadow-primary/20 hover:shadow-primary/40",
                 destructive: "bg-red-500 text-white shadow-sm hover:bg-red-500/90",
-                outline: "glass border border-white/15 text-white hover:bg-white/10",
-                secondary: "bg-white/10 text-white hover:bg-white/15",
-                ghost: "text-white/80 hover:bg-white/10 hover:text-white",
+                outline: "glass border border-border text-foreground hover:bg-foreground/5",
+                secondary: "bg-foreground/10 text-foreground hover:bg-foreground/15",
+                ghost: "text-foreground/80 hover:bg-foreground/10 hover:text-foreground",
                 link: "text-primary underline-offset-4 hover:underline",
             },
             size: {

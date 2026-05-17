@@ -201,7 +201,7 @@ export default function FloatingChat() {
                     </div>
                     
                     {/* Tooltip */}
-                    <div className="absolute -top-12 left-1/2 -translate-x-1/2 whitespace-nowrap bg-gray-900 border border-white/10 text-white text-xs px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none before:content-[''] before:absolute before:-bottom-1 before:left-1/2 before:-translate-x-1/2 before:border-4 before:border-transparent before:border-t-gray-900">
+                    <div className="absolute -top-12 left-1/2 -translate-x-1/2 whitespace-nowrap bg-foreground text-background border border-border text-xs px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                         Ask EcoWatch Guide
                     </div>
                 </div>
@@ -209,7 +209,7 @@ export default function FloatingChat() {
 
             {/* The Open Chat Window */}
             {isOpen && (
-                <div className="glass fixed inset-0 sm:inset-auto sm:relative w-full h-[100dvh] sm:w-[380px] sm:h-[600px] flex flex-col sm:rounded-2xl shadow-2xl shadow-black/50 sm:border border-primary/20 overflow-hidden bg-[#0a0f0a] sm:bg-[#0a0f0a]/95 backdrop-blur-xl animate-in slide-in-from-bottom-5 sm:zoom-in-95 duration-200" style={{ transformOrigin: 'bottom right' }}>
+                <div className="glass fixed inset-0 sm:inset-auto sm:relative w-full h-[100dvh] sm:w-[380px] sm:h-[600px] flex flex-col sm:rounded-2xl shadow-2xl shadow-black/50 sm:border border-primary/20 overflow-hidden bg-background sm:bg-background/95 backdrop-blur-xl animate-in slide-in-from-bottom-5 sm:zoom-in-95 duration-200" style={{ transformOrigin: 'bottom right' }}>
                     
                     {/* Header (Drag Handle) */}
                     <div 
@@ -228,22 +228,22 @@ export default function FloatingChat() {
                                 </p>
                             </div>
                         </div>
-                        <button 
+                        <button
                             onClick={(e) => { e.stopPropagation(); toggleChat(); }}
-                            className="p-2 text-foreground/50 hover:text-foreground hover:bg-white/5 rounded-full transition-colors"
+                            className="p-2 text-foreground/50 hover:text-foreground hover:bg-foreground/5 rounded-full transition-colors"
                         >
                             <X size={18} />
                         </button>
                     </div>
 
                     {/* Messages Area */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide">
                         {messages.map((m) => (
                             <div key={m.id} className={`flex w-full ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                                <div 
+                                <div
                                     className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                                        m.role === "user" 
-                                            ? "bg-white/10 text-foreground rounded-tr-sm border border-white/5" 
+                                        m.role === "user"
+                                            ? "bg-foreground/10 text-foreground rounded-tr-sm border border-border"
                                             : "eco-gradient text-white rounded-tl-sm shadow-lg shadow-primary/10"
                                     }`}
                                 >
@@ -262,7 +262,7 @@ export default function FloatingChat() {
                     </div>
 
                     {/* Input Area */}
-                    <form onSubmit={sendMessage} className="p-3 border-t border-primary/20 bg-black/20 shrink-0">
+                    <form onSubmit={sendMessage} className="p-3 border-t border-primary/20 bg-foreground/[0.02] shrink-0">
                         <div className="relative flex items-center">
                             <input
                                 ref={inputRef}
@@ -271,12 +271,12 @@ export default function FloatingChat() {
                                 onChange={(e) => setInput(e.target.value)}
                                 placeholder="Ask a question..."
                                 disabled={isLoading}
-                                className="w-full bg-white/5 border border-white/10 rounded-full pl-4 pr-12 py-3 text-sm focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all disabled:opacity-50 text-foreground"
+                                className="w-full bg-foreground/5 border border-border rounded-full pl-4 pr-12 py-3 text-sm focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all disabled:opacity-50 text-foreground"
                             />
                             <button
                                 type="submit"
                                 disabled={!input.trim() || isLoading}
-                                className="absolute right-1 text-primary hover:text-white p-2 hover:bg-primary/80 rounded-full transition-colors disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-primary"
+                                className="absolute right-1 text-primary hover:text-white p-2 hover:bg-primary rounded-full transition-colors disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-primary"
                             >
                                 {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
                             </button>

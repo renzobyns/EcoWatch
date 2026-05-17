@@ -1,13 +1,53 @@
 @import "tailwindcss";
 
+/* Light mode (default) — soft sage palette, not pure white */
 :root {
+  --background: #e9f0eb;
+  --foreground: #052e16;
+  --card: #f5faf6;
+  --card-foreground: #052e16;
+  --muted-bg: rgba(5, 46, 22, 0.06);
+  --muted-fg: rgba(5, 46, 22, 0.6);
+  --border: rgba(5, 46, 22, 0.14);
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(5, 46, 22, 0.12);
+  --glass-pro-bg: rgba(255, 255, 255, 0.85);
+  --glass-pro-border: rgba(5, 46, 22, 0.1);
+  --glass-pro-shadow: 0 4px 24px -1px rgba(5, 46, 22, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+  --glass-pro-hover-bg: rgba(255, 255, 255, 0.95);
+  --glass-pro-hover-border: rgba(16, 185, 129, 0.4);
+  --glass-pro-hover-shadow: 0 12px 40px -4px rgba(5, 46, 22, 0.15), inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  --scrim: rgba(233, 240, 235, 0.7);
+}
+
+/* Dark mode */
+.dark {
   --background: #0a0f0a;
   --foreground: #ecfdf5;
+  --card: #0f1410;
+  --card-foreground: #ecfdf5;
+  --muted-bg: rgba(255, 255, 255, 0.05);
+  --muted-fg: rgba(236, 253, 245, 0.6);
+  --border: rgba(255, 255, 255, 0.1);
+  --glass-bg: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-pro-bg: rgba(255, 255, 255, 0.02);
+  --glass-pro-border: rgba(255, 255, 255, 0.08);
+  --glass-pro-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --glass-pro-hover-bg: rgba(255, 255, 255, 0.05);
+  --glass-pro-hover-border: rgba(16, 185, 129, 0.3);
+  --glass-pro-hover-shadow: 0 12px 40px -4px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  --scrim: rgba(0, 0, 0, 0.6);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted-bg);
+  --color-muted-foreground: var(--muted-fg);
+  --color-border: var(--border);
   --color-primary: #10b981;
   --color-primary-dark: #065f46;
   --color-secondary: #34d399;
@@ -23,27 +63,23 @@ body {
 }
 
 .glass {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--glass-bg);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--glass-border);
 }
 
 .glass-pro {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--glass-pro-bg);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 
-    0 4px 24px -1px rgba(0, 0, 0, 0.2),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-pro-border);
+  box-shadow: var(--glass-pro-shadow);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glass-pro:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(16, 185, 129, 0.3);
-  box-shadow: 
-    0 12px 40px -4px rgba(0, 0, 0, 0.3),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  background: var(--glass-pro-hover-bg);
+  border-color: var(--glass-pro-hover-border);
+  box-shadow: var(--glass-pro-hover-shadow);
   transform: translateY(-2px);
 }
 

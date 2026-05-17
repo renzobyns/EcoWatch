@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import { Toaster } from "sonner";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 export const metadata: Metadata = {
   title: "EcoWatch SJDM | Sustainable Environmental Monitoring",
@@ -11,19 +12,34 @@ export const metadata: Metadata = {
   },
 };
 
+// Injected synchronously in <head> to prevent FOUC on first paint.
+const themeScript = `
+try {
+  var t = localStorage.getItem('ecowatch_theme');
+  var sys = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  var dark = t ? t === 'dark' : (sys || true);
+  if (dark) document.documentElement.classList.add('dark');
+} catch (e) {}
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="antialiased min-h-screen">
-        <Navbar />
-        <main className="pt-16">
-          {children}
-        </main>
-        <Toaster richColors position="top-right" theme="dark" />
+        <ThemeProvider>
+          <Navbar />
+          <main className="pt-16">
+            {children}
+          </main>
+          <Toaster richColors position="top-right" theme="system" />
+        </ThemeProvider>
       </body>
     </html>
   );

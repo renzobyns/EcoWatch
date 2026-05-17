@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function Navbar() {
     const [menuOpen, setMenuOpen] = useState(false);
@@ -57,11 +58,13 @@ export default function Navbar() {
                             <Link href="/cenro" className="text-emerald-500 hover:text-emerald-400 transition-colors text-sm font-medium">CENRO Dashboard</Link>
                         )}
 
+                        <ThemeToggle />
+
                         {user ? (
                             <div className="flex items-center gap-3">
                                 <div className="text-right hidden lg:block">
-                                    <div className="text-sm font-semibold text-white leading-tight">{user.name}</div>
-                                    <div className="text-[10px] text-white/50 uppercase tracking-widest">{user.role}</div>
+                                    <div className="text-sm font-semibold text-foreground leading-tight">{user.name}</div>
+                                    <div className="text-[10px] text-foreground/50 uppercase tracking-widest">{user.role}</div>
                                 </div>
                                 <button
                                     onClick={() => {
@@ -81,42 +84,45 @@ export default function Navbar() {
                     </div>
 
                     {/* Mobile Hamburger Button */}
-                    <button
-                        className="md:hidden flex flex-col justify-center items-center w-10 h-10 gap-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
-                        onClick={() => setMenuOpen(!menuOpen)}
-                        aria-label="Toggle menu"
-                    >
-                        <span className={`block w-6 h-0.5 bg-foreground/70 transition-all duration-300 ${menuOpen ? 'rotate-45 translate-y-2' : ''}`} />
-                        <span className={`block w-6 h-0.5 bg-foreground/70 transition-all duration-300 ${menuOpen ? 'opacity-0' : ''}`} />
-                        <span className={`block w-6 h-0.5 bg-foreground/70 transition-all duration-300 ${menuOpen ? '-rotate-45 -translate-y-2' : ''}`} />
-                    </button>
+                    <div className="md:hidden flex items-center gap-1">
+                        <ThemeToggle />
+                        <button
+                            className="flex flex-col justify-center items-center w-10 h-10 gap-1.5 rounded-lg hover:bg-foreground/5 transition-colors cursor-pointer"
+                            onClick={() => setMenuOpen(!menuOpen)}
+                            aria-label="Toggle menu"
+                        >
+                            <span className={`block w-6 h-0.5 bg-foreground/70 transition-all duration-300 ${menuOpen ? 'rotate-45 translate-y-2' : ''}`} />
+                            <span className={`block w-6 h-0.5 bg-foreground/70 transition-all duration-300 ${menuOpen ? 'opacity-0' : ''}`} />
+                            <span className={`block w-6 h-0.5 bg-foreground/70 transition-all duration-300 ${menuOpen ? '-rotate-45 -translate-y-2' : ''}`} />
+                        </button>
+                    </div>
                 </div>
             </div>
 
             {/* Mobile Dropdown Menu */}
             <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${menuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
-                <div className="glass border-t border-white/5 bg-[#0a0f0a]/95 backdrop-blur-2xl shadow-2xl shadow-black px-4 py-4 space-y-1">
+                <div className="glass border-t border-border bg-background/95 backdrop-blur-2xl shadow-2xl shadow-black/20 px-4 py-4 space-y-1">
                     {publicLinks.map((link) => (
                         <Link
                             key={link.href}
                             href={link.href}
                             onClick={() => setMenuOpen(false)}
-                            className="block px-4 py-2.5 rounded-lg text-foreground/80 hover:bg-white/5 hover:text-primary transition-colors text-sm font-medium"
+                            className="block px-4 py-2.5 rounded-lg text-foreground/80 hover:bg-foreground/5 hover:text-primary transition-colors text-sm font-medium"
                         >
                             {link.label}
                         </Link>
                     ))}
                     {user && user.role === 'barangay' && (
-                        <Link href="/barangay" onClick={() => setMenuOpen(false)} className="block px-4 py-3 rounded-xl text-emerald-500 hover:bg-white/5 transition-colors text-sm font-medium">
+                        <Link href="/barangay" onClick={() => setMenuOpen(false)} className="block px-4 py-3 rounded-xl text-emerald-500 hover:bg-foreground/5 transition-colors text-sm font-medium">
                             Barangay Portal
                         </Link>
                     )}
                     {user && user.role === 'cenro' && (
-                        <Link href="/cenro" onClick={() => setMenuOpen(false)} className="block px-4 py-3 rounded-xl text-emerald-500 hover:bg-white/5 transition-colors text-sm font-medium">
+                        <Link href="/cenro" onClick={() => setMenuOpen(false)} className="block px-4 py-3 rounded-xl text-emerald-500 hover:bg-foreground/5 transition-colors text-sm font-medium">
                             CENRO Dashboard
                         </Link>
                     )}
-                    <div className="pt-2 border-t border-white/10 mt-2">
+                    <div className="pt-2 border-t border-border mt-2">
                         {user ? (
                             <button
                                 onClick={() => {

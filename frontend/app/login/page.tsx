@@ -54,9 +54,9 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="h-screen h-[100dvh] bg-[#0a0f0a] flex overflow-hidden">
-            {/* Left Side: Marketing/Testimonial (Desktop Only) */}
-            <div className="hidden lg:flex w-1/2 relative overflow-hidden bg-[#051105] border-r border-white/5 p-8 xl:p-12 flex-col justify-between">
+        <div className="h-screen h-[100dvh] -mt-16 bg-background flex overflow-hidden">
+            {/* Left Side: Marketing/Testimonial (Desktop Only) — stays dark in both themes */}
+            <div className="dark hidden lg:flex w-1/2 relative overflow-hidden bg-[#051105] text-white border-r border-white/5 p-8 xl:p-12 flex-col justify-between">
                 {/* Background Decor */}
                 <div className="absolute top-[-10%] right-[-10%] w-96 h-96 bg-primary/20 rounded-full blur-[120px]"></div>
                 
@@ -106,7 +106,7 @@ export default function LoginPage() {
 
             {/* Right Side: Login Form */}
             <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-6 sm:p-12 overflow-y-auto">
-                <Link href="/" className="lg:hidden absolute top-6 left-6 text-white/50 hover:text-white transition-colors flex items-center gap-2">
+                <Link href="/" className="lg:hidden absolute top-6 left-6 text-foreground/50 hover:text-foreground transition-colors flex items-center gap-2">
                     <ArrowLeft size={18} />
                 </Link>
 
@@ -117,19 +117,19 @@ export default function LoginPage() {
                                 <Leaf className="text-white" size={24} />
                             </div>
                         </div>
-                        <h2 className="text-xl lg:text-2xl font-bold text-white mb-1">Log in to your account</h2>
-                        <p className="text-sm text-white/50">Welcome back! Please enter your details.</p>
+                        <h2 className="text-xl lg:text-2xl font-bold text-foreground mb-1">Log in to your account</h2>
+                        <p className="text-sm text-foreground/50">Welcome back! Please enter your details.</p>
                     </div>
 
                     {error && (
-                        <div className="mb-5 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs font-medium text-red-400">
+                        <div className="mb-5 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs font-medium text-red-500">
                             {error}
                         </div>
                     )}
 
                     <form onSubmit={handleLogin} className="space-y-4">
                         <div className="space-y-1.5">
-                            <label className="text-[11px] font-semibold text-white/60 uppercase tracking-widest px-1">Email Address</label>
+                            <label className="text-[11px] font-semibold text-foreground/60 uppercase tracking-widest px-1">Email Address</label>
                             <Input
                                 type="email"
                                 required
@@ -141,7 +141,7 @@ export default function LoginPage() {
 
                         <div className="space-y-1.5">
                             <div className="flex justify-between items-center px-1">
-                                <label className="text-[11px] font-semibold text-white/60 uppercase tracking-widest">Password</label>
+                                <label className="text-[11px] font-semibold text-foreground/60 uppercase tracking-widest">Password</label>
                                 <Link href="/auth/reset" className="text-[10px] font-semibold text-primary hover:text-primary-dark uppercase tracking-widest transition-colors">
                                     Forgot Password?
                                 </Link>
@@ -159,7 +159,7 @@ export default function LoginPage() {
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
                                     aria-label={showPassword ? "Hide password" : "Show password"}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-primary transition-colors cursor-pointer"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-primary transition-colors cursor-pointer"
                                 >
                                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                 </button>
@@ -178,19 +178,19 @@ export default function LoginPage() {
                     <div className="mt-6 space-y-5">
                         <div className="relative">
                             <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t border-white/10"></div>
+                                <div className="w-full border-t border-border"></div>
                             </div>
                             <div className="relative flex justify-center text-[10px] uppercase tracking-widest">
-                                <span className="bg-[#0a0f0a] px-4 text-white/30 font-semibold">Or continue with</span>
+                                <span className="bg-background px-4 text-foreground/40 font-semibold">Or continue with</span>
                             </div>
                         </div>
 
                         <Button variant="outline" className="w-full group">
-                            <Chrome className="text-white/40 group-hover:text-primary transition-colors" size={16} />
+                            <Chrome className="text-foreground/40 group-hover:text-primary transition-colors" size={16} />
                             Sign in with Google
                         </Button>
 
-                        <p className="text-center text-xs text-white/40">
+                        <p className="text-center text-xs text-foreground/50">
                             Don't have an account?{" "}
                             <Link href="/signup" className="text-primary font-semibold hover:underline underline-offset-4">
                                 Sign up
@@ -206,7 +206,7 @@ export default function LoginPage() {
                         </div>
                         <div className="flex flex-wrap gap-1.5">
                             {['citizen@test.com', 'barangay@test.com', 'cenro@test.com'].map(acc => (
-                                <span key={acc} className="text-[9px] font-mono text-white/30 bg-black/40 px-1.5 py-0.5 rounded border border-white/5">{acc}</span>
+                                <span key={acc} className="text-[9px] font-mono text-foreground/50 bg-foreground/5 px-1.5 py-0.5 rounded border border-border">{acc}</span>
                             ))}
                         </div>
                     </div>

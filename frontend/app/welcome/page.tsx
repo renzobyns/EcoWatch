@@ -44,7 +44,7 @@ export default function WelcomePage() {
                     </p>
                 </div>
 
-                <div className="glass p-5 rounded-2xl border border-white/10 space-y-3.5 text-left">
+                <div className="glass p-5 rounded-2xl border border-border space-y-3.5 text-left">
                     <p className="text-sm font-semibold text-foreground/80">Here&apos;s what you can do now:</p>
                     <div className="space-y-3">
                         <div className="flex items-start gap-3">
@@ -80,7 +80,7 @@ export default function WelcomePage() {
                     </Link>
                     <Link
                         href="/profile"
-                        className="h-11 px-6 inline-flex items-center justify-center glass text-foreground rounded-lg text-sm font-semibold hover:bg-white/5 transition-all border border-white/10"
+                        className="h-11 px-6 inline-flex items-center justify-center glass text-foreground rounded-lg text-sm font-semibold hover:bg-foreground/5 transition-all border border-border"
                     >
                         View My Profile
                     </Link>

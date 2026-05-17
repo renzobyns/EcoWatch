@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import { useTheme } from "@/components/ThemeProvider";
 
 const fixLeafletIcons = () => {
     // @ts-ignore
@@ -69,15 +70,16 @@ function LocationMarker({ position, setPosition }: { position: [number, number],
     );
 }
 
-export default function LocationPickerMap({ 
-    initialLat, 
+export default function LocationPickerMap({
+    initialLat,
     initialLon,
     onLocationChange
-}: { 
-    initialLat: number | null, 
+}: {
+    initialLat: number | null,
     initialLon: number | null,
     onLocationChange: (lat: number, lon: number) => void
 }) {
+    const { theme } = useTheme();
     // Start with null or provided props
     const [position, setPosition] = useState<[number, number] | null>(
         initialLat && initialLon ? [initialLat, initialLon] : null
@@ -104,26 +106,30 @@ export default function LocationPickerMap({
         }
     }, [position]);
 
+    const tileUrl = theme === "dark"
+        ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+        : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+
     return (
-        <div className="w-full h-full rounded-2xl overflow-hidden border border-white/20 relative">
-            <MapContainer 
+        <div className="w-full h-full rounded-2xl overflow-hidden border border-border relative">
+            <MapContainer
                 center={[14.82, 121.05]} // Default view of SJDM
-                zoom={13} 
+                zoom={13}
                 scrollWheelZoom={true}
                 className="w-full h-full z-0"
             >
-                <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+                <TileLayer key={theme} url={tileUrl} />
                 <MapEvents setPosition={(pos) => setPosition(pos)} />
                 {position && <LocationMarker position={position} setPosition={setPosition} />}
             </MapContainer>
-            
+
             {!position && (
-                <div className="absolute inset-0 z-[1001] bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-6 text-center pointer-events-none">
-                    <div className="glass p-4 rounded-2xl border border-white/10 animate-in fade-in zoom-in duration-300">
-                        <p className="text-xs font-bold text-white uppercase tracking-widest">
+                <div className="absolute inset-0 z-[1001] bg-scrim backdrop-blur-[2px] flex items-center justify-center p-6 text-center pointer-events-none" style={{ background: 'var(--scrim)' }}>
+                    <div className="glass p-4 rounded-2xl border border-border animate-in fade-in zoom-in duration-300">
+                        <p className="text-xs font-bold text-foreground uppercase tracking-widest">
                             No location selected
                         </p>
-                        <p className="text-[10px] text-white/50 mt-1">
+                        <p className="text-[10px] text-foreground/50 mt-1">
                             Click the map or "Use my location" to begin
                         </p>
                     </div>
@@ -131,7 +137,7 @@ export default function LocationPickerMap({
             )}
 
             {position && (
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] glass px-4 py-2 rounded-full text-[10px] font-bold text-white shadow-xl whitespace-nowrap pointer-events-none animate-in fade-in slide-in-from-top-4">
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] glass px-4 py-2 rounded-full text-[10px] font-bold text-foreground shadow-xl whitespace-nowrap pointer-events-none animate-in fade-in slide-in-from-top-4">
                     Drag pin to fine-tune location
                 </div>
             )}

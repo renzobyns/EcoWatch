@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useEffect } from "react";
+import { useTheme } from "@/components/ThemeProvider";
 
 const fixLeafletIcons = () => {
     // @ts-ignore
@@ -23,20 +24,26 @@ const customIcon = new L.DivIcon({
 });
 
 export default function MiniMap({ lat, lon }: { lat: number, lon: number }) {
+    const { theme } = useTheme();
+
     useEffect(() => {
         fixLeafletIcons();
     }, []);
 
+    const tileUrl = theme === "dark"
+        ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+        : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+
     return (
-        <MapContainer 
-            center={[lat, lon]} 
-            zoom={15} 
+        <MapContainer
+            center={[lat, lon]}
+            zoom={15}
             scrollWheelZoom={false}
             zoomControl={false}
             attributionControl={false}
             className="w-full h-full z-0"
         >
-            <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+            <TileLayer key={theme} url={tileUrl} />
             <Marker position={[lat, lon]} icon={customIcon} />
         </MapContainer>
     );
