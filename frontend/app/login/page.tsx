@@ -39,6 +39,8 @@ export default function LoginPage() {
                     window.location.href = "/barangay";
                 } else if (data.user.role === "cenro") {
                     window.location.href = "/cenro";
+                } else if (data.user.role === "cleaner") {
+                    window.location.href = "/cleaner";
                 } else {
                     window.location.href = "/";
                 }

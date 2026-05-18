@@ -57,6 +57,9 @@ export default function Navbar() {
                         {user && user.role === 'cenro' && (
                             <Link href="/cenro" className="text-emerald-500 hover:text-emerald-400 transition-colors text-sm font-medium">CENRO Dashboard</Link>
                         )}
+                        {user && user.role === 'cleaner' && (
+                            <Link href="/cleaner" className="text-emerald-500 hover:text-emerald-400 transition-colors text-sm font-medium">My Jobs</Link>
+                        )}
 
                         <ThemeToggle />
 
@@ -120,6 +123,11 @@ export default function Navbar() {
                     {user && user.role === 'cenro' && (
                         <Link href="/cenro" onClick={() => setMenuOpen(false)} className="block px-4 py-3 rounded-xl text-emerald-500 hover:bg-foreground/5 transition-colors text-sm font-medium">
                             CENRO Dashboard
+                        </Link>
+                    )}
+                    {user && user.role === 'cleaner' && (
+                        <Link href="/cleaner" onClick={() => setMenuOpen(false)} className="block px-4 py-3 rounded-xl text-emerald-500 hover:bg-foreground/5 transition-colors text-sm font-medium">
+                            My Jobs
                         </Link>
                     )}
                     <div className="pt-2 border-t border-border mt-2">

@@ -16,10 +16,15 @@ import bcrypt
 from datetime import datetime, timedelta
 from sqlalchemy import or_, text
 from sqlalchemy.orm import Session
-from database import engine, get_db
+from database import engine, get_db, SessionLocal
 import models
 from ai_verifier import verifier
 import analytics
+
+# SLA config keys + defaults (CENRO-editable at runtime via /config/sla)
+SLA_CONFIG_KEYS = ("sla_low_days", "sla_medium_days", "sla_high_days")
+SLA_CONFIG_DEFAULTS = {"sla_low_days": "7", "sla_medium_days": "3", "sla_high_days": "1"}
+PRIORITY_KEY_MAP = {"low": "sla_low_days", "medium": "sla_medium_days", "high": "sla_high_days"}
 
 # Root logger configuration — single source of formatted output
 logging.basicConfig(
@@ -42,6 +47,22 @@ with engine.connect() as _conn:
             _conn.commit()
         except Exception:
             pass  # column already exists
+
+
+def _seed_sla_config_defaults() -> None:
+    """Insert default SLA policy rows if missing. Idempotent — safe on every startup."""
+    db = SessionLocal()
+    try:
+        for key, value in SLA_CONFIG_DEFAULTS.items():
+            existing = db.query(models.SystemConfig).filter(models.SystemConfig.key == key).first()
+            if not existing:
+                db.add(models.SystemConfig(key=key, value=value))
+        db.commit()
+    finally:
+        db.close()
+
+
+_seed_sla_config_defaults()
 
 # Ensure uploads directory exists
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
@@ -94,12 +115,59 @@ class UserResponse(BaseModel):
 class CreateBarangayUserRequest(BaseModel):
     email: str
     full_name: str
-    barangay_assignment: str
+    barangay_assignment: Optional[str] = None  # required for barangay/cleaner roles; ignored for CENRO admins
+    role: Optional[str] = "barangay"  # "barangay" | "cleaner" | "cenro"
 
 
 class CreateBarangayUserResponse(BaseModel):
     user: UserResponse
     temporary_password: str
+
+
+class UpdateSlaConfigRequest(BaseModel):
+    low_days: Optional[int] = None
+    medium_days: Optional[int] = None
+    high_days: Optional[int] = None
+
+
+class CreateWorkOrderRequest(BaseModel):
+    report_id: int
+    assigned_cleaner_id: int
+    priority: str = "medium"  # low | medium | high
+    notes: Optional[str] = None
+
+
+class WorkOrderResponse(BaseModel):
+    id: int
+    report_id: int
+    assigned_cleaner_id: int
+    assigned_cleaner_name: Optional[str] = None
+    assigned_cleaner_email: Optional[str] = None
+    priority: str
+    sla_deadline: datetime
+    status: str
+    notes: Optional[str] = None
+    created_at: datetime
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    report_tracking_id: Optional[str] = None
+    report_barangay: Optional[str] = None
+    report_lat: float
+    report_lon: float
+    report_image_url: Optional[str] = None
+    report_status: str
+    report_notes: Optional[str] = None
+    report_cleanup_image_url: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class SlaConfigResponse(BaseModel):
+    low: int
+    medium: int
+    high: int
+
 
 class ReportResponse(BaseModel):
     id: int
@@ -198,6 +266,57 @@ def verify_password(password: str, hashed: str) -> bool:
 
 ALLOWED_IMAGE_MIME = ("image/jpeg", "image/png")
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
+
+
+def get_sla_policy(db: Session) -> dict:
+    """Return current SLA policy as {low, medium, high} integer day counts."""
+    rows = db.query(models.SystemConfig).filter(models.SystemConfig.key.in_(SLA_CONFIG_KEYS)).all()
+    policy = {k: int(SLA_CONFIG_DEFAULTS[k]) for k in SLA_CONFIG_DEFAULTS}
+    for row in rows:
+        try:
+            policy[row.key] = int(row.value)
+        except (TypeError, ValueError):
+            pass
+    return {
+        "low": policy["sla_low_days"],
+        "medium": policy["sla_medium_days"],
+        "high": policy["sla_high_days"],
+    }
+
+
+def compute_sla_deadline(db: Session, priority: str, anchor: Optional[datetime] = None) -> datetime:
+    """deadline = anchor + sla_days_for_priority. Anchor defaults to now."""
+    priority = (priority or "medium").lower()
+    if priority not in PRIORITY_KEY_MAP:
+        raise HTTPException(status_code=400, detail=f"priority must be one of {list(PRIORITY_KEY_MAP)}")
+    policy = get_sla_policy(db)
+    return (anchor or datetime.utcnow()) + timedelta(days=policy[priority])
+
+
+def serialize_work_order(wo: models.WorkOrder) -> dict:
+    """Flatten WorkOrder + joined Report/User fields into a dict for API responses."""
+    return {
+        "id": wo.id,
+        "report_id": wo.report_id,
+        "assigned_cleaner_id": wo.assigned_cleaner_id,
+        "assigned_cleaner_name": wo.assigned_cleaner.full_name if wo.assigned_cleaner else None,
+        "assigned_cleaner_email": wo.assigned_cleaner.email if wo.assigned_cleaner else None,
+        "priority": wo.priority,
+        "sla_deadline": wo.sla_deadline,
+        "status": wo.status,
+        "notes": wo.notes,
+        "created_at": wo.created_at,
+        "started_at": wo.started_at,
+        "completed_at": wo.completed_at,
+        "report_tracking_id": wo.report.tracking_id if wo.report else None,
+        "report_barangay": wo.report.barangay if wo.report else None,
+        "report_lat": wo.report.lat if wo.report else None,
+        "report_lon": wo.report.lon if wo.report else None,
+        "report_image_url": wo.report.image_url if wo.report else None,
+        "report_status": wo.report.status if wo.report else None,
+        "report_notes": wo.report.notes if wo.report else None,
+        "report_cleanup_image_url": wo.report.cleanup_image_url if wo.report else None,
+    }
 
 
 def validate_image(image: UploadFile, contents: bytes) -> None:
@@ -316,14 +435,31 @@ async def list_users_filtered(
     role: Optional[str] = None,
     is_active: Optional[bool] = None,
     db: Session = Depends(get_db),
-    _admin: models.User = Depends(require_role("cenro")),
+    user: models.User = Depends(require_role("cenro", "barangay")),
 ):
-    """List users with optional role and is_active filters (CENRO-only). Newest first."""
+    """
+    List users with optional filters.
+    CENRO sees all users.
+    Barangay sees only cleaners in their own assignment.
+    Newest first.
+    """
     query = db.query(models.User)
-    if role:
-        query = query.filter(models.User.role == role)
+
+    if user.role == "barangay":
+        # Barangay can only see cleaners in their barangay
+        if not user.barangay_assignment:
+            raise HTTPException(status_code=400, detail="Barangay user missing assignment")
+        query = query.filter(
+            models.User.role == "cleaner",
+            models.User.barangay_assignment == user.barangay_assignment,
+        )
+    else:  # cenro
+        if role:
+            query = query.filter(models.User.role == role)
+
     if is_active is not None:
         query = query.filter(models.User.is_active == is_active)
+
     return query.order_by(models.User.created_at.desc()).all()
 
 
@@ -331,23 +467,44 @@ async def list_users_filtered(
 async def create_barangay_user(
     req: CreateBarangayUserRequest,
     db: Session = Depends(get_db),
-    admin: models.User = Depends(require_role("cenro")),
+    admin: models.User = Depends(require_role("cenro", "barangay")),
 ):
-    """CENRO creates a new barangay account. Returns the auto-generated password once."""
-    if not req.email or not req.full_name or not req.barangay_assignment:
-        raise HTTPException(status_code=400, detail="email, full_name, and barangay_assignment are required")
+    """
+    Create a new user account.
+    CENRO can create barangay or cleaner accounts.
+    Barangay can only create cleaner accounts within their own barangay.
+    Returns the auto-generated password once.
+    """
+    if not req.email or not req.full_name:
+        raise HTTPException(status_code=400, detail="email and full_name are required")
 
     existing = db.query(models.User).filter(models.User.email == req.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
+
+    # Determine role and barangay_assignment based on caller
+    if admin.role == "barangay":
+        # Barangay can only create cleaners in their own barangay
+        if not admin.barangay_assignment:
+            raise HTTPException(status_code=400, detail="Barangay user missing assignment")
+        new_role = "cleaner"
+        new_barangay = admin.barangay_assignment
+    else:  # cenro
+        # CENRO specifies role and barangay_assignment
+        new_role = (req.role or "barangay").lower()
+        new_barangay = req.barangay_assignment
+        if new_role not in ("barangay", "cleaner"):
+            raise HTTPException(status_code=400, detail="role must be 'barangay' or 'cleaner'")
+        if new_role in ("barangay", "cleaner") and not new_barangay:
+            raise HTTPException(status_code=400, detail="barangay_assignment required for barangay/cleaner roles")
 
     temporary_password = secrets.token_urlsafe(9)  # ~12 chars
     new_user = models.User(
         email=req.email,
         password_hash=hash_password(temporary_password),
         full_name=req.full_name,
-        role="barangay",
-        barangay_assignment=req.barangay_assignment,
+        role=new_role,
+        barangay_assignment=new_barangay,
         is_active=True,
     )
     db.add(new_user)
@@ -371,9 +528,13 @@ async def create_barangay_user(
 async def disable_user(
     user_id: int,
     db: Session = Depends(get_db),
-    admin: models.User = Depends(require_role("cenro")),
+    admin: models.User = Depends(require_role("cenro", "barangay")),
 ):
-    """Soft-delete a user account by setting is_active=False (CENRO-only)."""
+    """
+    Soft-delete a user account by setting is_active=False.
+    CENRO can disable any user.
+    Barangay can only disable cleaners in their own barangay.
+    """
     if user_id == admin.id:
         raise HTTPException(status_code=400, detail="Cannot disable your own account")
 
@@ -382,6 +543,11 @@ async def disable_user(
         raise HTTPException(status_code=404, detail="User not found")
     if not target.is_active:
         raise HTTPException(status_code=400, detail="User is already disabled")
+
+    # Barangay can only disable cleaners in their barangay
+    if admin.role == "barangay":
+        if target.role != "cleaner" or target.barangay_assignment != admin.barangay_assignment:
+            raise HTTPException(status_code=403, detail="Can only disable cleaners in your own barangay")
 
     target.is_active = False
     write_audit(
@@ -599,23 +765,29 @@ async def get_barangay_reports(
 
 
 @app.get("/reports/sla-breaches", response_model=List[ReportResponse])
-async def get_sla_breaches(days: int = 3, db: Session = Depends(get_db)):
-    """List reports past the SLA threshold (still pending/verified/deployed after N days)."""
-    days = max(1, days)
-    threshold = datetime.utcnow() - timedelta(days=days)
-    return (
+async def get_sla_breaches(db: Session = Depends(get_db)):
+    """
+    List reports with active work orders past their SLA deadline.
+    A work order is "active" if its status is not completed or verified.
+    """
+    now = datetime.utcnow()
+    # Find all reports with at least one active work order past deadline
+    breached_reports = (
         db.query(models.Report)
+        .join(models.WorkOrder, models.Report.id == models.WorkOrder.report_id)
         .filter(
-            models.Report.status.in_([
-                models.ReportStatus.PENDING,
-                models.ReportStatus.VERIFIED,
-                models.ReportStatus.DEPLOYED,
+            models.WorkOrder.status.in_([
+                models.WorkOrderStatus.ASSIGNED,
+                models.WorkOrderStatus.IN_PROGRESS,
+                models.WorkOrderStatus.NEEDS_REDO,
             ]),
-            models.Report.created_at < threshold,
+            models.WorkOrder.sla_deadline < now,
         )
+        .distinct()
         .order_by(models.Report.created_at.asc())
         .all()
     )
+    return breached_reports
 
 
 @app.get("/reports/export")
@@ -688,10 +860,16 @@ async def export_reports(
 async def deploy_report(
     report_id: int,
     deployment_notes: Optional[str] = Form(None),
+    priority: Optional[str] = Form(None),
+    assigned_cleaner_id: Optional[int] = Form(None),
     db: Session = Depends(get_db),
     user: models.User = Depends(require_role("barangay")),
 ):
-    """Barangay marks a report as deployed (sweepers dispatched)."""
+    """
+    Barangay marks a report as deployed.
+    If priority + assigned_cleaner_id provided, create a formal WorkOrder.
+    Otherwise, legacy behavior: just mark as deployed without work order.
+    """
     report = db.query(models.Report).filter(models.Report.id == report_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
@@ -706,10 +884,40 @@ async def deploy_report(
     report.status = models.ReportStatus.DEPLOYED
     report.deployed_at = datetime.utcnow()
     report.deployment_notes = notes_clean
-    audit_details = {"tracking_id": report.tracking_id}
-    if notes_clean:
-        audit_details["deployment_notes"] = notes_clean[:500]
-    write_audit(db, user.id, "deploy", report.id, audit_details)
+
+    # If both priority and cleaner_id provided, create a WorkOrder
+    if priority and assigned_cleaner_id:
+        cleaner = db.query(models.User).filter(
+            models.User.id == assigned_cleaner_id,
+            models.User.role == "cleaner",
+            models.User.is_active == True,
+        ).first()
+        if not cleaner:
+            raise HTTPException(status_code=404, detail="Cleaner not found or inactive")
+
+        sla_deadline = compute_sla_deadline(db, priority, datetime.utcnow())
+        work_order = models.WorkOrder(
+            report_id=report_id,
+            assigned_cleaner_id=assigned_cleaner_id,
+            priority=priority.lower(),
+            sla_deadline=sla_deadline,
+            status=models.WorkOrderStatus.ASSIGNED,
+            notes=notes_clean,
+        )
+        db.add(work_order)
+        write_audit(db, user.id, "create_work_order", report.id, {
+            "tracking_id": report.tracking_id,
+            "assigned_cleaner_id": assigned_cleaner_id,
+            "priority": priority,
+            "sla_deadline": sla_deadline.isoformat(),
+        })
+    else:
+        # Legacy: just mark as deployed without work order
+        write_audit(db, user.id, "deploy", report.id, {
+            "tracking_id": report.tracking_id,
+            **({"deployment_notes": notes_clean[:500]} if notes_clean else {})
+        })
+
     db.commit()
     db.refresh(report)
 
@@ -770,6 +978,275 @@ async def resolve_report(
         "status": report.status,
         "report": ReportResponse.model_validate(report)
     }
+
+
+# ─────────────────────────────────────────────────────────
+# WORK ORDERS & SLA POLICY
+# ─────────────────────────────────────────────────────────
+
+@app.post("/work-orders")
+async def create_work_order(
+    req: CreateWorkOrderRequest,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("barangay")),
+):
+    """Barangay creates a work order from a VERIFIED report. Sets Report status to DEPLOYED."""
+    report = db.query(models.Report).filter(models.Report.id == req.report_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    if report.status != models.ReportStatus.VERIFIED:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot create work order. Report status is '{report.status}', must be 'verified'."
+        )
+
+    # Verify cleaner exists and is active
+    cleaner = db.query(models.User).filter(
+        models.User.id == req.assigned_cleaner_id,
+        models.User.role == "cleaner",
+        models.User.is_active == True,
+    ).first()
+    if not cleaner:
+        raise HTTPException(status_code=404, detail="Cleaner not found or inactive")
+
+    # Compute SLA deadline based on priority
+    sla_deadline = compute_sla_deadline(db, req.priority, datetime.utcnow())
+
+    # Create work order
+    work_order = models.WorkOrder(
+        report_id=req.report_id,
+        assigned_cleaner_id=req.assigned_cleaner_id,
+        priority=req.priority.lower(),
+        sla_deadline=sla_deadline,
+        status=models.WorkOrderStatus.ASSIGNED,
+        notes=req.notes,
+    )
+
+    db.add(work_order)
+    report.status = models.ReportStatus.DEPLOYED
+    report.deployed_at = datetime.utcnow()
+
+    write_audit(db, user.id, "create_work_order", report.id, {
+        "tracking_id": report.tracking_id,
+        "assigned_cleaner_id": req.assigned_cleaner_id,
+        "priority": req.priority,
+        "sla_deadline": sla_deadline.isoformat(),
+    })
+    db.commit()
+    db.refresh(work_order)
+
+    return {
+        "success": True,
+        "message": f"Work order created for {report.tracking_id}.",
+        "work_order": serialize_work_order(work_order),
+    }
+
+
+@app.get("/work-orders")
+async def list_work_orders(
+    status: Optional[str] = None,
+    barangay: Optional[str] = None,
+    cleaner_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("cenro", "barangay")),
+):
+    """
+    List work orders with optional filters.
+    Barangay users see only work orders in their assigned barangay.
+    """
+    query = db.query(models.WorkOrder)
+
+    # Role-based scoping
+    if user.role == "barangay":
+        if not user.barangay_assignment:
+            raise HTTPException(status_code=400, detail="Barangay user missing assignment")
+        query = query.join(models.Report).filter(models.Report.barangay == user.barangay_assignment)
+
+    # Filters
+    if status:
+        query = query.filter(models.WorkOrder.status == status.lower())
+    if barangay and user.role == "cenro":  # only CENRO can filter by barangay
+        query = query.join(models.Report).filter(models.Report.barangay == barangay)
+    if cleaner_id:
+        query = query.filter(models.WorkOrder.assigned_cleaner_id == cleaner_id)
+
+    rows = query.order_by(models.WorkOrder.created_at.desc()).all()
+    return [serialize_work_order(wo) for wo in rows]
+
+
+@app.get("/work-orders/cleaner/{cleaner_id}")
+async def get_cleaner_work_orders(
+    cleaner_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("cleaner", "cenro")),
+):
+    """
+    Cleaner views their own work orders.
+    CENRO can view any cleaner's work orders.
+    """
+    if user.role == "cleaner" and user.id != cleaner_id:
+        raise HTTPException(status_code=403, detail="Can only view your own work orders")
+
+    rows = (
+        db.query(models.WorkOrder)
+        .filter(models.WorkOrder.assigned_cleaner_id == cleaner_id)
+        .order_by(models.WorkOrder.created_at.desc())
+        .all()
+    )
+    return [serialize_work_order(wo) for wo in rows]
+
+
+@app.put("/work-orders/{work_order_id}/start")
+async def start_work_order(
+    work_order_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("cleaner")),
+):
+    """Cleaner marks a work order as in_progress."""
+    wo = db.query(models.WorkOrder).filter(models.WorkOrder.id == work_order_id).first()
+    if not wo:
+        raise HTTPException(status_code=404, detail="Work order not found")
+
+    if wo.assigned_cleaner_id != user.id:
+        raise HTTPException(status_code=403, detail="Can only start your own work orders")
+
+    if wo.status != models.WorkOrderStatus.ASSIGNED:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot start. Status is '{wo.status}', must be 'assigned'."
+        )
+
+    wo.status = models.WorkOrderStatus.IN_PROGRESS
+    wo.started_at = datetime.utcnow()
+
+    write_audit(db, user.id, "start_work_order", wo.report_id, {
+        "work_order_id": wo.id,
+        "tracking_id": wo.report.tracking_id if wo.report else None,
+    })
+    db.commit()
+    db.refresh(wo)
+
+    return {
+        "success": True,
+        "message": "Work order started.",
+        "work_order": serialize_work_order(wo),
+    }
+
+
+@app.put("/work-orders/{work_order_id}/complete")
+async def complete_work_order(
+    work_order_id: int,
+    cleanup_image: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("cleaner")),
+):
+    """
+    Cleaner uploads cleanup photo.
+    AI re-verifies — if clean, mark completed/verified; if still dirty, mark needs_redo.
+    """
+    wo = db.query(models.WorkOrder).filter(models.WorkOrder.id == work_order_id).first()
+    if not wo:
+        raise HTTPException(status_code=404, detail="Work order not found")
+
+    if wo.assigned_cleaner_id != user.id:
+        raise HTTPException(status_code=403, detail="Can only complete your own work orders")
+
+    if wo.status != models.WorkOrderStatus.IN_PROGRESS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot complete. Status is '{wo.status}', must be 'in_progress'."
+        )
+
+    report = wo.report
+    if not report:
+        raise HTTPException(status_code=404, detail="Associated report not found")
+
+    # Read and validate cleanup image
+    cleanup_bytes = await cleanup_image.read()
+    validate_image(cleanup_image, cleanup_bytes)
+    verification = verifier.verify_image(cleanup_bytes)
+
+    # Save cleanup image to disk
+    cleanup_url = await save_upload(cleanup_image, prefix="cleanup", contents=cleanup_bytes)
+    report.cleanup_image_url = cleanup_url
+
+    # Update work order and report based on verification
+    wo.completed_at = datetime.utcnow()
+
+    if verification["verified"]:
+        # AI still sees waste → cleanup failed, mark for redo
+        wo.status = models.WorkOrderStatus.NEEDS_REDO
+        report.status = models.ReportStatus.FAILED_CLEANUP
+    else:
+        # AI sees no waste → cleanup successful
+        wo.status = models.WorkOrderStatus.VERIFIED
+        report.status = models.ReportStatus.RESOLVED
+        report.resolved_at = datetime.utcnow()
+
+    write_audit(db, user.id, "complete_work_order", report.id, {
+        "work_order_id": wo.id,
+        "tracking_id": report.tracking_id,
+        "outcome": wo.status,
+    })
+    db.commit()
+    db.refresh(wo)
+    db.refresh(report)
+
+    return {
+        "success": True,
+        "message": f"Work order completed. Report is {report.status}.",
+        "work_order": serialize_work_order(wo),
+    }
+
+
+@app.get("/config/sla")
+async def get_sla_config(db: Session = Depends(get_db)):
+    """Get current SLA policy (public endpoint)."""
+    policy = get_sla_policy(db)
+    return policy
+
+
+@app.put("/config/sla")
+async def update_sla_config(
+    req: UpdateSlaConfigRequest,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("cenro")),
+):
+    """CENRO updates the SLA policy. Audit-logged."""
+    # Collect old values for audit trail
+    old_policy = get_sla_policy(db)
+    updates = {}
+
+    if req.low_days is not None:
+        updates["sla_low_days"] = str(req.low_days)
+    if req.medium_days is not None:
+        updates["sla_medium_days"] = str(req.medium_days)
+    if req.high_days is not None:
+        updates["sla_high_days"] = str(req.high_days)
+
+    if not updates:
+        return old_policy  # No changes
+
+    # Update config rows
+    for key, value in updates.items():
+        row = db.query(models.SystemConfig).filter(models.SystemConfig.key == key).first()
+        if row:
+            row.value = value
+            row.updated_by = user.id
+            row.updated_at = datetime.utcnow()
+        else:
+            # Shouldn't happen due to seeding, but handle it
+            db.add(models.SystemConfig(key=key, value=value, updated_by=user.id))
+
+    write_audit(db, user.id, "update_sla_config", None, {
+        "old_policy": old_policy,
+        "new_policy": {k.replace("sla_", "").replace("_days", ""): int(v) for k, v in updates.items()},
+    }, target_type="config")
+
+    db.commit()
+    new_policy = get_sla_policy(db)
+    return new_policy
 
 
 # ─────────────────────────────────────────────────────────
