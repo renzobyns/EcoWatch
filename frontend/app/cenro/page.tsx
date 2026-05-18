@@ -4,9 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
-import { Search, Download, Plus, AlertTriangle, Copy, X } from "lucide-react";
+import {
+    Search, Download, Plus, AlertTriangle, Copy, X,
+    LayoutDashboard, Map, FileText, ShieldCheck, BarChart3, Building2, Image as ImageIcon, History, BookUser,
+} from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
+import { PortalShell, type PortalNavItem } from "@/components/portal/PortalShell";
 
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -95,7 +99,28 @@ function downloadString(content: string, filename: string, mime = "text/csv") {
     URL.revokeObjectURL(url);
 }
 
-type TabKey = 'command_center' | 'overview' | 'oversight' | 'audit' | 'users' | 'gallery';
+type TabKey =
+    | 'command_center'
+    | 'overview'
+    | 'oversight'
+    | 'sla_management'
+    | 'analytics'
+    | 'barangay_management'
+    | 'gallery'
+    | 'audit'
+    | 'users';
+
+const CENRO_NAV: PortalNavItem[] = [
+    { key: 'command_center', label: 'Dashboard', icon: LayoutDashboard },
+    { key: 'overview', label: 'City Map', icon: Map },
+    { key: 'oversight', label: 'Reports', icon: FileText },
+    { key: 'sla_management', label: 'SLA Management', icon: ShieldCheck },
+    { key: 'analytics', label: 'Analytics', icon: BarChart3 },
+    { key: 'barangay_management', label: 'Barangay Management', icon: Building2 },
+    { key: 'gallery', label: 'Evidence Gallery', icon: ImageIcon, sectionBreakBefore: true },
+    { key: 'audit', label: 'Audit Log', icon: History },
+    { key: 'users', label: 'Accounts', icon: BookUser },
+];
 
 interface AuditEntry {
     id: number;
@@ -498,42 +523,31 @@ export default function CenroDashboard() {
     const lineData = Object.entries(dateMap).map(([date, count]) => ({ date, count })).slice(-14);
 
     return (
-        <div className="min-h-screen bg-background pt-20 pb-10 px-4 md:px-8 relative overflow-hidden">
-            {/* Pro Max Background Accents */}
-            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none" />
+        <PortalShell
+            brand={{ name: "EcoWatch", suffix: "CJSDM" }}
+            role="CENRO"
+            nav={CENRO_NAV}
+            activeKey={activeTab}
+            onNavChange={(k) => setActiveTab(k as TabKey)}
+            notificationCount={slaBreaches.length}
+        >
+            <div className="max-w-[1600px] mx-auto h-full flex flex-col">
 
-            <div className="max-w-[1600px] mx-auto h-[calc(100vh-8rem)] flex flex-col relative z-10">
-
-                {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 shrink-0 gap-4 animate-slide-up">
-                    <div>
-                        <h1 className="text-2xl font-bold text-foreground mb-2 tracking-tight">CENRO <span className="text-primary">Ops Hub</span></h1>
-                        <p className="text-emerald-400 font-semibold uppercase tracking-[0.18em] text-[11px] px-2.5 py-0.5 bg-emerald-400/10 rounded-full w-fit border border-emerald-400/20">
-                            City-Wide Oversight & Analytics
+                {/* Placeholder modules (new in redesign — content per REDESIGN_SPEC.md is follow-up) */}
+                {(activeTab === 'sla_management' || activeTab === 'analytics' || activeTab === 'barangay_management') && (
+                    <div className="glass-pro rounded-2xl p-12 text-center animate-slide-up">
+                        <h2 className="text-xl font-bold text-foreground mb-2">
+                            {activeTab === 'sla_management' && 'SLA Management'}
+                            {activeTab === 'analytics' && 'Analytics'}
+                            {activeTab === 'barangay_management' && 'Barangay Management'}
+                        </h2>
+                        <p className="text-foreground/50 text-sm max-w-xl mx-auto">
+                            {activeTab === 'sla_management' && 'Breach monitor + SLA threshold configuration. Coming soon.'}
+                            {activeTab === 'analytics' && 'Trend charts, period comparisons, and barangay performance tables. Coming soon.'}
+                            {activeTab === 'barangay_management' && 'City-wide barangay performance and intervention queue. Coming soon.'}
                         </p>
                     </div>
-
-                    {/* Navigation Tabs */}
-                    <div className="flex gap-2 bg-foreground/5 p-1.5 rounded-2xl border border-border overflow-x-auto backdrop-blur-md">
-                        {([
-                            ['command_center', 'Command Center'],
-                            ['overview', 'Overview Map'],
-                            ['oversight', 'Oversight Queue'],
-                            ['audit', 'Audit Log'],
-                            ['gallery', 'Site Gallery'],
-                            ['users', 'Users'],
-                        ] as [TabKey, string][]).map(([key, label]) => (
-                            <button
-                                key={key}
-                                onClick={() => setActiveTab(key)}
-                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === key ? 'bg-primary text-white shadow-lg shadow-emerald-900/50' : 'text-foreground/50 hover:text-foreground'}`}
-                            >
-                                {label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+                )}
 
                 {activeTab === 'command_center' && (
                     /* COMMAND CENTER TAB */
@@ -1415,6 +1429,6 @@ export default function CenroDashboard() {
                 </div>
             )}
 
-        </div>
+        </PortalShell>
     );
 }

@@ -3,10 +3,16 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Briefcase } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { slaDeadlineLabel, slaDeadlineColor, SLA_PILL_CLASSES } from "@/lib/sla";
+import { PortalShell, type PortalNavItem } from "@/components/portal/PortalShell";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+
+const CLEANER_NAV: PortalNavItem[] = [
+    { key: "jobs", label: "Jobs", icon: Briefcase },
+];
 
 export default function CleanerPortal() {
     const router = useRouter();
@@ -135,12 +141,14 @@ export default function CleanerPortal() {
     }
 
     return (
-        <div className="min-h-screen bg-background pt-20 pb-10 px-4 md:px-8 relative overflow-hidden">
-            {/* Pro Max Background Accents */}
-            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none" />
-
-            <div className="max-w-2xl mx-auto relative z-10">
+        <PortalShell
+            brand={{ name: "EcoWatch", suffix: "Cleaner" }}
+            role="CLEANER"
+            nav={CLEANER_NAV}
+            activeKey="jobs"
+            onNavChange={() => { /* single-item nav */ }}
+        >
+            <div className="max-w-3xl mx-auto relative">
                 {/* Header */}
                 <div className="mb-6 animate-slide-up">
                     <h1 className="text-2xl font-bold text-foreground mb-2 tracking-tight">
@@ -350,6 +358,6 @@ export default function CleanerPortal() {
                     </div>
                 </div>
             )}
-        </div>
+        </PortalShell>
     );
 }
