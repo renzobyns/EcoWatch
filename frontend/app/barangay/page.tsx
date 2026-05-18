@@ -70,6 +70,9 @@ export default function BarangayPortal() {
     const [selectedPriority, setSelectedPriority] = useState("medium");
     const [selectedCleaner, setSelectedCleaner] = useState<number | null>(null);
 
+    // SLA Policy (loaded on mount so deploy modal labels are accurate)
+    const [slaPolicy, setSlaPolicy] = useState({ low: 7, medium: 3, high: 1 });
+
     // Team Management States
     const [cleaners, setCleaners] = useState<any[]>([]);
     const [teamLoading, setTeamLoading] = useState(false);
@@ -103,6 +106,8 @@ export default function BarangayPortal() {
     useEffect(() => {
         if (!user?.barangay_assignment) return;
         fetchReports(user.barangay_assignment);
+        fetchCleaners(); // Ensure cleaners are available for the deploy modal on initial load
+        api("/config/sla").then((data) => setSlaPolicy(data)).catch(() => {});
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.barangay_assignment, debouncedSearch, dateFrom, dateTo]);
 
@@ -696,9 +701,9 @@ export default function BarangayPortal() {
                                                         onChange={(e) => setSelectedPriority(e.target.value)}
                                                         className="w-full px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:border-primary focus:outline-none"
                                                     >
-                                                        <option value="low">Low (7 days)</option>
-                                                        <option value="medium">Medium (3 days)</option>
-                                                        <option value="high">High (1 day)</option>
+                                                        <option value="low">Low ({slaPolicy.low} days)</option>
+                                                        <option value="medium">Medium ({slaPolicy.medium} days)</option>
+                                                        <option value="high">High ({slaPolicy.high} days)</option>
                                                     </select>
                                                 </div>
                                                 <div>
