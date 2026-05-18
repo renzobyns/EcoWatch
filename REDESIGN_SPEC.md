@@ -25,38 +25,200 @@ Both portals move from top-tab navigation to a **left sidebar**. This document d
 
 ---
 
-### 1. Dashboard
+### 1. Dashboard — Detailed Spec
 
 **What it is:**
-The first page a CENRO officer sees when they log in. It's the city pulse — a high-level command view showing the current state of all reports across SJDM at a glance. NOT a charts/analytics page (that's module 5). Think of it as the "situation room" — numbers, alerts, and quick context.
+The first page a CENRO officer sees when they log in. The "situation room" of SJDM — numbers, alerts, and live activity at a glance. NOT a charts/analytics page (charts moved to Module 5). NOT a map page (map is Module 2). Dashboard's job: tell the officer **what is happening right now and what needs their attention**.
 
-**What should be on it:**
+**Grounded in current design:** This spec is based on the existing Command Center in [frontend/app/cenro/page.tsx:540-738](frontend/app/cenro/page.tsx#L540-L738). We keep what works, strip out the chart/map clutter (moved elsewhere), and tighten the focus to KPIs + alerts + activity.
 
-- **Page header:** "SJDM EcoWatch — Command Center" + today's date
-- **Export button** (top right): Downloads analytics CSV of all reports
+---
 
-**KPI Row (4 stat cards across the top):**
-| Card | Value |
-|------|-------|
-| Total Reports | All-time count |
-| Active Reports | Pending + Verified + Deployed combined |
-| Resolved | Total resolved count + success rate % |
-| Avg. Resolution | Average days from submission to resolution |
+#### Section 1.1 — Top Bar
 
-**Alert Row (2 cards side by side):**
-- **SLA Breach Alert card** (red border if breaches exist):
-  - Big number: how many reports are currently past SLA
-  - List of top 3 oldest breaching reports (Tracking ID, Days Open, Barangay)
-  - "Manage Breaches →" link that navigates to SLA Management module
-- **Recent Activity Feed card:**
-  - Last 10 events across the city (report submitted, team deployed, resolved, override made)
-  - Format: "[timestamp] [EW-0042] was deployed in Muzon"
-  - Auto-refreshes (or manual refresh button)
+**Visual:** Full-width row, sits at the top of the dashboard scroll area.
 
-**Quick Metrics Row (3 smaller cards):**
-- Status breakdown (small donut/pie: pending vs deployed vs resolved)
-- Top performing barangay this month (name + resolution rate %)
-- Reports this week vs last week (number + trend arrow up/down)
+| Element | Position | Description |
+|---------|----------|-------------|
+| Page title | Left | "SJDM Command Center" — big heading |
+| Subtitle | Below title | "Real-time city overview · [Today's Date]" — small muted text |
+| Export button | Right | Same as current: `Download` icon + "Export Analytics CSV" — calls `handleExportAnalytics`, downloads summary CSV |
+
+**Style:** Keep current glass aesthetic. Title uses tracking-tight bold; export button uses `bg-primary/20 border border-primary/30 text-primary` (existing pattern).
+
+---
+
+#### Section 1.2 — KPI Stat Cards (KEPT — the 4 cards we agreed on)
+
+**Visual:** Grid of 4 cards. Mobile = 2 columns (grid-cols-2), desktop = 4 columns (md:grid-cols-4). Gap of 6 between cards.
+
+**Style per card:** `glass-pro p-5 rounded-2xl bento-card` (existing class — keep).
+- Tiny uppercase label at top: 11px, foreground/50, tracking-widest, semibold
+- Big number below: 3xl, bold, tracking-tight, colored per card
+
+| # | Label | Value Source | Color | Notes |
+|---|-------|-------------|-------|-------|
+| 1 | Total Reports | `stats.total` (from `GET /analytics/overview`) | emerald-400 | All-time count |
+| 2 | Active/Pending | `pending` (computed: pending + verified statuses) | red-400 | Reports needing action |
+| 3 | Teams Deployed | `stats.deployed` | yellow-400 | Active cleanup teams in field |
+| 4 | Success Rate | `successRate` (resolved / total × 100) | green-400 | % suffix appended |
+
+**Optional enhancement (small):** Add a tiny trend indicator under the number — "↑ 12% vs last week" or "↓ 3% vs last week" — but only if there's time. Skip if not.
+
+---
+
+#### Section 1.3 — SLA Breach Alert Card (KEPT, refined)
+
+**Visual:** Full-width card immediately below the KPI row. Same `glass-pro p-6 rounded-[2.5rem]` style as current.
+
+**Behavior:** Red accent when breaches > 0, green when zero. Background blur orb (red-500/5 or green-500/5) for depth.
+
+**Header row (left side):**
+- Icon: `AlertTriangle` in a `w-14 h-14 rounded-2xl` container. Red bg if breaches exist, green if none.
+- Label (small uppercase): "SLA Breaches (Low: Xd / Med: Yd / High: Zd)" — shows current SLA thresholds inline
+- Big number: count of breaches, red if >0, green if 0
+
+**Header row (right side):**
+- Button (shown only if breaches > 0): "Manage All Breaches →" — navigates to **SLA Management** module (not Oversight Queue anymore — SLA page is now the canonical destination)
+
+**Body (when breaches > 0):**
+- Grid of top 3 oldest breaching reports, each in a mini card:
+  - Tracking ID (mono font, bold)
+  - SLA badge: "Xd open" — colored pill (red for breach)
+  - Barangay name (emerald accent)
+  - Status (uppercase tiny text)
+
+**Body (when zero breaches):**
+- Italic text: "No active breaches — all reports within SLA threshold."
+
+**Data source:**
+- `slaBreaches` from `GET /reports/sla-breaches`
+- `slaPolicy` from `GET /config/sla`
+
+---
+
+#### Section 1.4 — Today's Snapshot (NEW, slim row)
+
+**Why add:** With charts removed, we need a small "what happened today" pulse to give the Dashboard a sense of real-time motion. Quick to scan, no deep analytics.
+
+**Visual:** Single full-width card, 3 inline metric blocks separated by dividers. Compact — no big numbers, just glanceable stats.
+
+**Style:** `glass-pro p-5 rounded-2xl` — slim profile, less visual weight than KPI cards.
+
+**Contents (3 inline stats):**
+| Stat | Source | Display |
+|------|--------|---------|
+| New Reports Today | Filter reports where `created_at` is today | "12 new reports" + small `Plus` icon |
+| Deployments Today | Filter reports where `deployed_at` is today | "5 teams deployed" + small `Truck` icon |
+| Resolved Today | Filter reports where `resolved_at` is today | "8 resolved" + small `CheckCircle` icon |
+
+**Computed client-side** from the existing `reports` array — no new API needed.
+
+---
+
+#### Section 1.5 — Two-Column Bottom Grid
+
+**Layout:** Grid of 2 equal columns on desktop (lg:grid-cols-2). Stacks vertically on mobile.
+
+---
+
+##### LEFT COLUMN: Barangay Rankings (KEPT, refined)
+
+**Visual:** `glass-pro p-8 rounded-[2.5rem] bento-card` — same as current.
+
+**Header:** "Barangay Rankings" (uppercase, tracking-widest, foreground/40)
+
+**Body:** Scrollable list, **show top 5 only** (currently shows full list — we trim for cleaner Dashboard). Each row:
+- Left side: rank number badge (1, 2, 3...) in a small square + barangay name
+- Right side: resolution rate % (emerald) + "X reports" tiny label
+- Hover: subtle background highlight (already implemented)
+
+**Footer:** "View All Barangays →" link — navigates to **Barangay Management** module.
+
+**Data source:** `barangayStats` (already computed from `GET /analytics/barangay-ranking`), sliced to top 5.
+
+---
+
+##### RIGHT COLUMN: Live City Feed (KEPT)
+
+**Visual:** `glass-pro p-8 rounded-[2.5rem] bento-card` — same as current.
+
+**Header:** "Live City Feed" (uppercase, tracking-widest, foreground/40)
+
+**Body:** Scrollable timeline, **show 10 most recent events**. Each entry:
+- Left rail: vertical border line + small emerald dot with pulse glow
+- Content:
+  - Bold tracking ID: "Report EW-XXXX"
+  - Subtle line: "[Barangay] · [HH:MM]"
+  - Status pill (colored: green/yellow/red by status)
+
+**Empty state:** "No recent activity — reports will appear here as they come in."
+
+**Data source:** `recentFeed` (already computed from `reports`, sorted by `created_at` desc, sliced to 10).
+
+---
+
+#### Section 1.6 — What's REMOVED from current Dashboard
+
+These belonged on the old Command Center but are gone in the redesign — they live on dedicated pages now:
+
+| Removed | Where it went | Why |
+|---------|--------------|-----|
+| Status Breakdown pie chart | Analytics page (Module 5) | Dashboard is for KPIs/alerts, not charts |
+| City-Wide Trend line chart | Analytics page (Module 5) | Same — charts belong on Analytics |
+| Live City Map widget | City Map page (Module 2) | Map deserves full-screen treatment |
+| SLA Policy edit card | SLA Management page (Module 4) | Configuration lives with the breach monitor |
+
+---
+
+#### Section 1.7 — Final Layout Order (top to bottom)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Section 1.1 — Top Bar                                       │
+│ "SJDM Command Center" + date         [Export Analytics CSV] │
+├─────────────────────────────────────────────────────────────┤
+│ Section 1.2 — KPI Cards (4 across)                          │
+│ ┌────────┐ ┌────────────┐ ┌──────────┐ ┌────────────┐       │
+│ │ Total  │ │  Active/   │ │  Teams   │ │  Success   │       │
+│ │Reports │ │  Pending   │ │ Deployed │ │   Rate     │       │
+│ │  142   │ │     23     │ │    8     │ │    74%     │       │
+│ └────────┘ └────────────┘ └──────────┘ └────────────┘       │
+├─────────────────────────────────────────────────────────────┤
+│ Section 1.3 — SLA Breach Alert (full width)                 │
+│ ⚠  SLA Breaches: 4 (Low:7d / Med:5d / High:3d)              │
+│    [EW-0034 · 8d · Muzon] [EW-0041 · 6d · ...]   [Manage →] │
+├─────────────────────────────────────────────────────────────┤
+│ Section 1.4 — Today's Snapshot (slim, full width)           │
+│ + 12 new today    🚛 5 deployed today    ✓ 8 resolved today │
+├─────────────────────────────────────────────────────────────┤
+│ Section 1.5 — Two-Column Bottom Grid                        │
+│ ┌──────────────────────────┐ ┌────────────────────────────┐ │
+│ │ BARANGAY RANKINGS        │ │ LIVE CITY FEED             │ │
+│ │ 1. Muzon          92%    │ │ ● Report EW-0042           │ │
+│ │ 2. San Roque      85%    │ │   Muzon · 14:32 [resolved] │ │
+│ │ 3. Sto. Cristo    78%    │ │ ● Report EW-0041           │ │
+│ │ 4. Tungkong Mangga 71%   │ │   San Jose · 14:28 [dep.]  │ │
+│ │ 5. Kaybanban      65%    │ │ ... (10 entries total)     │ │
+│ │ [View All Barangays →]   │ │                            │ │
+│ └──────────────────────────┘ └────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+#### Section 1.8 — Data Sources Summary
+
+| API Endpoint | Used For |
+|--------------|----------|
+| `GET /analytics/overview` | KPI card values (total, deployed, resolved counts) |
+| `GET /analytics/barangay-ranking` | Barangay Rankings list (top 5) |
+| `GET /reports/sla-breaches` | SLA Breach Alert (count + top 3) |
+| `GET /config/sla` | SLA policy thresholds shown in alert header |
+| `GET /reports/recent?limit=200` | Today's Snapshot stats + Live City Feed |
+| `GET /reports/export` (triggered on click) | Export Analytics CSV button |
+
+**No new endpoints needed.** Everything required already exists in the backend.
 
 ---
 
