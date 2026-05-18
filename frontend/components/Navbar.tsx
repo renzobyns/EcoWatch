@@ -1,11 +1,15 @@
 "use client";
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
+const PORTAL_PREFIXES = ['/barangay', '/cenro', '/cleaner'];
+
 export default function Navbar() {
+    const pathname = usePathname();
     const [menuOpen, setMenuOpen] = useState(false);
     const [user, setUser] = useState<{ name: string; initial: string; role: string } | null>(null);
 
@@ -27,6 +31,10 @@ export default function Navbar() {
     const publicLinks = [
         { href: "/report", label: "Report Issue" },
     ];
+
+    if (pathname && PORTAL_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'))) {
+        return null;
+    }
 
     return (
         <nav className="fixed top-0 w-full z-50 glass border-b border-primary/20 backdrop-blur-md">

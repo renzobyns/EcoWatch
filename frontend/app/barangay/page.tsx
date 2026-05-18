@@ -3,14 +3,27 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { Search, Download } from "lucide-react";
+import { Search, Download, LayoutDashboard, FileText, Map, ClipboardList, Users, BookUser } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
 import { slaInfo, SLA_PILL_CLASSES } from "@/lib/sla";
+import { PortalShell, type PortalNavItem } from "@/components/portal/PortalShell";
 
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+
+type BarangayView = "dashboard" | "reports" | "map_view" | "workorders" | "cleaners" | "accounts";
+type ReportSubFilter = "pending" | "deployed" | "resolved";
+
+const BARANGAY_NAV: PortalNavItem[] = [
+    { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, subtitle: "Jurisdiction overview" },
+    { key: "reports", label: "Reports", icon: FileText },
+    { key: "map_view", label: "Map View", icon: Map },
+    { key: "workorders", label: "Workorders", icon: ClipboardList, sectionBreakBefore: true },
+    { key: "cleaners", label: "Cleaners", icon: Users },
+    { key: "accounts", label: "Accounts", icon: BookUser },
+];
 
 function useDebounce<T>(value: T, delayMs: number): T {
     const [debounced, setDebounced] = useState(value);
@@ -54,7 +67,8 @@ export default function BarangayPortal() {
     const [loading, setLoading] = useState(true);
     const [tableLoading, setTableLoading] = useState(false);
     const [selectedReport, setSelectedReport] = useState<any>(null);
-    const [filter, setFilter] = useState<'pending' | 'deployed' | 'resolved' | 'team'>('pending');
+    const [activeView, setActiveView] = useState<BarangayView>('dashboard');
+    const [reportSubFilter, setReportSubFilter] = useState<ReportSubFilter>('pending');
 
     // Filters (B1)
     const [search, setSearch] = useState("");
@@ -262,13 +276,13 @@ export default function BarangayPortal() {
         }
     };
 
-    // Fetch cleaners when filter changes to 'team'
+    // Fetch cleaners when sidebar switches to the Cleaners view
     useEffect(() => {
-        if (filter === 'team') {
+        if (activeView === 'cleaners') {
             fetchCleaners();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filter]);
+    }, [activeView]);
 
     if (loading || !user) {
         return (
@@ -282,8 +296,8 @@ export default function BarangayPortal() {
     }
 
     const displayReports = reports.filter(r => {
-        if (filter === 'pending') return r.status === 'pending' || r.status === 'verified';
-        if (filter === 'deployed') return r.status === 'deployed' || r.status === 'failed_cleanup';
+        if (reportSubFilter === 'pending') return r.status === 'pending' || r.status === 'verified';
+        if (reportSubFilter === 'deployed') return r.status === 'deployed' || r.status === 'failed_cleanup';
         return r.status === 'resolved';
     });
 
@@ -293,142 +307,210 @@ export default function BarangayPortal() {
         resolved: reports.filter(r => r.status === 'resolved').length
     };
 
+    const recentReports = [...reports]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 5);
+
     return (
-        <div className="min-h-screen bg-background pt-20 pb-10 px-4 md:px-8 relative overflow-hidden">
-            {/* Pro Max Background Accents */}
-            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none" />
+        <PortalShell
+            brand={{ name: "Barangay Ops", suffix: user.barangay_assignment }}
+            role="BARANGAY"
+            nav={BARANGAY_NAV}
+            activeKey={activeView}
+            onNavChange={(k) => setActiveView(k as BarangayView)}
+            notificationCount={stats.pending}
+        >
+            <div className="max-w-[1600px] mx-auto h-full flex flex-col gap-5">
 
-            <div className="max-w-[1600px] mx-auto h-[calc(100vh-8rem)] flex flex-col relative z-10">
-
-                {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 shrink-0 animate-slide-up">
-                    <div>
-                        <h1 className="text-2xl font-bold text-foreground mb-2 tracking-tight">Barangay <span className="text-primary">Dashboard</span></h1>
-                        <p className="text-emerald-400 font-semibold uppercase tracking-[0.18em] text-[11px] px-2.5 py-0.5 bg-emerald-400/10 rounded-full w-fit border border-emerald-400/20">
-                            {user.barangay_assignment}
-                        </p>
-                    </div>
-                </div>
-
-                {/* Main Content Split: 60/40 */}
-                <div className="flex-1 flex flex-col lg:flex-row gap-5 min-h-0">
-
-                    {/* Left: Report Queue (60%) */}
-                    <div className="flex-[3] flex flex-col gap-4 min-h-0">
-                        {/* Stats Cards */}
-                        <div className="grid grid-cols-3 gap-4 shrink-0 animate-slide-up stagger-1">
+                {/* DASHBOARD VIEW */}
+                {activeView === 'dashboard' && (
+                    <div className="flex flex-col gap-5 animate-slide-up">
+                        <div>
+                            <h1 className="text-2xl font-bold text-foreground tracking-tight">
+                                {user.barangay_assignment} <span className="text-primary">Dashboard</span>
+                            </h1>
+                            <p className="text-foreground/50 text-sm mt-1">Jurisdiction overview · {new Date().toLocaleDateString()}</p>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="glass-pro p-5 rounded-2xl bento-card">
                                 <div className="text-[11px] font-semibold text-foreground/40 uppercase tracking-[0.1em] mb-1.5">Pending Reports</div>
                                 <div className="text-3xl font-bold text-red-400 tracking-tight">{stats.pending}</div>
-                                <div className="mt-3 w-full h-1 bg-foreground/5 rounded-full overflow-hidden">
-                                    <div className="h-full bg-red-400/50" style={{ width: '40%' }}></div>
-                                </div>
                             </div>
                             <div className="glass-pro p-5 rounded-2xl bento-card">
                                 <div className="text-[11px] font-semibold text-foreground/40 uppercase tracking-[0.1em] mb-1.5">Teams Deployed</div>
                                 <div className="text-3xl font-bold text-yellow-400 tracking-tight">{stats.deployed}</div>
-                                <div className="mt-3 w-full h-1 bg-foreground/5 rounded-full overflow-hidden">
-                                    <div className="h-full bg-yellow-400/50" style={{ width: '60%' }}></div>
-                                </div>
                             </div>
                             <div className="glass-pro p-5 rounded-2xl bento-card">
-                                <div className="text-[11px] font-semibold text-foreground/40 uppercase tracking-[0.1em] mb-1.5">Resolved Today</div>
+                                <div className="text-[11px] font-semibold text-foreground/40 uppercase tracking-[0.1em] mb-1.5">Total Resolved</div>
                                 <div className="text-3xl font-bold text-green-400 tracking-tight">{stats.resolved}</div>
-                                <div className="mt-3 w-full h-1 bg-foreground/5 rounded-full overflow-hidden">
-                                    <div className="h-full bg-green-400/50" style={{ width: '80%' }}></div>
-                                </div>
                             </div>
                         </div>
-
-                        <div className="glass-pro rounded-[2.5rem] flex flex-col flex-1 min-h-0 shadow-2xl animate-slide-up stagger-2 overflow-hidden">
-                            {/* Filter Bar (B1 + B4) */}
-                            <div className="flex flex-col lg:flex-row gap-3 p-4 border-b border-border shrink-0">
-                                <div className="relative flex-1 min-w-[200px]">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={16} />
-                                    <input
-                                        type="text"
-                                        value={search}
-                                        onChange={(e) => setSearch(e.target.value)}
-                                        placeholder="Search tracking ID or notes…"
-                                        className="w-full pl-9 pr-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm placeholder:text-foreground/40 focus:border-primary focus:outline-none"
-                                    />
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <div className="flex items-center gap-2">
-                                        <label className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest">From</label>
-                                        <input
-                                            type="date"
-                                            value={dateFrom}
-                                            onChange={(e) => setDateFrom(e.target.value)}
-                                            onClick={(e) => (e.target as any).showPicker?.()}
-                                            className="px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-xs focus:border-primary focus:outline-none cursor-pointer hover:bg-foreground/5 transition-colors"
-                                        />
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <label className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest">To</label>
-                                        <input
-                                            type="date"
-                                            value={dateTo}
-                                            onChange={(e) => setDateTo(e.target.value)}
-                                            onClick={(e) => (e.target as any).showPicker?.()}
-                                            className="px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-xs focus:border-primary focus:outline-none cursor-pointer hover:bg-foreground/5 transition-colors"
-                                        />
-                                    </div>
-                                    {(search || dateFrom || dateTo) && (
-                                        <button
-                                            onClick={() => {
-                                                setSearch("");
-                                                setDateFrom("");
-                                                setDateTo("");
-                                            }}
-                                            className="text-[10px] font-bold text-foreground/30 hover:text-foreground uppercase tracking-widest transition-colors"
-                                        >
-                                            Clear Filters
-                                        </button>
-                                    )}
-                                </div>
+                        <div className="glass-pro rounded-2xl p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-sm font-bold text-foreground/60 uppercase tracking-widest">Recent Reports</h2>
                                 <button
-                                    onClick={handleExport}
-                                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/20 border border-primary/30 text-primary text-xs font-bold uppercase tracking-widest hover:bg-primary/30 transition-colors"
-                                    title="Export filtered reports as CSV"
+                                    onClick={() => setActiveView('reports')}
+                                    className="text-xs font-bold text-primary hover:text-emerald-300 uppercase tracking-widest"
                                 >
-                                    <Download size={14} />
-                                    Export CSV
+                                    View All →
                                 </button>
                             </div>
+                            {recentReports.length === 0 ? (
+                                <div className="text-foreground/40 text-sm">No reports yet.</div>
+                            ) : (
+                                <ul className="space-y-2">
+                                    {recentReports.map(r => {
+                                        const sla = slaInfo(r.created_at, r.status);
+                                        return (
+                                            <li key={r.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-foreground/5 transition-colors">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <span className="font-mono text-sm font-bold text-foreground truncate">{r.tracking_id}</span>
+                                                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                                                        r.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
+                                                        r.status === 'deployed' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                        r.status === 'failed_cleanup' ? 'bg-red-500/20 text-red-400' :
+                                                        'bg-foreground/10 text-foreground/70'
+                                                    }`}>{r.status}</span>
+                                                </div>
+                                                {sla && (
+                                                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0 ${SLA_PILL_CLASSES[sla.color]}`}>
+                                                        {sla.days}d open
+                                                    </span>
+                                                )}
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            )}
+                        </div>
+                    </div>
+                )}
 
-                            {/* Tabs */}
-                            <div className="flex border-b border-border shrink-0">
-                                <button
-                                    onClick={() => setFilter('pending')}
-                                    className={`flex-1 py-3 text-[11px] font-semibold uppercase tracking-widest transition-colors ${filter === 'pending' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-foreground/50 hover:bg-foreground/5 hover:text-foreground'}`}
-                                >
-                                    Pending
-                                </button>
-                                <button
-                                    onClick={() => setFilter('deployed')}
-                                    className={`flex-1 py-3 text-[11px] font-semibold uppercase tracking-widest transition-colors ${filter === 'deployed' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-foreground/50 hover:bg-foreground/5 hover:text-foreground'}`}
-                                >
-                                    Deployed
-                                </button>
-                                <button
-                                    onClick={() => setFilter('resolved')}
-                                    className={`flex-1 py-3 text-[11px] font-semibold uppercase tracking-widest transition-colors ${filter === 'resolved' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-foreground/50 hover:bg-foreground/5 hover:text-foreground'}`}
-                                >
-                                    Done
-                                </button>
-                                <button
-                                    onClick={() => setFilter('team')}
-                                    className={`flex-1 py-3 text-[11px] font-semibold uppercase tracking-widest transition-colors ${filter === 'team' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-foreground/50 hover:bg-foreground/5 hover:text-foreground'}`}
-                                >
-                                    Team
-                                </button>
-                            </div>
+                {/* MAP VIEW */}
+                {activeView === 'map_view' && (
+                    <div className="glass-pro rounded-[2.5rem] overflow-hidden shadow-2xl relative flex-1 min-h-[500px] animate-slide-up">
+                        <div className="absolute top-6 left-6 z-[1000] glass-pro px-4 py-2 rounded-full text-[11px] font-bold text-foreground uppercase tracking-widest pointer-events-none">
+                            <span className="flex items-center gap-2">
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                </span>
+                                {user.barangay_assignment}
+                            </span>
+                        </div>
+                        <MapComponent
+                            height="100%"
+                            reports={reports}
+                            heatmaps={[]}
+                            focusedBarangay={user.barangay_assignment}
+                            onBarangayClick={() => {}}
+                        />
+                    </div>
+                )}
+
+                {/* PLACEHOLDERS */}
+                {(activeView === 'workorders' || activeView === 'accounts') && (
+                    <div className="glass-pro rounded-2xl p-12 text-center animate-slide-up">
+                        <h2 className="text-xl font-bold text-foreground mb-2">
+                            {activeView === 'workorders' ? 'Workorders' : 'Accounts'}
+                        </h2>
+                        <p className="text-foreground/50 text-sm">
+                            This module is coming soon. {activeView === 'workorders'
+                                ? 'Track active and historical work orders assigned to your team.'
+                                : 'Manage user accounts and permissions for your barangay.'}
+                        </p>
+                    </div>
+                )}
+
+                {/* REPORTS VIEW + CLEANERS VIEW share the glass-pro table container below */}
+                {(activeView === 'reports' || activeView === 'cleaners') && (
+                    <div className="flex flex-col flex-1 min-h-0 animate-slide-up">
+                        <div className="glass-pro rounded-[2.5rem] flex flex-col flex-1 min-h-0 shadow-2xl overflow-hidden">
+                            {/* Filter Bar — Reports view only */}
+                            {activeView === 'reports' && (
+                                <div className="flex flex-col lg:flex-row gap-3 p-4 border-b border-border shrink-0">
+                                    <div className="relative flex-1 min-w-[200px]">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={16} />
+                                        <input
+                                            type="text"
+                                            value={search}
+                                            onChange={(e) => setSearch(e.target.value)}
+                                            placeholder="Search tracking ID or notes…"
+                                            className="w-full pl-9 pr-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm placeholder:text-foreground/40 focus:border-primary focus:outline-none"
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-2">
+                                            <label className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest">From</label>
+                                            <input
+                                                type="date"
+                                                value={dateFrom}
+                                                onChange={(e) => setDateFrom(e.target.value)}
+                                                onClick={(e) => (e.target as any).showPicker?.()}
+                                                className="px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-xs focus:border-primary focus:outline-none cursor-pointer hover:bg-foreground/5 transition-colors"
+                                            />
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <label className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest">To</label>
+                                            <input
+                                                type="date"
+                                                value={dateTo}
+                                                onChange={(e) => setDateTo(e.target.value)}
+                                                onClick={(e) => (e.target as any).showPicker?.()}
+                                                className="px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-xs focus:border-primary focus:outline-none cursor-pointer hover:bg-foreground/5 transition-colors"
+                                            />
+                                        </div>
+                                        {(search || dateFrom || dateTo) && (
+                                            <button
+                                                onClick={() => {
+                                                    setSearch("");
+                                                    setDateFrom("");
+                                                    setDateTo("");
+                                                }}
+                                                className="text-[10px] font-bold text-foreground/30 hover:text-foreground uppercase tracking-widest transition-colors"
+                                            >
+                                                Clear Filters
+                                            </button>
+                                        )}
+                                    </div>
+                                    <button
+                                        onClick={handleExport}
+                                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/20 border border-primary/30 text-primary text-xs font-bold uppercase tracking-widest hover:bg-primary/30 transition-colors"
+                                        title="Export filtered reports as CSV"
+                                    >
+                                        <Download size={14} />
+                                        Export CSV
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Sub-tabs — Reports view only */}
+                            {activeView === 'reports' && (
+                                <div className="flex border-b border-border shrink-0">
+                                    <button
+                                        onClick={() => setReportSubFilter('pending')}
+                                        className={`flex-1 py-3 text-[11px] font-semibold uppercase tracking-widest transition-colors ${reportSubFilter === 'pending' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-foreground/50 hover:bg-foreground/5 hover:text-foreground'}`}
+                                    >
+                                        Pending
+                                    </button>
+                                    <button
+                                        onClick={() => setReportSubFilter('deployed')}
+                                        className={`flex-1 py-3 text-[11px] font-semibold uppercase tracking-widest transition-colors ${reportSubFilter === 'deployed' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-foreground/50 hover:bg-foreground/5 hover:text-foreground'}`}
+                                    >
+                                        Deployed
+                                    </button>
+                                    <button
+                                        onClick={() => setReportSubFilter('resolved')}
+                                        className={`flex-1 py-3 text-[11px] font-semibold uppercase tracking-widest transition-colors ${reportSubFilter === 'resolved' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-foreground/50 hover:bg-foreground/5 hover:text-foreground'}`}
+                                    >
+                                        Done
+                                    </button>
+                                </div>
+                            )}
 
                             {/* Table Container */}
                             <div className="flex-1 overflow-y-auto">
-                                {filter === 'team' ? (
+                                {activeView === 'cleaners' ? (
                                     // Team Management View
                                     <div className="w-full">
                                         <div className="flex items-center justify-between p-4 border-b border-border">
@@ -597,27 +679,7 @@ export default function BarangayPortal() {
                             </div>
                         </div>
                     </div>
-
-                    {/* Right: Map View (40%) */}
-                    <div className="flex-[2] glass-pro rounded-[2.5rem] overflow-hidden shadow-2xl relative min-h-[400px] animate-slide-up stagger-3">
-                        <div className="absolute top-6 left-6 z-[1000] glass-pro px-4 py-2 rounded-full text-[11px] font-bold text-foreground uppercase tracking-widest pointer-events-none">
-                            <span className="flex items-center gap-2">
-                                <span className="relative flex h-2 w-2">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                                </span>
-                                Assigned Locations
-                            </span>
-                        </div>
-                        <MapComponent
-                            height="100%"
-                            reports={reports}
-                            heatmaps={[]}
-                            focusedBarangay={user.barangay_assignment}
-                            onBarangayClick={() => {}}
-                        />
-                    </div>
-                </div>
+                )}
             </div>
 
             {/* Report Detail Modal */}
@@ -907,6 +969,6 @@ export default function BarangayPortal() {
                 </div>
             )}
 
-        </div>
+        </PortalShell>
     );
 }
