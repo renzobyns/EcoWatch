@@ -67,12 +67,14 @@ export function PortalShell({
                 onToggleCollapsed={toggleCollapsed}
             />
             <div className="flex-1 flex flex-col min-w-0">
-                <PortalTopbar
-                    role={role}
-                    pageBadge={pageBadge}
-                    notificationCount={notificationCount}
-                />
-                <main className="flex-1 overflow-y-auto px-4 md:px-8 py-6">
+                <div className="relative z-40">
+                    <PortalTopbar
+                        role={role}
+                        pageBadge={pageBadge}
+                        notificationCount={notificationCount}
+                    />
+                </div>
+                <main className="relative z-0 flex-1 overflow-y-auto px-4 md:px-8 py-6">
                     {children}
                 </main>
             </div>
