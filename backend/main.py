@@ -874,6 +874,9 @@ async def deploy_report(
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
 
+    if report.barangay != user.barangay_assignment:
+        raise HTTPException(status_code=403, detail="Cannot deploy a report outside your barangay")
+
     if report.status != models.ReportStatus.VERIFIED:
         raise HTTPException(
             status_code=400,
@@ -994,6 +997,9 @@ async def create_work_order(
     report = db.query(models.Report).filter(models.Report.id == req.report_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
+
+    if report.barangay != user.barangay_assignment:
+        raise HTTPException(status_code=403, detail="Cannot create work order for a report outside your barangay")
 
     if report.status != models.ReportStatus.VERIFIED:
         raise HTTPException(
