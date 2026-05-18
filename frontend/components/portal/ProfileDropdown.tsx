@@ -91,7 +91,7 @@ export function ProfileDropdown() {
             {open && (
                 <div
                     role="menu"
-                    className="absolute right-0 top-full mt-2 w-64 glass-pro rounded-xl border border-border shadow-2xl overflow-hidden z-50"
+                    className="absolute right-0 top-full mt-2 w-64 bg-card rounded-xl border border-border shadow-2xl shadow-black/40 overflow-hidden z-50 backdrop-blur-xl"
                 >
                     <div className="p-4 border-b border-border">
                         <div className="text-sm font-bold text-foreground truncate">
