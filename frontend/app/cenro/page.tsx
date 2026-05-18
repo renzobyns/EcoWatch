@@ -95,7 +95,7 @@ function downloadString(content: string, filename: string, mime = "text/csv") {
     URL.revokeObjectURL(url);
 }
 
-type TabKey = 'command_center' | 'overview' | 'oversight' | 'audit' | 'users';
+type TabKey = 'command_center' | 'overview' | 'oversight' | 'audit' | 'users' | 'gallery';
 
 interface AuditEntry {
     id: number;
@@ -132,8 +132,14 @@ export default function CenroDashboard() {
     const [actionLoading, setActionLoading] = useState(false);
     const [newBarangay, setNewBarangay] = useState<string>("");
 
-    // C3 — SLA Breaches
+    // C3 — SLA Breaches & Config
     const [slaBreaches, setSlaBreaches] = useState<any[]>([]);
+    const [slaPolicy, setSlaPolicy] = useState({ low: 7, medium: 3, high: 1 });
+    const [showSlaModal, setShowSlaModal] = useState(false);
+    const [slaDraftLow, setSlaDraftLow] = useState(7);
+    const [slaDraftMed, setSlaDraftMed] = useState(3);
+    const [slaDraftHigh, setSlaDraftHigh] = useState(1);
+    const [slaModalLoading, setSlaModalLoading] = useState(false);
 
     // C4 — Oversight Queue filters
     const [queueReports, setQueueReports] = useState<any[]>([]);
@@ -156,10 +162,11 @@ export default function CenroDashboard() {
     const [barangayUsers, setBarangayUsers] = useState<BarangayUser[]>([]);
     const [usersLoading, setUsersLoading] = useState(false);
     const [showCreateUserModal, setShowCreateUserModal] = useState(false);
-    const [createForm, setCreateForm] = useState({ email: "", full_name: "", barangay_assignment: "" });
+    const [createForm, setCreateForm] = useState({ email: "", full_name: "", barangay_assignment: "", role: "barangay" });
     const [createPending, setCreatePending] = useState(false);
     const [createdCredential, setCreatedCredential] = useState<{ email: string; password: string } | null>(null);
     const [disabling, setDisabling] = useState<Set<number>>(new Set());
+    const [userRoleFilter, setUserRoleFilter] = useState("all");
 
     // Auth + initial load
     useEffect(() => {
@@ -235,6 +242,14 @@ export default function CenroDashboard() {
         fetchQueueData();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, debouncedOversightSearch, oversightStatus, oversightDateFrom, oversightDateTo, user]);
+
+    // Fetch SLA policy on mount and when command_center tab active
+    useEffect(() => {
+        if (activeTab === 'command_center') {
+            fetchSlaPolicy();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab]);
 
     // Client-side barangay filter (backend has no barangay query param on /reports/recent)
     const displayedQueueReports = oversightBarangay
@@ -368,6 +383,39 @@ export default function CenroDashboard() {
         }
     };
 
+    const fetchSlaPolicy = async () => {
+        try {
+            const data = await api("/config/sla");
+            setSlaPolicy(data);
+            setSlaDraftLow(data.low);
+            setSlaDraftMed(data.medium);
+            setSlaDraftHigh(data.high);
+        } catch (err) {
+            console.error("Failed to fetch SLA policy:", err);
+        }
+    };
+
+    const handleUpdateSlaPolicy = async () => {
+        setSlaModalLoading(true);
+        try {
+            const data = await api("/config/sla", {
+                method: "PUT",
+                body: JSON.stringify({
+                    low_days: parseInt(slaDraftLow.toString()),
+                    medium_days: parseInt(slaDraftMed.toString()),
+                    high_days: parseInt(slaDraftHigh.toString()),
+                }),
+            });
+            setSlaPolicy(data);
+            setShowSlaModal(false);
+            toast.success("SLA policy updated.");
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Failed to update SLA policy");
+        } finally {
+            setSlaModalLoading(false);
+        }
+    };
+
     const handleExportAnalytics = () => {
         try {
             const overview = {
@@ -473,6 +521,7 @@ export default function CenroDashboard() {
                             ['overview', 'Overview Map'],
                             ['oversight', 'Oversight Queue'],
                             ['audit', 'Audit Log'],
+                            ['gallery', 'Site Gallery'],
                             ['users', 'Users'],
                         ] as [TabKey, string][]).map(([key, label]) => (
                             <button
@@ -531,7 +580,7 @@ export default function CenroDashboard() {
                                         <AlertTriangle size={28} />
                                     </div>
                                     <div>
-                                        <div className="text-[11px] font-bold text-foreground/40 uppercase tracking-widest mb-1">SLA Breaches (≥ 3 days open)</div>
+                                        <div className="text-[11px] font-bold text-foreground/40 uppercase tracking-widest mb-1">SLA Breaches (Low:{slaPolicy.low}d / Med:{slaPolicy.medium}d / High:{slaPolicy.high}d)</div>
                                         <div className={`text-2xl font-bold ${slaBreaches.length > 0 ? 'text-red-400' : 'text-green-400'}`}>{slaBreaches.length}</div>
                                     </div>
                                 </div>
@@ -574,6 +623,36 @@ export default function CenroDashboard() {
                                     })}
                                 </div>
                             )}
+                        </div>
+
+                        {/* SLA Policy Card */}
+                        <div className="glass-pro p-6 rounded-[2.5rem] border border-border shrink-0 animate-slide-up stagger-2 overflow-hidden relative">
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-[80px] pointer-events-none" />
+                            <div className="flex items-center justify-between mb-4 relative z-10">
+                                <div>
+                                    <div className="text-[11px] font-bold text-foreground/40 uppercase tracking-widest mb-2">SLA Policy Configuration</div>
+                                    <div className="flex gap-6">
+                                        <div>
+                                            <span className="text-xs text-foreground/50">Low Priority:</span>
+                                            <span className="ml-2 font-bold text-emerald-300">{slaPolicy.low}d</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-xs text-foreground/50">Medium:</span>
+                                            <span className="ml-2 font-bold text-yellow-300">{slaPolicy.medium}d</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-xs text-foreground/50">High:</span>
+                                            <span className="ml-2 font-bold text-red-300">{slaPolicy.high}d</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setShowSlaModal(true)}
+                                    className="px-4 py-2 bg-primary/20 border border-primary/30 text-primary text-xs font-bold uppercase tracking-widest hover:bg-primary/30 rounded-lg transition-colors whitespace-nowrap"
+                                >
+                                    Edit Policy
+                                </button>
+                            </div>
                         </div>
 
                         {/* Main Grid */}
@@ -935,21 +1014,105 @@ export default function CenroDashboard() {
                     </div>
                 )}
 
+                {activeTab === 'gallery' && (
+                    /* Site Gallery */
+                    <div className="flex-1 glass rounded-2xl border border-border flex flex-col min-h-0 shadow-2xl">
+                        <div className="p-6 border-b border-border shrink-0">
+                            <h2 className="text-lg font-semibold text-foreground mb-4">Site Gallery</h2>
+                            <p className="text-sm text-foreground/50 mb-4">Before & After cleanup evidence. Original photo | AI Detection | Proof of Cleanup</p>
+                        </div>
+                        <div className="flex-1 overflow-auto p-6">
+                            {reports.length === 0 ? (
+                                <div className="text-center text-foreground/50 py-12">No reports with images yet.</div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {reports.filter(r => r.image_url).map((report) => (
+                                        <div key={report.id} className="glass rounded-xl border border-border overflow-hidden hover:border-primary transition-colors">
+                                            <div className="space-y-2 p-4 border-b border-border">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="font-mono text-xs font-bold text-emerald-300">{report.tracking_id}</span>
+                                                    <span className={`px-2 py-1 rounded text-[10px] font-bold ${
+                                                        report.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
+                                                        report.status === 'deployed' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                        'bg-foreground/10 text-foreground'
+                                                    }`}>
+                                                        {report.status}
+                                                    </span>
+                                                </div>
+                                                <div className="text-xs text-foreground/60">{report.barangay || 'Unassigned'}</div>
+                                            </div>
+
+                                            <div className="grid grid-cols-3 gap-1 p-2">
+                                                {/* Original */}
+                                                <div className="aspect-square rounded overflow-hidden bg-black/30 border border-border/50">
+                                                    {report.image_url ? (
+                                                        <img src={`${API_URL}${report.image_url}`} alt="Original" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <div className="flex items-center justify-center h-full text-[10px] text-foreground/30">No image</div>
+                                                    )}
+                                                </div>
+
+                                                {/* AI Mask */}
+                                                <div className="aspect-square rounded overflow-hidden bg-black/30 border border-border/50">
+                                                    {report.ai_mask_url ? (
+                                                        <img src={`${API_URL}${report.ai_mask_url}`} alt="AI Detection" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <div className="flex items-center justify-center h-full text-[10px] text-foreground/30">No mask</div>
+                                                    )}
+                                                </div>
+
+                                                {/* Cleanup Proof */}
+                                                <div className="aspect-square rounded overflow-hidden bg-black/30 border border-border/50">
+                                                    {report.cleanup_image_url ? (
+                                                        <img src={`${API_URL}${report.cleanup_image_url}`} alt="Cleanup Proof" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <div className="flex items-center justify-center h-full text-[10px] text-foreground/30">Not yet</div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="p-3 border-t border-border text-[11px] text-foreground/50">
+                                                <div>Reported: {new Date(report.created_at).toLocaleDateString()}</div>
+                                                {report.ai_confidence && (
+                                                    <div>AI: {(report.ai_confidence * 100).toFixed(0)}%</div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 {activeTab === 'users' && (
                     /* C2 — USER MANAGEMENT TAB */
                     <div className="flex-1 glass rounded-2xl border border-border flex flex-col min-h-0 shadow-2xl">
-                        <div className="p-6 border-b border-border shrink-0 flex items-center justify-between gap-3">
-                            <div>
-                                <h2 className="text-lg font-semibold text-foreground">Barangay Accounts</h2>
-                                <p className="text-sm text-foreground/50">Onboard new barangays and disable retired accounts.</p>
+                        <div className="p-6 border-b border-border shrink-0">
+                            <div className="flex items-center justify-between gap-3 mb-4">
+                                <div>
+                                    <h2 className="text-lg font-semibold text-foreground">System Accounts</h2>
+                                    <p className="text-sm text-foreground/50">Manage barangay coordinators and cleanup team members.</p>
+                                </div>
+                                <button
+                                    onClick={() => setShowCreateUserModal(true)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-primary/20 border border-primary/30 text-primary text-xs font-bold uppercase tracking-widest hover:bg-primary/30 rounded-lg transition-colors"
+                                >
+                                    <Plus size={14} />
+                                    Add Account
+                                </button>
                             </div>
-                            <button
-                                onClick={() => setShowCreateUserModal(true)}
-                                className="flex items-center gap-2 px-4 py-2 bg-primary/20 border border-primary/30 text-primary text-xs font-bold uppercase tracking-widest hover:bg-primary/30 rounded-lg transition-colors"
-                            >
-                                <Plus size={14} />
-                                Add Barangay Account
-                            </button>
+                            <div className="flex gap-2">
+                                <select
+                                    value={userRoleFilter}
+                                    onChange={(e) => setUserRoleFilter(e.target.value)}
+                                    className="px-3 py-2 glass border border-border rounded-lg text-xs text-foreground focus:outline-none focus:border-primary"
+                                >
+                                    <option value="all">All Roles</option>
+                                    <option value="barangay">Barangay Coordinators</option>
+                                    <option value="cleaner">Cleanup Team Members</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div className="flex-1 overflow-auto">
@@ -958,6 +1121,7 @@ export default function CenroDashboard() {
                                     <tr className="border-b border-border text-xs text-foreground/40 uppercase tracking-widest bg-black/20 sticky top-0 z-10">
                                         <th className="p-4">Email</th>
                                         <th className="p-4">Full Name</th>
+                                        <th className="p-4">Role</th>
                                         <th className="p-4">Barangay</th>
                                         <th className="p-4">Status</th>
                                         <th className="p-4 text-right">Action</th>
@@ -967,18 +1131,27 @@ export default function CenroDashboard() {
                                     {usersLoading ? (
                                         Array.from({ length: 5 }).map((_, i) => (
                                             <tr key={i} className="border-b border-border">
-                                                {Array.from({ length: 5 }).map((__, j) => (
+                                                {Array.from({ length: 6 }).map((__, j) => (
                                                     <td key={j} className="p-4"><div className="h-3 bg-foreground/10 rounded animate-pulse" /></td>
                                                 ))}
                                             </tr>
                                         ))
                                     ) : barangayUsers.length === 0 ? (
-                                        <tr><td colSpan={5} className="p-12 text-center text-foreground/50 font-bold">No barangay accounts yet. Click &quot;Add Barangay Account&quot; to onboard the first one.</td></tr>
+                                        <tr><td colSpan={6} className="p-12 text-center text-foreground/50 font-bold">No accounts yet. Click &quot;Add Account&quot; to onboard.</td></tr>
                                     ) : (
-                                        barangayUsers.map((u) => (
+                                        barangayUsers
+                                            .filter((u) => userRoleFilter === "all" || u.role === userRoleFilter)
+                                            .map((u) => (
                                             <tr key={u.id} className="border-b border-border hover:bg-foreground/5">
                                                 <td className="p-4 text-sm text-foreground">{u.email}</td>
                                                 <td className="p-4 text-sm text-foreground/80">{u.full_name}</td>
+                                                <td className="p-4 text-sm font-bold">
+                                                    <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${
+                                                        u.role === 'barangay' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-blue-500/20 text-blue-300'
+                                                    }`}>
+                                                        {u.role}
+                                                    </span>
+                                                </td>
                                                 <td className="p-4 text-sm font-bold text-emerald-300">{u.barangay_assignment || "—"}</td>
                                                 <td className="p-4">
                                                     <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${u.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
@@ -1076,19 +1249,30 @@ export default function CenroDashboard() {
                 <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
                     <div className="glass max-w-md w-full rounded-2xl border border-emerald-500/30 overflow-hidden">
                         <div className="bg-emerald-900/40 border-b border-emerald-500/30 px-6 py-4 flex items-center justify-between">
-                            <h2 className="text-base font-semibold text-foreground">New Barangay Account</h2>
+                            <h2 className="text-base font-semibold text-foreground">New Account</h2>
                             <button onClick={() => setShowCreateUserModal(false)} className="p-2 text-foreground/50 hover:text-foreground bg-foreground/5 hover:bg-foreground/10 rounded-full">
                                 <X size={18} />
                             </button>
                         </div>
                         <div className="p-6 space-y-4">
                             <div>
+                                <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1 block">Role</label>
+                                <select
+                                    value={createForm.role}
+                                    onChange={(e) => setCreateForm({ ...createForm, role: e.target.value })}
+                                    className="w-full px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:border-primary focus:outline-none"
+                                >
+                                    <option value="barangay">Barangay Coordinator</option>
+                                    <option value="cleaner">Cleanup Team Member</option>
+                                </select>
+                            </div>
+                            <div>
                                 <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1 block">Email</label>
                                 <input
                                     type="email"
                                     value={createForm.email}
                                     onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-                                    placeholder="barangay@example.gov.ph"
+                                    placeholder="user@example.gov.ph"
                                     className="w-full px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:border-primary focus:outline-none"
                                 />
                             </div>
@@ -1123,6 +1307,69 @@ export default function CenroDashboard() {
                             >
                                 {createPending ? "Creating…" : "Create Account"}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* SLA Policy Edit Modal */}
+            {showSlaModal && (
+                <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                    <div className="glass max-w-md w-full rounded-2xl border border-emerald-500/30 overflow-hidden">
+                        <div className="bg-emerald-900/40 border-b border-emerald-500/30 px-6 py-4 flex items-center justify-between">
+                            <h2 className="text-base font-semibold text-foreground">Edit SLA Policy</h2>
+                            <button onClick={() => setShowSlaModal(false)} className="p-2 text-foreground/50 hover:text-foreground bg-foreground/5 hover:bg-foreground/10 rounded-full">
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <p className="text-xs text-foreground/50">Set cleanup SLA thresholds by priority level (in days).</p>
+                            <div>
+                                <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1 block">Low Priority (days)</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    value={slaDraftLow}
+                                    onChange={(e) => setSlaDraftLow(parseInt(e.target.value) || 1)}
+                                    className="w-full px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:outline-none focus:border-primary"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1 block">Medium Priority (days)</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    value={slaDraftMed}
+                                    onChange={(e) => setSlaDraftMed(parseInt(e.target.value) || 1)}
+                                    className="w-full px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:outline-none focus:border-primary"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1 block">High Priority (days)</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    value={slaDraftHigh}
+                                    onChange={(e) => setSlaDraftHigh(parseInt(e.target.value) || 1)}
+                                    className="w-full px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:outline-none focus:border-primary"
+                                />
+                            </div>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowSlaModal(false)}
+                                    className="flex-1 px-4 py-2 glass border border-border text-foreground text-sm font-bold rounded-lg hover:bg-foreground/10 transition-colors"
+                                    disabled={slaModalLoading}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleUpdateSlaPolicy}
+                                    className="flex-1 px-4 py-2 bg-primary text-primary-foreground text-sm font-bold rounded-lg hover:bg-primary/80 transition-colors disabled:opacity-50"
+                                    disabled={slaModalLoading}
+                                >
+                                    {slaModalLoading ? "Saving..." : "Save"}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
