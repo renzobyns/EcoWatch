@@ -14,6 +14,14 @@ class ReportStatus(str, enum.Enum):
     FAILED_CLEANUP = "failed_cleanup"
 
 
+class WorkOrderStatus(str, enum.Enum):
+    ASSIGNED = "assigned"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    VERIFIED = "verified"
+    NEEDS_REDO = "needs_redo"
+
+
 class User(Base):
     """Local auth user — replaces Supabase during development."""
     __tablename__ = "users"
@@ -27,8 +35,13 @@ class User(Base):
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    # Relationship
+    # Relationships
     reports = relationship("Report", back_populates="reporter")
+    work_orders_assigned = relationship(
+        "WorkOrder",
+        back_populates="assigned_cleaner",
+        foreign_keys="[WorkOrder.assigned_cleaner_id]",
+    )
 
 
 class Report(Base):
@@ -63,6 +76,48 @@ class Report(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     deployed_at = Column(DateTime, nullable=True)
     resolved_at = Column(DateTime, nullable=True)
+
+    # Work orders (one Report can have multiple work orders if a cleanup fails and is re-dispatched)
+    work_orders = relationship("WorkOrder", back_populates="report", cascade="all, delete-orphan")
+
+
+class WorkOrder(Base):
+    """Cleanup execution unit. Created when a barangay dispatches a cleaner to a verified Report.
+
+    One Report can have multiple WorkOrders when a FAILED_CLEANUP triggers a redo.
+    """
+    __tablename__ = "work_orders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    report_id = Column(Integer, ForeignKey("reports.id"), nullable=False, index=True)
+    assigned_cleaner_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+
+    priority = Column(String, nullable=False, default="medium")  # low | medium | high
+    sla_deadline = Column(DateTime, nullable=False)
+    status = Column(String, nullable=False, default=WorkOrderStatus.ASSIGNED, index=True)
+    notes = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    report = relationship("Report", back_populates="work_orders")
+    assigned_cleaner = relationship(
+        "User",
+        back_populates="work_orders_assigned",
+        foreign_keys=[assigned_cleaner_id],
+    )
+
+
+class SystemConfig(Base):
+    """Key-value table for CENRO-editable runtime configuration (SLA policy, future toggles)."""
+    __tablename__ = "system_config"
+
+    key = Column(String, primary_key=True)
+    value = Column(String, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_by = Column(Integer, ForeignKey("users.id"), nullable=True)
 
 
 class AuditLog(Base):

@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import { Search, Download } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
+import { slaInfo, SLA_PILL_CLASSES } from "@/lib/sla";
 
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
@@ -19,20 +20,6 @@ function useDebounce<T>(value: T, delayMs: number): T {
     }, [value, delayMs]);
     return debounced;
 }
-
-function slaInfo(createdAt: string, status: string): { days: number; color: "green" | "yellow" | "red" } | null {
-    const active = ["pending", "verified", "deployed", "failed_cleanup"].includes(status);
-    if (!active) return null;
-    const days = Math.floor((Date.now() - new Date(createdAt).getTime()) / 86400000);
-    const color: "green" | "yellow" | "red" = days <= 2 ? "green" : days <= 4 ? "yellow" : "red";
-    return { days, color };
-}
-
-const SLA_PILL_CLASSES: Record<"green" | "yellow" | "red", string> = {
-    green: "bg-green-500/20 text-green-400",
-    yellow: "bg-yellow-500/20 text-yellow-400",
-    red: "bg-red-500/20 text-red-400",
-};
 
 async function downloadCsv(qs: string) {
     const headers: Record<string, string> = {};
@@ -67,7 +54,7 @@ export default function BarangayPortal() {
     const [loading, setLoading] = useState(true);
     const [tableLoading, setTableLoading] = useState(false);
     const [selectedReport, setSelectedReport] = useState<any>(null);
-    const [filter, setFilter] = useState<'pending' | 'deployed' | 'resolved'>('pending');
+    const [filter, setFilter] = useState<'pending' | 'deployed' | 'resolved' | 'team'>('pending');
 
     // Filters (B1)
     const [search, setSearch] = useState("");
@@ -80,6 +67,20 @@ export default function BarangayPortal() {
     const [cleanupImage, setCleanupImage] = useState<File | null>(null);
     const [cleanupPreview, setCleanupPreview] = useState<string | null>(null);
     const [deploymentNotes, setDeploymentNotes] = useState("");
+    const [selectedPriority, setSelectedPriority] = useState("medium");
+    const [selectedCleaner, setSelectedCleaner] = useState<number | null>(null);
+
+    // Team Management States
+    const [cleaners, setCleaners] = useState<any[]>([]);
+    const [teamLoading, setTeamLoading] = useState(false);
+    const [showAddCleanerModal, setShowAddCleanerModal] = useState(false);
+    const [newCleanerEmail, setNewCleanerEmail] = useState("");
+    const [newCleanerName, setNewCleanerName] = useState("");
+    const [newCleanerLoading, setNewCleanerLoading] = useState(false);
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [tempPassword, setTempPassword] = useState("");
+    const [showDisableConfirm, setShowDisableConfirm] = useState(false);
+    const [disableTargetId, setDisableTargetId] = useState<number | null>(null);
 
     useEffect(() => {
         // Auth Check
@@ -139,11 +140,15 @@ export default function BarangayPortal() {
             const formData = new FormData();
             const trimmed = deploymentNotes.trim();
             if (trimmed) formData.append("deployment_notes", trimmed);
+            if (selectedPriority) formData.append("priority", selectedPriority);
+            if (selectedCleaner) formData.append("assigned_cleaner_id", String(selectedCleaner));
             const data = await api(`/report/${reportId}/deploy`, { method: "PUT", body: formData });
             const updated = { status: 'deployed', deployment_notes: trimmed || null };
             setReports(reports.map(r => r.id === reportId ? { ...r, ...updated, ...(data?.report || {}) } : r));
             setSelectedReport({ ...selectedReport, ...updated, ...(data?.report || {}) });
             setDeploymentNotes("");
+            setSelectedPriority("medium");
+            setSelectedCleaner(null);
             toast.success("Cleanup team deployed.");
         } catch (err) {
             toast.error(err instanceof ApiError ? err.message : "Network error.");
@@ -192,6 +197,73 @@ export default function BarangayPortal() {
             toast.error(err instanceof Error ? err.message : "Export failed");
         }
     };
+
+    const fetchCleaners = async () => {
+        if (!user?.barangay_assignment) return;
+        setTeamLoading(true);
+        try {
+            const data = await api("/users");
+            if (Array.isArray(data)) {
+                setCleaners(data);
+            }
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Failed to load team");
+        } finally {
+            setTeamLoading(false);
+        }
+    };
+
+    const handleAddCleaner = async () => {
+        if (!newCleanerEmail.trim() || !newCleanerName.trim()) {
+            toast.error("Email and name are required.");
+            return;
+        }
+        setNewCleanerLoading(true);
+        try {
+            const data = await api("/users", {
+                method: "POST",
+                body: JSON.stringify({
+                    email: newCleanerEmail.trim(),
+                    full_name: newCleanerName.trim(),
+                    barangay_assignment: user.barangay_assignment,
+                    role: "cleaner",
+                }),
+            });
+            setTempPassword(data.temporary_password);
+            setShowPasswordModal(true);
+            setNewCleanerEmail("");
+            setNewCleanerName("");
+            await fetchCleaners();
+            toast.success("Cleaner account created!");
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Failed to create account");
+        } finally {
+            setNewCleanerLoading(false);
+        }
+    };
+
+    const handleDisableCleaner = async (cleanerId: number) => {
+        setNewCleanerLoading(true);
+        try {
+            await api(`/users/${cleanerId}/disable`, { method: "PUT" });
+            await fetchCleaners();
+            toast.success("Cleaner disabled.");
+            setShowDisableConfirm(false);
+            setDisableTargetId(null);
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Failed to disable");
+        } finally {
+            setNewCleanerLoading(false);
+        }
+    };
+
+    // Fetch cleaners when filter changes to 'team'
+    useEffect(() => {
+        if (filter === 'team') {
+            fetchCleaners();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [filter]);
 
     if (loading || !user) {
         return (
@@ -341,95 +413,181 @@ export default function BarangayPortal() {
                                 >
                                     Done
                                 </button>
+                                <button
+                                    onClick={() => setFilter('team')}
+                                    className={`flex-1 py-3 text-[11px] font-semibold uppercase tracking-widest transition-colors ${filter === 'team' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-foreground/50 hover:bg-foreground/5 hover:text-foreground'}`}
+                                >
+                                    Team
+                                </button>
                             </div>
 
                             {/* Table Container */}
                             <div className="flex-1 overflow-y-auto">
-                                {tableLoading ? (
-                                    <table className="w-full text-left border-collapse">
-                                        <thead>
-                                            <tr className="border-b border-border text-xs text-foreground/40 uppercase tracking-widest bg-black/20">
-                                                <th className="p-4">Tracking ID</th>
-                                                <th className="p-4">Date</th>
-                                                <th className="p-4">Status</th>
-                                                <th className="p-4">Open</th>
-                                                <th className="p-4">AI Score</th>
-                                                <th className="p-4 text-right">Action</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {Array.from({ length: 5 }).map((_, i) => (
-                                                <tr key={i} className="border-b border-border">
-                                                    {Array.from({ length: 6 }).map((__, j) => (
-                                                        <td key={j} className="p-4"><div className="h-3 bg-foreground/10 rounded animate-pulse" /></td>
-                                                    ))}
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                ) : displayReports.length === 0 ? (
-                                    <div className="p-12 text-center text-foreground/50 font-bold">No reports found in this category.</div>
-                                ) : (
-                                    <table className="w-full text-left border-collapse">
-                                        <thead>
-                                            <tr className="border-b border-border text-xs text-foreground/40 uppercase tracking-widest bg-black/20">
-                                                <th className="p-4">Tracking ID</th>
-                                                <th className="p-4">Date</th>
-                                                <th className="p-4">Status</th>
-                                                <th className="p-4">Open</th>
-                                                <th className="p-4">AI Score</th>
-                                                <th className="p-4 text-right">Action</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {displayReports.map(report => {
-                                                const sla = slaInfo(report.created_at, report.status);
-                                                return (
-                                                    <tr key={report.id} className="border-b border-border hover:bg-foreground/5 transition-colors">
-                                                        <td className="p-4 font-mono text-sm text-foreground font-bold">{report.tracking_id}</td>
-                                                        <td className="p-4 text-sm text-foreground/70">
-                                                            {new Date(report.created_at).toLocaleDateString()}
-                                                        </td>
-                                                        <td className="p-4">
-                                                            <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
-                                                                report.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
-                                                                report.status === 'deployed' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                                report.status === 'failed_cleanup' ? 'bg-red-500/20 text-red-400' :
-                                                                'bg-foreground/10 text-foreground'
-                                                            }`}>
-                                                                {report.status}
-                                                            </span>
-                                                        </td>
-                                                        <td className="p-4">
-                                                            {sla ? (
-                                                                <span className={`px-2 py-1 rounded-md text-[11px] font-bold ${SLA_PILL_CLASSES[sla.color]}`}>
-                                                                    {sla.days}d
-                                                                </span>
-                                                            ) : (
-                                                                <span className="text-foreground/30 text-sm">—</span>
-                                                            )}
-                                                        </td>
-                                                        <td className="p-4 text-sm font-bold text-foreground/80">
-                                                            {report.ai_confidence ? `${(report.ai_confidence * 100).toFixed(0)}%` : 'N/A'}
-                                                        </td>
-                                                        <td className="p-4 text-right">
-                                                            <button
-                                                                onClick={() => {
-                                                                    setSelectedReport(report);
-                                                                    setCleanupPreview(null);
-                                                                    setCleanupImage(null);
-                                                                    setDeploymentNotes("");
-                                                                }}
-                                                                className="px-4 py-2 glass border border-border text-foreground text-xs font-bold rounded-lg hover:bg-foreground/10 transition-colors"
-                                                            >
-                                                                Manage
-                                                            </button>
-                                                        </td>
+                                {filter === 'team' ? (
+                                    // Team Management View
+                                    <div className="w-full">
+                                        <div className="flex items-center justify-between p-4 border-b border-border">
+                                            <h3 className="text-sm font-bold text-foreground uppercase tracking-widest">Cleanup Team</h3>
+                                            <button
+                                                onClick={() => setShowAddCleanerModal(true)}
+                                                className="px-4 py-2 glass border border-primary text-primary text-xs font-bold rounded-lg hover:bg-primary/10 transition-colors"
+                                            >
+                                                + Add Cleaner
+                                            </button>
+                                        </div>
+                                        {teamLoading ? (
+                                            <table className="w-full text-left border-collapse">
+                                                <thead>
+                                                    <tr className="border-b border-border text-xs text-foreground/40 uppercase tracking-widest bg-black/20">
+                                                        <th className="p-4">Name</th>
+                                                        <th className="p-4">Email</th>
+                                                        <th className="p-4">Status</th>
+                                                        <th className="p-4 text-right">Action</th>
                                                     </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
+                                                </thead>
+                                                <tbody>
+                                                    {Array.from({ length: 3 }).map((_, i) => (
+                                                        <tr key={i} className="border-b border-border">
+                                                            {Array.from({ length: 4 }).map((__, j) => (
+                                                                <td key={j} className="p-4"><div className="h-3 bg-foreground/10 rounded animate-pulse" /></td>
+                                                            ))}
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        ) : cleaners.length === 0 ? (
+                                            <div className="p-12 text-center text-foreground/50 font-bold">No team members yet. Add a cleaner to get started.</div>
+                                        ) : (
+                                            <table className="w-full text-left border-collapse">
+                                                <thead>
+                                                    <tr className="border-b border-border text-xs text-foreground/40 uppercase tracking-widest bg-black/20">
+                                                        <th className="p-4">Name</th>
+                                                        <th className="p-4">Email</th>
+                                                        <th className="p-4">Status</th>
+                                                        <th className="p-4 text-right">Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {cleaners.map(cleaner => (
+                                                        <tr key={cleaner.id} className="border-b border-border hover:bg-foreground/5 transition-colors">
+                                                            <td className="p-4 text-sm font-semibold text-foreground">{cleaner.full_name}</td>
+                                                            <td className="p-4 text-sm text-foreground/70 font-mono">{cleaner.email}</td>
+                                                            <td className="p-4">
+                                                                <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
+                                                                    cleaner.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                                                                }`}>
+                                                                    {cleaner.is_active ? 'Active' : 'Disabled'}
+                                                                </span>
+                                                            </td>
+                                                            <td className="p-4 text-right">
+                                                                {cleaner.is_active && (
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setDisableTargetId(cleaner.id);
+                                                                            setShowDisableConfirm(true);
+                                                                        }}
+                                                                        className="px-4 py-2 glass border border-red-500/50 text-red-400 text-xs font-bold rounded-lg hover:bg-red-500/10 transition-colors"
+                                                                    >
+                                                                        Disable
+                                                                    </button>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        )}
+                                    </div>
+                                ) : (
+                                    // Reports View
+                                    <>
+                                        {tableLoading ? (
+                                            <table className="w-full text-left border-collapse">
+                                                <thead>
+                                                    <tr className="border-b border-border text-xs text-foreground/40 uppercase tracking-widest bg-black/20">
+                                                        <th className="p-4">Tracking ID</th>
+                                                        <th className="p-4">Date</th>
+                                                        <th className="p-4">Status</th>
+                                                        <th className="p-4">Open</th>
+                                                        <th className="p-4">AI Score</th>
+                                                        <th className="p-4 text-right">Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {Array.from({ length: 5 }).map((_, i) => (
+                                                        <tr key={i} className="border-b border-border">
+                                                            {Array.from({ length: 6 }).map((__, j) => (
+                                                                <td key={j} className="p-4"><div className="h-3 bg-foreground/10 rounded animate-pulse" /></td>
+                                                            ))}
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        ) : displayReports.length === 0 ? (
+                                            <div className="p-12 text-center text-foreground/50 font-bold">No reports found in this category.</div>
+                                        ) : (
+                                            <table className="w-full text-left border-collapse">
+                                                <thead>
+                                                    <tr className="border-b border-border text-xs text-foreground/40 uppercase tracking-widest bg-black/20">
+                                                        <th className="p-4">Tracking ID</th>
+                                                        <th className="p-4">Date</th>
+                                                        <th className="p-4">Status</th>
+                                                        <th className="p-4">Open</th>
+                                                        <th className="p-4">AI Score</th>
+                                                        <th className="p-4 text-right">Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {displayReports.map(report => {
+                                                        const sla = slaInfo(report.created_at, report.status);
+                                                        return (
+                                                            <tr key={report.id} className="border-b border-border hover:bg-foreground/5 transition-colors">
+                                                                <td className="p-4 font-mono text-sm text-foreground font-bold">{report.tracking_id}</td>
+                                                                <td className="p-4 text-sm text-foreground/70">
+                                                                    {new Date(report.created_at).toLocaleDateString()}
+                                                                </td>
+                                                                <td className="p-4">
+                                                                    <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
+                                                                        report.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
+                                                                        report.status === 'deployed' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                                        report.status === 'failed_cleanup' ? 'bg-red-500/20 text-red-400' :
+                                                                        'bg-foreground/10 text-foreground'
+                                                                    }`}>
+                                                                        {report.status}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="p-4">
+                                                                    {sla ? (
+                                                                        <span className={`px-2 py-1 rounded-md text-[11px] font-bold ${SLA_PILL_CLASSES[sla.color]}`}>
+                                                                            {sla.days}d
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="text-foreground/30 text-sm">—</span>
+                                                                    )}
+                                                                </td>
+                                                                <td className="p-4 text-sm font-bold text-foreground/80">
+                                                                    {report.ai_confidence ? `${(report.ai_confidence * 100).toFixed(0)}%` : 'N/A'}
+                                                                </td>
+                                                                <td className="p-4 text-right">
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setSelectedReport(report);
+                                                                            setCleanupPreview(null);
+                                                                            setCleanupImage(null);
+                                                                            setDeploymentNotes("");
+                                                                        }}
+                                                                        className="px-4 py-2 glass border border-border text-foreground text-xs font-bold rounded-lg hover:bg-foreground/10 transition-colors"
+                                                                    >
+                                                                        Manage
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        )}
+                                    </>
                                 )}
                             </div>
                         </div>
@@ -529,6 +687,35 @@ export default function BarangayPortal() {
                                     {selectedReport.status === 'verified' && (
                                         <div>
                                             <p className="text-xs text-foreground/60 mb-4">This report has been verified by the AI. Dispatch a cleanup team to the location.</p>
+
+                                            <div className="grid grid-cols-2 gap-3 mb-4">
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-2">Priority</label>
+                                                    <select
+                                                        value={selectedPriority}
+                                                        onChange={(e) => setSelectedPriority(e.target.value)}
+                                                        className="w-full px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:border-primary focus:outline-none"
+                                                    >
+                                                        <option value="low">Low (7 days)</option>
+                                                        <option value="medium">Medium (3 days)</option>
+                                                        <option value="high">High (1 day)</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-2">Assign To</label>
+                                                    <select
+                                                        value={selectedCleaner || ""}
+                                                        onChange={(e) => setSelectedCleaner(e.target.value ? parseInt(e.target.value) : null)}
+                                                        className="w-full px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:border-primary focus:outline-none"
+                                                    >
+                                                        <option value="">Select cleaner...</option>
+                                                        {cleaners.filter(c => c.is_active).map(c => (
+                                                            <option key={c.id} value={c.id}>{c.full_name}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            </div>
+
                                             <label className="block text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-2">Deployment Notes <span className="text-foreground/30 normal-case font-medium">(optional)</span></label>
                                             <textarea
                                                 value={deploymentNotes}
@@ -539,7 +726,7 @@ export default function BarangayPortal() {
                                             />
                                             <button
                                                 onClick={() => handleDeploy(selectedReport.id)}
-                                                disabled={actionLoading}
+                                                disabled={actionLoading || !selectedCleaner}
                                                 className="w-full py-3 eco-gradient text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
                                             >
                                                 {actionLoading ? "Processing..." : "Deploy Cleanup Team"}
@@ -605,6 +792,111 @@ export default function BarangayPortal() {
 
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Add Cleaner Modal */}
+            {showAddCleanerModal && (
+                <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="glass p-6 max-w-md w-full rounded-2xl border border-border shadow-2xl animate-in zoom-in-95 duration-300">
+                        <h3 className="text-lg font-bold text-foreground mb-4">Add Team Member</h3>
+                        <div className="space-y-4">
+                            <input
+                                type="text"
+                                placeholder="Full Name"
+                                value={newCleanerName}
+                                onChange={(e) => setNewCleanerName(e.target.value)}
+                                className="w-full px-3 py-2 glass border border-border rounded-lg text-sm text-foreground placeholder-foreground/30 focus:outline-none focus:border-primary"
+                            />
+                            <input
+                                type="email"
+                                placeholder="Email Address"
+                                value={newCleanerEmail}
+                                onChange={(e) => setNewCleanerEmail(e.target.value)}
+                                className="w-full px-3 py-2 glass border border-border rounded-lg text-sm text-foreground placeholder-foreground/30 focus:outline-none focus:border-primary"
+                            />
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => {
+                                        setShowAddCleanerModal(false);
+                                        setNewCleanerEmail("");
+                                        setNewCleanerName("");
+                                    }}
+                                    className="flex-1 px-4 py-2 glass border border-border text-foreground/70 text-sm font-bold rounded-lg hover:bg-foreground/10 transition-colors"
+                                    disabled={newCleanerLoading}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleAddCleaner}
+                                    className="flex-1 px-4 py-2 bg-primary text-primary-foreground text-sm font-bold rounded-lg hover:bg-primary/80 transition-colors disabled:opacity-50"
+                                    disabled={newCleanerLoading}
+                                >
+                                    {newCleanerLoading ? "Creating..." : "Create"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Password Reveal Modal */}
+            {showPasswordModal && (
+                <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="glass p-6 max-w-md w-full rounded-2xl border border-border shadow-2xl animate-in zoom-in-95 duration-300">
+                        <h3 className="text-lg font-bold text-foreground mb-2">Temporary Password</h3>
+                        <p className="text-xs text-foreground/50 mb-4">Share this with the new team member. They must change it on first login.</p>
+                        <div className="bg-black/40 border border-border rounded-lg p-4 mb-4 font-mono text-sm text-emerald-400 text-center tracking-wider">
+                            {tempPassword}
+                        </div>
+                        <button
+                            onClick={() => {
+                                navigator.clipboard.writeText(tempPassword);
+                                toast.success("Copied to clipboard!");
+                            }}
+                            className="w-full px-4 py-2 bg-primary text-primary-foreground text-sm font-bold rounded-lg hover:bg-primary/80 transition-colors mb-2"
+                        >
+                            Copy Password
+                        </button>
+                        <button
+                            onClick={() => {
+                                setShowPasswordModal(false);
+                                setTempPassword("");
+                            }}
+                            className="w-full px-4 py-2 glass border border-border text-foreground text-sm font-bold rounded-lg hover:bg-foreground/10 transition-colors"
+                        >
+                            Done
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Disable Confirmation Modal */}
+            {showDisableConfirm && disableTargetId !== null && (
+                <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="glass p-6 max-w-md w-full rounded-2xl border border-border shadow-2xl animate-in zoom-in-95 duration-300">
+                        <h3 className="text-lg font-bold text-foreground mb-2">Disable Team Member?</h3>
+                        <p className="text-sm text-foreground/50 mb-6">This person will no longer have access to their account. They can be re-enabled later.</p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    setShowDisableConfirm(false);
+                                    setDisableTargetId(null);
+                                }}
+                                className="flex-1 px-4 py-2 glass border border-border text-foreground text-sm font-bold rounded-lg hover:bg-foreground/10 transition-colors"
+                                disabled={newCleanerLoading}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => handleDisableCleaner(disableTargetId)}
+                                className="flex-1 px-4 py-2 bg-red-500/20 text-red-400 text-sm font-bold rounded-lg hover:bg-red-500/30 transition-colors disabled:opacity-50"
+                                disabled={newCleanerLoading}
+                            >
+                                {newCleanerLoading ? "Disabling..." : "Disable"}
+                            </button>
                         </div>
                     </div>
                 </div>
