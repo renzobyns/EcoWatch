@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
-const PORTAL_PREFIXES = ['/barangay', '/cenro', '/cleaner'];
+const PORTAL_PREFIXES = ['/barangay', '/cenro', '/cleaner', '/profile'];
 
 export default function Navbar() {
     const pathname = usePathname();

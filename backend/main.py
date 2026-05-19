@@ -192,6 +192,17 @@ class ReportResponse(BaseModel):
         from_attributes = True
 
 
+class UpdateProfileRequest(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+    confirm_new_password: str
+
+
 # ─────────────────────────────────────────────────────────
 # AUTH / RBAC DEPENDENCIES
 # ─────────────────────────────────────────────────────────
@@ -558,6 +569,277 @@ async def disable_user(
     db.commit()
 
     return {"success": True, "message": f"User {target.email} disabled."}
+
+
+# ─────────────────────────────────────────────────────────
+# PROFILE MANAGEMENT (any authenticated user)
+# ─────────────────────────────────────────────────────────
+
+@app.get("/users/me")
+async def get_my_profile(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return the authenticated user's profile info + role-specific activity stats."""
+    from datetime import timedelta
+
+    stats: dict = {}
+    recent_activity: list = []
+
+    if current_user.role == "cenro":
+        now = datetime.utcnow()
+        thirty_days_ago = now - timedelta(days=30)
+        sixty_days_ago = now - timedelta(days=60)
+
+        total_reports = db.query(models.Report).count()
+        recent_count = db.query(models.Report).filter(
+            models.Report.created_at >= thirty_days_ago
+        ).count()
+        prior_count = db.query(models.Report).filter(
+            models.Report.created_at >= sixty_days_ago,
+            models.Report.created_at < thirty_days_ago,
+        ).count()
+        growth_pct = round(((recent_count - prior_count) / max(prior_count, 1)) * 100, 1)
+
+        resolved_count = db.query(models.Report).filter(
+            models.Report.status == models.ReportStatus.RESOLVED
+        ).count()
+        resolution_rate = round((resolved_count / max(total_reports, 1)) * 100, 1)
+
+        pending_count = db.query(models.Report).filter(
+            models.Report.status.in_([models.ReportStatus.PENDING, models.ReportStatus.VERIFIED])
+        ).count()
+
+        system_overrides = db.query(models.AuditLog).filter(
+            models.AuditLog.user_id == current_user.id,
+            models.AuditLog.action.in_(["reassign", "force_close", "update_sla_config"]),
+        ).count()
+
+        completed_wos = db.query(models.WorkOrder).filter(
+            models.WorkOrder.status.in_(["completed", "verified"]),
+            models.WorkOrder.completed_at.isnot(None),
+        ).all()
+        on_time = sum(1 for w in completed_wos if w.completed_at <= w.sla_deadline)
+        sla_compliance = round((on_time / max(len(completed_wos), 1)) * 100, 1)
+
+        stats = {
+            "total_reports": total_reports,
+            "growth_pct": growth_pct,
+            "resolution_rate": resolution_rate,
+            "pending_count": pending_count,
+            "system_overrides": system_overrides,
+            "sla_compliance": sla_compliance,
+        }
+
+        audit_rows = (
+            db.query(models.AuditLog)
+            .filter(models.AuditLog.user_id == current_user.id)
+            .order_by(models.AuditLog.created_at.desc())
+            .limit(8)
+            .all()
+        )
+        recent_activity = [
+            {
+                "id": e.id,
+                "action": e.action,
+                "target_type": e.target_type,
+                "target_id": e.target_id,
+                "details": json.loads(e.details) if e.details else {},
+                "created_at": e.created_at.isoformat(),
+            }
+            for e in audit_rows
+        ]
+
+    elif current_user.role == "barangay":
+        brgy = current_user.barangay_assignment or ""
+        brgy_q = db.query(models.Report).filter(models.Report.barangay == brgy)
+        total_reports = brgy_q.count()
+        resolved_count = brgy_q.filter(
+            models.Report.status == models.ReportStatus.RESOLVED
+        ).count()
+        pending_count = brgy_q.filter(
+            models.Report.status.in_([models.ReportStatus.PENDING, models.ReportStatus.VERIFIED])
+        ).count()
+        deployed_wos = (
+            db.query(models.WorkOrder)
+            .join(models.Report, models.WorkOrder.report_id == models.Report.id)
+            .filter(models.Report.barangay == brgy)
+            .count()
+        )
+        resolution_rate = round((resolved_count / max(total_reports, 1)) * 100, 1)
+        stats = {
+            "total_reports": total_reports,
+            "resolved_count": resolved_count,
+            "pending_count": pending_count,
+            "deployed_work_orders": deployed_wos,
+            "resolution_rate": resolution_rate,
+        }
+        recent_reports = (
+            db.query(models.Report)
+            .filter(models.Report.barangay == brgy)
+            .order_by(models.Report.created_at.desc())
+            .limit(5)
+            .all()
+        )
+        recent_activity = [
+            {
+                "tracking_id": r.tracking_id,
+                "status": r.status,
+                "barangay": r.barangay,
+                "created_at": r.created_at.isoformat(),
+            }
+            for r in recent_reports
+        ]
+
+    elif current_user.role == "cleaner":
+        wos = db.query(models.WorkOrder).filter(
+            models.WorkOrder.assigned_cleaner_id == current_user.id
+        ).all()
+        total_assigned = len(wos)
+        in_progress = sum(1 for w in wos if w.status == "in_progress")
+        completed = sum(1 for w in wos if w.status in ("completed", "verified"))
+        on_time = sum(
+            1 for w in wos
+            if w.status in ("completed", "verified")
+            and w.completed_at is not None
+            and w.completed_at <= w.sla_deadline
+        )
+        sla_compliance = round((on_time / max(completed, 1)) * 100, 1)
+        stats = {
+            "total_assigned": total_assigned,
+            "in_progress": in_progress,
+            "completed": completed,
+            "sla_compliance": sla_compliance,
+        }
+        recent_wos = (
+            db.query(models.WorkOrder)
+            .filter(models.WorkOrder.assigned_cleaner_id == current_user.id)
+            .order_by(models.WorkOrder.created_at.desc())
+            .limit(5)
+            .all()
+        )
+        recent_activity = [
+            {
+                "id": w.id,
+                "status": w.status,
+                "priority": w.priority,
+                "sla_deadline": w.sla_deadline.isoformat() if w.sla_deadline else None,
+                "report_tracking_id": w.report.tracking_id if w.report else None,
+                "created_at": w.created_at.isoformat(),
+            }
+            for w in recent_wos
+        ]
+
+    else:  # citizen
+        my_reports = db.query(models.Report).filter(
+            models.Report.reporter_id == current_user.id
+        ).all()
+        total_submitted = len(my_reports)
+        pending = sum(1 for r in my_reports if r.status == models.ReportStatus.PENDING)
+        verified = sum(1 for r in my_reports if r.status == models.ReportStatus.VERIFIED)
+        resolved = sum(1 for r in my_reports if r.status == models.ReportStatus.RESOLVED)
+        rejected = sum(1 for r in my_reports if r.status == models.ReportStatus.REJECTED)
+        stats = {
+            "total_submitted": total_submitted,
+            "pending": pending,
+            "verified": verified,
+            "resolved": resolved,
+            "rejected": rejected,
+        }
+        recent_reports = (
+            db.query(models.Report)
+            .filter(models.Report.reporter_id == current_user.id)
+            .order_by(models.Report.created_at.desc())
+            .limit(5)
+            .all()
+        )
+        recent_activity = [
+            {
+                "tracking_id": r.tracking_id,
+                "status": r.status,
+                "barangay": r.barangay,
+                "created_at": r.created_at.isoformat(),
+            }
+            for r in recent_reports
+        ]
+
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "full_name": current_user.full_name,
+        "role": current_user.role,
+        "barangay_assignment": current_user.barangay_assignment,
+        "is_active": current_user.is_active,
+        "created_at": current_user.created_at.isoformat(),
+        "stats": stats,
+        "recent_activity": recent_activity,
+    }
+
+
+@app.put("/users/me", response_model=UserResponse)
+async def update_my_profile(
+    req: UpdateProfileRequest,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update the authenticated user's own full_name and/or email."""
+    if req.full_name is None and req.email is None:
+        raise HTTPException(status_code=400, detail="Nothing to update")
+
+    changed = []
+
+    if req.full_name is not None:
+        name = req.full_name.strip()
+        if len(name) < 2 or len(name) > 100:
+            raise HTTPException(status_code=422, detail="full_name must be 2–100 characters")
+        current_user.full_name = name
+        changed.append("full_name")
+
+    if req.email is not None:
+        email = req.email.strip().lower()
+        if not email:
+            raise HTTPException(status_code=422, detail="Email cannot be empty")
+        conflict = db.query(models.User).filter(
+            models.User.email == email,
+            models.User.id != current_user.id,
+        ).first()
+        if conflict:
+            raise HTTPException(status_code=400, detail="Email already in use by another account")
+        current_user.email = email
+        changed.append("email")
+
+    write_audit(
+        db, current_user.id, "update_profile", current_user.id,
+        {"fields_changed": changed},
+        target_type="user",
+    )
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+@app.put("/users/me/password")
+async def change_my_password(
+    req: ChangePasswordRequest,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Change the authenticated user's own password after verifying the current one."""
+    if not verify_password(req.current_password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    if req.new_password != req.confirm_new_password:
+        raise HTTPException(status_code=400, detail="New passwords do not match")
+    if len(req.new_password) < 8:
+        raise HTTPException(status_code=422, detail="New password must be at least 8 characters")
+
+    current_user.password_hash = hash_password(req.new_password)
+    write_audit(
+        db, current_user.id, "change_password", current_user.id,
+        {},
+        target_type="user",
+    )
+    db.commit()
+    return {"success": True, "message": "Password updated successfully"}
 
 
 # ─────────────────────────────────────────────────────────
