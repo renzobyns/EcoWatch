@@ -30,10 +30,12 @@ class User(Base):
     email = Column(String, unique=True, nullable=False, index=True)
     password_hash = Column(String, nullable=False)
     full_name = Column(String, nullable=False)
-    role = Column(String, nullable=False, default="citizen")  # citizen | barangay | cenro
-    barangay_assignment = Column(String, nullable=True)  # Only for barangay role
+    role = Column(String, nullable=False, default="citizen")  # citizen | barangay | cleaner | cenro
+    barangay_assignment = Column(String, nullable=True)  # Only for barangay/cleaner role
+    phone_number = Column(String, nullable=True)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    last_login_at = Column(DateTime, nullable=True)
 
     # Relationships
     reports = relationship("Report", back_populates="reporter")
