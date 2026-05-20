@@ -71,7 +71,7 @@ export default function CleanerPortal() {
                     wo.id === workOrderId ? { ...wo, ...data.work_order } : wo
                 )
             );
-            setSelectedWorkOrder((prev) =>
+            setSelectedWorkOrder((prev: any) =>
                 prev?.id === workOrderId ? { ...prev, ...data.work_order } : prev
             );
             toast.success("Work started. Go clean!");
@@ -102,7 +102,7 @@ export default function CleanerPortal() {
                     wo.id === workOrderId ? { ...wo, ...data.work_order } : wo
                 )
             );
-            setSelectedWorkOrder((prev) =>
+            setSelectedWorkOrder((prev: any) =>
                 prev?.id === workOrderId ? { ...prev, ...data.work_order } : prev
             );
             setCleanupImage(null);

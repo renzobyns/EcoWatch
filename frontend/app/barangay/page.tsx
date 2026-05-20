@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { Search, Download, LayoutDashboard, FileText, Map, ClipboardList, Users, BookUser } from "lucide-react";
+import { Search, Download, LayoutDashboard, FileText, Map, ClipboardList, Users, BookUser, Phone, MoreVertical, FileDown, Eye, EyeOff, Edit2, Key, UserCheck, UserX, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
 import { slaInfo, SLA_PILL_CLASSES } from "@/lib/sla";
@@ -60,6 +60,18 @@ async function downloadCsv(qs: string) {
     URL.revokeObjectURL(url);
 }
 
+interface BarangayUser {
+    id: number;
+    email: string;
+    full_name: string;
+    role: string;
+    barangay_assignment: string | null;
+    phone_number: string | null;
+    is_active: boolean;
+    created_at: string | null;
+    last_login_at: string | null;
+}
+
 export default function BarangayPortal() {
     const router = useRouter();
     const [user, setUser] = useState<any>(null);
@@ -98,6 +110,35 @@ export default function BarangayPortal() {
     const [tempPassword, setTempPassword] = useState("");
     const [showDisableConfirm, setShowDisableConfirm] = useState(false);
     const [disableTargetId, setDisableTargetId] = useState<number | null>(null);
+
+    // -- Accounts Tab State ---------------------------------------------------
+    const [barangayUsers, setBarangayUsers] = useState<BarangayUser[]>([]);
+    const [userLoading, setUserLoading] = useState(false);
+    const [userPage, setUserPage] = useState(1);
+    const USER_PAGE_SIZE = 8;
+    const [userSearch, setUserSearch] = useState("");
+    const debouncedUserSearch = useDebounce(userSearch, 300);
+    const [userStatusFilter, setUserStatusFilter] = useState("all");
+    const [userActionsMenu, setUserActionsMenu] = useState<number | null>(null);
+    const [reactivating, setReactivating] = useState<Set<number>>(new Set());
+
+    const [showCreateCleanerModal, setShowCreateCleanerModal] = useState(false);
+    const [createCleanerForm, setCreateCleanerForm] = useState({ full_name: "", email: "", phone_number: "" });
+    const [createCleanerPending, setCreateCleanerPending] = useState(false);
+    const [showCleanerPasswordModal, setShowCleanerPasswordModal] = useState(false);
+    const [cleanerTempPassword, setCleanerTempPassword] = useState("");
+    const [cleanerTempEmail, setCleanerTempEmail] = useState("");
+
+    const [showEditCleanerModal, setShowEditCleanerModal] = useState(false);
+    const [editTarget, setEditTarget] = useState<BarangayUser | null>(null);
+    const [editForm, setEditForm] = useState({ full_name: "", email: "", phone_number: "" });
+    const [editPending, setEditPending] = useState(false);
+
+    const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+    const [resetTarget, setResetTarget] = useState<BarangayUser | null>(null);
+    const [resetPending, setResetPending] = useState(false);
+    const [resetCredential, setResetCredential] = useState<{ email: string; password: string } | null>(null);
+    const [resetPasswordVisible, setResetPasswordVisible] = useState(false);
 
     useEffect(() => {
         // Auth Check
@@ -276,13 +317,156 @@ export default function BarangayPortal() {
         }
     };
 
-    // Fetch cleaners when sidebar switches to the Cleaners view
+    // Fetch cleaners/accounts when sidebar switches views
     useEffect(() => {
-        if (activeView === 'cleaners') {
-            fetchCleaners();
-        }
+        if (activeView === 'cleaners') fetchCleaners();
+        if (activeView === 'accounts') fetchBrgyUsers();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeView]);
+
+    const fetchBrgyUsers = async () => {
+        setUserLoading(true);
+        try {
+            const data = await api("/users");
+            if (Array.isArray(data)) setBarangayUsers(data as BarangayUser[]);
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Failed to load accounts");
+        } finally {
+            setUserLoading(false);
+        }
+    };
+
+    const handleCreateCleaner = async () => {
+        if (!createCleanerForm.full_name.trim() || !createCleanerForm.email.trim()) {
+            toast.error("Name and email are required.");
+            return;
+        }
+        setCreateCleanerPending(true);
+        try {
+            const data = await api("/users", {
+                method: "POST",
+                body: JSON.stringify({
+                    full_name: createCleanerForm.full_name.trim(),
+                    email: createCleanerForm.email.trim(),
+                    phone_number: createCleanerForm.phone_number.trim() || null,
+                    role: "cleaner",
+                    barangay_assignment: user.barangay_assignment,
+                }),
+            });
+            setCleanerTempPassword(data.temporary_password);
+            setCleanerTempEmail(createCleanerForm.email.trim());
+            setShowCreateCleanerModal(false);
+            setCreateCleanerForm({ full_name: "", email: "", phone_number: "" });
+            setShowCleanerPasswordModal(true);
+            await fetchBrgyUsers();
+            toast.success("Cleaner account created!");
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Failed to create account");
+        } finally {
+            setCreateCleanerPending(false);
+        }
+    };
+
+    const handleReactivateBrgyUser = async (userId: number) => {
+        setReactivating(prev => new Set(prev).add(userId));
+        try {
+            await api(`/users/${userId}/reactivate`, { method: "PUT" });
+            setBarangayUsers(prev => prev.map(u => u.id === userId ? { ...u, is_active: true } : u));
+            toast.success("Account reactivated.");
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Failed to reactivate");
+        } finally {
+            setReactivating(prev => { const s = new Set(prev); s.delete(userId); return s; });
+        }
+    };
+
+    const handleDisableBrgyUser = async (userId: number) => {
+        try {
+            await api(`/users/${userId}/disable`, { method: "PUT" });
+            setBarangayUsers(prev => prev.map(u => u.id === userId ? { ...u, is_active: false } : u));
+            toast.success("Account disabled.");
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Failed to disable");
+        }
+    };
+
+    const openEditCleaner = (u: BarangayUser) => {
+        setEditTarget(u);
+        setEditForm({ full_name: u.full_name, email: u.email, phone_number: u.phone_number || "" });
+        setUserActionsMenu(null);
+        setShowEditCleanerModal(true);
+    };
+
+    const handleEditCleaner = async () => {
+        if (!editTarget) return;
+        setEditPending(true);
+        try {
+            await api(`/users/${editTarget.id}`, {
+                method: "PUT",
+                body: JSON.stringify({
+                    full_name: editForm.full_name.trim() || undefined,
+                    email: editForm.email.trim() || undefined,
+                    phone_number: editForm.phone_number.trim() || undefined,
+                }),
+            });
+            setBarangayUsers(prev => prev.map(u => u.id === editTarget.id
+                ? { ...u, full_name: editForm.full_name.trim() || u.full_name, email: editForm.email.trim() || u.email, phone_number: editForm.phone_number.trim() || u.phone_number }
+                : u
+            ));
+            setShowEditCleanerModal(false);
+            setEditTarget(null);
+            toast.success("Account updated.");
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Failed to update");
+        } finally {
+            setEditPending(false);
+        }
+    };
+
+    const openResetPasswordBrgy = (u: BarangayUser) => {
+        setResetTarget(u);
+        setResetCredential(null);
+        setResetPasswordVisible(false);
+        setUserActionsMenu(null);
+        setShowResetPasswordModal(true);
+    };
+
+    const handleResetPasswordBrgy = async () => {
+        if (!resetTarget) return;
+        setResetPending(true);
+        try {
+            const data = await api(`/users/${resetTarget.id}/reset-password`, { method: "POST" });
+            setResetCredential({ email: data.email, password: data.temporary_password });
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Failed to reset password");
+        } finally {
+            setResetPending(false);
+        }
+    };
+
+    const handleExportCleanersCSV = async () => {
+        const headers: Record<string, string> = {};
+        try {
+            const raw = localStorage.getItem("ecowatch_user");
+            if (raw) { const u = JSON.parse(raw); if (u?.id) headers["X-User-Id"] = String(u.id); }
+        } catch { /* ignore */ }
+        try {
+            const res = await fetch(`${API_URL}/users/export`, { headers });
+            if (!res.ok) throw new Error(`Export failed (${res.status})`);
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `ecowatch_cleaners_${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+            toast.success("CSV downloaded.");
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Export failed");
+        }
+    };
 
     if (loading || !user) {
         return (
@@ -408,19 +592,150 @@ export default function BarangayPortal() {
                     </div>
                 )}
 
-                {/* PLACEHOLDERS */}
-                {(activeView === 'workorders' || activeView === 'accounts') && (
+                {/* WORKORDERS PLACEHOLDER */}
+                {activeView === 'workorders' && (
                     <div className="glass-pro rounded-2xl p-12 text-center animate-slide-up">
-                        <h2 className="text-xl font-bold text-foreground mb-2">
-                            {activeView === 'workorders' ? 'Workorders' : 'Accounts'}
-                        </h2>
-                        <p className="text-foreground/50 text-sm">
-                            This module is coming soon. {activeView === 'workorders'
-                                ? 'Track active and historical work orders assigned to your team.'
-                                : 'Manage user accounts and permissions for your barangay.'}
-                        </p>
+                        <h2 className="text-xl font-bold text-foreground mb-2">Workorders</h2>
+                        <p className="text-foreground/50 text-sm">Track active and historical work orders assigned to your team.</p>
                     </div>
                 )}
+
+                {/* ACCOUNTS TAB */}
+                {activeView === 'accounts' && (() => {
+                    const getInitials = (name: string) => name.split(" ").map((p: string) => p[0]).join("").slice(0, 2).toUpperCase();
+                    const fmtLogin = (dt: string | null) => {
+                        if (!dt) return "Never";
+                        const diff = Date.now() - new Date(dt).getTime();
+                        const mins = Math.floor(diff / 60000);
+                        if (mins < 1) return "Just now";
+                        if (mins < 60) return mins + "m ago";
+                        const hrs = Math.floor(mins / 60);
+                        if (hrs < 24) return hrs + "h ago";
+                        const days = Math.floor(hrs / 24);
+                        if (days === 1) return "Yesterday";
+                        if (days < 30) return days + "d ago";
+                        return new Date(dt).toLocaleDateString();
+                    };
+                    const filtered = barangayUsers.filter(u => {
+                        const q = debouncedUserSearch.toLowerCase();
+                        const matchSearch = !q || u.full_name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+                        const matchStatus = userStatusFilter === "all" || (userStatusFilter === "active" ? u.is_active : !u.is_active);
+                        return matchSearch && matchStatus;
+                    });
+                    const totalPages = Math.max(1, Math.ceil(filtered.length / USER_PAGE_SIZE));
+                    const paged = filtered.slice((userPage - 1) * USER_PAGE_SIZE, userPage * USER_PAGE_SIZE);
+                    return (
+                        <div className="flex flex-col gap-5 animate-slide-up" onClick={() => userActionsMenu !== null && setUserActionsMenu(null)}>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h1 className="text-2xl font-bold text-foreground tracking-tight">Cleaner <span className="text-primary">Accounts</span></h1>
+                                    <p className="text-foreground/50 text-sm mt-1">{barangayUsers.length} cleaner{barangayUsers.length !== 1 ? 's' : ''} &middot; {user.barangay_assignment}</p>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <button onClick={(e) => { e.stopPropagation(); handleExportCleanersCSV(); }} className="flex items-center gap-2 px-4 py-2 glass border border-border text-foreground/70 text-xs font-bold rounded-xl hover:bg-foreground/10 transition-colors uppercase tracking-widest">
+                                        <FileDown size={14} /> Export CSV
+                                    </button>
+                                    <button onClick={(e) => { e.stopPropagation(); setShowCreateCleanerModal(true); }} className="flex items-center gap-2 px-4 py-2 eco-gradient text-white text-xs font-bold rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-widest">
+                                        <Plus size={14} /> Create Cleaner
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="glass-pro rounded-2xl p-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                                <div className="relative flex-1 min-w-[200px]">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={15} />
+                                    <input type="text" value={userSearch} onChange={e => { setUserSearch(e.target.value); setUserPage(1); }} placeholder="Search name or email..." className="w-full pl-9 pr-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm placeholder:text-foreground/40 focus:border-primary focus:outline-none" />
+                                </div>
+                                <select value={userStatusFilter} onChange={e => { setUserStatusFilter(e.target.value); setUserPage(1); }} className="px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:border-primary focus:outline-none">
+                                    <option value="all">All Status</option>
+                                    <option value="active">Active</option>
+                                    <option value="disabled">Disabled</option>
+                                </select>
+                                <span className="text-xs text-foreground/40 font-medium shrink-0">{filtered.length} result{filtered.length !== 1 ? 's' : ''}</span>
+                            </div>
+                            <div className="glass-pro rounded-2xl overflow-hidden">
+                                {userLoading ? (
+                                    <div className="p-12 text-center text-foreground/50 text-sm">Loading accounts...</div>
+                                ) : paged.length === 0 ? (
+                                    <div className="p-12 text-center text-foreground/50 font-bold">No cleaners found.</div>
+                                ) : (
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="border-b border-border text-[10px] text-foreground/40 uppercase tracking-[0.1em] bg-black/20">
+                                                <th className="px-5 py-3">Full Name</th>
+                                                <th className="px-5 py-3">Email</th>
+                                                <th className="px-5 py-3">Phone</th>
+                                                <th className="px-5 py-3">Status</th>
+                                                <th className="px-5 py-3">Last Login</th>
+                                                <th className="px-5 py-3 text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {paged.map(u => (
+                                                <tr key={u.id} className="border-b border-border hover:bg-foreground/5 transition-colors">
+                                                    <td className="px-5 py-3">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-[11px] font-bold text-blue-300 shrink-0">
+                                                                {getInitials(u.full_name)}
+                                                            </div>
+                                                            <span className="text-sm font-semibold text-foreground">{u.full_name}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-5 py-3 text-sm text-foreground/70 font-mono">{u.email}</td>
+                                                    <td className="px-5 py-3 text-sm text-foreground/60">{u.phone_number ?? <span className="text-foreground/30">--</span>}</td>
+                                                    <td className="px-5 py-3">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className={"w-1.5 h-1.5 rounded-full shrink-0 " + (u.is_active ? "bg-emerald-400" : "bg-red-400")} />
+                                                            <span className={"px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider " + (u.is_active ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400")}>
+                                                                {u.is_active ? "Active" : "Disabled"}
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-5 py-3 text-sm text-foreground/50">{fmtLogin(u.last_login_at)}</td>
+                                                    <td className="px-5 py-3 text-right">
+                                                        <div className="relative inline-block" onClick={e => e.stopPropagation()}>
+                                                            <button onClick={() => setUserActionsMenu(userActionsMenu === u.id ? null : u.id)} className="p-2 rounded-lg hover:bg-foreground/10 text-foreground/50 hover:text-foreground transition-colors">
+                                                                <MoreVertical size={16} />
+                                                            </button>
+                                                            {userActionsMenu === u.id && (
+                                                                <div className="absolute right-0 top-full mt-1 w-48 glass border border-border rounded-xl shadow-2xl z-50 overflow-hidden">
+                                                                    <button onClick={() => openEditCleaner(u)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-foreground/10 transition-colors text-left">
+                                                                        <Edit2 size={14} className="text-foreground/50" /> Edit Account
+                                                                    </button>
+                                                                    <button onClick={() => openResetPasswordBrgy(u)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-foreground/10 transition-colors text-left">
+                                                                        <Key size={14} className="text-foreground/50" /> Reset Password
+                                                                    </button>
+                                                                    <div className="border-t border-border" />
+                                                                    {u.is_active ? (
+                                                                        <button onClick={() => { setUserActionsMenu(null); handleDisableBrgyUser(u.id); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors text-left">
+                                                                            <UserX size={14} /> Disable Account
+                                                                        </button>
+                                                                    ) : (
+                                                                        <button onClick={() => { setUserActionsMenu(null); handleReactivateBrgyUser(u.id); }} disabled={reactivating.has(u.id)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-emerald-400 hover:bg-emerald-500/10 transition-colors text-left disabled:opacity-50">
+                                                                            <UserCheck size={14} /> {reactivating.has(u.id) ? "Reactivating..." : "Reactivate"}
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
+                            </div>
+                            {totalPages > 1 && (
+                                <div className="flex items-center justify-between text-xs text-foreground/50">
+                                    <span>Page {userPage} of {totalPages}</span>
+                                    <div className="flex gap-2">
+                                        <button disabled={userPage === 1} onClick={() => setUserPage(p => p - 1)} className="px-3 py-1.5 glass border border-border rounded-lg disabled:opacity-30 hover:bg-foreground/10 transition-colors">Prev</button>
+                                        <button disabled={userPage === totalPages} onClick={() => setUserPage(p => p + 1)} className="px-3 py-1.5 glass border border-border rounded-lg disabled:opacity-30 hover:bg-foreground/10 transition-colors">Next</button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
 
                 {/* REPORTS VIEW + CLEANERS VIEW share the glass-pro table container below */}
                 {(activeView === 'reports' || activeView === 'cleaners') && (
@@ -964,6 +1279,152 @@ export default function BarangayPortal() {
                             >
                                 {newCleanerLoading ? "Disabling..." : "Disable"}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+
+            {/* C1 - Create Cleaner Modal */}
+            {showCreateCleanerModal && (
+                <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="glass p-0 max-w-md w-full rounded-2xl border border-border shadow-2xl animate-in zoom-in-95 duration-300">
+                        <div className="px-6 pt-6 pb-4 border-b border-border">
+                            <h3 className="text-lg font-bold text-foreground">Create Cleaner Account</h3>
+                            <p className="text-xs text-foreground/50 mt-1">A temporary password will be generated upon creation.</p>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1.5">Full Name *</label>
+                                <input type="text" value={createCleanerForm.full_name} onChange={e => setCreateCleanerForm(f => ({ ...f, full_name: e.target.value }))} placeholder="Juan dela Cruz" className="w-full px-3 py-2 glass border border-border rounded-lg text-sm text-foreground placeholder-foreground/30 focus:outline-none focus:border-primary" />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1.5">Email Address *</label>
+                                <input type="email" value={createCleanerForm.email} onChange={e => setCreateCleanerForm(f => ({ ...f, email: e.target.value }))} placeholder="juan@example.com" className="w-full px-3 py-2 glass border border-border rounded-lg text-sm text-foreground placeholder-foreground/30 focus:outline-none focus:border-primary" />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1.5">Phone <span className="normal-case text-foreground/30 font-normal">(optional)</span></label>
+                                <input type="tel" value={createCleanerForm.phone_number} onChange={e => setCreateCleanerForm(f => ({ ...f, phone_number: e.target.value }))} placeholder="+63 912 345 6789" className="w-full px-3 py-2 glass border border-border rounded-lg text-sm text-foreground placeholder-foreground/30 focus:outline-none focus:border-primary" />
+                            </div>
+                            <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-3 text-xs text-blue-300/80">
+                                Account will be assigned to <strong>{user.barangay_assignment}</strong> with role <strong>Cleaner</strong>.
+                            </div>
+                            <div className="flex gap-3 pt-1">
+                                <button onClick={() => { setShowCreateCleanerModal(false); setCreateCleanerForm({ full_name: "", email: "", phone_number: "" }); }} disabled={createCleanerPending} className="flex-1 px-4 py-2.5 glass border border-border text-foreground/70 text-sm font-bold rounded-xl hover:bg-foreground/10 transition-colors">Cancel</button>
+                                <button onClick={handleCreateCleaner} disabled={createCleanerPending} className="flex-1 px-4 py-2.5 eco-gradient text-white text-sm font-bold rounded-xl shadow-lg shadow-primary/20 disabled:opacity-50 transition-all">
+                                    {createCleanerPending ? "Creating..." : "Generate Account"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* C2 - Cleaner Created Password Modal */}
+            {showCleanerPasswordModal && (
+                <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="glass p-6 max-w-md w-full rounded-2xl border border-border shadow-2xl animate-in zoom-in-95 duration-300">
+                        <h3 className="text-lg font-bold text-foreground mb-1">Account Created</h3>
+                        <p className="text-xs text-foreground/50 mb-4">Share these credentials. Password shown once only.</p>
+                        <div className="space-y-2 mb-4">
+                            <div className="bg-black/40 border border-border rounded-lg p-3">
+                                <div className="text-[10px] text-foreground/40 uppercase tracking-widest mb-0.5">Email</div>
+                                <div className="font-mono text-sm text-foreground">{cleanerTempEmail}</div>
+                            </div>
+                            <div className="bg-black/40 border border-border rounded-lg p-3">
+                                <div className="text-[10px] text-foreground/40 uppercase tracking-widest mb-0.5">Temporary Password</div>
+                                <div className="font-mono text-emerald-400 text-sm tracking-wider">{cleanerTempPassword}</div>
+                            </div>
+                        </div>
+                        <button onClick={() => { navigator.clipboard.writeText(cleanerTempPassword); toast.success("Password copied!"); }} className="w-full px-4 py-2 bg-primary text-primary-foreground text-sm font-bold rounded-xl hover:bg-primary/80 transition-colors mb-2">Copy Password</button>
+                        <button onClick={() => { setShowCleanerPasswordModal(false); setCleanerTempPassword(""); setCleanerTempEmail(""); }} className="w-full px-4 py-2 glass border border-border text-foreground text-sm font-bold rounded-xl hover:bg-foreground/10 transition-colors">Done</button>
+                    </div>
+                </div>
+            )}
+
+            {/* C3 - Edit Cleaner Modal */}
+            {showEditCleanerModal && editTarget && (
+                <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="glass p-0 max-w-md w-full rounded-2xl border border-border shadow-2xl animate-in zoom-in-95 duration-300">
+                        <div className="px-6 pt-6 pb-4 border-b border-border flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-bold text-foreground">Edit Account</h3>
+                                <p className="text-xs text-foreground/50 mt-0.5">ID #{editTarget.id}</p>
+                            </div>
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-500/20 text-blue-400">Cleaner</span>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1.5">Full Name</label>
+                                <input type="text" value={editForm.full_name} onChange={e => setEditForm(f => ({ ...f, full_name: e.target.value }))} className="w-full px-3 py-2 glass border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1.5">Email</label>
+                                    <input type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} className="w-full px-3 py-2 glass border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary" />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1.5">Phone</label>
+                                    <input type="tel" value={editForm.phone_number} onChange={e => setEditForm(f => ({ ...f, phone_number: e.target.value }))} placeholder="+63 912 345 6789" className="w-full px-3 py-2 glass border border-border rounded-lg text-sm text-foreground placeholder-foreground/30 focus:outline-none focus:border-primary" />
+                                </div>
+                            </div>
+                            <div className="flex gap-3 pt-1">
+                                <button onClick={() => { setShowEditCleanerModal(false); setEditTarget(null); }} disabled={editPending} className="flex-1 px-4 py-2.5 glass border border-border text-foreground/70 text-sm font-bold rounded-xl hover:bg-foreground/10 transition-colors">Cancel</button>
+                                <button onClick={handleEditCleaner} disabled={editPending} className="flex-1 px-4 py-2.5 eco-gradient text-white text-sm font-bold rounded-xl shadow-lg shadow-primary/20 disabled:opacity-50 transition-all">
+                                    {editPending ? "Saving..." : "Save Changes"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* C4 - Reset Password Modal */}
+            {showResetPasswordModal && resetTarget && (
+                <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="glass p-0 max-w-md w-full rounded-2xl border border-border shadow-2xl animate-in zoom-in-95 duration-300">
+                        <div className="px-6 pt-6 pb-4 border-b border-border">
+                            <h3 className="text-lg font-bold text-foreground">Reset Password</h3>
+                            <p className="text-xs text-foreground/50 mt-0.5">For <strong className="text-foreground">{resetTarget.full_name}</strong></p>
+                        </div>
+                        <div className="p-6">
+                            {!resetCredential ? (
+                                <div className="space-y-4">
+                                    <p className="text-sm text-foreground/70">A new temporary password will be generated. The old password is immediately invalidated.</p>
+                                    <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-3 text-xs text-yellow-300/80">
+                                        This action cannot be undone.
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <button onClick={() => { setShowResetPasswordModal(false); setResetTarget(null); }} disabled={resetPending} className="flex-1 px-4 py-2.5 glass border border-border text-foreground/70 text-sm font-bold rounded-xl hover:bg-foreground/10 transition-colors">Cancel</button>
+                                        <button onClick={handleResetPasswordBrgy} disabled={resetPending} className="flex-1 px-4 py-2.5 bg-orange-500/20 border border-orange-500/30 text-orange-400 text-sm font-bold rounded-xl hover:bg-orange-500/30 transition-colors disabled:opacity-50">
+                                            {resetPending ? "Resetting..." : "Reveal Temp Password"}
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <p className="text-xs text-foreground/50">Share securely. Password shown once only.</p>
+                                    <div className="space-y-2">
+                                        <div className="bg-black/40 border border-border rounded-lg p-3">
+                                            <div className="text-[10px] text-foreground/40 uppercase tracking-widest mb-0.5">Email</div>
+                                            <div className="font-mono text-sm text-foreground">{resetCredential.email}</div>
+                                        </div>
+                                        <div className="bg-black/40 border border-border rounded-lg p-3">
+                                            <div className="flex items-center justify-between mb-0.5">
+                                                <div className="text-[10px] text-foreground/40 uppercase tracking-widest">Temporary Password</div>
+                                                <button onClick={() => setResetPasswordVisible(v => !v)} className="text-foreground/40 hover:text-foreground transition-colors">
+                                                    {resetPasswordVisible ? <EyeOff size={13} /> : <Eye size={13} />}
+                                                </button>
+                                            </div>
+                                            <div className="font-mono text-sm text-emerald-400 tracking-wider">
+                                                {resetPasswordVisible ? resetCredential.password : resetCredential.password.replace(/./g, ".")}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => { navigator.clipboard.writeText(resetCredential.password); toast.success("Copied!"); }} className="w-full px-4 py-2 bg-primary text-primary-foreground text-sm font-bold rounded-xl hover:bg-primary/80 transition-colors mb-1">Copy Password</button>
+                                    <button onClick={() => { setShowResetPasswordModal(false); setResetTarget(null); setResetCredential(null); setResetPasswordVisible(false); }} className="w-full px-4 py-2 glass border border-border text-foreground text-sm font-bold rounded-xl hover:bg-foreground/10 transition-colors">Done</button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
