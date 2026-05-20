@@ -41,6 +41,8 @@ models.Base.metadata.create_all(bind=engine)
 with engine.connect() as _conn:
     for _ddl in (
         "ALTER TABLE reports ADD COLUMN deployment_notes TEXT",
+        "ALTER TABLE users ADD COLUMN phone_number TEXT",
+        "ALTER TABLE users ADD COLUMN last_login_at DATETIME",
     ):
         try:
             _conn.execute(text(_ddl))
@@ -106,7 +108,10 @@ class UserResponse(BaseModel):
     full_name: str
     role: str
     barangay_assignment: Optional[str] = None
+    phone_number: Optional[str] = None
     is_active: bool = True
+    created_at: Optional[datetime] = None
+    last_login_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -115,8 +120,16 @@ class UserResponse(BaseModel):
 class CreateBarangayUserRequest(BaseModel):
     email: str
     full_name: str
-    barangay_assignment: Optional[str] = None  # required for barangay/cleaner roles; ignored for CENRO admins
-    role: Optional[str] = "barangay"  # "barangay" | "cleaner" | "cenro"
+    barangay_assignment: Optional[str] = None
+    phone_number: Optional[str] = None
+    role: Optional[str] = "barangay"  # citizen | barangay | cleaner | cenro
+
+
+class UpdateUserRequest(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    phone_number: Optional[str] = None
+    barangay_assignment: Optional[str] = None
 
 
 class CreateBarangayUserResponse(BaseModel):
@@ -417,6 +430,9 @@ async def login(req: LoginRequest, db: Session = Depends(get_db)):
             detail="Account disabled. Contact CENRO administrator.",
         )
 
+    user.last_login_at = datetime.utcnow()
+    db.commit()
+
     return {
         "success": True,
         "user": {
@@ -445,6 +461,7 @@ async def list_users(
 async def list_users_filtered(
     role: Optional[str] = None,
     is_active: Optional[bool] = None,
+    search: Optional[str] = None,
     db: Session = Depends(get_db),
     user: models.User = Depends(require_role("cenro", "barangay")),
 ):
@@ -457,7 +474,6 @@ async def list_users_filtered(
     query = db.query(models.User)
 
     if user.role == "barangay":
-        # Barangay can only see cleaners in their barangay
         if not user.barangay_assignment:
             raise HTTPException(status_code=400, detail="Barangay user missing assignment")
         query = query.filter(
@@ -470,6 +486,12 @@ async def list_users_filtered(
 
     if is_active is not None:
         query = query.filter(models.User.is_active == is_active)
+
+    if search:
+        term = f"%{search.strip()}%"
+        query = query.filter(
+            or_(models.User.full_name.ilike(term), models.User.email.ilike(term))
+        )
 
     return query.order_by(models.User.created_at.desc()).all()
 
@@ -495,19 +517,19 @@ async def create_barangay_user(
 
     # Determine role and barangay_assignment based on caller
     if admin.role == "barangay":
-        # Barangay can only create cleaners in their own barangay
         if not admin.barangay_assignment:
             raise HTTPException(status_code=400, detail="Barangay user missing assignment")
         new_role = "cleaner"
         new_barangay = admin.barangay_assignment
     else:  # cenro
-        # CENRO specifies role and barangay_assignment
         new_role = (req.role or "barangay").lower()
         new_barangay = req.barangay_assignment
-        if new_role not in ("barangay", "cleaner"):
-            raise HTTPException(status_code=400, detail="role must be 'barangay' or 'cleaner'")
+        if new_role not in ("citizen", "barangay", "cleaner", "cenro"):
+            raise HTTPException(status_code=400, detail="role must be citizen, barangay, cleaner, or cenro")
         if new_role in ("barangay", "cleaner") and not new_barangay:
             raise HTTPException(status_code=400, detail="barangay_assignment required for barangay/cleaner roles")
+        if new_role in ("citizen", "cenro"):
+            new_barangay = None
 
     temporary_password = secrets.token_urlsafe(9)  # ~12 chars
     new_user = models.User(
@@ -516,6 +538,7 @@ async def create_barangay_user(
         full_name=req.full_name,
         role=new_role,
         barangay_assignment=new_barangay,
+        phone_number=req.phone_number,
         is_active=True,
     )
     db.add(new_user)
@@ -570,6 +593,179 @@ async def disable_user(
 
     return {"success": True, "message": f"User {target.email} disabled."}
 
+
+
+
+
+@app.put("/users/{user_id}/reactivate")
+async def reactivate_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(require_role("cenro", "barangay")),
+):
+    """Re-enable a previously disabled user account."""
+    target = db.query(models.User).filter(models.User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    if target.is_active:
+        raise HTTPException(status_code=400, detail="User is already active")
+    if admin.role == "barangay":
+        if target.role != "cleaner" or target.barangay_assignment != admin.barangay_assignment:
+            raise HTTPException(status_code=403, detail="Can only reactivate cleaners in your own barangay")
+    target.is_active = True
+    write_audit(db, admin.id, "reactivate_user", target.id, {"email": target.email}, target_type="user")
+    db.commit()
+    return {"success": True, "message": f"User {target.email} reactivated."}
+
+
+@app.put("/users/{user_id}", response_model=UserResponse)
+async def update_user(
+    user_id: int,
+    req: UpdateUserRequest,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(require_role("cenro", "barangay")),
+):
+    """Admin edit of a user profile (name, email, phone, barangay)."""
+    target = db.query(models.User).filter(models.User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    if admin.role == "barangay":
+        if target.role != "cleaner" or target.barangay_assignment != admin.barangay_assignment:
+            raise HTTPException(status_code=403, detail="Can only edit cleaners in your own barangay")
+    changed = []
+    if req.full_name is not None:
+        name = req.full_name.strip()
+        if len(name) < 2 or len(name) > 100:
+            raise HTTPException(status_code=422, detail="full_name must be 2-100 characters")
+        target.full_name = name
+        changed.append("full_name")
+    if req.email is not None:
+        email = req.email.strip().lower()
+        if not email:
+            raise HTTPException(status_code=422, detail="Email cannot be empty")
+        conflict = db.query(models.User).filter(models.User.email == email, models.User.id != user_id).first()
+        if conflict:
+            raise HTTPException(status_code=400, detail="Email already in use")
+        target.email = email
+        changed.append("email")
+    if req.phone_number is not None:
+        target.phone_number = req.phone_number.strip() or None
+        changed.append("phone_number")
+    if req.barangay_assignment is not None and admin.role == "cenro":
+        target.barangay_assignment = req.barangay_assignment or None
+        changed.append("barangay_assignment")
+    write_audit(db, admin.id, "edit_user", target.id, {"fields_changed": changed}, target_type="user")
+    db.commit()
+    db.refresh(target)
+    return target
+
+
+@app.post("/users/{user_id}/reset-password")
+async def reset_user_password(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(require_role("cenro", "barangay")),
+):
+    """Generate a new temporary password for a user and return it once."""
+    target = db.query(models.User).filter(models.User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    if admin.role == "barangay":
+        if target.role != "cleaner" or target.barangay_assignment != admin.barangay_assignment:
+            raise HTTPException(status_code=403, detail="Can only reset passwords for cleaners in your own barangay")
+    temporary_password = secrets.token_urlsafe(9)
+    target.password_hash = hash_password(temporary_password)
+    write_audit(db, admin.id, "reset_password", target.id, {"email": target.email}, target_type="user")
+    db.commit()
+    return {"success": True, "email": target.email, "temporary_password": temporary_password}
+
+
+@app.get("/users/export")
+async def export_users_csv(
+    role: Optional[str] = None,
+    is_active: Optional[bool] = None,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(require_role("cenro", "barangay")),
+):
+    """Export users as CSV. Respects the same scoping as GET /users."""
+    query = db.query(models.User)
+    if admin.role == "barangay":
+        if not admin.barangay_assignment:
+            raise HTTPException(status_code=400, detail="Barangay user missing assignment")
+        query = query.filter(models.User.role == "cleaner", models.User.barangay_assignment == admin.barangay_assignment)
+    else:
+        if role:
+            query = query.filter(models.User.role == role)
+    if is_active is not None:
+        query = query.filter(models.User.is_active == is_active)
+    users = query.order_by(models.User.created_at.desc()).all()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["id", "email", "full_name", "role", "barangay_assignment", "phone_number", "is_active", "created_at", "last_login_at"])
+    for u in users:
+        writer.writerow([
+            u.id, u.email, u.full_name, u.role,
+            u.barangay_assignment or "", u.phone_number or "", u.is_active,
+            u.created_at.isoformat() if u.created_at else "",
+            u.last_login_at.isoformat() if u.last_login_at else "",
+        ])
+    output.seek(0)
+    filename = f"ecowatch_accounts_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+    return StreamingResponse(iter([output.getvalue()]), media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"})
+
+
+@app.post("/users/import")
+async def import_users_csv(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(require_role("cenro")),
+):
+    """Bulk-import users from a CSV file. CENRO-only."""
+    contents = await file.read()
+    text_content = contents.decode("utf-8-sig", errors="replace")
+    reader = csv.DictReader(io.StringIO(text_content))
+    required_fields = {"email", "full_name", "role"}
+    fieldnames = set(f.strip() for f in (reader.fieldnames or []))
+    if not required_fields.issubset(fieldnames):
+        raise HTTPException(status_code=400, detail=f"CSV must include columns: {', '.join(required_fields)}")
+    results = []
+    created = 0
+    failed = 0
+    for i, row in enumerate(reader, start=2):
+        row = {k.strip(): (v.strip() if v else "") for k, v in row.items()}
+        email = row.get("email", "").lower()
+        full_name = row.get("full_name", "")
+        role = row.get("role", "").lower()
+        barangay = row.get("barangay_assignment", "") or None
+        phone = row.get("phone_number", "") or None
+        errors = []
+        if not email: errors.append("email required")
+        if not full_name: errors.append("full_name required")
+        if role not in ("citizen", "barangay", "cleaner", "cenro"): errors.append(f"invalid role '{role}'")
+        if role in ("barangay", "cleaner") and not barangay: errors.append("barangay_assignment required")
+        if errors:
+            results.append({"row": i, "email": email, "status": "error", "errors": errors})
+            failed += 1
+            continue
+        existing = db.query(models.User).filter(models.User.email == email).first()
+        if existing:
+            results.append({"row": i, "email": email, "status": "error", "errors": ["email already registered"]})
+            failed += 1
+            continue
+        temp_pw = secrets.token_urlsafe(9)
+        new_user = models.User(
+            email=email, password_hash=hash_password(temp_pw), full_name=full_name,
+            role=role, barangay_assignment=barangay if role in ("barangay", "cleaner") else None,
+            phone_number=phone, is_active=True,
+        )
+        db.add(new_user)
+        db.flush()
+        write_audit(db, admin.id, "import_user", new_user.id, {"email": email, "role": role}, target_type="user")
+        results.append({"row": i, "email": email, "status": "created", "temporary_password": temp_pw})
+        created += 1
+    db.commit()
+    return {"created": created, "failed": failed, "results": results}
 
 # ─────────────────────────────────────────────────────────
 # PROFILE MANAGEMENT (any authenticated user)

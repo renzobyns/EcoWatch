@@ -7,6 +7,7 @@ import { LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, XAx
 import {
     Search, Download, Plus, AlertTriangle, Copy, X,
     LayoutDashboard, Map, FileText, ShieldCheck, BarChart3, Building2, Image as ImageIcon, History, BookUser,
+    Phone, MoreVertical, Upload, FileDown, RefreshCw, Eye, EyeOff, Edit2, Key, UserCheck, UserX, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
@@ -139,7 +140,10 @@ interface BarangayUser {
     full_name: string;
     role: string;
     barangay_assignment: string | null;
+    phone_number: string | null;
     is_active: boolean;
+    created_at: string | null;
+    last_login_at: string | null;
 }
 
 export default function CenroDashboard() {
@@ -187,11 +191,32 @@ export default function CenroDashboard() {
     const [barangayUsers, setBarangayUsers] = useState<BarangayUser[]>([]);
     const [usersLoading, setUsersLoading] = useState(false);
     const [showCreateUserModal, setShowCreateUserModal] = useState(false);
-    const [createForm, setCreateForm] = useState({ email: "", full_name: "", barangay_assignment: "", role: "barangay" });
+    const [createForm, setCreateForm] = useState({ email: "", full_name: "", phone_number: "", barangay_assignment: "", role: "barangay" });
     const [createPending, setCreatePending] = useState(false);
     const [createdCredential, setCreatedCredential] = useState<{ email: string; password: string } | null>(null);
     const [disabling, setDisabling] = useState<Set<number>>(new Set());
+    const [reactivating, setReactivating] = useState<Set<number>>(new Set());
     const [userRoleFilter, setUserRoleFilter] = useState("all");
+    const [userStatusFilter, setUserStatusFilter] = useState("all");
+    const [userSearch, setUserSearch] = useState("");
+    const debouncedUserSearch = useDebounce(userSearch, 300);
+    const [userActionsMenu, setUserActionsMenu] = useState<number | null>(null);
+    const [showEditUserModal, setShowEditUserModal] = useState(false);
+    const [editTarget, setEditTarget] = useState<BarangayUser | null>(null);
+    const [editForm, setEditForm] = useState({ full_name: "", email: "", phone_number: "", barangay_assignment: "" });
+    const [editPending, setEditPending] = useState(false);
+    const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+    const [resetTarget, setResetTarget] = useState<BarangayUser | null>(null);
+    const [resetPending, setResetPending] = useState(false);
+    const [resetCredential, setResetCredential] = useState<{ email: string; password: string } | null>(null);
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [importStep, setImportStep] = useState(1);
+    const [importFile, setImportFile] = useState<File | null>(null);
+    const [importResults, setImportResults] = useState<any[]>([]);
+    const [importSummary, setImportSummary] = useState<{ created: number; failed: number } | null>(null);
+    const [importPending, setImportPending] = useState(false);
+    const [userPage, setUserPage] = useState(1);
+    const USER_PAGE_SIZE = 8;
 
     // Auth + initial load
     useEffect(() => {
@@ -311,7 +336,7 @@ export default function CenroDashboard() {
     const fetchUsers = async () => {
         setUsersLoading(true);
         try {
-            const data = await api(`/users?role=barangay`);
+            const data = await api(`/users`);
             if (Array.isArray(data)) setBarangayUsers(data);
         } catch (err) {
             toast.error(err instanceof ApiError ? err.message : "Failed to load users");
@@ -322,26 +347,35 @@ export default function CenroDashboard() {
 
     useEffect(() => {
         if (activeTab !== 'users' || !user) return;
-        if (barangayUsers.length === 0) fetchUsers();
+        fetchUsers();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, user]);
 
     const handleCreateUser = async () => {
-        if (!createForm.email.trim() || !createForm.full_name.trim() || !createForm.barangay_assignment) {
-            toast.error("All fields are required.");
+        const needsBarangay = ["barangay", "cleaner"].includes(createForm.role);
+        if (!createForm.email.trim() || !createForm.full_name.trim()) {
+            toast.error("Email and full name are required.");
+            return;
+        }
+        if (needsBarangay && !createForm.barangay_assignment) {
+            toast.error("Barangay assignment is required for this role.");
             return;
         }
         setCreatePending(true);
         try {
-            const data = await api(`/users`, {
-                method: "POST",
-                body: JSON.stringify(createForm),
-            });
+            const payload: any = {
+                email: createForm.email.trim(),
+                full_name: createForm.full_name.trim(),
+                role: createForm.role,
+                phone_number: createForm.phone_number.trim() || null,
+            };
+            if (needsBarangay) payload.barangay_assignment = createForm.barangay_assignment;
+            const data = await api(`/users`, { method: "POST", body: JSON.stringify(payload) });
             if (data?.user && data?.temporary_password) {
                 setShowCreateUserModal(false);
                 setCreatedCredential({ email: data.user.email, password: data.temporary_password });
-                setCreateForm({ email: "", full_name: "", barangay_assignment: "" });
-                toast.success("Barangay account created.");
+                setCreateForm({ email: "", full_name: "", phone_number: "", barangay_assignment: "", role: "barangay" });
+                toast.success("Account created.");
                 fetchUsers();
             }
         } catch (err) {
@@ -349,6 +383,127 @@ export default function CenroDashboard() {
         } finally {
             setCreatePending(false);
         }
+    };
+
+    const handleReactivateUser = async (targetId: number, targetEmail: string) => {
+        if (!confirm(`Reactivate ${targetEmail}? They will be able to log in again.`)) return;
+        setReactivating((s) => new Set(s).add(targetId));
+        try {
+            await api(`/users/${targetId}/reactivate`, { method: "PUT" });
+            setBarangayUsers((prev) => prev.map((u) => (u.id === targetId ? { ...u, is_active: true } : u)));
+            toast.success("Account reactivated.");
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Failed to reactivate account");
+        } finally {
+            setReactivating((s) => { const n = new Set(s); n.delete(targetId); return n; });
+        }
+    };
+
+    const openEditUser = (u: BarangayUser) => {
+        setEditTarget(u);
+        setEditForm({ full_name: u.full_name, email: u.email, phone_number: u.phone_number || "", barangay_assignment: u.barangay_assignment || "" });
+        setShowEditUserModal(true);
+        setUserActionsMenu(null);
+    };
+
+    const handleEditUser = async () => {
+        if (!editTarget) return;
+        if (!editForm.full_name.trim() || !editForm.email.trim()) {
+            toast.error("Name and email are required.");
+            return;
+        }
+        setEditPending(true);
+        try {
+            const payload: any = {
+                full_name: editForm.full_name.trim(),
+                email: editForm.email.trim(),
+                phone_number: editForm.phone_number.trim() || null,
+            };
+            const needsBarangay = ["barangay", "cleaner"].includes(editTarget.role);
+            if (needsBarangay) payload.barangay_assignment = editForm.barangay_assignment || null;
+            const updated = await api(`/users/${editTarget.id}`, { method: "PUT", body: JSON.stringify(payload) });
+            setBarangayUsers((prev) => prev.map((u) => (u.id === editTarget.id ? { ...u, ...updated } : u)));
+            setShowEditUserModal(false);
+            toast.success("Account updated.");
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Failed to update account");
+        } finally {
+            setEditPending(false);
+        }
+    };
+
+    const openResetPassword = (u: BarangayUser) => {
+        setResetTarget(u);
+        setResetCredential(null);
+        setShowResetPasswordModal(true);
+        setUserActionsMenu(null);
+    };
+
+    const handleResetPassword = async () => {
+        if (!resetTarget) return;
+        setResetPending(true);
+        try {
+            const data = await api(`/users/${resetTarget.id}/reset-password`, { method: "POST" });
+            setResetCredential({ email: data.email, password: data.temporary_password });
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Failed to reset password");
+        } finally {
+            setResetPending(false);
+        }
+    };
+
+    const handleExportCSV = async () => {
+        try {
+            const storedUser = localStorage.getItem("ecowatch_user");
+            const userId = storedUser ? JSON.parse(storedUser).id : null;
+            const res = await fetch(`${API_URL}/users/export`, {
+                headers: { "X-User-Id": String(userId) },
+            });
+            if (!res.ok) throw new Error("Export failed");
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `ecowatch_accounts_${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+            toast.success("Accounts exported.");
+        } catch (err) {
+            toast.error("Export failed.");
+        }
+    };
+
+    const handleImportCSV = async () => {
+        if (!importFile) return;
+        setImportPending(true);
+        try {
+            const storedUser = localStorage.getItem("ecowatch_user");
+            const userId = storedUser ? JSON.parse(storedUser).id : null;
+            const formData = new FormData();
+            formData.append("file", importFile);
+            const res = await fetch(`${API_URL}/users/import`, {
+                method: "POST",
+                headers: { "X-User-Id": String(userId) },
+                body: formData,
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || "Import failed");
+            setImportResults(data.results || []);
+            setImportSummary({ created: data.created, failed: data.failed });
+            setImportStep(4);
+            fetchUsers();
+        } catch (err: any) {
+            toast.error(err.message || "Import failed");
+        } finally {
+            setImportPending(false);
+        }
+    };
+
+    const downloadImportTemplate = () => {
+        const csv = "email,full_name,role,barangay_assignment,phone_number\ncitizen@example.com,Juan dela Cruz,citizen,,09171234567\ncoord@example.com,Maria Santos,barangay,Muzon,\ncleaner@example.com,Pedro Reyes,cleaner,Muzon,";
+        downloadString(csv, "ecowatch_import_template.csv");
     };
 
     const handleDisableUser = async (targetId: number, targetEmail: string) => {
@@ -1099,100 +1254,218 @@ export default function CenroDashboard() {
                     </div>
                 )}
 
-                {activeTab === 'users' && (
-                    /* C2 — USER MANAGEMENT TAB */
-                    <div className="flex-1 glass rounded-2xl border border-border flex flex-col min-h-0 shadow-2xl">
-                        <div className="p-6 border-b border-border shrink-0">
-                            <div className="flex items-center justify-between gap-3 mb-4">
-                                <div>
-                                    <h2 className="text-lg font-semibold text-foreground">System Accounts</h2>
-                                    <p className="text-sm text-foreground/50">Manage barangay coordinators and cleanup team members.</p>
-                                </div>
-                                <button
-                                    onClick={() => setShowCreateUserModal(true)}
-                                    className="flex items-center gap-2 px-4 py-2 bg-primary/20 border border-primary/30 text-primary text-xs font-bold uppercase tracking-widest hover:bg-primary/30 rounded-lg transition-colors"
-                                >
-                                    <Plus size={14} />
-                                    Add Account
-                                </button>
+                {activeTab === 'users' && (() => {
+                    const ROLE_BADGE: Record<string, string> = {
+                        cenro: "bg-purple-500/20 text-purple-300 border border-purple-500/30",
+                        barangay: "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30",
+                        cleaner: "bg-blue-500/20 text-blue-300 border border-blue-500/30",
+                        citizen: "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30",
+                    };
+                    const ROLE_LABEL: Record<string, string> = {
+                        cenro: "CENRO Admin", barangay: "Barangay Coordinator", cleaner: "Cleanup Team", citizen: "Citizen",
+                    };
+                    const filtered = barangayUsers.filter((u) => {
+                        if (userRoleFilter !== "all" && u.role !== userRoleFilter) return false;
+                        if (userStatusFilter === "active" && !u.is_active) return false;
+                        if (userStatusFilter === "disabled" && u.is_active) return false;
+                        const q = debouncedUserSearch.toLowerCase();
+                        if (q && !u.full_name.toLowerCase().includes(q) && !u.email.toLowerCase().includes(q)) return false;
+                        return true;
+                    });
+                    const totalPages = Math.max(1, Math.ceil(filtered.length / USER_PAGE_SIZE));
+                    const pg = Math.min(userPage, totalPages);
+                    const paged = filtered.slice((pg - 1) * USER_PAGE_SIZE, pg * USER_PAGE_SIZE);
+                    const getInitials = (name: string) => name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
+                    const fmtLogin = (ts: string | null) => {
+                        if (!ts) return "Never";
+                        const d = new Date(ts);
+                        const diffMs = Date.now() - d.getTime();
+                        const mins = Math.floor(diffMs / 60000);
+                        if (mins < 2) return "Just now";
+                        if (mins < 60) return `${mins} mins ago`;
+                        const hrs = Math.floor(mins / 60);
+                        if (hrs < 24) return `${hrs} hr${hrs > 1 ? "s" : ""} ago`;
+                        const days = Math.floor(hrs / 24);
+                        if (days === 1) return "Yesterday";
+                        if (days < 30) return `${days} days ago`;
+                        return d.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
+                    };
+                    return (
+                    <div className="flex-1 flex flex-col min-h-0 gap-4">
+                        {/* Page header */}
+                        <div className="flex items-center justify-between gap-3 shrink-0">
+                            <div>
+                                <h2 className="text-lg font-semibold text-foreground">System Accounts</h2>
+                                <p className="text-xs text-foreground/50">Administrative control panel for EcoWatch user access.</p>
                             </div>
-                            <div className="flex gap-2">
-                                <select
-                                    value={userRoleFilter}
-                                    onChange={(e) => setUserRoleFilter(e.target.value)}
-                                    className="px-3 py-2 glass border border-border rounded-lg text-xs text-foreground focus:outline-none focus:border-primary"
-                                >
-                                    <option value="all">All Roles</option>
-                                    <option value="barangay">Barangay Coordinators</option>
-                                    <option value="cleaner">Cleanup Team Members</option>
-                                </select>
+                            <div className="flex items-center gap-2">
+                                <button onClick={handleExportCSV} className="flex items-center gap-2 px-3 py-2 glass border border-border text-foreground/70 text-xs font-bold hover:bg-foreground/10 rounded-lg transition-colors">
+                                    <FileDown size={13} /> Export CSV
+                                </button>
+                                <button onClick={() => { setImportStep(1); setImportFile(null); setImportResults([]); setImportSummary(null); setShowImportModal(true); }} className="flex items-center gap-2 px-3 py-2 glass border border-border text-foreground/70 text-xs font-bold hover:bg-foreground/10 rounded-lg transition-colors">
+                                    <Upload size={13} /> Import CSV
+                                </button>
+                                <button onClick={() => setShowCreateUserModal(true)} className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-emerald-400 text-white text-xs font-bold rounded-lg transition-colors shadow-lg shadow-primary/20">
+                                    <Plus size={13} /> Create Account
+                                </button>
                             </div>
                         </div>
 
-                        <div className="flex-1 overflow-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="border-b border-border text-xs text-foreground/40 uppercase tracking-widest bg-black/20 sticky top-0 z-10">
-                                        <th className="p-4">Email</th>
-                                        <th className="p-4">Full Name</th>
-                                        <th className="p-4">Role</th>
-                                        <th className="p-4">Barangay</th>
-                                        <th className="p-4">Status</th>
-                                        <th className="p-4 text-right">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {usersLoading ? (
-                                        Array.from({ length: 5 }).map((_, i) => (
-                                            <tr key={i} className="border-b border-border">
-                                                {Array.from({ length: 6 }).map((__, j) => (
-                                                    <td key={j} className="p-4"><div className="h-3 bg-foreground/10 rounded animate-pulse" /></td>
-                                                ))}
+                        {/* Filter bar */}
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 shrink-0">
+                            <div className="relative flex-1 min-w-[220px]">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={15} />
+                                <input
+                                    type="text"
+                                    value={userSearch}
+                                    onChange={(e) => { setUserSearch(e.target.value); setUserPage(1); }}
+                                    placeholder="Search accounts by name or email…"
+                                    className="w-full pl-9 pr-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm placeholder:text-foreground/40 focus:border-primary focus:outline-none"
+                                />
+                            </div>
+                            <select value={userRoleFilter} onChange={(e) => { setUserRoleFilter(e.target.value); setUserPage(1); }} className="px-3 py-2 glass border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary">
+                                <option value="all">All Roles</option>
+                                <option value="citizen">Citizen</option>
+                                <option value="barangay">Barangay Coordinator</option>
+                                <option value="cleaner">Cleanup Team</option>
+                                <option value="cenro">CENRO Admin</option>
+                            </select>
+                            <select value={userStatusFilter} onChange={(e) => { setUserStatusFilter(e.target.value); setUserPage(1); }} className="px-3 py-2 glass border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary">
+                                <option value="all">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="disabled">Disabled</option>
+                            </select>
+                            <span className="text-xs text-foreground/40 whitespace-nowrap">Showing {filtered.length} account{filtered.length !== 1 ? "s" : ""}</span>
+                        </div>
+
+                        {/* Table */}
+                        <div className="flex-1 glass rounded-2xl border border-border flex flex-col min-h-0 shadow-2xl overflow-hidden">
+                            <div className="flex-1 overflow-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="border-b border-border text-xs text-foreground/40 uppercase tracking-widest bg-black/20 sticky top-0 z-10">
+                                            <th className="p-4 pl-5 w-10"></th>
+                                            <th className="p-4">Full Name</th>
+                                            <th className="p-4">Email Address</th>
+                                            <th className="p-4">Role</th>
+                                            <th className="p-4">Barangay</th>
+                                            <th className="p-4">Phone Number</th>
+                                            <th className="p-4">Status</th>
+                                            <th className="p-4">Last Login</th>
+                                            <th className="p-4 w-10"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {usersLoading ? (
+                                            Array.from({ length: 5 }).map((_, i) => (
+                                                <tr key={i} className="border-b border-border">
+                                                    {Array.from({ length: 9 }).map((__, j) => (
+                                                        <td key={j} className="p-4"><div className="h-3 bg-foreground/10 rounded animate-pulse" /></td>
+                                                    ))}
+                                                </tr>
+                                            ))
+                                        ) : paged.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={9} className="p-12 text-center text-foreground/40">
+                                                    <div className="flex flex-col items-center gap-2">
+                                                        <UserX size={32} className="opacity-30" />
+                                                        <p className="font-bold">No accounts found</p>
+                                                        <p className="text-xs">Try adjusting your filters or create a new account.</p>
+                                                    </div>
+                                                </td>
                                             </tr>
-                                        ))
-                                    ) : barangayUsers.length === 0 ? (
-                                        <tr><td colSpan={6} className="p-12 text-center text-foreground/50 font-bold">No accounts yet. Click &quot;Add Account&quot; to onboard.</td></tr>
-                                    ) : (
-                                        barangayUsers
-                                            .filter((u) => userRoleFilter === "all" || u.role === userRoleFilter)
-                                            .map((u) => (
-                                            <tr key={u.id} className="border-b border-border hover:bg-foreground/5">
-                                                <td className="p-4 text-sm text-foreground">{u.email}</td>
-                                                <td className="p-4 text-sm text-foreground/80">{u.full_name}</td>
-                                                <td className="p-4 text-sm font-bold">
-                                                    <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${
-                                                        u.role === 'barangay' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-blue-500/20 text-blue-300'
-                                                    }`}>
-                                                        {u.role}
-                                                    </span>
-                                                </td>
-                                                <td className="p-4 text-sm font-bold text-emerald-300">{u.barangay_assignment || "—"}</td>
-                                                <td className="p-4">
-                                                    <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${u.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                                                        {u.is_active ? "Active" : "Disabled"}
-                                                    </span>
-                                                </td>
-                                                <td className="p-4 text-right">
-                                                    {u.is_active ? (
-                                                        <button
-                                                            onClick={() => handleDisableUser(u.id, u.email)}
-                                                            disabled={disabling.has(u.id)}
-                                                            className="px-3 py-1.5 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300 text-xs font-bold hover:bg-red-500/30 transition-colors disabled:opacity-50"
-                                                        >
-                                                            {disabling.has(u.id) ? "Disabling…" : "Disable"}
-                                                        </button>
-                                                    ) : (
-                                                        <span className="text-foreground/30 text-sm">—</span>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
+                                        ) : (
+                                            paged.map((u) => (
+                                                <tr key={u.id} className="border-b border-border hover:bg-foreground/5">
+                                                    <td className="p-4 pl-5 w-10"></td>
+                                                    <td className="p-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-xs font-bold shrink-0">
+                                                                {getInitials(u.full_name)}
+                                                            </div>
+                                                            <span className="text-sm font-medium text-foreground">{u.full_name}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-4 text-sm text-foreground/70 font-mono">{u.email}</td>
+                                                    <td className="p-4">
+                                                        <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${ROLE_BADGE[u.role] || "bg-foreground/10 text-foreground/60"}`}>
+                                                            {ROLE_LABEL[u.role] || u.role}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-4 text-sm text-foreground/70">{u.barangay_assignment || <span className="text-foreground/30">—</span>}</td>
+                                                    <td className="p-4 text-sm text-foreground/70">{u.phone_number || <span className="text-foreground/30 text-xs italic">No phone provided</span>}</td>
+                                                    <td className="p-4">
+                                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${u.is_active ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
+                                                            <span className={`w-1.5 h-1.5 rounded-full ${u.is_active ? "bg-green-400" : "bg-red-400"}`} />
+                                                            {u.is_active ? "Active" : "Disabled"}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-4 text-sm text-foreground/50">{fmtLogin(u.last_login_at)}</td>
+                                                    <td className="p-4 w-10">
+                                                        <div className="relative">
+                                                            <button onClick={() => setUserActionsMenu(userActionsMenu === u.id ? null : u.id)} className="p-1.5 rounded-lg hover:bg-foreground/10 text-foreground/50 hover:text-foreground transition-colors">
+                                                                <MoreVertical size={16} />
+                                                            </button>
+                                                            {userActionsMenu === u.id && (
+                                                                <div className="absolute right-0 top-full mt-1 z-50 w-44 glass border border-border rounded-xl shadow-2xl overflow-hidden">
+                                                                    <button onClick={() => openEditUser(u)} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-foreground/10 text-foreground transition-colors">
+                                                                        <Edit2 size={13} className="text-foreground/50" /> Edit Account
+                                                                    </button>
+                                                                    <button onClick={() => openResetPassword(u)} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-foreground/10 text-foreground transition-colors">
+                                                                        <Key size={13} className="text-foreground/50" /> Reset Password
+                                                                    </button>
+                                                                    <div className="border-t border-border" />
+                                                                    {u.is_active ? (
+                                                                        <button onClick={() => { handleDisableUser(u.id, u.email); setUserActionsMenu(null); }} disabled={disabling.has(u.id)} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-red-500/10 text-red-400 transition-colors disabled:opacity-50">
+                                                                            <UserX size={13} /> {disabling.has(u.id) ? "Disabling…" : "Disable"}
+                                                                        </button>
+                                                                    ) : (
+                                                                        <button onClick={() => { handleReactivateUser(u.id, u.email); setUserActionsMenu(null); }} disabled={reactivating.has(u.id)} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-green-500/10 text-green-400 transition-colors disabled:opacity-50">
+                                                                            <UserCheck size={13} /> {reactivating.has(u.id) ? "Reactivating…" : "Reactivate"}
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {totalPages > 1 && (
+                                <div className="border-t border-border px-5 py-3 flex items-center justify-between shrink-0">
+                                    <span className="text-xs text-foreground/40">Showing {(pg-1)*USER_PAGE_SIZE+1}–{Math.min(pg*USER_PAGE_SIZE, filtered.length)} of {filtered.length} entries</span>
+                                    <div className="flex items-center gap-1">
+                                        <button onClick={() => setUserPage((p) => Math.max(1, p-1))} disabled={pg === 1} className="p-1.5 rounded hover:bg-foreground/10 disabled:opacity-30 text-foreground/60"><ChevronLeft size={15} /></button>
+                                        {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((p) => (
+                                            <button key={p} onClick={() => setUserPage(p)} className={`w-7 h-7 rounded text-xs font-bold ${p === pg ? "bg-primary text-white" : "hover:bg-foreground/10 text-foreground/60"}`}>{p}</button>
+                                        ))}
+                                        <button onClick={() => setUserPage((p) => Math.min(totalPages, p+1))} disabled={pg === totalPages} className="p-1.5 rounded hover:bg-foreground/10 disabled:opacity-30 text-foreground/60"><ChevronRight size={15} /></button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Info cards */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0">
+                            <div className="glass rounded-xl border border-border p-4 flex items-start gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center shrink-0"><Upload size={15} className="text-emerald-400" /></div>
+                                <div><p className="text-xs font-bold text-foreground">Bulk Onboarding</p><p className="text-[11px] text-foreground/50 mt-0.5">Use the Import CSV tool to add multiple Barangay Coordinators at once.</p></div>
+                            </div>
+                            <div className="glass rounded-xl border border-border p-4 flex items-start gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-yellow-500/20 flex items-center justify-center shrink-0"><AlertTriangle size={15} className="text-yellow-400" /></div>
+                                <div><p className="text-xs font-bold text-foreground">Security Audit</p><p className="text-[11px] text-foreground/50 mt-0.5">Accounts with no activity for 30 days are automatically flagged for review.</p></div>
+                            </div>
+                            <div className="glass rounded-xl border border-border p-4 flex items-start gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0"><RefreshCw size={15} className="text-blue-400" /></div>
+                                <div><p className="text-xs font-bold text-foreground">Account Recovery</p><p className="text-[11px] text-foreground/50 mt-0.5">Admins can reactivate disabled accounts or reset credentials securely.</p></div>
+                            </div>
                         </div>
                     </div>
-                )}
+                    );
+                })()}
             </div>
 
             {/* Oversight Detail Modal */}
@@ -1258,69 +1531,257 @@ export default function CenroDashboard() {
                 </div>
             )}
 
-            {/* C2 — Create User Modal */}
+            {/* Create Account Modal */}
             {showCreateUserModal && (
-                <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                    <div className="glass max-w-md w-full rounded-2xl border border-emerald-500/30 overflow-hidden">
-                        <div className="bg-emerald-900/40 border-b border-emerald-500/30 px-6 py-4 flex items-center justify-between">
-                            <h2 className="text-base font-semibold text-foreground">New Account</h2>
-                            <button onClick={() => setShowCreateUserModal(false)} className="p-2 text-foreground/50 hover:text-foreground bg-foreground/5 hover:bg-foreground/10 rounded-full">
-                                <X size={18} />
-                            </button>
+                <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="glass max-w-md w-full rounded-2xl border border-border overflow-hidden shadow-2xl">
+                        <div className="px-6 py-5 border-b border-border flex items-center justify-between">
+                            <div><h2 className="text-base font-semibold text-foreground">Create New Account</h2><p className="text-xs text-foreground/50 mt-0.5">Provision a new system user with specific access rights.</p></div>
+                            <button onClick={() => setShowCreateUserModal(false)} className="p-2 text-foreground/50 hover:text-foreground bg-foreground/5 hover:bg-foreground/10 rounded-full transition-colors"><X size={18} /></button>
                         </div>
                         <div className="p-6 space-y-4">
                             <div>
-                                <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1 block">Role</label>
-                                <select
-                                    value={createForm.role}
-                                    onChange={(e) => setCreateForm({ ...createForm, role: e.target.value })}
-                                    className="w-full px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:border-primary focus:outline-none"
-                                >
+                                <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1.5 block">System Role <span className="text-red-400">*</span></label>
+                                <select value={createForm.role} onChange={(e) => setCreateForm({ ...createForm, role: e.target.value, barangay_assignment: "" })} className="w-full px-3 py-2.5 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:border-primary focus:outline-none">
+                                    <option value="">Select user role</option>
+                                    <option value="citizen">Citizen</option>
                                     <option value="barangay">Barangay Coordinator</option>
                                     <option value="cleaner">Cleanup Team Member</option>
+                                    <option value="cenro">CENRO Admin</option>
                                 </select>
                             </div>
-                            <div>
-                                <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1 block">Email</label>
-                                <input
-                                    type="email"
-                                    value={createForm.email}
-                                    onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-                                    placeholder="user@example.gov.ph"
-                                    className="w-full px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:border-primary focus:outline-none"
-                                />
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1.5 block">Full Name <span className="text-red-400">*</span></label>
+                                    <input type="text" value={createForm.full_name} onChange={(e) => setCreateForm({ ...createForm, full_name: e.target.value })} placeholder="e.g. Maria Clara" className="w-full px-3 py-2.5 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:border-primary focus:outline-none placeholder:text-foreground/30" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1.5 block">Phone Number</label>
+                                    <input type="tel" value={createForm.phone_number} onChange={(e) => setCreateForm({ ...createForm, phone_number: e.target.value })} placeholder="0912 345 6789" className="w-full px-3 py-2.5 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:border-primary focus:outline-none placeholder:text-foreground/30" />
+                                </div>
                             </div>
                             <div>
-                                <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1 block">Full Name</label>
-                                <input
-                                    type="text"
-                                    value={createForm.full_name}
-                                    onChange={(e) => setCreateForm({ ...createForm, full_name: e.target.value })}
-                                    placeholder="Juan dela Cruz"
-                                    className="w-full px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:border-primary focus:outline-none"
-                                />
+                                <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1.5 block">Email Address <span className="text-red-400">*</span></label>
+                                <input type="email" value={createForm.email} onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })} placeholder="m.clara@ecowatch.ph" className="w-full px-3 py-2.5 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:border-primary focus:outline-none placeholder:text-foreground/30" />
+                            </div>
+                            {["barangay", "cleaner"].includes(createForm.role) && (
+                                <div>
+                                    <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1.5 block">Barangay Assignment <span className="text-red-400">*</span></label>
+                                    <select value={createForm.barangay_assignment} onChange={(e) => setCreateForm({ ...createForm, barangay_assignment: e.target.value })} className="w-full px-3 py-2.5 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:border-primary focus:outline-none">
+                                        <option value="">Select barangay</option>
+                                        {BARANGAYS.map((b) => <option key={b} value={b}>{b}</option>)}
+                                    </select>
+                                </div>
+                            )}
+                            <div className="rounded-xl bg-foreground/5 border border-border p-4">
+                                <p className="text-[10px] font-bold text-foreground/60 uppercase tracking-widest mb-1">Security Notice</p>
+                                <p className="text-[11px] text-foreground/50 leading-relaxed">Account creation logs are audited. Temporary passwords are shown once only. Role permissions cannot be changed without admin approval.</p>
+                            </div>
+                            <div className="flex gap-3 pt-1">
+                                <button onClick={() => setShowCreateUserModal(false)} className="flex-1 py-2.5 glass border border-border text-foreground text-sm font-bold rounded-lg hover:bg-foreground/10 transition-colors">Cancel</button>
+                                <button onClick={handleCreateUser} disabled={createPending || !createForm.role || !createForm.email || !createForm.full_name} className="flex-1 py-2.5 bg-primary hover:bg-emerald-400 text-white text-sm font-bold rounded-lg shadow-lg shadow-primary/20 disabled:opacity-50 transition-colors">
+                                    {createPending ? "Creating..." : "Generate Account"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Account Modal */}
+            {showEditUserModal && editTarget && (
+                <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="glass max-w-md w-full rounded-2xl border border-border overflow-hidden shadow-2xl">
+                        <div className="px-6 py-5 border-b border-border flex items-center justify-between">
+                            <div><h2 className="text-base font-semibold text-foreground">Edit User Account</h2><p className="text-xs text-foreground/50 mt-0.5">Modify contact details for {editTarget.full_name}.</p></div>
+                            <button onClick={() => setShowEditUserModal(false)} className="p-2 text-foreground/50 hover:text-foreground bg-foreground/5 hover:bg-foreground/10 rounded-full transition-colors"><X size={18} /></button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div className="flex items-center gap-4 p-4 rounded-xl bg-foreground/5 border border-border">
+                                <div className="w-12 h-12 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary font-bold text-lg shrink-0">
+                                    {editTarget.full_name.split(" ").map((p: string) => p[0]).join("").slice(0,2).toUpperCase()}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-semibold text-foreground">{editTarget.full_name}</p>
+                                    <p className="text-xs text-foreground/50">ID: EW-{String(editTarget.id).padStart(4, "0")}</p>
+                                </div>
+                                <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${editTarget.role === "cenro" ? "bg-purple-500/20 text-purple-300" : editTarget.role === "barangay" ? "bg-emerald-500/20 text-emerald-300" : editTarget.role === "cleaner" ? "bg-blue-500/20 text-blue-300" : "bg-yellow-500/20 text-yellow-300"}`}>
+                                    {editTarget.role === "cenro" ? "CENRO Admin" : editTarget.role === "barangay" ? "Barangay Coordinator" : editTarget.role === "cleaner" ? "Cleanup Team" : "Citizen"}
+                                </span>
                             </div>
                             <div>
-                                <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1 block">Barangay Assignment</label>
-                                <select
-                                    value={createForm.barangay_assignment}
-                                    onChange={(e) => setCreateForm({ ...createForm, barangay_assignment: e.target.value })}
-                                    className="w-full px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:border-primary focus:outline-none"
-                                >
-                                    <option value="">Select barangay…</option>
-                                    {BARANGAYS.map((b) => (
-                                        <option key={b} value={b}>{b}</option>
-                                    ))}
-                                </select>
+                                <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1.5 block">Full Name</label>
+                                <input type="text" value={editForm.full_name} onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })} className="w-full px-3 py-2.5 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:border-primary focus:outline-none" />
                             </div>
-                            <p className="text-[11px] text-foreground/40 italic">A temporary password will be generated and shown once after submission.</p>
-                            <button
-                                onClick={handleCreateUser}
-                                disabled={createPending}
-                                className="w-full py-3 bg-primary hover:bg-emerald-400 text-white rounded-xl font-bold shadow-lg disabled:opacity-50"
-                            >
-                                {createPending ? "Creating…" : "Create Account"}
-                            </button>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1.5 block">Email Address</label>
+                                    <input type="email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} className="w-full px-3 py-2.5 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:border-primary focus:outline-none" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1.5 block">Phone Number</label>
+                                    <input type="tel" value={editForm.phone_number} onChange={(e) => setEditForm({ ...editForm, phone_number: e.target.value })} placeholder="+63 917 123 4567" className="w-full px-3 py-2.5 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:border-primary focus:outline-none placeholder:text-foreground/30" />
+                                </div>
+                            </div>
+                            {["barangay", "cleaner"].includes(editTarget.role) && (
+                                <div>
+                                    <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1.5 block">Barangay Assignment</label>
+                                    <select value={editForm.barangay_assignment} onChange={(e) => setEditForm({ ...editForm, barangay_assignment: e.target.value })} className="w-full px-3 py-2.5 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:border-primary focus:outline-none">
+                                        <option value="">Select barangay</option>
+                                        {BARANGAYS.map((b) => <option key={b} value={b}>{b}</option>)}
+                                    </select>
+                                    <p className="text-[10px] text-foreground/40 mt-1">Assigning a barangay restricts data visibility to that specific area only.</p>
+                                </div>
+                            )}
+                            <div className="flex gap-3 pt-1">
+                                <button onClick={() => setShowEditUserModal(false)} className="flex-1 py-2.5 glass border border-border text-foreground text-sm font-bold rounded-lg hover:bg-foreground/10 transition-colors">Cancel Changes</button>
+                                <button onClick={handleEditUser} disabled={editPending} className="flex-1 py-2.5 bg-primary hover:bg-emerald-400 text-white text-sm font-bold rounded-lg shadow-lg shadow-primary/20 disabled:opacity-50 transition-colors">
+                                    {editPending ? "Saving..." : "Save Changes"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Reset Password Modal */}
+            {showResetPasswordModal && resetTarget && (
+                <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="glass max-w-sm w-full rounded-2xl border border-border overflow-hidden shadow-2xl">
+                        <div className="px-6 py-5 border-b border-border flex items-center justify-between">
+                            <div className="flex items-center gap-2"><Key size={16} className="text-primary" /><h2 className="text-base font-semibold text-foreground">Security Management</h2></div>
+                            <button onClick={() => { setShowResetPasswordModal(false); setResetCredential(null); }} className="p-2 text-foreground/50 hover:text-foreground bg-foreground/5 hover:bg-foreground/10 rounded-full transition-colors"><X size={18} /></button>
+                        </div>
+                        <div className="p-6 space-y-4 text-center">
+                            <div className="w-16 h-16 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary font-bold text-2xl mx-auto">
+                                {resetTarget.full_name.split(" ").map((p: string) => p[0]).join("").slice(0,2).toUpperCase()}
+                            </div>
+                            {!resetCredential ? (
+                                <>
+                                    <div>
+                                        <h3 className="font-bold text-foreground text-lg">Reset Password?</h3>
+                                        <p className="text-sm text-foreground/50 mt-1">Resetting password for <strong className="text-foreground">{resetTarget.full_name}</strong> ({resetTarget.email}).</p>
+                                    </div>
+                                    <button onClick={handleResetPassword} disabled={resetPending} className="w-full py-3 bg-primary hover:bg-emerald-400 text-white font-bold rounded-xl shadow-lg shadow-primary/20 disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
+                                        <Eye size={16} /> {resetPending ? "Generating..." : "Reveal Temporary Password"}
+                                    </button>
+                                    <p className="text-[10px] text-foreground/30 uppercase tracking-widest">Authenticated Session Required</p>
+                                </>
+                            ) : (
+                                <>
+                                    <div><h3 className="font-bold text-green-400 text-lg">Password Reset!</h3><p className="text-xs text-foreground/50 mt-1">This password will not be shown again.</p></div>
+                                    <div className="text-left space-y-3">
+                                        <div>
+                                            <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1 block">Email</label>
+                                            <div className="px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm font-mono">{resetCredential.email}</div>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1 block">Temporary Password</label>
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex-1 px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm font-mono select-all break-all">{resetCredential.password}</div>
+                                                <button onClick={() => { navigator.clipboard.writeText(resetCredential!.password); toast.success("Copied!"); }} className="px-3 py-2 rounded-lg bg-primary/20 border border-primary/30 text-primary hover:bg-primary/30 transition-colors"><Copy size={15} /></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => { setShowResetPasswordModal(false); setResetCredential(null); }} className="w-full py-2.5 glass border border-border text-foreground text-sm font-bold rounded-lg hover:bg-foreground/10 transition-colors">Done</button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Import CSV Wizard */}
+            {showImportModal && (
+                <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="glass max-w-lg w-full rounded-2xl border border-border overflow-hidden shadow-2xl">
+                        <div className="px-6 py-5 border-b border-border flex items-center justify-between">
+                            <div className="flex items-center gap-3"><Upload size={16} className="text-primary" /><div><h2 className="text-base font-semibold text-foreground">Bulk Import Accounts</h2><p className="text-[10px] text-foreground/40 uppercase tracking-widest">Wizard Flow</p></div></div>
+                            <button onClick={() => setShowImportModal(false)} className="p-2 text-foreground/50 hover:text-foreground bg-foreground/5 hover:bg-foreground/10 rounded-full transition-colors"><X size={18} /></button>
+                        </div>
+                        <div className="flex items-center px-6 py-4 border-b border-border bg-black/10">
+                            {(["Upload", "Review", "Import", "Summary"] as const).map((label, i) => (
+                                <div key={label} className="flex items-center flex-1">
+                                    <div className={`flex items-center gap-2 ${i + 1 <= importStep ? "text-primary" : "text-foreground/30"}`}>
+                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${i + 1 < importStep ? "bg-primary text-white" : i + 1 === importStep ? "bg-primary/20 text-primary border border-primary" : "bg-foreground/10 text-foreground/30"}`}>{i + 1}</div>
+                                        <span className="text-xs font-bold hidden sm:block">{label}</span>
+                                    </div>
+                                    {i < 3 && <div className={`flex-1 h-px mx-2 ${i + 1 < importStep ? "bg-primary" : "bg-foreground/10"}`} />}
+                                </div>
+                            ))}
+                        </div>
+                        <div className="p-6">
+                            {importStep === 1 && (
+                                <div className="space-y-4">
+                                    <p className="text-sm text-foreground/60 text-center">Upload a .csv file containing user details to bulk create accounts.</p>
+                                    <label className="block border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors">
+                                        <Upload size={32} className="mx-auto mb-3 text-foreground/30" />
+                                        <p className="font-bold text-foreground">Drag and drop your file here</p>
+                                        <p className="text-xs text-foreground/50 mt-1">CSV files only (max. 10MB)</p>
+                                        <span className="mt-4 inline-block px-4 py-2 glass border border-border text-foreground text-sm font-bold rounded-lg">Choose File</span>
+                                        <input type="file" accept=".csv" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) setImportFile(f); }} />
+                                    </label>
+                                    {importFile && <p className="text-xs text-primary text-center font-bold">Selected: {importFile.name}</p>}
+                                    <button onClick={downloadImportTemplate} className="w-full flex items-center justify-center gap-2 px-4 py-3 glass border border-border text-foreground/70 text-sm rounded-xl hover:bg-foreground/10 transition-colors">
+                                        <FileDown size={14} /> Download EcoWatch CSV Template
+                                    </button>
+                                    <div className="flex gap-3">
+                                        <button onClick={() => setShowImportModal(false)} className="flex-1 py-2.5 glass border border-border text-foreground text-sm font-bold rounded-lg hover:bg-foreground/10 transition-colors">Cancel</button>
+                                        <button onClick={() => { if (importFile) setImportStep(2); else toast.error("Please select a file first."); }} className="flex-1 py-2.5 bg-primary hover:bg-emerald-400 text-white text-sm font-bold rounded-lg transition-colors">Continue</button>
+                                    </div>
+                                </div>
+                            )}
+                            {importStep === 2 && importFile && (
+                                <div className="space-y-4">
+                                    <div className="glass rounded-xl border border-border p-4 space-y-2">
+                                        <div className="flex items-center justify-between"><span className="text-xs text-foreground/50">File name</span><span className="text-xs font-bold text-foreground">{importFile.name}</span></div>
+                                        <div className="flex items-center justify-between"><span className="text-xs text-foreground/50">File size</span><span className="text-xs font-bold text-foreground">{(importFile.size / 1024).toFixed(1)} KB</span></div>
+                                    </div>
+                                    <div className="glass rounded-xl border border-border p-4">
+                                        <p className="text-xs font-bold text-foreground/60 uppercase tracking-widest mb-2">Expected CSV Columns</p>
+                                        <p className="text-xs font-mono text-foreground/70">email, full_name, role, barangay_assignment, phone_number</p>
+                                        <p className="text-[10px] text-foreground/40 mt-2">Valid roles: citizen, barangay, cleaner, cenro</p>
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <button onClick={() => setImportStep(1)} className="flex-1 py-2.5 glass border border-border text-foreground text-sm font-bold rounded-lg hover:bg-foreground/10 transition-colors">Back</button>
+                                        <button onClick={() => setImportStep(3)} className="flex-1 py-2.5 bg-primary hover:bg-emerald-400 text-white text-sm font-bold rounded-lg transition-colors">Continue</button>
+                                    </div>
+                                </div>
+                            )}
+                            {importStep === 3 && (
+                                <div className="space-y-4">
+                                    <p className="text-sm text-foreground/60 text-center">Ready to import. Accounts will be created for all valid rows.</p>
+                                    <div className="glass rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-center">
+                                        <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest">Ready to Process</p>
+                                        <p className="text-xs text-foreground/50 mt-1">EcoWatch is standing by for your file mapping.</p>
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <button onClick={() => setImportStep(2)} className="flex-1 py-2.5 glass border border-border text-foreground text-sm font-bold rounded-lg hover:bg-foreground/10 transition-colors">Back</button>
+                                        <button onClick={handleImportCSV} disabled={importPending} className="flex-1 py-2.5 bg-primary hover:bg-emerald-400 text-white text-sm font-bold rounded-lg disabled:opacity-50 transition-colors">
+                                            {importPending ? "Importing..." : "Start Import"}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                            {importStep === 4 && importSummary && (
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="glass rounded-xl border border-green-500/20 bg-green-500/5 p-4 text-center"><p className="text-2xl font-bold text-green-400">{importSummary.created}</p><p className="text-xs text-foreground/50 mt-1">Accounts Created</p></div>
+                                        <div className="glass rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-center"><p className="text-2xl font-bold text-red-400">{importSummary.failed}</p><p className="text-xs text-foreground/50 mt-1">Rows Failed</p></div>
+                                    </div>
+                                    {importResults.filter((r: any) => r.status === "error").length > 0 && (
+                                        <div className="max-h-40 overflow-auto space-y-1">
+                                            {importResults.filter((r: any) => r.status === "error").map((r: any) => (
+                                                <div key={r.row} className="flex items-start gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20">
+                                                    <AlertTriangle size={12} className="text-red-400 mt-0.5 shrink-0" />
+                                                    <p className="text-xs text-foreground/70"><span className="font-bold">Row {r.row}</span> ({r.email || "no email"}): {r.errors?.join(", ")}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                    <button onClick={() => setShowImportModal(false)} className="w-full py-2.5 bg-primary hover:bg-emerald-400 text-white text-sm font-bold rounded-lg transition-colors">Done</button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -1432,3 +1893,4 @@ export default function CenroDashboard() {
         </PortalShell>
     );
 }
+
