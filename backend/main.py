@@ -2238,3 +2238,134 @@ async def export_sla_report(
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+# ---------------------------------------------------------
+# CENRO ANALYTICS TAB - insights aggregation + CSV export
+# ---------------------------------------------------------
+
+@app.get("/analytics/insights")
+async def get_analytics_insights(
+    days: int = 30,
+    db: Session = Depends(get_db),
+    _user: models.User = Depends(require_role("cenro")),
+):
+    """Aggregated analytics for the CENRO Analytics tab.
+
+    Returns time-windowed KPIs (vs prior period), per-bucket trend series,
+    barangay leaderboard, lifecycle funnel, AI verification quality stats,
+    and response-time breakdown by priority. CENRO-only.
+    """
+    if days < 1 or days > 365:
+        raise HTTPException(status_code=400, detail="days must be between 1 and 365")
+
+    horizon_start = datetime.utcnow() - timedelta(days=days * 2 + 1)
+    reports = (
+        db.query(models.Report)
+        .filter(models.Report.created_at >= horizon_start)
+        .all()
+    )
+    work_orders = (
+        db.query(models.WorkOrder)
+        .filter(models.WorkOrder.created_at >= horizon_start)
+        .all()
+    )
+
+    return analytics.compute_insights(reports, work_orders, days=days)
+
+
+@app.get("/analytics/insights-export")
+async def export_analytics_insights(
+    days: int = 30,
+    db: Session = Depends(get_db),
+    _user: models.User = Depends(require_role("cenro")),
+):
+    """CSV export of the Analytics tab snapshot. CENRO-only."""
+    if days < 1 or days > 365:
+        raise HTTPException(status_code=400, detail="days must be between 1 and 365")
+
+    now = datetime.utcnow()
+    horizon_start = now - timedelta(days=days * 2 + 1)
+    reports = (
+        db.query(models.Report)
+        .filter(models.Report.created_at >= horizon_start)
+        .all()
+    )
+    work_orders = (
+        db.query(models.WorkOrder)
+        .filter(models.WorkOrder.created_at >= horizon_start)
+        .all()
+    )
+    data = analytics.compute_insights(reports, work_orders, days=days, now=now)
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+
+    writer.writerow(["EcoWatch SJDM - Analytics Insights Report"])
+    writer.writerow(["Generated", now.isoformat()])
+    writer.writerow(["Window (days)", days])
+    writer.writerow(["Granularity", data["window"]["granularity"]])
+    writer.writerow([])
+
+    cur = data["kpis"]["current"]
+    pri = data["kpis"]["prior"]
+    delta = data["kpis"]["delta"]
+    writer.writerow(["KPI Summary"])
+    writer.writerow(["Metric", "Current", "Prior Period", "Delta"])
+    writer.writerow(["Reports Submitted", cur["reports"], pri["reports"], delta["reports_pct"]])
+    writer.writerow(["Resolution Rate (%)", cur["resolution_rate"], pri["resolution_rate"], delta["resolution_rate_pts"]])
+    writer.writerow(["Avg Resolve Days", cur["avg_resolve_days"], pri["avg_resolve_days"], delta["avg_resolve_days_pct"]])
+    writer.writerow(["SLA Compliance (%)", cur["sla_compliance"], pri["sla_compliance"], delta["sla_compliance_pts"]])
+    writer.writerow([])
+
+    writer.writerow(["Trend Series"])
+    writer.writerow(["Date", "Submitted", "Resolved", "Rejected", "Avg AI Confidence"])
+    for pt in data["trend"]:
+        writer.writerow([pt["date"], pt["submitted"], pt["resolved"], pt["rejected"], pt["avg_confidence"] if pt["avg_confidence"] is not None else ""])
+    writer.writerow([])
+
+    writer.writerow(["Barangay Leaderboard"])
+    writer.writerow(["Barangay", "Total", "Resolved", "Deployed", "Pending", "Resolution Rate (%)", "Avg Resolve Days", "Prior Total", "Trend"])
+    for row in data["barangay_leaderboard"]:
+        writer.writerow([
+            row["barangay"], row["total"], row["resolved"], row["deployed"], row["pending"],
+            row["resolution_rate"], row["avg_resolve_days"], row["prior_total"], row["trend"],
+        ])
+    writer.writerow([])
+
+    writer.writerow(["Lifecycle Funnel"])
+    writer.writerow(["Stage", "Count"])
+    for stage in data["funnel"]["stages"]:
+        writer.writerow([stage["label"], stage["count"]])
+    for branch in data["funnel"]["branches"]:
+        writer.writerow([f"(off-funnel) {branch['label']}", branch["count"]])
+    writer.writerow([])
+
+    aiq = data["ai_quality"]
+    writer.writerow(["AI Verification Quality"])
+    writer.writerow(["Total Analyzed", aiq["total_analyzed"]])
+    writer.writerow(["Mean Confidence", aiq["mean_confidence"] if aiq["mean_confidence"] is not None else ""])
+    writer.writerow(["Mean Verified Confidence", aiq["mean_verified_confidence"] if aiq["mean_verified_confidence"] is not None else ""])
+    writer.writerow(["Rejected Count", aiq["rejected_count"]])
+    writer.writerow(["Verification Rate (%)", aiq["verification_rate"]])
+    writer.writerow(["AI Threshold", aiq["ai_threshold"]])
+    writer.writerow(["Confidence Bucket", "Count"])
+    for bucket in aiq["histogram"]:
+        writer.writerow([bucket["bucket"], bucket["count"]])
+    writer.writerow([])
+
+    writer.writerow(["Response Time by Priority"])
+    writer.writerow(["Priority", "Total WOs", "Avg Created->Deployed (hrs)", "Avg Deployed->Completed (hrs)", "Completed Count"])
+    for r in data["response_time_by_priority"]:
+        writer.writerow([
+            r["priority"], r["total_wos"],
+            r["avg_created_to_deployed_hours"] if r["avg_created_to_deployed_hours"] is not None else "",
+            r["avg_deployed_to_completed_hours"] if r["avg_deployed_to_completed_hours"] is not None else "",
+            r["completed_count"],
+        ])
+
+    filename = f"ecowatch_analytics_insights_{now.strftime('%Y%m%d_%H%M%S')}.csv"
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
