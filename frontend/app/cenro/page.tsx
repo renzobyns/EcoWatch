@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
 import { PortalShell, type PortalNavItem } from "@/components/portal/PortalShell";
 import { SlaManagementTab } from "@/components/portal/SlaManagementTab";
+import { AnalyticsTab, type InsightsData } from "@/components/portal/AnalyticsTab";
 
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -181,6 +182,13 @@ export default function CenroDashboard() {
     const [slaManagementLoading, setSlaManagementLoading] = useState(false);
     const [slaExporting, setSlaExporting] = useState(false);
 
+    // Analytics tab state
+    const [insightsData, setInsightsData] = useState<InsightsData | null>(null);
+    const [insightsLoading, setInsightsLoading] = useState(false);
+    const [insightsExporting, setInsightsExporting] = useState(false);
+    const [insightsWindowDays, setInsightsWindowDays] = useState(30);
+    const [insightsLastUpdated, setInsightsLastUpdated] = useState<Date | null>(null);
+
     // C4 — Oversight Queue filters
     const [queueReports, setQueueReports] = useState<any[]>([]);
     const [queueLoading, setQueueLoading] = useState(false);
@@ -320,6 +328,13 @@ export default function CenroDashboard() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, user]);
 
+
+    // Fetch Analytics insights when tab active OR window changes
+    useEffect(() => {
+        if (activeTab !== 'analytics' || !user) return;
+        fetchInsights(insightsWindowDays);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, user, insightsWindowDays]);
     // Client-side barangay filter (backend has no barangay query param on /reports/recent)
     const displayedQueueReports = oversightBarangay
         ? queueReports.filter((r) => r.barangay === oversightBarangay)
@@ -665,6 +680,44 @@ export default function CenroDashboard() {
         }
     };
 
+    const fetchInsights = async (days: number) => {
+        setInsightsLoading(true);
+        try {
+            const data = await api(`/analytics/insights?days=${days}`);
+            setInsightsData(data);
+            setInsightsLastUpdated(new Date());
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Failed to load analytics insights");
+        } finally {
+            setInsightsLoading(false);
+        }
+    };
+
+    const handleExportInsights = async () => {
+        setInsightsExporting(true);
+        try {
+            const storedUser = localStorage.getItem("ecowatch_user");
+            const userId = storedUser ? JSON.parse(storedUser).id : null;
+            const res = await fetch(`${API_URL}/analytics/insights-export?days=${insightsWindowDays}`, {
+                headers: { "X-User-Id": String(userId) },
+            });
+            if (!res.ok) throw new Error("Export failed");
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `ecowatch_analytics_${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+            toast.success("Analytics CSV exported.");
+        } catch (err) {
+            toast.error("Export failed.");
+        } finally {
+            setInsightsExporting(false);
+        }
+    };
     const handleExportAnalytics = () => {
         try {
             const overview = {
@@ -757,16 +810,26 @@ export default function CenroDashboard() {
         >
             <div className="max-w-[1600px] mx-auto h-full flex flex-col">
 
+                {/* ANALYTICS TAB */}
+                {activeTab === 'analytics' && (
+                    <AnalyticsTab
+                        loading={insightsLoading}
+                        data={insightsData}
+                        windowDays={insightsWindowDays}
+                        onWindowChange={setInsightsWindowDays}
+                        exporting={insightsExporting}
+                        onExport={handleExportInsights}
+                        onRefresh={() => fetchInsights(insightsWindowDays)}
+                        lastUpdated={insightsLastUpdated}
+                    />
+                )}
+
                 {/* Placeholder modules - remaining tabs */}
-                {(activeTab === 'analytics' || activeTab === 'barangay_management') && (
+                {activeTab === 'barangay_management' && (
                     <div className="glass-pro rounded-2xl p-12 text-center animate-slide-up">
-                        <h2 className="text-xl font-bold text-foreground mb-2">
-                            {activeTab === 'analytics' && 'Analytics'}
-                            {activeTab === 'barangay_management' && 'Barangay Management'}
-                        </h2>
+                        <h2 className="text-xl font-bold text-foreground mb-2">Barangay Management</h2>
                         <p className="text-foreground/50 text-sm max-w-xl mx-auto">
-                            {activeTab === 'analytics' && 'Trend charts, period comparisons, and barangay performance tables. Coming soon.'}
-                            {activeTab === 'barangay_management' && 'City-wide barangay performance and intervention queue. Coming soon.'}
+                            City-wide barangay performance and intervention queue. Coming soon.
                         </p>
                     </div>
                 )}
