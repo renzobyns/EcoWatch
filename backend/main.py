@@ -22,8 +22,13 @@ from ai_verifier import verifier
 import analytics
 
 # SLA config keys + defaults (CENRO-editable at runtime via /config/sla)
-SLA_CONFIG_KEYS = ("sla_low_days", "sla_medium_days", "sla_high_days")
-SLA_CONFIG_DEFAULTS = {"sla_low_days": "7", "sla_medium_days": "3", "sla_high_days": "1"}
+SLA_CONFIG_KEYS = ("sla_low_days", "sla_medium_days", "sla_high_days", "sla_compliance_target")
+SLA_CONFIG_DEFAULTS = {
+    "sla_low_days": "7",
+    "sla_medium_days": "3",
+    "sla_high_days": "1",
+    "sla_compliance_target": "95",
+}
 PRIORITY_KEY_MAP = {"low": "sla_low_days", "medium": "sla_medium_days", "high": "sla_high_days"}
 
 # Root logger configuration — single source of formatted output
@@ -141,6 +146,7 @@ class UpdateSlaConfigRequest(BaseModel):
     low_days: Optional[int] = None
     medium_days: Optional[int] = None
     high_days: Optional[int] = None
+    compliance_target: Optional[int] = None
 
 
 class CreateWorkOrderRequest(BaseModel):
@@ -180,6 +186,7 @@ class SlaConfigResponse(BaseModel):
     low: int
     medium: int
     high: int
+    compliance_target: int = 95
 
 
 class ReportResponse(BaseModel):
@@ -293,7 +300,7 @@ MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 
 
 def get_sla_policy(db: Session) -> dict:
-    """Return current SLA policy as {low, medium, high} integer day counts."""
+    """Return current SLA policy: priority day counts + compliance target %."""
     rows = db.query(models.SystemConfig).filter(models.SystemConfig.key.in_(SLA_CONFIG_KEYS)).all()
     policy = {k: int(SLA_CONFIG_DEFAULTS[k]) for k in SLA_CONFIG_DEFAULTS}
     for row in rows:
@@ -305,6 +312,7 @@ def get_sla_policy(db: Session) -> dict:
         "low": policy["sla_low_days"],
         "medium": policy["sla_medium_days"],
         "high": policy["sla_high_days"],
+        "compliance_target": policy["sla_compliance_target"],
     }
 
 
@@ -1703,11 +1711,21 @@ async def update_sla_config(
     updates = {}
 
     if req.low_days is not None:
+        if req.low_days < 1 or req.low_days > 365:
+            raise HTTPException(status_code=400, detail="low_days must be between 1 and 365")
         updates["sla_low_days"] = str(req.low_days)
     if req.medium_days is not None:
+        if req.medium_days < 1 or req.medium_days > 365:
+            raise HTTPException(status_code=400, detail="medium_days must be between 1 and 365")
         updates["sla_medium_days"] = str(req.medium_days)
     if req.high_days is not None:
+        if req.high_days < 1 or req.high_days > 365:
+            raise HTTPException(status_code=400, detail="high_days must be between 1 and 365")
         updates["sla_high_days"] = str(req.high_days)
+    if req.compliance_target is not None:
+        if req.compliance_target < 0 or req.compliance_target > 100:
+            raise HTTPException(status_code=400, detail="compliance_target must be between 0 and 100")
+        updates["sla_compliance_target"] = str(req.compliance_target)
 
     if not updates:
         return old_policy  # No changes
@@ -1914,3 +1932,309 @@ async def get_barangay_ranking(db: Session = Depends(get_db)):
     
     ranking.sort(key=lambda x: x["resolution_rate"], reverse=True)
     return ranking
+
+
+# ─────────────────────────────────────────────────────────
+# SLA MANAGEMENT (CENRO-only) - powers /cenro SLA Management tab
+# ─────────────────────────────────────────────────────────
+
+ACTIVE_WO_STATUSES = [
+    models.WorkOrderStatus.ASSIGNED,
+    models.WorkOrderStatus.IN_PROGRESS,
+    models.WorkOrderStatus.NEEDS_REDO,
+]
+
+TERMINAL_WO_STATUSES = [
+    models.WorkOrderStatus.COMPLETED,
+    models.WorkOrderStatus.VERIFIED,
+]
+
+
+def _serialize_breached_wo(wo: models.WorkOrder, now: datetime) -> dict:
+    """Serialize a breached work order with computed days/hours overdue."""
+    base = serialize_work_order(wo)
+    delta = now - wo.sla_deadline
+    overdue_seconds = max(int(delta.total_seconds()), 0)
+    base["overdue_seconds"] = overdue_seconds
+    base["overdue_hours"] = overdue_seconds // 3600
+    base["overdue_days"] = overdue_seconds // 86400
+    return base
+
+
+def _serialize_at_risk_wo(wo: models.WorkOrder, now: datetime) -> dict:
+    """Serialize an at-risk work order with computed time remaining."""
+    base = serialize_work_order(wo)
+    delta = wo.sla_deadline - now
+    remaining_seconds = max(int(delta.total_seconds()), 0)
+    base["remaining_seconds"] = remaining_seconds
+    base["remaining_hours"] = remaining_seconds // 3600
+    return base
+
+
+@app.get("/work-orders/breached")
+async def get_breached_work_orders(
+    db: Session = Depends(get_db),
+    _user: models.User = Depends(require_role("cenro")),
+):
+    """List all active work orders past their SLA deadline. CENRO-only."""
+    now = datetime.utcnow()
+    rows = (
+        db.query(models.WorkOrder)
+        .filter(
+            models.WorkOrder.status.in_(ACTIVE_WO_STATUSES),
+            models.WorkOrder.sla_deadline < now,
+        )
+        .order_by(models.WorkOrder.sla_deadline.asc())
+        .all()
+    )
+    return [_serialize_breached_wo(wo, now) for wo in rows]
+
+
+@app.get("/work-orders/at-risk")
+async def get_at_risk_work_orders(
+    hours: int = 24,
+    db: Session = Depends(get_db),
+    _user: models.User = Depends(require_role("cenro")),
+):
+    """List active WOs with deadline within next N hours (default 24). CENRO-only."""
+    if hours < 1 or hours > 168:
+        raise HTTPException(status_code=400, detail="hours must be between 1 and 168")
+    now = datetime.utcnow()
+    horizon = now + timedelta(hours=hours)
+    rows = (
+        db.query(models.WorkOrder)
+        .filter(
+            models.WorkOrder.status.in_(ACTIVE_WO_STATUSES),
+            models.WorkOrder.sla_deadline >= now,
+            models.WorkOrder.sla_deadline <= horizon,
+        )
+        .order_by(models.WorkOrder.sla_deadline.asc())
+        .all()
+    )
+    return [_serialize_at_risk_wo(wo, now) for wo in rows]
+
+
+def _compute_sla_compliance(db: Session) -> dict:
+    """Pure helper - city-wide + per-barangay SLA compliance stats from all WOs."""
+    now = datetime.utcnow()
+
+    all_wos = (
+        db.query(models.WorkOrder)
+        .join(models.Report, models.WorkOrder.report_id == models.Report.id)
+        .all()
+    )
+
+    total_completed = 0
+    on_time_completed = 0
+    resolution_seconds_total = 0
+    active_breaches = 0
+    at_risk_24h = 0
+
+    barangay_stats: dict = {}
+
+    horizon_24h = now + timedelta(hours=24)
+
+    for wo in all_wos:
+        bar = (wo.report.barangay if wo.report else None) or "Unassigned"
+        if bar not in barangay_stats:
+            barangay_stats[bar] = {
+                "total_wos": 0,
+                "total_completed": 0,
+                "on_time": 0,
+                "resolution_seconds_total": 0,
+                "active_breaches": 0,
+            }
+        bs = barangay_stats[bar]
+        bs["total_wos"] += 1
+
+        if wo.status in TERMINAL_WO_STATUSES and wo.completed_at:
+            total_completed += 1
+            bs["total_completed"] += 1
+            delta = (wo.completed_at - wo.created_at).total_seconds()
+            resolution_seconds_total += delta
+            bs["resolution_seconds_total"] += delta
+            if wo.completed_at <= wo.sla_deadline:
+                on_time_completed += 1
+                bs["on_time"] += 1
+        elif wo.status in ACTIVE_WO_STATUSES:
+            if wo.sla_deadline < now:
+                active_breaches += 1
+                bs["active_breaches"] += 1
+            elif wo.sla_deadline <= horizon_24h:
+                at_risk_24h += 1
+
+    city_compliance_rate = (on_time_completed / total_completed * 100) if total_completed > 0 else 0.0
+    avg_resolution_days = (
+        (resolution_seconds_total / total_completed / 86400) if total_completed > 0 else 0.0
+    )
+
+    by_barangay = []
+    for name, bs in barangay_stats.items():
+        rate = (bs["on_time"] / bs["total_completed"] * 100) if bs["total_completed"] > 0 else 0.0
+        avg_days = (
+            (bs["resolution_seconds_total"] / bs["total_completed"] / 86400)
+            if bs["total_completed"] > 0 else 0.0
+        )
+        by_barangay.append({
+            "barangay": name,
+            "total_wos": bs["total_wos"],
+            "total_completed": bs["total_completed"],
+            "on_time": bs["on_time"],
+            "compliance_rate": round(rate, 1),
+            "avg_resolution_days": round(avg_days, 2),
+            "active_breaches": bs["active_breaches"],
+        })
+
+    by_barangay.sort(key=lambda b: (b["compliance_rate"], -b["active_breaches"]))
+
+    return {
+        "city_wide": {
+            "compliance_rate": round(city_compliance_rate, 1),
+            "total_completed": total_completed,
+            "on_time": on_time_completed,
+            "avg_resolution_days": round(avg_resolution_days, 2),
+            "active_breaches": active_breaches,
+            "at_risk_24h": at_risk_24h,
+        },
+        "by_barangay": by_barangay,
+    }
+
+
+@app.get("/analytics/sla-compliance")
+async def get_sla_compliance(
+    db: Session = Depends(get_db),
+    _user: models.User = Depends(require_role("cenro")),
+):
+    """City-wide + per-barangay SLA compliance stats. CENRO-only."""
+    return _compute_sla_compliance(db)
+
+
+@app.get("/config/sla/history")
+async def get_sla_policy_history(
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    _user: models.User = Depends(require_role("cenro")),
+):
+    """Audit history of SLA policy changes. CENRO-only."""
+    if limit < 1 or limit > 200:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 200")
+
+    rows = (
+        db.query(models.AuditLog, models.User.email, models.User.full_name)
+        .outerjoin(models.User, models.AuditLog.user_id == models.User.id)
+        .filter(models.AuditLog.action == "update_sla_config")
+        .order_by(models.AuditLog.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+    entries = []
+    for log, user_email, user_full_name in rows:
+        try:
+            details = json.loads(log.details) if log.details else {}
+        except (ValueError, TypeError):
+            details = {}
+        entries.append({
+            "id": log.id,
+            "user_id": log.user_id,
+            "user_email": user_email,
+            "user_full_name": user_full_name,
+            "created_at": log.created_at,
+            "old_policy": details.get("old_policy"),
+            "new_policy": details.get("new_policy"),
+        })
+
+    # Latest changer (for "Last modified by X on Y")
+    last_modified = None
+    if entries:
+        last_modified = {
+            "user_email": entries[0]["user_email"],
+            "user_full_name": entries[0]["user_full_name"],
+            "created_at": entries[0]["created_at"],
+        }
+
+    return {"entries": entries, "last_modified": last_modified}
+
+
+@app.get("/analytics/sla-export")
+async def export_sla_report(
+    db: Session = Depends(get_db),
+    _user: models.User = Depends(require_role("cenro")),
+):
+    """CSV export of full SLA compliance report. CENRO-only."""
+    now = datetime.utcnow()
+    policy = get_sla_policy(db)
+    compliance_data = _compute_sla_compliance(db)
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+
+    writer.writerow(["EcoWatch SJDM - SLA Compliance Report"])
+    writer.writerow(["Generated", now.isoformat()])
+    writer.writerow([])
+
+    writer.writerow(["SLA Policy"])
+    writer.writerow(["Priority", "Days"])
+    writer.writerow(["Low", policy["low"]])
+    writer.writerow(["Medium", policy["medium"]])
+    writer.writerow(["High", policy["high"]])
+    writer.writerow(["Compliance Target (%)", policy["compliance_target"]])
+    writer.writerow([])
+
+    cw = compliance_data["city_wide"]
+    writer.writerow(["City-Wide Metrics"])
+    writer.writerow(["Metric", "Value"])
+    writer.writerow(["Compliance Rate (%)", cw["compliance_rate"]])
+    writer.writerow(["Total Completed WOs", cw["total_completed"]])
+    writer.writerow(["On-Time WOs", cw["on_time"]])
+    writer.writerow(["Avg Resolution (days)", cw["avg_resolution_days"]])
+    writer.writerow(["Active Breaches", cw["active_breaches"]])
+    writer.writerow(["At-Risk (next 24h)", cw["at_risk_24h"]])
+    writer.writerow([])
+
+    writer.writerow(["Per-Barangay Performance"])
+    writer.writerow([
+        "Barangay", "Total WOs", "Completed", "On-Time",
+        "Compliance Rate (%)", "Avg Resolution (days)", "Active Breaches",
+    ])
+    for b in compliance_data["by_barangay"]:
+        writer.writerow([
+            b["barangay"], b["total_wos"], b["total_completed"], b["on_time"],
+            b["compliance_rate"], b["avg_resolution_days"], b["active_breaches"],
+        ])
+    writer.writerow([])
+
+    breached = (
+        db.query(models.WorkOrder)
+        .filter(
+            models.WorkOrder.status.in_(ACTIVE_WO_STATUSES),
+            models.WorkOrder.sla_deadline < now,
+        )
+        .order_by(models.WorkOrder.sla_deadline.asc())
+        .all()
+    )
+    writer.writerow(["Active Breaches"])
+    writer.writerow([
+        "WO ID", "Tracking ID", "Barangay", "Priority",
+        "Cleaner", "Created At", "SLA Deadline", "Hours Overdue", "Status",
+    ])
+    for wo in breached:
+        overdue_h = int(max((now - wo.sla_deadline).total_seconds(), 0) // 3600)
+        writer.writerow([
+            wo.id,
+            wo.report.tracking_id if wo.report else "",
+            (wo.report.barangay if wo.report else "") or "",
+            wo.priority,
+            wo.assigned_cleaner.full_name if wo.assigned_cleaner else "Unassigned",
+            wo.created_at.isoformat() if wo.created_at else "",
+            wo.sla_deadline.isoformat() if wo.sla_deadline else "",
+            overdue_h,
+            wo.status,
+        ])
+
+    filename = f"ecowatch_sla_report_{now.strftime('%Y%m%d_%H%M%S')}.csv"
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

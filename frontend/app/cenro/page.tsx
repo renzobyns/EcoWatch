@@ -12,6 +12,7 @@ import {
 import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
 import { PortalShell, type PortalNavItem } from "@/components/portal/PortalShell";
+import { SlaManagementTab } from "@/components/portal/SlaManagementTab";
 
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -163,12 +164,22 @@ export default function CenroDashboard() {
 
     // C3 — SLA Breaches & Config
     const [slaBreaches, setSlaBreaches] = useState<any[]>([]);
-    const [slaPolicy, setSlaPolicy] = useState({ low: 7, medium: 3, high: 1 });
+    const [slaPolicy, setSlaPolicy] = useState({ low: 7, medium: 3, high: 1, compliance_target: 95 });
     const [showSlaModal, setShowSlaModal] = useState(false);
     const [slaDraftLow, setSlaDraftLow] = useState(7);
     const [slaDraftMed, setSlaDraftMed] = useState(3);
     const [slaDraftHigh, setSlaDraftHigh] = useState(1);
+    const [slaDraftTarget, setSlaDraftTarget] = useState(95);
     const [slaModalLoading, setSlaModalLoading] = useState(false);
+
+    // SLA Management tab data
+    const [slaCompliance, setSlaCompliance] = useState<any>(null);
+    const [breachedWOs, setBreachedWOs] = useState<any[]>([]);
+    const [atRiskWOs, setAtRiskWOs] = useState<any[]>([]);
+    const [slaHistory, setSlaHistory] = useState<any[]>([]);
+    const [slaLastModified, setSlaLastModified] = useState<any>(null);
+    const [slaManagementLoading, setSlaManagementLoading] = useState(false);
+    const [slaExporting, setSlaExporting] = useState(false);
 
     // C4 — Oversight Queue filters
     const [queueReports, setQueueReports] = useState<any[]>([]);
@@ -300,6 +311,14 @@ export default function CenroDashboard() {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab]);
+
+    // Fetch SLA Management data when tab becomes active
+    useEffect(() => {
+        if (activeTab !== 'sla_management' || !user) return;
+        fetchSlaPolicy();
+        fetchSlaManagementData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, user]);
 
     // Client-side barangay filter (backend has no barangay query param on /reports/recent)
     const displayedQueueReports = oversightBarangay
@@ -570,6 +589,7 @@ export default function CenroDashboard() {
             setSlaDraftLow(data.low);
             setSlaDraftMed(data.medium);
             setSlaDraftHigh(data.high);
+            setSlaDraftTarget(data.compliance_target ?? 95);
         } catch (err) {
             console.error("Failed to fetch SLA policy:", err);
         }
@@ -584,15 +604,64 @@ export default function CenroDashboard() {
                     low_days: parseInt(slaDraftLow.toString()),
                     medium_days: parseInt(slaDraftMed.toString()),
                     high_days: parseInt(slaDraftHigh.toString()),
+                    compliance_target: parseInt(slaDraftTarget.toString()),
                 }),
             });
             setSlaPolicy(data);
             setShowSlaModal(false);
             toast.success("SLA policy updated.");
+            if (activeTab === 'sla_management') fetchSlaManagementData();
         } catch (err) {
             toast.error(err instanceof ApiError ? err.message : "Failed to update SLA policy");
         } finally {
             setSlaModalLoading(false);
+        }
+    };
+
+    const fetchSlaManagementData = async () => {
+        setSlaManagementLoading(true);
+        try {
+            const [compliance, breached, atRisk, history] = await Promise.all([
+                api("/analytics/sla-compliance"),
+                api("/work-orders/breached"),
+                api("/work-orders/at-risk?hours=24"),
+                api("/config/sla/history?limit=20"),
+            ]);
+            setSlaCompliance(compliance);
+            setBreachedWOs(Array.isArray(breached) ? breached : []);
+            setAtRiskWOs(Array.isArray(atRisk) ? atRisk : []);
+            setSlaHistory(Array.isArray(history?.entries) ? history.entries : []);
+            setSlaLastModified(history?.last_modified || null);
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Failed to load SLA Management data");
+        } finally {
+            setSlaManagementLoading(false);
+        }
+    };
+
+    const handleExportSlaReport = async () => {
+        setSlaExporting(true);
+        try {
+            const storedUser = localStorage.getItem("ecowatch_user");
+            const userId = storedUser ? JSON.parse(storedUser).id : null;
+            const res = await fetch(`${API_URL}/analytics/sla-export`, {
+                headers: { "X-User-Id": String(userId) },
+            });
+            if (!res.ok) throw new Error("Export failed");
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `ecowatch_sla_report_${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+            toast.success("SLA report exported.");
+        } catch (err) {
+            toast.error("Export failed.");
+        } finally {
+            setSlaExporting(false);
         }
     };
 
@@ -688,20 +757,35 @@ export default function CenroDashboard() {
         >
             <div className="max-w-[1600px] mx-auto h-full flex flex-col">
 
-                {/* Placeholder modules (new in redesign — content per REDESIGN_SPEC.md is follow-up) */}
-                {(activeTab === 'sla_management' || activeTab === 'analytics' || activeTab === 'barangay_management') && (
+                {/* Placeholder modules - remaining tabs */}
+                {(activeTab === 'analytics' || activeTab === 'barangay_management') && (
                     <div className="glass-pro rounded-2xl p-12 text-center animate-slide-up">
                         <h2 className="text-xl font-bold text-foreground mb-2">
-                            {activeTab === 'sla_management' && 'SLA Management'}
                             {activeTab === 'analytics' && 'Analytics'}
                             {activeTab === 'barangay_management' && 'Barangay Management'}
                         </h2>
                         <p className="text-foreground/50 text-sm max-w-xl mx-auto">
-                            {activeTab === 'sla_management' && 'Breach monitor + SLA threshold configuration. Coming soon.'}
                             {activeTab === 'analytics' && 'Trend charts, period comparisons, and barangay performance tables. Coming soon.'}
                             {activeTab === 'barangay_management' && 'City-wide barangay performance and intervention queue. Coming soon.'}
                         </p>
                     </div>
+                )}
+
+                {/* SLA MANAGEMENT TAB */}
+                {activeTab === 'sla_management' && (
+                    <SlaManagementTab
+                        loading={slaManagementLoading}
+                        compliance={slaCompliance}
+                        breached={breachedWOs}
+                        atRisk={atRiskWOs}
+                        history={slaHistory}
+                        lastModified={slaLastModified}
+                        slaPolicy={slaPolicy}
+                        exporting={slaExporting}
+                        onExport={handleExportSlaReport}
+                        onEditPolicy={() => setShowSlaModal(true)}
+                        onRefresh={fetchSlaManagementData}
+                    />
                 )}
 
                 {activeTab === 'command_center' && (
@@ -1828,6 +1912,18 @@ export default function CenroDashboard() {
                                     onChange={(e) => setSlaDraftHigh(parseInt(e.target.value) || 1)}
                                     className="w-full px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:outline-none focus:border-primary"
                                 />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1 block">Compliance Target (%)</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={slaDraftTarget}
+                                    onChange={(e) => setSlaDraftTarget(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
+                                    className="w-full px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:outline-none focus:border-primary"
+                                />
+                                <p className="text-[10px] text-foreground/40 mt-1">City-wide on-time completion target.</p>
                             </div>
                             <div className="flex gap-3">
                                 <button
