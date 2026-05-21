@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Search, Download, LayoutDashboard, FileText, Map, ClipboardList, Users, BookUser, Phone, MoreVertical, FileDown, Eye, EyeOff, Edit2, Key, UserCheck, UserX, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
-import { slaInfo, SLA_PILL_CLASSES } from "@/lib/sla";
+import { slaInfo, SLA_PILL_CLASSES, slaDeadlineColor, slaDeadlineLabel } from "@/lib/sla";
 import { PortalShell, type PortalNavItem } from "@/components/portal/PortalShell";
 
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
@@ -140,6 +140,28 @@ export default function BarangayPortal() {
     const [resetCredential, setResetCredential] = useState<{ email: string; password: string } | null>(null);
     const [resetPasswordVisible, setResetPasswordVisible] = useState(false);
 
+    // -- Workorders Tab State -------------------------------------------------
+    const [workOrders, setWorkOrders] = useState<any[]>([]);
+    const [woLoading, setWoLoading] = useState(false);
+    const [woError, setWoError] = useState<string | null>(null);
+    const [woStatusFilter, setWoStatusFilter] = useState<string>("all");
+    const [woPriorityFilter, setWoPriorityFilter] = useState<string>("all");
+    const [woCleanerFilter, setWoCleanerFilter] = useState<number | null>(null);
+    const [woSlaRiskOnly, setWoSlaRiskOnly] = useState(false);
+    const [woSearch, setWoSearch] = useState("");
+    const [woKpiWindow, setWoKpiWindow] = useState<"week" | "month" | "all">("week");
+    const [selectedWorkOrder, setSelectedWorkOrder] = useState<any>(null);
+    const [woActionLoading, setWoActionLoading] = useState(false);
+    const [showReassignModal, setShowReassignModal] = useState(false);
+    const [reassignCleaner, setReassignCleaner] = useState<number | null>(null);
+    const [showPriorityModal, setShowPriorityModal] = useState(false);
+    const [newWoPriority, setNewWoPriority] = useState<string>("medium");
+    const [showForceResolveModal, setShowForceResolveModal] = useState(false);
+    const [forceResolveReason, setForceResolveReason] = useState("");
+    const [showSlaTooltip, setShowSlaTooltip] = useState(false);
+    const [slaTooltipPos, setSlaTooltipPos] = useState({ top: 0, left: 0 });
+    const slaTooltipAnchorRef = useRef<HTMLSpanElement>(null);
+
     useEffect(() => {
         // Auth Check
         const storedUser = localStorage.getItem('ecowatch_user');
@@ -270,6 +292,92 @@ export default function BarangayPortal() {
             toast.error(err instanceof ApiError ? err.message : "Failed to load team");
         } finally {
             setTeamLoading(false);
+        }
+    };
+
+    const fetchWorkOrders = async () => {
+        setWoLoading(true);
+        setWoError(null);
+        try {
+            const data = await api("/work-orders");
+            if (Array.isArray(data)) setWorkOrders(data);
+        } catch (err) {
+            setWoError(err instanceof ApiError ? err.message : "Failed to load work orders");
+        } finally {
+            setWoLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (user && activeView === "workorders") {
+            fetchWorkOrders();
+            fetchCleaners();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user, activeView]);
+
+    const handleWoReassign = async () => {
+        if (!selectedWorkOrder || !reassignCleaner) return;
+        setWoActionLoading(true);
+        try {
+            const data = await api(`/work-orders/${selectedWorkOrder.id}/reassign`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ assigned_cleaner_id: reassignCleaner }),
+            });
+            const updated = data.work_order;
+            setWorkOrders(prev => prev.map(wo => wo.id === updated.id ? updated : wo));
+            setSelectedWorkOrder(updated);
+            setShowReassignModal(false);
+            setReassignCleaner(null);
+            toast.success("Cleaner reassigned.");
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Reassign failed.");
+        } finally {
+            setWoActionLoading(false);
+        }
+    };
+
+    const handleWoPriority = async () => {
+        if (!selectedWorkOrder || !newWoPriority) return;
+        setWoActionLoading(true);
+        try {
+            const data = await api(`/work-orders/${selectedWorkOrder.id}/priority`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ priority: newWoPriority }),
+            });
+            const updated = data.work_order;
+            setWorkOrders(prev => prev.map(wo => wo.id === updated.id ? updated : wo));
+            setSelectedWorkOrder(updated);
+            setShowPriorityModal(false);
+            toast.success("Priority updated. SLA deadline recomputed.");
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Priority update failed.");
+        } finally {
+            setWoActionLoading(false);
+        }
+    };
+
+    const handleForceResolve = async () => {
+        if (!selectedWorkOrder || forceResolveReason.trim().length < 10) return;
+        setWoActionLoading(true);
+        try {
+            const data = await api(`/work-orders/${selectedWorkOrder.id}/force-resolve`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ reason: forceResolveReason.trim() }),
+            });
+            const updated = data.work_order;
+            setWorkOrders(prev => prev.map(wo => wo.id === updated.id ? updated : wo));
+            setSelectedWorkOrder(updated);
+            setShowForceResolveModal(false);
+            setForceResolveReason("");
+            toast.success("Work order force-resolved. Report marked as resolved.");
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Force resolve failed.");
+        } finally {
+            setWoActionLoading(false);
         }
     };
 
@@ -592,13 +700,510 @@ export default function BarangayPortal() {
                     </div>
                 )}
 
-                {/* WORKORDERS PLACEHOLDER */}
-                {activeView === 'workorders' && (
-                    <div className="glass-pro rounded-2xl p-12 text-center animate-slide-up">
-                        <h2 className="text-xl font-bold text-foreground mb-2">Workorders</h2>
-                        <p className="text-foreground/50 text-sm">Track active and historical work orders assigned to your team.</p>
-                    </div>
-                )}
+                {/* WORKORDERS TAB */}
+                {activeView === 'workorders' && (() => {
+                    const now = Date.now();
+                    const windowMs = woKpiWindow === "week" ? now - 7 * 86400000 : woKpiWindow === "month" ? now - 30 * 86400000 : 0;
+                    const activeStatuses = ["assigned", "in_progress", "needs_redo"];
+
+                    const kpiActive = workOrders.filter(wo => ["assigned", "in_progress"].includes(wo.status)).length;
+                    const kpiNeedsRedo = workOrders.filter(wo => wo.status === "needs_redo").length;
+                    const kpiAtRisk = workOrders.filter(wo =>
+                        activeStatuses.includes(wo.status) &&
+                        wo.sla_deadline &&
+                        new Date(wo.sla_deadline).getTime() > now &&
+                        new Date(wo.sla_deadline).getTime() - now <= 86400000
+                    ).length;
+                    const kpiBreached = workOrders.filter(wo =>
+                        activeStatuses.includes(wo.status) &&
+                        wo.sla_deadline &&
+                        new Date(wo.sla_deadline).getTime() < now
+                    ).length;
+                    const kpiResolved = workOrders.filter(wo =>
+                        (wo.status === "verified" || wo.status === "completed") &&
+                        (woKpiWindow === "all" || (wo.completed_at && new Date(wo.completed_at).getTime() >= windowMs))
+                    ).length;
+
+                    const STATUS_ORDER: Record<string, number> = { assigned: 0, in_progress: 1, needs_redo: 2, completed: 3, verified: 4 };
+                    const activeCleaners = cleaners.filter((c: any) => c.role === "cleaner" && c.is_active);
+
+                    const filtered = workOrders.filter(wo => {
+                        const q = woSearch.toLowerCase();
+                        const matchSearch = !q || wo.report_tracking_id?.toLowerCase().includes(q) || wo.assigned_cleaner_name?.toLowerCase().includes(q);
+                        const matchStatus = woStatusFilter === "all" || wo.status === woStatusFilter;
+                        const matchPriority = woPriorityFilter === "all" || wo.priority === woPriorityFilter;
+                        const matchCleaner = !woCleanerFilter || wo.assigned_cleaner_id === woCleanerFilter;
+                        const matchSlaRisk = !woSlaRiskOnly || (wo.sla_deadline && new Date(wo.sla_deadline).getTime() <= now + 86400000);
+                        return matchSearch && matchStatus && matchPriority && matchCleaner && matchSlaRisk;
+                    }).sort((a, b) => {
+                        const aOrder = STATUS_ORDER[a.status] ?? 99;
+                        const bOrder = STATUS_ORDER[b.status] ?? 99;
+                        if (aOrder !== bOrder) return aOrder - bOrder;
+                        return new Date(a.sla_deadline).getTime() - new Date(b.sla_deadline).getTime();
+                    });
+
+                    const PRIORITY_PILL: Record<string, string> = {
+                        high: "bg-red-500/20 text-red-400",
+                        medium: "bg-yellow-500/20 text-yellow-400",
+                        low: "bg-blue-500/20 text-blue-400",
+                    };
+                    const STATUS_PILL: Record<string, string> = {
+                        assigned: "bg-foreground/10 text-foreground",
+                        in_progress: "bg-yellow-500/20 text-yellow-400",
+                        needs_redo: "bg-red-500/20 text-red-400",
+                        completed: "bg-green-500/20 text-green-400",
+                        verified: "bg-green-500/20 text-green-400",
+                    };
+                    const STATUS_LABEL: Record<string, string> = {
+                        assigned: "Assigned",
+                        in_progress: "In Progress",
+                        needs_redo: "Needs Redo",
+                        completed: "Completed",
+                        verified: "Verified",
+                    };
+
+                    return (
+                        <div className="flex flex-col gap-5 animate-slide-up">
+                            {/* Header */}
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h1 className="text-2xl font-bold text-foreground tracking-tight">Work <span className="text-primary">Orders</span></h1>
+                                    <p className="text-foreground/50 text-sm mt-1">{workOrders.length} total &middot; {user.barangay_assignment}</p>
+                                </div>
+                                <button
+                                    onClick={fetchWorkOrders}
+                                    disabled={woLoading}
+                                    className="flex items-center gap-2 px-4 py-2 glass border border-border text-foreground/70 text-xs font-bold rounded-xl hover:bg-foreground/10 transition-colors uppercase tracking-widest disabled:opacity-50"
+                                >
+                                    {woLoading ? "Refreshing…" : "Refresh"}
+                                </button>
+                            </div>
+
+                            {/* KPI Strip */}
+                            <div className="glass-pro rounded-2xl p-5">
+                                <div className="flex items-center justify-between mb-4">
+                                    <span className="text-xs font-bold text-foreground/50 uppercase tracking-widest">Operational Overview</span>
+                                    <div className="flex items-center gap-1 bg-foreground/5 rounded-lg p-1">
+                                        {(["week", "month", "all"] as const).map(w => (
+                                            <button
+                                                key={w}
+                                                onClick={() => setWoKpiWindow(w)}
+                                                className={`px-3 py-1 rounded-md text-xs font-bold transition-colors ${woKpiWindow === w ? "bg-primary text-white" : "text-foreground/50 hover:text-foreground"}`}
+                                            >
+                                                {w === "week" ? "7d" : w === "month" ? "30d" : "All"}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                                    {[
+                                        { label: "Active", value: kpiActive, color: "text-foreground" },
+                                        { label: "Needs Redo", value: kpiNeedsRedo, color: "text-red-400" },
+                                        { label: "At Risk", value: kpiAtRisk, color: "text-yellow-400" },
+                                        { label: "Breached SLA", value: kpiBreached, color: "text-red-500" },
+                                        { label: woKpiWindow === "week" ? "Resolved (7d)" : woKpiWindow === "month" ? "Resolved (30d)" : "Resolved (All)", value: kpiResolved, color: "text-green-400" },
+                                    ].map(kpi => (
+                                        <div key={kpi.label} className="glass rounded-xl p-4 text-center">
+                                            <div className={`text-2xl font-black ${kpi.color}`}>{kpi.value}</div>
+                                            <div className="text-[11px] text-foreground/50 mt-1 font-medium">{kpi.label}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Filter Bar */}
+                            <div className="glass-pro rounded-2xl p-4 flex flex-wrap gap-3 items-center">
+                                <div className="relative flex-1 min-w-[180px]">
+                                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" />
+                                    <input
+                                        value={woSearch}
+                                        onChange={e => setWoSearch(e.target.value)}
+                                        placeholder="Search tracking ID or cleaner…"
+                                        className="w-full pl-8 pr-3 py-2 glass rounded-lg text-sm text-foreground placeholder:text-foreground/30 border border-border focus:outline-none focus:border-primary/50 bg-transparent"
+                                    />
+                                </div>
+                                <select
+                                    value={woStatusFilter}
+                                    onChange={e => setWoStatusFilter(e.target.value)}
+                                    className="glass border border-border rounded-lg px-3 py-2 text-xs text-foreground bg-transparent focus:outline-none focus:border-primary/50"
+                                >
+                                    <option value="all">All Statuses</option>
+                                    <option value="assigned">Assigned</option>
+                                    <option value="in_progress">In Progress</option>
+                                    <option value="needs_redo">Needs Redo</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="verified">Verified</option>
+                                </select>
+                                <select
+                                    value={woPriorityFilter}
+                                    onChange={e => setWoPriorityFilter(e.target.value)}
+                                    className="glass border border-border rounded-lg px-3 py-2 text-xs text-foreground bg-transparent focus:outline-none focus:border-primary/50"
+                                >
+                                    <option value="all">All Priorities</option>
+                                    <option value="high">High</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="low">Low</option>
+                                </select>
+                                <select
+                                    value={woCleanerFilter ?? ""}
+                                    onChange={e => setWoCleanerFilter(e.target.value ? Number(e.target.value) : null)}
+                                    className="glass border border-border rounded-lg px-3 py-2 text-xs text-foreground bg-transparent focus:outline-none focus:border-primary/50"
+                                >
+                                    <option value="">All Cleaners</option>
+                                    {activeCleaners.map((c: any) => (
+                                        <option key={c.id} value={c.id}>{c.full_name}</option>
+                                    ))}
+                                </select>
+                                <button
+                                    onClick={() => setWoSlaRiskOnly(!woSlaRiskOnly)}
+                                    className={`px-3 py-2 rounded-lg text-xs font-bold border transition-colors ${woSlaRiskOnly ? "bg-red-500/20 border-red-500/50 text-red-400" : "glass border-border text-foreground/50 hover:text-foreground"}`}
+                                >
+                                    SLA Risk Only
+                                </button>
+                                {(woStatusFilter !== "all" || woPriorityFilter !== "all" || woCleanerFilter || woSlaRiskOnly || woSearch) && (
+                                    <button
+                                        onClick={() => { setWoStatusFilter("all"); setWoPriorityFilter("all"); setWoCleanerFilter(null); setWoSlaRiskOnly(false); setWoSearch(""); }}
+                                        className="text-xs text-foreground/40 hover:text-foreground transition-colors underline"
+                                    >
+                                        Clear filters
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Table */}
+                            <div className="glass-pro rounded-2xl overflow-hidden">
+                                {woLoading ? (
+                                    <div className="p-12 text-center">
+                                        <div className="inline-block w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
+                                        <p className="text-foreground/50 text-sm">Loading work orders…</p>
+                                    </div>
+                                ) : woError ? (
+                                    <div className="p-12 text-center">
+                                        <p className="text-red-400 text-sm mb-3">{woError}</p>
+                                        <button onClick={fetchWorkOrders} className="px-4 py-2 glass border border-border text-foreground/70 text-xs font-bold rounded-lg hover:bg-foreground/10 transition-colors">
+                                            Retry
+                                        </button>
+                                    </div>
+                                ) : filtered.length === 0 ? (
+                                    <div className="p-12 text-center">
+                                        <ClipboardList size={32} className="text-foreground/20 mx-auto mb-3" />
+                                        <p className="text-foreground/50 text-sm">
+                                            {workOrders.length === 0 ? "No work orders yet. Deploy a verified report to create one." : "No work orders match these filters."}
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full">
+                                            <thead>
+                                                <tr className="border-b border-border">
+                                                    <th className="p-4 text-left text-xs font-bold text-foreground/50 uppercase tracking-wider">Tracking ID</th>
+                                                    <th className="p-4 text-left text-xs font-bold text-foreground/50 uppercase tracking-wider">Cleaner</th>
+                                                    <th className="p-4 text-left text-xs font-bold text-foreground/50 uppercase tracking-wider">Priority</th>
+                                                    <th className="p-4 text-left text-xs font-bold text-foreground/50 uppercase tracking-wider">Status</th>
+                                                    <th className="p-4 text-left text-xs font-bold text-foreground/50 uppercase tracking-wider">SLA Deadline</th>
+                                                    <th className="p-4 text-left text-xs font-bold text-foreground/50 uppercase tracking-wider">
+                                                        <div className="inline-flex items-center gap-1">
+                                                            <span>Time Left</span>
+                                                            <span
+                                                                ref={slaTooltipAnchorRef}
+                                                                onMouseEnter={() => {
+                                                                    const rect = slaTooltipAnchorRef.current?.getBoundingClientRect();
+                                                                    if (rect) setSlaTooltipPos({ top: rect.bottom + 8, left: Math.max(8, rect.left - 240) });
+                                                                    setShowSlaTooltip(true);
+                                                                }}
+                                                                onMouseLeave={() => setShowSlaTooltip(false)}
+                                                                className="cursor-help text-foreground/30 hover:text-primary transition-colors text-sm select-none"
+                                                            >ⓘ</span>
+                                                        </div>
+                                                    </th>
+                                                    <th className="p-4 text-left text-xs font-bold text-foreground/50 uppercase tracking-wider">Created</th>
+                                                    <th className="p-4"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {filtered.map(wo => {
+                                                    const slaColor = slaDeadlineColor(wo.sla_deadline);
+                                                    const slaLabel = slaDeadlineLabel(wo.sla_deadline);
+                                                    return (
+                                                        <tr key={wo.id} className="border-b border-border hover:bg-foreground/5 transition-colors">
+                                                            <td className="p-4 font-mono text-sm font-bold text-foreground">{wo.report_tracking_id}</td>
+                                                            <td className="p-4 text-sm text-foreground/80">{wo.assigned_cleaner_name}</td>
+                                                            <td className="p-4">
+                                                                <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${PRIORITY_PILL[wo.priority] || "bg-foreground/10 text-foreground"}`}>
+                                                                    {wo.priority}
+                                                                </span>
+                                                            </td>
+                                                            <td className="p-4">
+                                                                <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${STATUS_PILL[wo.status] || "bg-foreground/10 text-foreground"}`}>
+                                                                    {STATUS_LABEL[wo.status] || wo.status}
+                                                                </span>
+                                                            </td>
+                                                            <td className="p-4 text-sm text-foreground/70">
+                                                                {wo.sla_deadline ? new Date(wo.sla_deadline).toLocaleDateString() : "—"}
+                                                            </td>
+                                                            <td className="p-4">
+                                                                {wo.sla_deadline ? (
+                                                                    <span className={`px-2 py-1 rounded-md text-[11px] font-bold ${SLA_PILL_CLASSES[slaColor]}`}>
+                                                                        {slaLabel}
+                                                                    </span>
+                                                                ) : <span className="text-foreground/30 text-sm">—</span>}
+                                                            </td>
+                                                            <td className="p-4 text-sm text-foreground/50">
+                                                                {wo.created_at ? new Date(wo.created_at).toLocaleDateString() : "—"}
+                                                            </td>
+                                                            <td className="p-4 text-right">
+                                                                <button
+                                                                    onClick={() => { setSelectedWorkOrder(wo); setNewWoPriority(wo.priority); }}
+                                                                    className="px-4 py-2 glass border border-border text-foreground text-xs font-bold rounded-lg hover:bg-foreground/10 transition-colors"
+                                                                >
+                                                                    View
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* SLA Tooltip — fixed so it escapes overflow containers */}
+                            {showSlaTooltip && (
+                                <div
+                                    style={{ position: "fixed", top: slaTooltipPos.top, left: slaTooltipPos.left }}
+                                    className="z-[200] w-72 p-4 bg-background border border-border rounded-2xl shadow-2xl pointer-events-none"
+                                >
+                                    <p className="text-xs font-bold text-foreground mb-3 uppercase tracking-widest">SLA Deadline Guide</p>
+                                    <div className="flex flex-col gap-2 text-xs mb-4">
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0" />
+                                            <span className="text-foreground/60"><span className="text-green-400 font-bold">Not an issue</span> — 3+ days remaining</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-2.5 h-2.5 rounded-full bg-yellow-500 shrink-0" />
+                                            <span className="text-foreground/60"><span className="text-yellow-400 font-bold">Moderate</span> — 1 to 3 days remaining</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
+                                            <span className="text-foreground/60"><span className="text-red-400 font-bold">Critical</span> — under 24 hours remaining</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-2.5 h-2.5 rounded-full bg-red-600 ring-2 ring-red-500/40 shrink-0" />
+                                            <span className="text-foreground/60"><span className="text-red-500 font-bold">Breached</span> — deadline already passed</span>
+                                        </div>
+                                    </div>
+                                    <div className="border-t border-border pt-3">
+                                        <p className="text-[11px] font-bold text-foreground/40 uppercase tracking-widest mb-2">Priority → Deadline</p>
+                                        <div className="flex flex-col gap-1 text-xs">
+                                            <div className="flex justify-between"><span className="text-red-400 font-bold">High</span><span className="text-foreground/60">{slaPolicy.high} day{slaPolicy.high !== 1 ? "s" : ""} from deploy</span></div>
+                                            <div className="flex justify-between"><span className="text-yellow-400 font-bold">Medium</span><span className="text-foreground/60">{slaPolicy.medium} days from deploy</span></div>
+                                            <div className="flex justify-between"><span className="text-blue-400 font-bold">Low</span><span className="text-foreground/60">{slaPolicy.low} days from deploy</span></div>
+                                        </div>
+                                        <p className="text-[10px] text-foreground/30 mt-2">Deadlines are configurable by CENRO.</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Detail Drawer */}
+                            {selectedWorkOrder && (
+                                <div className="fixed inset-0 z-50" onClick={() => { setSelectedWorkOrder(null); setShowReassignModal(false); setShowPriorityModal(false); setShowForceResolveModal(false); }}>
+                                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+                                    <div
+                                        className="absolute right-0 top-0 bottom-0 w-full max-w-lg bg-background border-l border-border overflow-y-auto shadow-2xl"
+                                        onClick={e => e.stopPropagation()}
+                                    >
+                                        {/* Drawer Header */}
+                                        <div className="sticky top-0 bg-background border-b border-border p-5 flex items-start justify-between gap-3">
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="font-mono font-black text-lg text-foreground">{selectedWorkOrder.report_tracking_id}</span>
+                                                    <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider ${STATUS_PILL[selectedWorkOrder.status] || "bg-foreground/10 text-foreground"}`}>
+                                                        {STATUS_LABEL[selectedWorkOrder.status] || selectedWorkOrder.status}
+                                                    </span>
+                                                    <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider ${PRIORITY_PILL[selectedWorkOrder.priority] || "bg-foreground/10 text-foreground"}`}>
+                                                        {selectedWorkOrder.priority}
+                                                    </span>
+                                                </div>
+                                                {selectedWorkOrder.sla_deadline && (
+                                                    <span className={`text-xs font-bold ${SLA_PILL_CLASSES[slaDeadlineColor(selectedWorkOrder.sla_deadline)]}`}>
+                                                        SLA: {slaDeadlineLabel(selectedWorkOrder.sla_deadline)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <button
+                                                onClick={() => { setSelectedWorkOrder(null); setShowReassignModal(false); setShowPriorityModal(false); setShowForceResolveModal(false); }}
+                                                className="p-2 rounded-lg glass border border-border text-foreground/50 hover:text-foreground transition-colors text-xs font-bold"
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+
+                                        <div className="p-5 flex flex-col gap-5">
+                                            {/* Report Context */}
+                                            <div className="glass rounded-xl p-4">
+                                                <p className="text-xs font-bold text-foreground/50 uppercase tracking-widest mb-3">Report Context</p>
+                                                {selectedWorkOrder.report_image_url && (
+                                                    <img
+                                                        src={`${API_URL}${selectedWorkOrder.report_image_url}`}
+                                                        alt="Citizen report"
+                                                        className="w-full h-40 object-cover rounded-lg mb-3"
+                                                        onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                                                    />
+                                                )}
+                                                <div className="grid grid-cols-2 gap-2 text-sm">
+                                                    <div><span className="text-foreground/40 text-xs">Barangay</span><p className="text-foreground font-medium">{selectedWorkOrder.report_barangay}</p></div>
+                                                    <div><span className="text-foreground/40 text-xs">GPS</span><p className="text-foreground font-mono text-xs">{selectedWorkOrder.report_lat?.toFixed(5)}, {selectedWorkOrder.report_lon?.toFixed(5)}</p></div>
+                                                </div>
+                                                {selectedWorkOrder.report_notes && (
+                                                    <p className="text-foreground/70 text-sm mt-2 italic">&ldquo;{selectedWorkOrder.report_notes}&rdquo;</p>
+                                                )}
+                                            </div>
+
+                                            {/* Before / After Photos */}
+                                            {selectedWorkOrder.report_cleanup_image_url && (
+                                                <div className="glass rounded-xl p-4">
+                                                    <p className="text-xs font-bold text-foreground/50 uppercase tracking-widest mb-3">Cleanup Proof</p>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div>
+                                                            <p className="text-[11px] text-foreground/40 mb-1 font-bold">BEFORE</p>
+                                                            {selectedWorkOrder.report_image_url ? (
+                                                                <img src={`${API_URL}${selectedWorkOrder.report_image_url}`} alt="Before" className="w-full h-28 object-cover rounded-lg" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                                            ) : <div className="w-full h-28 rounded-lg bg-foreground/5 flex items-center justify-center text-foreground/20 text-xs">No photo</div>}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[11px] text-foreground/40 mb-1 font-bold">AFTER</p>
+                                                            <img src={`${API_URL}${selectedWorkOrder.report_cleanup_image_url}`} alt="After cleanup" className="w-full h-28 object-cover rounded-lg" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Assignment Timeline */}
+                                            <div className="glass rounded-xl p-4">
+                                                <p className="text-xs font-bold text-foreground/50 uppercase tracking-widest mb-3">Assignment</p>
+                                                <div className="flex flex-col gap-2 text-sm">
+                                                    <div className="flex justify-between"><span className="text-foreground/40">Cleaner</span><span className="text-foreground font-medium">{selectedWorkOrder.assigned_cleaner_name}</span></div>
+                                                    <div className="flex justify-between"><span className="text-foreground/40">Email</span><span className="text-foreground/70 text-xs">{selectedWorkOrder.assigned_cleaner_email}</span></div>
+                                                    <div className="flex justify-between"><span className="text-foreground/40">Created</span><span className="text-foreground/70">{selectedWorkOrder.created_at ? new Date(selectedWorkOrder.created_at).toLocaleString() : "—"}</span></div>
+                                                    <div className="flex justify-between"><span className="text-foreground/40">Started</span><span className="text-foreground/70">{selectedWorkOrder.started_at ? new Date(selectedWorkOrder.started_at).toLocaleString() : "Not started"}</span></div>
+                                                    <div className="flex justify-between"><span className="text-foreground/40">Completed</span><span className="text-foreground/70">{selectedWorkOrder.completed_at ? new Date(selectedWorkOrder.completed_at).toLocaleString() : "—"}</span></div>
+                                                </div>
+                                            </div>
+
+                                            {/* Notes */}
+                                            {selectedWorkOrder.notes && (
+                                                <div className="glass rounded-xl p-4">
+                                                    <p className="text-xs font-bold text-foreground/50 uppercase tracking-widest mb-2">Notes</p>
+                                                    <p className="text-foreground/70 text-sm whitespace-pre-wrap">{selectedWorkOrder.notes}</p>
+                                                </div>
+                                            )}
+
+                                            {/* Actions */}
+                                            <div className="flex flex-col gap-3">
+                                                <p className="text-xs font-bold text-foreground/50 uppercase tracking-widest">Actions</p>
+
+                                                {/* Reassign — only when assigned */}
+                                                {selectedWorkOrder.status === "assigned" && (
+                                                    <div className="glass rounded-xl p-4">
+                                                        <p className="text-sm font-bold text-foreground mb-2">Reassign Cleaner</p>
+                                                        <select
+                                                            value={reassignCleaner ?? ""}
+                                                            onChange={e => setReassignCleaner(e.target.value ? Number(e.target.value) : null)}
+                                                            className="w-full glass border border-border rounded-lg px-3 py-2 text-sm text-foreground bg-transparent focus:outline-none focus:border-primary/50 mb-3"
+                                                        >
+                                                            <option value="">Select cleaner…</option>
+                                                            {activeCleaners.filter((c: any) => c.id !== selectedWorkOrder.assigned_cleaner_id).map((c: any) => (
+                                                                <option key={c.id} value={c.id}>{c.full_name}</option>
+                                                            ))}
+                                                        </select>
+                                                        <button
+                                                            onClick={handleWoReassign}
+                                                            disabled={!reassignCleaner || woActionLoading}
+                                                            className="w-full py-2 eco-gradient text-white text-xs font-bold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+                                                        >
+                                                            {woActionLoading ? "Saving…" : "Confirm Reassign"}
+                                                        </button>
+                                                    </div>
+                                                )}
+
+                                                {/* Change Priority */}
+                                                {["assigned", "in_progress", "needs_redo"].includes(selectedWorkOrder.status) && (
+                                                    <div className="glass rounded-xl p-4">
+                                                        <p className="text-sm font-bold text-foreground mb-2">Change Priority</p>
+                                                        <div className="flex gap-2 mb-3">
+                                                            {["high", "medium", "low"].map(p => (
+                                                                <button
+                                                                    key={p}
+                                                                    onClick={() => setNewWoPriority(p)}
+                                                                    className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-colors ${newWoPriority === p ? (PRIORITY_PILL[p] + " border-current") : "glass border-border text-foreground/50"}`}
+                                                                >
+                                                                    {p.charAt(0).toUpperCase() + p.slice(1)}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                        <p className="text-[11px] text-foreground/40 mb-3">
+                                                            SLA will be recomputed: {newWoPriority === "high" ? `${slaPolicy.high}d` : newWoPriority === "medium" ? `${slaPolicy.medium}d` : `${slaPolicy.low}d`} from original creation date.
+                                                        </p>
+                                                        <button
+                                                            onClick={handleWoPriority}
+                                                            disabled={newWoPriority === selectedWorkOrder.priority || woActionLoading}
+                                                            className="w-full py-2 eco-gradient text-white text-xs font-bold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+                                                        >
+                                                            {woActionLoading ? "Saving…" : "Update Priority"}
+                                                        </button>
+                                                    </div>
+                                                )}
+
+                                                {/* Force Resolve — only on needs_redo */}
+                                                {selectedWorkOrder.status === "needs_redo" && (
+                                                    <div className="glass rounded-xl p-4 border border-red-500/20">
+                                                        <p className="text-sm font-bold text-red-400 mb-1">Force Resolve</p>
+                                                        <p className="text-[11px] text-foreground/40 mb-3">Bypasses AI re-verification. Use only when cleanup is confirmed by other means.</p>
+                                                        {!showForceResolveModal ? (
+                                                            <button
+                                                                onClick={() => setShowForceResolveModal(true)}
+                                                                className="w-full py-2 bg-red-500/20 border border-red-500/40 text-red-400 text-xs font-bold rounded-lg hover:bg-red-500/30 transition-colors"
+                                                            >
+                                                                Force Resolve…
+                                                            </button>
+                                                        ) : (
+                                                            <div className="flex flex-col gap-2">
+                                                                <textarea
+                                                                    value={forceResolveReason}
+                                                                    onChange={e => setForceResolveReason(e.target.value)}
+                                                                    placeholder="Reason for bypassing AI verification (min. 10 characters)…"
+                                                                    rows={3}
+                                                                    className="w-full glass border border-border rounded-lg px-3 py-2 text-sm text-foreground bg-transparent resize-none focus:outline-none focus:border-red-500/50 placeholder:text-foreground/30"
+                                                                />
+                                                                <p className="text-[11px] text-foreground/30">{forceResolveReason.trim().length}/10 min chars</p>
+                                                                <div className="flex gap-2">
+                                                                    <button
+                                                                        onClick={() => { setShowForceResolveModal(false); setForceResolveReason(""); }}
+                                                                        className="flex-1 py-2 glass border border-border text-foreground/50 text-xs font-bold rounded-lg hover:bg-foreground/10 transition-colors"
+                                                                    >
+                                                                        Cancel
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={handleForceResolve}
+                                                                        disabled={forceResolveReason.trim().length < 10 || woActionLoading}
+                                                                        className="flex-1 py-2 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                                                                    >
+                                                                        {woActionLoading ? "Resolving…" : "Confirm"}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
 
                 {/* ACCOUNTS TAB */}
                 {activeView === 'accounts' && (() => {

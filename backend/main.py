@@ -156,6 +156,18 @@ class CreateWorkOrderRequest(BaseModel):
     notes: Optional[str] = None
 
 
+class ReassignWorkOrderRequest(BaseModel):
+    assigned_cleaner_id: int
+
+
+class UpdateWorkOrderPriorityRequest(BaseModel):
+    priority: str  # low | medium | high
+
+
+class ForceResolveWorkOrderRequest(BaseModel):
+    reason: str  # min 10 chars
+
+
 class WorkOrderResponse(BaseModel):
     id: int
     report_id: int
@@ -1688,6 +1700,151 @@ async def complete_work_order(
     return {
         "success": True,
         "message": f"Work order completed. Report is {report.status}.",
+        "work_order": serialize_work_order(wo),
+    }
+
+
+@app.put("/work-orders/{work_order_id}/reassign")
+async def reassign_work_order(
+    work_order_id: int,
+    req: ReassignWorkOrderRequest,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("barangay")),
+):
+    """Barangay reassigns a work order to a different cleaner. Only allowed while status is 'assigned'."""
+    wo = db.query(models.WorkOrder).filter(models.WorkOrder.id == work_order_id).first()
+    if not wo:
+        raise HTTPException(status_code=404, detail="Work order not found")
+
+    if wo.status != models.WorkOrderStatus.ASSIGNED:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot reassign. Status is '{wo.status}', must be 'assigned'."
+        )
+
+    new_cleaner = db.query(models.User).filter(
+        models.User.id == req.assigned_cleaner_id,
+        models.User.role == "cleaner",
+        models.User.is_active == True,
+    ).first()
+    if not new_cleaner:
+        raise HTTPException(status_code=404, detail="Cleaner not found or inactive")
+
+    old_cleaner_id = wo.assigned_cleaner_id
+    wo.assigned_cleaner_id = req.assigned_cleaner_id
+
+    write_audit(db, user.id, "reassign_work_order", wo.report_id, {
+        "work_order_id": wo.id,
+        "tracking_id": wo.report.tracking_id if wo.report else None,
+        "from_cleaner_id": old_cleaner_id,
+        "to_cleaner_id": req.assigned_cleaner_id,
+    })
+    db.commit()
+    db.refresh(wo)
+
+    return {
+        "success": True,
+        "message": "Work order reassigned.",
+        "work_order": serialize_work_order(wo),
+    }
+
+
+@app.put("/work-orders/{work_order_id}/priority")
+async def update_work_order_priority(
+    work_order_id: int,
+    req: UpdateWorkOrderPriorityRequest,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("barangay")),
+):
+    """Barangay changes the priority of a work order and recomputes the SLA deadline."""
+    wo = db.query(models.WorkOrder).filter(models.WorkOrder.id == work_order_id).first()
+    if not wo:
+        raise HTTPException(status_code=404, detail="Work order not found")
+
+    ALLOWED_STATUSES = {
+        models.WorkOrderStatus.ASSIGNED,
+        models.WorkOrderStatus.IN_PROGRESS,
+        models.WorkOrderStatus.NEEDS_REDO,
+    }
+    if wo.status not in ALLOWED_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot change priority. Status is '{wo.status}'."
+        )
+
+    new_priority = req.priority.lower()
+    if new_priority not in ("low", "medium", "high"):
+        raise HTTPException(status_code=400, detail="priority must be 'low', 'medium', or 'high'")
+
+    old_priority = wo.priority
+    wo.priority = new_priority
+    wo.sla_deadline = compute_sla_deadline(db, new_priority, anchor=wo.created_at)
+
+    write_audit(db, user.id, "change_priority", wo.report_id, {
+        "work_order_id": wo.id,
+        "tracking_id": wo.report.tracking_id if wo.report else None,
+        "from_priority": old_priority,
+        "to_priority": new_priority,
+        "new_sla_deadline": wo.sla_deadline.isoformat() if wo.sla_deadline else None,
+    })
+    db.commit()
+    db.refresh(wo)
+
+    return {
+        "success": True,
+        "message": f"Priority changed to {new_priority}. SLA deadline recomputed.",
+        "work_order": serialize_work_order(wo),
+    }
+
+
+@app.put("/work-orders/{work_order_id}/force-resolve")
+async def force_resolve_work_order(
+    work_order_id: int,
+    req: ForceResolveWorkOrderRequest,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("barangay")),
+):
+    """
+    Barangay force-closes a needs_redo work order as resolved, bypassing AI re-verification.
+    Requires a written reason (min 10 chars).
+    """
+    wo = db.query(models.WorkOrder).filter(models.WorkOrder.id == work_order_id).first()
+    if not wo:
+        raise HTTPException(status_code=404, detail="Work order not found")
+
+    if wo.status != models.WorkOrderStatus.NEEDS_REDO:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot force-resolve. Status is '{wo.status}', must be 'needs_redo'."
+        )
+
+    reason = req.reason.strip()
+    if len(reason) < 10:
+        raise HTTPException(status_code=400, detail="reason must be at least 10 characters")
+
+    report = wo.report
+    if not report:
+        raise HTTPException(status_code=404, detail="Associated report not found")
+
+    wo.status = models.WorkOrderStatus.VERIFIED
+    wo.completed_at = wo.completed_at or datetime.utcnow()
+    wo.notes = f"{wo.notes or ''}\n[Force-resolved by barangay: {reason}]".strip()
+
+    report.status = models.ReportStatus.RESOLVED
+    report.resolved_at = datetime.utcnow()
+
+    write_audit(db, user.id, "force_resolve_work_order", report.id, {
+        "work_order_id": wo.id,
+        "tracking_id": report.tracking_id,
+        "reason": reason,
+    })
+    db.commit()
+    db.refresh(wo)
+    db.refresh(report)
+
+    return {
+        "success": True,
+        "message": "Work order force-resolved. Report marked as resolved.",
         "work_order": serialize_work_order(wo),
     }
 
