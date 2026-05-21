@@ -143,6 +143,25 @@ body {
   scrollbar-width: none;
 }
 
+/* Pinpoint tooltip — overrides Leaflet's default styling so the "PINNING LOCATION" pill matches our glass aesthetic */
+.leaflet-tooltip.pinpoint-tooltip {
+  background: var(--glass-pro-bg);
+  color: var(--foreground);
+  border: 1px solid var(--glass-pro-border);
+  backdrop-filter: blur(20px);
+  box-shadow: var(--glass-pro-shadow);
+  border-radius: 9999px;
+  padding: 4px 12px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.leaflet-tooltip.pinpoint-tooltip::before {
+  display: none;
+}
+
 /* Global focus ring — replaces outline:none anti-pattern */
 :focus-visible {
   outline: 2px solid #10b981;
