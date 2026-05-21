@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,9 +12,16 @@ const MiniMap = dynamic(() => import("@/components/MiniMap"), {
     loading: () => <div className="w-full h-full bg-foreground/5 animate-pulse flex items-center justify-center"><p className="text-xs font-bold text-primary">Loading Map...</p></div>
 });
 
-const LocationPickerMap = dynamic(() => import("@/components/LocationPickerMap"), {
+const PinpointFullscreen = dynamic(() => import("@/components/PinpointFullscreen"), {
     ssr: false,
-    loading: () => <div className="w-full h-48 bg-foreground/5 animate-pulse rounded-2xl flex items-center justify-center"><p className="text-xs font-bold text-primary">Loading Map...</p></div>
+    loading: () => (
+        <div className="fixed inset-0 top-16 bg-background flex items-center justify-center z-0">
+            <div className="glass-pro px-6 py-4 rounded-2xl flex items-center gap-3">
+                <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                <p className="text-xs font-bold text-primary uppercase tracking-widest">Loading Map...</p>
+            </div>
+        </div>
+    ),
 });
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -32,57 +38,8 @@ export default function ReportPage() {
     const [notes, setNotes] = useState("");
     
     // UI States
-    const [isLocating, setIsLocating] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
-    // Step 1: Get GPS Location with Robust Error Handling
-    const handleGetLocation = () => {
-        setIsLocating(true);
-        setError(null);
-        
-        try {
-            if (!navigator.geolocation) {
-                throw new Error("Your browser does not support Geolocation.");
-            }
-
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    setLat(position.coords.latitude);
-                    setLon(position.coords.longitude);
-                    setIsLocating(false);
-                },
-                (err) => {
-                    setIsLocating(false);
-                    let userFriendlyError = "Unable to get your location.";
-                    
-                    switch (err.code) {
-                        case err.PERMISSION_DENIED:
-                            userFriendlyError = "Permission denied. Please allow location access in your browser settings.";
-                            break;
-                        case err.POSITION_UNAVAILABLE:
-                            userFriendlyError = "Location information is unavailable. Try moving to an open area.";
-                            break;
-                        case err.TIMEOUT:
-                            userFriendlyError = "Location request timed out. You can manually drag the pin instead.";
-                            break;
-                    }
-                    
-                    console.error("GPS Error:", err);
-                    setError(userFriendlyError);
-                },
-                { 
-                    enableHighAccuracy: true, 
-                    timeout: 15000, 
-                    maximumAge: 0 
-                }
-            );
-        } catch (err: any) {
-            console.error("Location Logic Failure:", err);
-            setError(err.message || "An unexpected error occurred while accessing GPS.");
-            setIsLocating(false);
-        }
-    };
 
     // Step 2: Handle Image Selection
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -143,6 +100,40 @@ export default function ReportPage() {
         }
     };
 
+    if (step === 1) {
+        return (
+            <>
+                <PinpointFullscreen
+                    lat={lat}
+                    lon={lon}
+                    onLocationChange={(newLat, newLon) => {
+                        setLat(newLat);
+                        setLon(newLon);
+                        setError(null);
+                    }}
+                    onConfirm={() => setStep(2)}
+                    onExit={() => router.push("/")}
+                    onError={(msg) => setError(msg)}
+                />
+                {error && (
+                    <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[1100] max-w-md w-[calc(100vw-2rem)] animate-in fade-in slide-in-from-top-4">
+                        <div className="glass-pro rounded-xl px-4 py-3 flex items-start gap-3 border border-red-500/40 shadow-[0_0_24px_-8px_rgba(239,68,68,0.6)]">
+                            <svg className="text-red-400 shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                            <p className="text-sm font-medium text-foreground flex-1">{error}</p>
+                            <button
+                                onClick={() => setError(null)}
+                                className="text-foreground/50 hover:text-foreground transition-colors"
+                                aria-label="Dismiss"
+                            >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-background pt-20 pb-12 px-4 flex flex-col items-center">
 
@@ -169,55 +160,6 @@ export default function ReportPage() {
                     <div className="mb-5 p-3.5 rounded-lg bg-red-500/10 border border-red-500/20 flex items-start gap-3">
                         <svg className="text-red-500 shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                         <p className="text-sm font-medium text-red-400">{error}</p>
-                    </div>
-                )}
-
-                {/* STEP 1: LOCATION */}
-                {step === 1 && (
-                    <div className="animate-in slide-in-from-right-8 duration-300">
-                        <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-5 shadow-md shadow-primary/20">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                        </div>
-                        <h2 className="text-2xl font-bold text-foreground mb-1.5">Pinpoint Location</h2>
-                        <p className="text-sm text-foreground/50 font-medium mb-5">
-                            We use your coordinates to route the report to the correct <span className="text-primary">Barangay Hall</span> automatically.
-                        </p>
-
-                        <div className="h-[380px] mb-5 rounded-xl overflow-hidden border border-border shadow-inner">
-                            <LocationPickerMap
-                                initialLat={lat}
-                                initialLon={lon}
-                                onLocationChange={(newLat, newLon) => {
-                                    setLat(newLat);
-                                    setLon(newLon);
-                                }}
-                            />
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row gap-2.5">
-                            <Button
-                                onClick={handleGetLocation}
-                                disabled={isLocating}
-                                variant="outline"
-                                size="lg"
-                                className="flex-1 group"
-                            >
-                                {isLocating ? (
-                                    <div className="w-4 h-4 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" />
-                                ) : (
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="group-hover:text-primary transition-colors"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3m10-10h-3M5 12H2"/></svg>
-                                )}
-                                {isLocating ? "Locating..." : "Use my location"}
-                            </Button>
-                            <Button
-                                onClick={() => setStep(2)}
-                                disabled={!lat || !lon}
-                                size="lg"
-                                className="flex-1"
-                            >
-                                Confirm & Continue
-                            </Button>
-                        </div>
                     </div>
                 )}
 
