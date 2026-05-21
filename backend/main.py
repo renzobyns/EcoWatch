@@ -1935,6 +1935,238 @@ async def get_barangay_ranking(db: Session = Depends(get_db)):
 
 
 # ─────────────────────────────────────────────────────────
+# BARANGAY OVERVIEW (CENRO-only) - powers /cenro Barangay Management tab
+# ─────────────────────────────────────────────────────────
+
+def _load_barangay_names() -> list:
+    """Load the 59 barangay names from the GeoJSON file."""
+    import os as _os
+    geojson_path = _os.path.join(_os.path.dirname(__file__), "..", "data", "sjdm_barangays.geojson")
+    with open(geojson_path, "r", encoding="utf-8") as f:
+        gj = json.load(f)
+    return sorted(set(feat["properties"]["ADM4_EN"] for feat in gj["features"]))
+
+
+def _build_barangay_overview_data(db: Session) -> dict:
+    """Build the full barangay overview dataset (shared by GET and CSV export)."""
+    import logging as _logging
+    _logger = _logging.getLogger(__name__)
+
+    barangay_names = _load_barangay_names()
+
+    # All active barangay admins
+    admins = (
+        db.query(models.User)
+        .filter(models.User.role == "barangay", models.User.is_active == True)
+        .all()
+    )
+    # Index by barangay_assignment for fast lookup
+    admin_map: dict = {}
+    for u in admins:
+        key = u.barangay_assignment
+        if key is None:
+            continue
+        if key in admin_map:
+            _logger.warning(
+                "Multiple active barangay admins for '%s'; picking most recently logged-in.", key
+            )
+            existing = admin_map[key]
+            # Keep the one with the more recent last_login_at
+            existing_login = existing.last_login_at or datetime.min
+            new_login = u.last_login_at or datetime.min
+            if new_login > existing_login:
+                admin_map[key] = u
+        else:
+            admin_map[key] = u
+
+    # All non-rejected reports with a barangay assigned
+    all_reports = (
+        db.query(models.Report)
+        .filter(models.Report.barangay.isnot(None))
+        .all()
+    )
+    # Group by barangay for O(1) lookup
+    reports_by_barangay: dict = {}
+    for r in all_reports:
+        reports_by_barangay.setdefault(r.barangay, []).append(r)
+
+    # SLA compliance data
+    sla_data = _compute_sla_compliance(db)
+    sla_by_barangay: dict = {entry["barangay"]: entry for entry in sla_data["by_barangay"]}
+
+    # Read SLA compliance target from SystemConfig
+    sla_config = (
+        db.query(models.SystemConfig)
+        .filter(models.SystemConfig.key == "sla_compliance_target")
+        .first()
+    )
+    try:
+        sla_target = float(sla_config.value) if sla_config else 95.0
+    except (ValueError, TypeError):
+        sla_target = 95.0
+
+    now = datetime.utcnow()
+    seven_days_ago = now - timedelta(days=7)
+    fourteen_days_ago = now - timedelta(days=14)
+
+    rows = []
+    for name in barangay_names:
+        admin_user = admin_map.get(name)
+        bar_reports = reports_by_barangay.get(name, [])
+
+        # Status counts (all reports including rejected for totalling)
+        total = len(bar_reports)
+        pending = sum(1 for r in bar_reports if r.status == models.ReportStatus.PENDING)
+        verified = sum(1 for r in bar_reports if r.status == models.ReportStatus.VERIFIED)
+        deployed = sum(1 for r in bar_reports if r.status == models.ReportStatus.DEPLOYED)
+        resolved = sum(1 for r in bar_reports if r.status == models.ReportStatus.RESOLVED)
+        rejected = sum(1 for r in bar_reports if r.status == models.ReportStatus.REJECTED)
+        failed_cleanup = sum(1 for r in bar_reports if r.status == models.ReportStatus.FAILED_CLEANUP)
+
+        # Resolution rate excludes rejected
+        non_rejected = total - rejected
+        resolution_rate = round((resolved / non_rejected * 100) if non_rejected > 0 else 0.0, 1)
+
+        # Last report timestamp
+        last_report_at = None
+        if bar_reports:
+            latest = max((r.created_at for r in bar_reports if r.created_at), default=None)
+            last_report_at = latest.isoformat() if latest else None
+
+        # SLA stats from _compute_sla_compliance
+        sla_entry = sla_by_barangay.get(name, {})
+        active_breaches = sla_entry.get("active_breaches", 0)
+        compliance_rate = sla_entry.get("compliance_rate", 0.0)
+        avg_resolution_days = sla_entry.get("avg_resolution_days", 0.0)
+
+        # 7-day resolution rate trend delta
+        # "current window" = resolved_at in [7d ago, now)
+        # "prior window"   = resolved_at in [14d ago, 7d ago)
+        resolved_reports = [r for r in bar_reports if r.status == models.ReportStatus.RESOLVED and r.resolved_at]
+        current_resolved = [r for r in resolved_reports if seven_days_ago <= r.resolved_at <= now]
+        prior_resolved = [r for r in resolved_reports if fourteen_days_ago <= r.resolved_at < seven_days_ago]
+
+        # Denominator: all non-rejected reports created in each window
+        current_window_total = [r for r in bar_reports if r.created_at and seven_days_ago <= r.created_at <= now and r.status != models.ReportStatus.REJECTED]
+        prior_window_total = [r for r in bar_reports if r.created_at and fourteen_days_ago <= r.created_at < seven_days_ago and r.status != models.ReportStatus.REJECTED]
+
+        cur_rate = (len(current_resolved) / len(current_window_total) * 100) if current_window_total else 0.0
+        prior_rate = (len(prior_resolved) / len(prior_window_total) * 100) if prior_window_total else 0.0
+        trend_7d = round(cur_rate - prior_rate, 1) if (current_window_total or prior_window_total) else 0.0
+
+        # Derive status
+        if admin_user is None:
+            status = "unassigned"
+        elif active_breaches > 0:
+            status = "breached"
+        elif compliance_rate < sla_target:
+            status = "at_risk"
+        else:
+            status = "healthy"
+
+        rows.append({
+            "barangay": name,
+            "admin": {
+                "id": admin_user.id,
+                "full_name": admin_user.full_name,
+                "email": admin_user.email,
+                "phone_number": admin_user.phone_number,
+                "last_login_at": admin_user.last_login_at.isoformat() if admin_user.last_login_at else None,
+            } if admin_user else None,
+            "total_reports": total,
+            "pending": pending,
+            "verified": verified,
+            "deployed": deployed,
+            "resolved": resolved,
+            "rejected": rejected,
+            "failed_cleanup": failed_cleanup,
+            "resolution_rate": resolution_rate,
+            "active_breaches": active_breaches,
+            "compliance_rate": compliance_rate,
+            "avg_resolution_days": avg_resolution_days,
+            "last_report_at": last_report_at,
+            "trend_7d_resolution_rate_delta": trend_7d,
+            "status": status,
+        })
+
+    barangays_with_admin = sum(1 for r in rows if r["admin"] is not None)
+    total_active_breaches = sum(r["active_breaches"] for r in rows)
+    total_non_rejected = sum(r["total_reports"] - r["rejected"] for r in rows)
+    total_resolved = sum(r["resolved"] for r in rows)
+    city_resolution_rate = round(
+        (total_resolved / total_non_rejected * 100) if total_non_rejected > 0 else 0.0, 1
+    )
+
+    city_wide = {
+        "total_barangays": len(barangay_names),
+        "barangays_with_admin": barangays_with_admin,
+        "barangays_without_admin": len(barangay_names) - barangays_with_admin,
+        "total_active_breaches": total_active_breaches,
+        "city_resolution_rate": city_resolution_rate,
+    }
+
+    return {"city_wide": city_wide, "barangays": rows}
+
+
+@app.get("/analytics/barangay-overview")
+async def get_barangay_overview(
+    db: Session = Depends(get_db),
+    _user: models.User = Depends(require_role("cenro")),
+):
+    """City-wide + per-barangay admin, report, and SLA overview. CENRO-only."""
+    return _build_barangay_overview_data(db)
+
+
+def _csv_safe(value: str) -> str:
+    """Prevent CSV injection by prefixing dangerous leading characters with a single quote."""
+    s = str(value)
+    if s and s[0] in ("=", "+", "-", "@"):
+        return "'" + s
+    return s
+
+
+@app.get("/analytics/barangay-overview/export")
+async def export_barangay_overview_csv(
+    db: Session = Depends(get_db),
+    _user: models.User = Depends(require_role("cenro")),
+):
+    """Export barangay overview as CSV. CENRO-only."""
+    data = _build_barangay_overview_data(db)
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "barangay", "admin_name", "admin_email",
+        "total_reports", "pending", "deployed", "resolved",
+        "resolution_rate", "active_breaches", "compliance_rate",
+        "avg_resolution_days", "last_report_at", "status",
+    ])
+    for row in data["barangays"]:
+        admin = row["admin"]
+        writer.writerow([
+            _csv_safe(row["barangay"]),
+            _csv_safe(admin["full_name"]) if admin else "",
+            _csv_safe(admin["email"]) if admin else "",
+            row["total_reports"],
+            row["pending"],
+            row["deployed"],
+            row["resolved"],
+            row["resolution_rate"],
+            row["active_breaches"],
+            row["compliance_rate"],
+            row["avg_resolution_days"],
+            row["last_report_at"] or "",
+            row["status"],
+        ])
+    output.seek(0)
+    filename = f"ecowatch_barangay_performance_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+# ─────────────────────────────────────────────────────────
 # SLA MANAGEMENT (CENRO-only) - powers /cenro SLA Management tab
 # ─────────────────────────────────────────────────────────
 

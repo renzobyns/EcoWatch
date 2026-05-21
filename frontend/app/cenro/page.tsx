@@ -14,21 +14,12 @@ import { api, ApiError } from "@/lib/api";
 import { PortalShell, type PortalNavItem } from "@/components/portal/PortalShell";
 import { SlaManagementTab } from "@/components/portal/SlaManagementTab";
 import { AnalyticsTab, type InsightsData } from "@/components/portal/AnalyticsTab";
+import { BarangayManagementTab, type BarangayOverviewRow, type BarangayCityWide } from "@/components/portal/BarangayManagementTab";
+import { BarangayDetailDrawer } from "@/components/portal/BarangayDetailDrawer";
+import { BARANGAYS } from "@/lib/barangays";
 
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-
-const BARANGAYS = [
-    "Assumption", "Bagong Buhay I", "Bagong Buhay II", "Bagong Buhay III",
-    "Citrus", "Ciudad Real", "Dulong Bayan", "Fatima I", "Fatima II",
-    "Fatima III", "Minuyan I", "Minuyan II", "Minuyan III", "Muzon",
-    "Kaybanban", "Kaypian", "Lawang Pare", "Maharlika", "San Isidro",
-    "San Manuel", "San Martin I", "San Martin II", "San Martin III",
-    "San Martin IV", "San Pedro", "San Rafael I", "San Rafael II",
-    "San Rafael III", "San Rafael IV", "San Rafael V", "San Roque",
-    "Sto. Cristo", "Tungkong Mangga", "Graceville", "Gumaoc Central",
-    "Gumaoc East", "Gumaoc West", "Poblacion", "Poblacion I"
-];
 
 const STATUS_OPTIONS = ["", "pending", "verified", "deployed", "resolved", "failed_cleanup", "rejected"];
 
@@ -189,6 +180,14 @@ export default function CenroDashboard() {
     const [insightsWindowDays, setInsightsWindowDays] = useState(30);
     const [insightsLastUpdated, setInsightsLastUpdated] = useState<Date | null>(null);
 
+    // Barangay Management tab
+    const [barangayOverview, setBarangayOverview] = useState<BarangayOverviewRow[]>([]);
+    const [barangayCityWide, setBarangayCityWide] = useState<BarangayCityWide | null>(null);
+    const [barangayLoading, setBarangayLoading] = useState(false);
+    const [barangayError, setBarangayError] = useState<string | null>(null);
+    const [barangayExporting, setBarangayExporting] = useState(false);
+    const [selectedBarangayRow, setSelectedBarangayRow] = useState<BarangayOverviewRow | null>(null);
+
     // C4 — Oversight Queue filters
     const [queueReports, setQueueReports] = useState<any[]>([]);
     const [queueLoading, setQueueLoading] = useState(false);
@@ -335,6 +334,14 @@ export default function CenroDashboard() {
         fetchInsights(insightsWindowDays);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, user, insightsWindowDays]);
+
+    // Fetch Barangay Management overview when tab becomes active
+    useEffect(() => {
+        if (activeTab !== 'barangay_management' || !user) return;
+        fetchBarangayOverview();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, user]);
+
     // Client-side barangay filter (backend has no barangay query param on /reports/recent)
     const displayedQueueReports = oversightBarangay
         ? queueReports.filter((r) => r.barangay === oversightBarangay)
@@ -411,6 +418,7 @@ export default function CenroDashboard() {
                 setCreateForm({ email: "", full_name: "", phone_number: "", barangay_assignment: "", role: "barangay" });
                 toast.success("Account created.");
                 fetchUsers();
+                if (createForm.role === "barangay") fetchBarangayOverview();
             }
         } catch (err) {
             toast.error(err instanceof ApiError ? err.message : "Failed to create account");
@@ -440,6 +448,52 @@ export default function CenroDashboard() {
         setUserActionsMenu(null);
     };
 
+    const handleAssignBarangayAdmin = (barangayName: string) => {
+        setCreateForm({ email: "", full_name: "", phone_number: "", barangay_assignment: barangayName, role: "barangay" });
+        setShowCreateUserModal(true);
+    };
+
+    const handleReassignBarangayAdmin = (adminUserId: number) => {
+        const admin = selectedBarangayRow?.admin;
+        if (!admin) return;
+        const asBarangayUser: BarangayUser = {
+            id: admin.id,
+            email: admin.email,
+            full_name: admin.full_name,
+            role: "barangay",
+            barangay_assignment: selectedBarangayRow?.barangay ?? null,
+            phone_number: admin.phone_number,
+            is_active: true,
+            created_at: null,
+            last_login_at: admin.last_login_at,
+        };
+        setEditTarget(asBarangayUser);
+        setEditForm({
+            full_name: admin.full_name,
+            email: admin.email,
+            phone_number: admin.phone_number ?? "",
+            barangay_assignment: selectedBarangayRow?.barangay ?? "",
+        });
+        setShowEditUserModal(true);
+    };
+
+    const handleDisableBarangayAdmin = async (adminUserId: number) => {
+        const admin = selectedBarangayRow?.admin;
+        if (!admin) return;
+        if (!confirm(`Disable ${admin.email}? They will no longer be able to log in.`)) return;
+        setDisabling(s => new Set(s).add(adminUserId));
+        try {
+            await api(`/users/${adminUserId}/disable`, { method: "PUT" });
+            toast.success(`${admin.full_name} disabled.`);
+            setSelectedBarangayRow(null);
+            fetchBarangayOverview();
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Failed to disable admin.");
+        } finally {
+            setDisabling(s => { const n = new Set(s); n.delete(adminUserId); return n; });
+        }
+    };
+
     const handleEditUser = async () => {
         if (!editTarget) return;
         if (!editForm.full_name.trim() || !editForm.email.trim()) {
@@ -459,6 +513,7 @@ export default function CenroDashboard() {
             setBarangayUsers((prev) => prev.map((u) => (u.id === editTarget.id ? { ...u, ...updated } : u)));
             setShowEditUserModal(false);
             toast.success("Account updated.");
+            if (editTarget.role === "barangay") fetchBarangayOverview();
         } catch (err) {
             toast.error(err instanceof ApiError ? err.message : "Failed to update account");
         } finally {
@@ -654,6 +709,48 @@ export default function CenroDashboard() {
         }
     };
 
+    const fetchBarangayOverview = async () => {
+        setBarangayLoading(true);
+        setBarangayError(null);
+        try {
+            const data = await api("/analytics/barangay-overview");
+            setBarangayCityWide(data.city_wide ?? null);
+            setBarangayOverview(Array.isArray(data.barangays) ? data.barangays : []);
+        } catch (err) {
+            const msg = err instanceof ApiError ? err.message : "Could not load barangay data. Please refresh.";
+            setBarangayError(msg);
+            toast.error(msg);
+        } finally {
+            setBarangayLoading(false);
+        }
+    };
+
+    const handleExportBarangayPerformance = async () => {
+        setBarangayExporting(true);
+        try {
+            const storedUser = localStorage.getItem("ecowatch_user");
+            const userId = storedUser ? JSON.parse(storedUser).id : null;
+            const res = await fetch(`${API_URL}/analytics/barangay-overview/export`, {
+                headers: { "X-User-Id": String(userId) },
+            });
+            if (!res.ok) throw new Error("Export failed");
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `ecowatch_barangay_performance_${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+            toast.success("Barangay performance CSV exported.");
+        } catch {
+            toast.error("Export failed. Please try again.");
+        } finally {
+            setBarangayExporting(false);
+        }
+    };
+
     const handleExportSlaReport = async () => {
         setSlaExporting(true);
         try {
@@ -824,14 +921,30 @@ export default function CenroDashboard() {
                     />
                 )}
 
-                {/* Placeholder modules - remaining tabs */}
+                {/* Barangay Management Tab */}
                 {activeTab === 'barangay_management' && (
-                    <div className="glass-pro rounded-2xl p-12 text-center animate-slide-up">
-                        <h2 className="text-xl font-bold text-foreground mb-2">Barangay Management</h2>
-                        <p className="text-foreground/50 text-sm max-w-xl mx-auto">
-                            City-wide barangay performance and intervention queue. Coming soon.
-                        </p>
-                    </div>
+                    <>
+                        <BarangayManagementTab
+                            loading={barangayLoading}
+                            error={barangayError}
+                            cityWide={barangayCityWide}
+                            barangays={barangayOverview}
+                            exporting={barangayExporting}
+                            onRefresh={fetchBarangayOverview}
+                            onExport={handleExportBarangayPerformance}
+                            onSelectBarangay={setSelectedBarangayRow}
+                            onAssignAdmin={handleAssignBarangayAdmin}
+                        />
+                        <BarangayDetailDrawer
+                            open={selectedBarangayRow !== null}
+                            barangay={selectedBarangayRow}
+                            onClose={() => setSelectedBarangayRow(null)}
+                            onAssignAdmin={handleAssignBarangayAdmin}
+                            onReassignAdmin={handleReassignBarangayAdmin}
+                            onDisableAdmin={handleDisableBarangayAdmin}
+                            onViewOnMap={() => setActiveTab('overview')}
+                        />
+                    </>
                 )}
 
                 {/* SLA MANAGEMENT TAB */}
