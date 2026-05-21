@@ -109,7 +109,7 @@ export function BarangayManagementTab({
     const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
 
     return (
-        <div className="flex-1 flex flex-col gap-6 min-h-0 overflow-y-auto scrollbar-hide pb-8">
+        <div className="flex flex-col gap-6 pb-8 w-full shrink-0">
 
             {/* Header */}
             <div className="flex items-start justify-between gap-4 flex-wrap shrink-0">
