@@ -10,6 +10,8 @@ EcoWatch is a specialized geospatial reporting and environmental monitoring syst
 - **Heatmap Analytics (DBSCAN)**: Spatial clustering to identify high-density dumping zones for CENRO.
 - **Cleanup Validation**: Required "After" photos with AI re-verification before case resolution.
 
+> 📖 **For detailed defense-grade documentation** on each core feature (what it is, how it's built, files involved, sources & citations), see [`FEATURES.md`](FEATURES.md).
+
 ## 🛠️ Tech Stack
 
 - **Frontend**: Next.js 16 (React), Tailwind CSS v4, Lucide Icons.
