@@ -56,7 +56,7 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="h-screen h-[100dvh] -mt-16 bg-background flex overflow-hidden">
+        <div className="h-[calc(100vh-4rem)] bg-background flex overflow-hidden">
             {/* Left Side: Marketing/Testimonial (Desktop Only) — stays dark in both themes */}
             <div className="dark hidden lg:flex w-1/2 relative overflow-hidden bg-[#051105] text-white border-r border-white/5 p-8 xl:p-12 flex-col justify-between">
                 {/* Background Decor */}
