@@ -9,6 +9,7 @@ import {
     GitBranch, ShieldX, Settings, UserPlus, ClipboardList,
     LayoutDashboard, FileText, Map, ShieldCheck, BarChart3,
     Image as ImageIcon, History, BookUser, Briefcase, Users, AlertCircle,
+    Eye, EyeOff,
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { PortalShell, type PortalNavItem } from "@/components/portal/PortalShell";
@@ -181,6 +182,9 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
     const [newPw, setNewPw] = useState("");
     const [confirmPw, setConfirmPw] = useState("");
     const [saving, setSaving] = useState(false);
+    const [showCurrent, setShowCurrent] = useState(false);
+    const [showNew, setShowNew] = useState(false);
+    const [showConfirm, setShowConfirm] = useState(false);
 
     const handleSubmit = async () => {
         if (!currentPw || !newPw || !confirmPw) {
@@ -220,22 +224,31 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
                 <div className="space-y-3 mb-5">
                     {(
                         [
-                            { label: "Current Password", val: currentPw, set: setCurrentPw },
-                            { label: "New Password", val: newPw, set: setNewPw },
-                            { label: "Confirm New Password", val: confirmPw, set: setConfirmPw },
-                        ] as { label: string; val: string; set: (v: string) => void }[]
-                    ).map(({ label, val, set }) => (
+                            { label: "Current Password", val: currentPw, set: setCurrentPw, show: showCurrent, toggle: () => setShowCurrent(v => !v) },
+                            { label: "New Password", val: newPw, set: setNewPw, show: showNew, toggle: () => setShowNew(v => !v) },
+                            { label: "Confirm New Password", val: confirmPw, set: setConfirmPw, show: showConfirm, toggle: () => setShowConfirm(v => !v) },
+                        ] as { label: string; val: string; set: (v: string) => void; show: boolean; toggle: () => void }[]
+                    ).map(({ label, val, set, show, toggle }) => (
                         <div key={label}>
                             <label className="block text-[11px] uppercase tracking-widest text-foreground/40 font-semibold mb-1">
                                 {label}
                             </label>
-                            <input
-                                type="password"
-                                value={val}
-                                onChange={(e) => set(e.target.value)}
-                                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors"
-                                placeholder="••••••••"
-                            />
+                            <div className="relative">
+                                <input
+                                    type={show ? "text" : "password"}
+                                    value={val}
+                                    onChange={(e) => set(e.target.value)}
+                                    className="w-full bg-background border border-border rounded-lg px-3 py-2 pr-10 text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors"
+                                    placeholder="••••••••"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={toggle}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-primary transition-colors"
+                                >
+                                    {show ? <EyeOff size={15} /> : <Eye size={15} />}
+                                </button>
+                            </div>
                         </div>
                     ))}
                 </div>
