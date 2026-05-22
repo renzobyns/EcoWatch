@@ -38,6 +38,22 @@ const icons = {
     failed_cleanup: createCustomIcon('#ef4444'), // Red
 };
 
+// Priority-coloured icons for the cleaner Map View
+const priorityIcons = {
+    high: createCustomIcon('#ef4444'),   // Red
+    medium: createCustomIcon('#eab308'), // Yellow
+    low: createCustomIcon('#3b82f6'),    // Blue
+};
+
+// WorkOrder status-coloured icons (fallback when pinColorBy="status")
+const workOrderStatusIcons = {
+    assigned: createCustomIcon('#eab308'),    // Yellow
+    in_progress: createCustomIcon('#3b82f6'), // Blue
+    needs_redo: createCustomIcon('#ef4444'),  // Red
+    verified: createCustomIcon('#22c55e'),    // Green
+    completed: createCustomIcon('#22c55e'),   // Green
+};
+
 // --- Map Controller for Zooming ---
 function MapController({ focusedBarangay, geoData }: { focusedBarangay: string | null, geoData: any }) {
     const map = useMap();
@@ -68,9 +84,22 @@ interface MapProps {
     heatmaps?: any[];
     focusedBarangay?: string | null;
     onBarangayClick?: (barangay: string | null) => void;
+    // Cleaner additions:
+    workOrders?: any[];                  // when provided, render WO pins instead of report pins
+    pinColorBy?: "status" | "priority";  // default "priority" for workOrders, "status" for reports
+    onPinClick?: (item: any) => void;    // called with the clicked WO or report
 }
 
-export default function SJDMMap({ height = "100vh", reports = [], heatmaps = [], focusedBarangay = null, onBarangayClick }: MapProps) {
+export default function SJDMMap({
+    height = "100vh",
+    reports = [],
+    heatmaps = [],
+    focusedBarangay = null,
+    onBarangayClick,
+    workOrders,
+    pinColorBy,
+    onPinClick,
+}: MapProps) {
     const { theme } = useTheme();
     const [geoData, setGeoData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -194,23 +223,30 @@ export default function SJDMMap({ height = "100vh", reports = [], heatmaps = [],
                     />
                 ))}
 
-                {/* Report Pins */}
-                {reports.map((report) => {
-                    // Skip showing reports that aren't in the focused barangay
-                    if (focusedBarangay && report.barangay !== focusedBarangay) return null;
-
-                    const status = report.status as keyof typeof icons;
-                    const icon = icons[status] || icons.pending;
-                    
+                {/* Work-Order Pins (Cleaner Map View) — takes precedence over report pins */}
+                {workOrders && workOrders.map((wo) => {
+                    if (wo.report_lat == null || wo.report_lon == null) return null;
+                    const colorMode = pinColorBy ?? "priority";
+                    let icon;
+                    if (colorMode === "priority") {
+                        icon = priorityIcons[wo.priority as keyof typeof priorityIcons] || priorityIcons.medium;
+                    } else {
+                        icon = workOrderStatusIcons[wo.status as keyof typeof workOrderStatusIcons] || workOrderStatusIcons.assigned;
+                    }
                     return (
-                        <Marker key={report.id} position={[report.lat, report.lon]} icon={icon}>
+                        <Marker
+                            key={`wo-${wo.id}`}
+                            position={[wo.report_lat, wo.report_lon]}
+                            icon={icon}
+                            eventHandlers={onPinClick ? { click: () => onPinClick(wo) } : undefined}
+                        >
                             <Popup className="custom-popup">
                                 <div className="p-1 min-w-[200px]">
-                                    {report.image_url && (
+                                    {wo.report_image_url && (
                                         <div className="w-full h-32 rounded-lg bg-black/50 mb-3 overflow-hidden">
-                                            <img 
-                                                src={`${API_URL}${report.image_url}`} 
-                                                alt="Report" 
+                                            <img
+                                                src={`${API_URL}${wo.report_image_url}`}
+                                                alt="Report"
                                                 className="w-full h-full object-cover"
                                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                             />
@@ -218,8 +254,61 @@ export default function SJDMMap({ height = "100vh", reports = [], heatmaps = [],
                                     )}
                                     <div className="flex items-center gap-2 mb-2">
                                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider
-                                            ${report.status === 'resolved' ? 'bg-green-500/20 text-green-500 border border-green-500/30' : 
-                                              report.status === 'deployed' ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30' : 
+                                            ${wo.priority === 'high' ? 'bg-red-500/20 text-red-500 border border-red-500/30' :
+                                              wo.priority === 'low' ? 'bg-blue-500/20 text-blue-500 border border-blue-500/30' :
+                                              'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30'}`}>
+                                            {wo.priority}
+                                        </span>
+                                        <span className="text-xs text-gray-400 font-medium">{wo.status}</span>
+                                    </div>
+                                    <p className="text-sm font-bold text-foreground mb-1">{wo.report_tracking_id}</p>
+                                    <p className="text-xs text-gray-300 mb-3">{wo.report_barangay}</p>
+                                    {onPinClick && (
+                                        <button
+                                            type="button"
+                                            onClick={() => onPinClick(wo)}
+                                            className="block w-full py-2 text-center rounded bg-primary/20 hover:bg-primary/40 text-primary text-xs font-bold transition-colors"
+                                        >
+                                            Open Job →
+                                        </button>
+                                    )}
+                                </div>
+                            </Popup>
+                        </Marker>
+                    );
+                })}
+
+                {/* Report Pins (only when workOrders is NOT provided) */}
+                {!workOrders && reports.map((report) => {
+                    // Skip showing reports that aren't in the focused barangay
+                    if (focusedBarangay && report.barangay !== focusedBarangay) return null;
+
+                    const status = report.status as keyof typeof icons;
+                    const icon = icons[status] || icons.pending;
+
+                    return (
+                        <Marker
+                            key={report.id}
+                            position={[report.lat, report.lon]}
+                            icon={icon}
+                            eventHandlers={onPinClick ? { click: () => onPinClick(report) } : undefined}
+                        >
+                            <Popup className="custom-popup">
+                                <div className="p-1 min-w-[200px]">
+                                    {report.image_url && (
+                                        <div className="w-full h-32 rounded-lg bg-black/50 mb-3 overflow-hidden">
+                                            <img
+                                                src={`${API_URL}${report.image_url}`}
+                                                alt="Report"
+                                                className="w-full h-full object-cover"
+                                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                            />
+                                        </div>
+                                    )}
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider
+                                            ${report.status === 'resolved' ? 'bg-green-500/20 text-green-500 border border-green-500/30' :
+                                              report.status === 'deployed' ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30' :
                                               'bg-red-500/20 text-red-500 border border-red-500/30'}`}>
                                             {report.status}
                                         </span>
@@ -227,7 +316,7 @@ export default function SJDMMap({ height = "100vh", reports = [], heatmaps = [],
                                     </div>
                                     <p className="text-sm font-bold text-foreground mb-1">{report.barangay}</p>
                                     {report.notes && <p className="text-xs text-gray-300 mb-3 line-clamp-2">{report.notes}</p>}
-                                    
+
                                     <Link href={report.tracking_url || "#"} className="block w-full py-2 text-center rounded bg-primary/20 hover:bg-primary/40 text-primary text-xs font-bold transition-colors">
                                         View Full Report →
                                     </Link>
