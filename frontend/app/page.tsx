@@ -53,7 +53,7 @@ export default function LandingPage() {
     return (
         <div className="relative w-full h-screen overflow-hidden bg-background">
             {/* Full Screen Map */}
-            <div className="absolute inset-0 z-0 pt-16">
+            <div className="absolute inset-0 z-0">
                 <MapComponent
                     height="100%"
                     reports={reports}
