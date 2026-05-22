@@ -20,6 +20,7 @@ from database import engine, get_db, SessionLocal
 import models
 from ai_verifier import verifier
 import analytics
+from notifications import emit_notification
 
 # SLA config keys + defaults (CENRO-editable at runtime via /config/sla)
 SLA_CONFIG_KEYS = ("sla_low_days", "sla_medium_days", "sla_high_days", "sla_compliance_target")
@@ -1406,12 +1407,19 @@ async def deploy_report(
             notes=notes_clean,
         )
         db.add(work_order)
+        db.flush()  # populate work_order.id for the notification FK
         write_audit(db, user.id, "create_work_order", report.id, {
             "tracking_id": report.tracking_id,
             "assigned_cleaner_id": assigned_cleaner_id,
             "priority": priority,
             "sla_deadline": sla_deadline.isoformat(),
         })
+        emit_notification(
+            db, assigned_cleaner_id, "job_assigned",
+            f"New job assigned: {report.tracking_id}",
+            f"Priority: {priority.upper()}. Deadline: {sla_deadline.strftime('%b %d %I:%M %p')}",
+            work_order_id=work_order.id, report_id=report.id,
+        )
     else:
         # Legacy: just mark as deployed without work order
         write_audit(db, user.id, "deploy", report.id, {
@@ -1528,6 +1536,7 @@ async def create_work_order(
     )
 
     db.add(work_order)
+    db.flush()  # populate work_order.id for the notification FK
     report.status = models.ReportStatus.DEPLOYED
     report.deployed_at = datetime.utcnow()
 
@@ -1537,6 +1546,12 @@ async def create_work_order(
         "priority": req.priority,
         "sla_deadline": sla_deadline.isoformat(),
     })
+    emit_notification(
+        db, req.assigned_cleaner_id, "job_assigned",
+        f"New job assigned: {report.tracking_id}",
+        f"Priority: {req.priority.upper()}. Deadline: {sla_deadline.strftime('%b %d %I:%M %p')}",
+        work_order_id=work_order.id, report_id=report.id,
+    )
     db.commit()
     db.refresh(work_order)
 
@@ -1682,11 +1697,23 @@ async def complete_work_order(
         # AI still sees waste → cleanup failed, mark for redo
         wo.status = models.WorkOrderStatus.NEEDS_REDO
         report.status = models.ReportStatus.FAILED_CLEANUP
+        emit_notification(
+            db, wo.assigned_cleaner_id, "needs_redo",
+            f"Cleanup needs redo: {report.tracking_id}",
+            "AI still detected waste. Please clean more thoroughly and try again.",
+            work_order_id=wo.id, report_id=report.id,
+        )
     else:
         # AI sees no waste → cleanup successful
         wo.status = models.WorkOrderStatus.VERIFIED
         report.status = models.ReportStatus.RESOLVED
         report.resolved_at = datetime.utcnow()
+        emit_notification(
+            db, wo.assigned_cleaner_id, "verified",
+            f"Job verified: {report.tracking_id}",
+            "AI confirmed cleanup. Thank you!",
+            work_order_id=wo.id, report_id=report.id,
+        )
 
     write_audit(db, user.id, "complete_work_order", report.id, {
         "work_order_id": wo.id,
@@ -1739,6 +1766,20 @@ async def reassign_work_order(
         "from_cleaner_id": old_cleaner_id,
         "to_cleaner_id": req.assigned_cleaner_id,
     })
+    tracking_id = wo.report.tracking_id if wo.report else f"#{wo.id}"
+    if old_cleaner_id and old_cleaner_id != req.assigned_cleaner_id:
+        emit_notification(
+            db, old_cleaner_id, "reassigned",
+            f"Job reassigned: {tracking_id}",
+            "This job has been moved to another cleaner.",
+            work_order_id=wo.id, report_id=wo.report_id,
+        )
+    emit_notification(
+        db, req.assigned_cleaner_id, "job_assigned",
+        f"New job assigned: {tracking_id}",
+        f"Priority: {wo.priority.upper()}. Deadline: {wo.sla_deadline.strftime('%b %d %I:%M %p')}",
+        work_order_id=wo.id, report_id=wo.report_id,
+    )
     db.commit()
     db.refresh(wo)
 
@@ -1787,6 +1828,13 @@ async def update_work_order_priority(
         "to_priority": new_priority,
         "new_sla_deadline": wo.sla_deadline.isoformat() if wo.sla_deadline else None,
     })
+    tracking_id = wo.report.tracking_id if wo.report else f"#{wo.id}"
+    emit_notification(
+        db, wo.assigned_cleaner_id, "priority_changed",
+        f"Priority changed: {tracking_id}",
+        f"Updated from {old_priority.upper()} to {new_priority.upper()}. New deadline: {wo.sla_deadline.strftime('%b %d %I:%M %p')}",
+        work_order_id=wo.id, report_id=wo.report_id,
+    )
     db.commit()
     db.refresh(wo)
 
@@ -1838,6 +1886,12 @@ async def force_resolve_work_order(
         "tracking_id": report.tracking_id,
         "reason": reason,
     })
+    emit_notification(
+        db, wo.assigned_cleaner_id, "force_resolved",
+        f"Job force-resolved: {report.tracking_id}",
+        "Your supervisor closed this work order manually.",
+        work_order_id=wo.id, report_id=report.id,
+    )
     db.commit()
     db.refresh(wo)
     db.refresh(report)
@@ -2758,3 +2812,91 @@ async def export_analytics_insights(
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# ─────────────────────────────────────────────────────────
+# NOTIFICATIONS (Cleaner in-app feed)
+# ─────────────────────────────────────────────────────────
+
+@app.get("/notifications/cleaner/{cleaner_id}")
+async def list_notifications(
+    cleaner_id: int,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("cleaner")),
+):
+    """List a cleaner's notifications, newest first. Caps at 200 rows."""
+    if user.id != cleaner_id:
+        raise HTTPException(status_code=403, detail="Can only view your own notifications")
+    rows = (
+        db.query(models.Notification)
+        .filter(models.Notification.user_id == cleaner_id)
+        .order_by(models.Notification.created_at.desc())
+        .limit(max(1, min(limit, 200)))
+        .all()
+    )
+    return [
+        {
+            "id": n.id,
+            "kind": n.kind,
+            "title": n.title,
+            "body": n.body,
+            "work_order_id": n.work_order_id,
+            "report_id": n.report_id,
+            "is_read": n.is_read,
+            "created_at": n.created_at.isoformat() if n.created_at else None,
+        }
+        for n in rows
+    ]
+
+
+@app.get("/notifications/cleaner/{cleaner_id}/unread-count")
+async def unread_notification_count(
+    cleaner_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("cleaner")),
+):
+    """Bell-badge counter. Polled every 30s by the cleaner portal."""
+    if user.id != cleaner_id:
+        raise HTTPException(status_code=403, detail="Can only view your own notifications")
+    count = (
+        db.query(models.Notification)
+        .filter(
+            models.Notification.user_id == cleaner_id,
+            models.Notification.is_read == False,  # noqa: E712
+        )
+        .count()
+    )
+    return {"unread_count": count}
+
+
+@app.post("/notifications/{notification_id}/mark-read")
+async def mark_notification_read(
+    notification_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("cleaner")),
+):
+    n = db.query(models.Notification).filter(models.Notification.id == notification_id).first()
+    if not n:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    if n.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Cannot mark someone else's notification")
+    n.is_read = True
+    db.commit()
+    return {"success": True}
+
+
+@app.post("/notifications/cleaner/{cleaner_id}/mark-all-read")
+async def mark_all_notifications_read(
+    cleaner_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("cleaner")),
+):
+    if user.id != cleaner_id:
+        raise HTTPException(status_code=403, detail="Can only mark your own notifications")
+    db.query(models.Notification).filter(
+        models.Notification.user_id == cleaner_id,
+        models.Notification.is_read == False,  # noqa: E712
+    ).update({"is_read": True})
+    db.commit()
+    return {"success": True}

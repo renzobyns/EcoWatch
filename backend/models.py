@@ -133,3 +133,18 @@ class AuditLog(Base):
     target_id = Column(Integer, nullable=True, index=True)
     details = Column(Text, nullable=True)  # JSON-encoded dict
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+class Notification(Base):
+    """In-app notification feed for cleaners. One row per event affecting a cleaner's work order."""
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    kind = Column(String, nullable=False)  # job_assigned | priority_changed | reassigned | needs_redo | verified | force_resolved
+    title = Column(String, nullable=False)
+    body = Column(Text, nullable=False)
+    work_order_id = Column(Integer, ForeignKey("work_orders.id"), nullable=True, index=True)
+    report_id = Column(Integer, ForeignKey("reports.id"), nullable=True, index=True)
+    is_read = Column(Boolean, nullable=False, default=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)

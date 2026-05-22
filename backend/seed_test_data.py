@@ -24,13 +24,15 @@ def seed():
     # ─────────────────────────────────────────────
     # CLEAR EXISTING DATA
     # ─────────────────────────────────────────────
+    db.query(models.Notification).delete()
+    db.query(models.WorkOrder).delete()
     db.query(models.Report).delete()
     db.query(models.User).delete()
     db.commit()
     print("🗑️  Cleared existing data.")
-    
+
     # ─────────────────────────────────────────────
-    # SEED USERS (1 citizen, 1 barangay, 1 cenro)
+    # SEED USERS (1 citizen, 1 barangay, 1 cenro, 1 cleaner)
     # ─────────────────────────────────────────────
     users = [
         models.User(
@@ -44,13 +46,22 @@ def seed():
             password_hash=hash_pw("password123"),
             full_name="Maria Santos",
             role="barangay",
-            barangay_assignment="Muzon"
+            barangay_assignment="Muzon",
+            phone_number="+63 917 123 4567",
         ),
         models.User(
             email="cenro@test.com",
             password_hash=hash_pw("password123"),
             full_name="Carlos Reyes",
             role="cenro"
+        ),
+        models.User(
+            email="cleaner@test.com",
+            password_hash=hash_pw("password123"),
+            full_name="Pedro Cruz",
+            role="cleaner",
+            barangay_assignment="Muzon",
+            phone_number="+63 917 555 0102",
         ),
     ]
     
@@ -164,7 +175,89 @@ def seed():
     print(f"\n🏘️  Reports by barangay:")
     for brgy, count in brgy_counts.items():
         print(f"   → {brgy}: {count}")
-    
+
+    # ─────────────────────────────────────────────
+    # SEED WORK ORDERS (for the cleaner test account)
+    # ─────────────────────────────────────────────
+    cleaner = next(u for u in users if u.role == "cleaner")
+
+    # Pull the Muzon DEPLOYED/FAILED_CLEANUP reports for cleaner WOs
+    db.commit()
+    for report in test_reports:
+        db.refresh(report)
+
+    muzon_deployed = [
+        r for r in test_reports
+        if r.barangay == "Muzon"
+        and r.status in (models.ReportStatus.DEPLOYED, models.ReportStatus.FAILED_CLEANUP)
+    ]
+
+    sla_priority_days = {"low": 7, "medium": 3, "high": 1}
+    wo_specs = [
+        # (priority, status, started_offset_hours, completed_offset_hours)
+        ("high", models.WorkOrderStatus.ASSIGNED, None, None),
+        ("medium", models.WorkOrderStatus.IN_PROGRESS, 1, None),
+        ("medium", models.WorkOrderStatus.NEEDS_REDO, 6, 2),
+    ]
+    work_orders = []
+    for report, (priority, status, started_off, completed_off) in zip(muzon_deployed, wo_specs):
+        created_at = now - timedelta(hours=4)
+        wo = models.WorkOrder(
+            report_id=report.id,
+            assigned_cleaner_id=cleaner.id,
+            priority=priority,
+            sla_deadline=created_at + timedelta(days=sla_priority_days[priority]),
+            status=status,
+            created_at=created_at,
+            started_at=(now - timedelta(hours=started_off)) if started_off else None,
+            completed_at=(now - timedelta(hours=completed_off)) if completed_off else None,
+        )
+        db.add(wo)
+        work_orders.append(wo)
+    db.commit()
+    for wo in work_orders:
+        db.refresh(wo)
+
+    print(f"\n🛠️  Created {len(work_orders)} work orders for {cleaner.email}:")
+    for wo in work_orders:
+        print(f"   → WO #{wo.id}  priority={wo.priority}  status={wo.status}")
+
+    # ─────────────────────────────────────────────
+    # SEED SAMPLE NOTIFICATIONS (so the bell isn't empty on first load)
+    # ─────────────────────────────────────────────
+    sample_notifications = []
+    if work_orders:
+        # First WO got a fresh assignment
+        wo0 = work_orders[0]
+        sample_notifications.append(models.Notification(
+            user_id=cleaner.id,
+            kind="job_assigned",
+            title=f"New job assigned: {wo0.report.tracking_id if wo0.report else f'#{wo0.id}'}",
+            body=f"Priority: {wo0.priority.upper()}. Deadline: {wo0.sla_deadline.strftime('%b %d %I:%M %p')}",
+            work_order_id=wo0.id,
+            report_id=wo0.report_id,
+            is_read=False,
+            created_at=now - timedelta(minutes=10),
+        ))
+    if len(work_orders) >= 3:
+        # Third WO was marked needs_redo
+        wo2 = work_orders[2]
+        sample_notifications.append(models.Notification(
+            user_id=cleaner.id,
+            kind="needs_redo",
+            title=f"Cleanup needs redo: {wo2.report.tracking_id if wo2.report else f'#{wo2.id}'}",
+            body="AI still detected waste. Please clean more thoroughly and try again.",
+            work_order_id=wo2.id,
+            report_id=wo2.report_id,
+            is_read=False,
+            created_at=now - timedelta(hours=2),
+        ))
+
+    for n in sample_notifications:
+        db.add(n)
+    db.commit()
+    print(f"\n🔔 Seeded {len(sample_notifications)} sample notifications for cleaner.")
+
     print(f"\n✅ Seed complete! Open ecowatch.db in DB Browser to verify.")
     db.close()
 
