@@ -17,6 +17,7 @@ import { AnalyticsTab, type InsightsData } from "@/components/portal/AnalyticsTa
 import { BarangayManagementTab, type BarangayOverviewRow, type BarangayCityWide } from "@/components/portal/BarangayManagementTab";
 import { BarangayDetailDrawer } from "@/components/portal/BarangayDetailDrawer";
 import { BARANGAYS } from "@/lib/barangays";
+import { TrustBadge } from "@/components/TrustBadge";
 
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -1505,6 +1506,11 @@ export default function CenroDashboard() {
                                                 {report.ai_confidence && (
                                                     <div>AI: {(report.ai_confidence * 100).toFixed(0)}%</div>
                                                 )}
+                                                <TrustBadge
+                                                    trust_score={report.trust_score}
+                                                    failing_signals={report.failing_signals}
+                                                    needs_human_review={report.needs_human_review}
+                                                />
                                             </div>
                                         </div>
                                     ))}
@@ -1747,6 +1753,15 @@ export default function CenroDashboard() {
                         </div>
 
                         <div className="p-6 md:p-8 space-y-8">
+
+                            {/* Evidence / Trust */}
+                            <div className="mt-2">
+                                <TrustBadge
+                                    trust_score={selectedReport.trust_score}
+                                    failing_signals={selectedReport.failing_signals}
+                                    needs_human_review={selectedReport.needs_human_review}
+                                />
+                            </div>
 
                             {/* Reassign Action */}
                             <div className="space-y-3">
