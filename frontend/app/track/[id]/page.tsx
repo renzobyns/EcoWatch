@@ -200,7 +200,32 @@ export default function TrackReportPage() {
                                     </div>
                                 )}
                             </div>
-                            
+
+                            {/* Multi-photo strip — shown when report has >1 evidence photo */}
+                            {Array.isArray(report.photos) && report.photos.length > 1 && (
+                                <div className="mt-3">
+                                    <p className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-2">
+                                        All Evidence Photos ({report.photos.length})
+                                    </p>
+                                    <div className="flex gap-2 overflow-x-auto pb-1">
+                                        {report.photos.map((photo: any, i: number) => (
+                                            <div key={i} className="relative shrink-0 w-20 h-20 rounded-xl overflow-hidden border border-border">
+                                                <img
+                                                    src={`${API_URL}${photo.url}`}
+                                                    alt={`Evidence ${i + 1}`}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                                {photo.ai_verified != null && (
+                                                    <div className={`absolute bottom-0 inset-x-0 text-center text-[9px] font-bold py-0.5 ${photo.ai_verified ? 'bg-primary/80 text-white' : 'bg-red-500/80 text-white'}`}>
+                                                        {photo.ai_verified ? "✓ Pass" : "✕ Fail"}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Cleanup Photo (if resolved or failed) */}
                             {report.cleanup_image_url && (
                                 <div className="mt-4">
