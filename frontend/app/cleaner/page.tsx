@@ -149,7 +149,7 @@ export default function CleanerPortal() {
     const handleComplete = async (workOrderId: number, images: File[]) => {
         setActionLoading(true);
         const formData = new FormData();
-        images.forEach((img) => formData.append("cleanup_image", img));
+        images.forEach((img) => formData.append("cleanup_images", img));
 
         try {
             const data = await api(`/work-orders/${workOrderId}/complete`, {
