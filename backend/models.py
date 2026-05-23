@@ -85,6 +85,10 @@ class Report(Base):
     deployed_at = Column(DateTime, nullable=True)
     resolved_at = Column(DateTime, nullable=True)
 
+    # Trust scoring
+    trust_score = Column(String, nullable=True)  # "high" | "medium" | "low"
+    needs_human_review = Column(Boolean, nullable=False, default=False)
+
     # Work orders (one Report can have multiple work orders if a cleanup fails and is re-dispatched)
     work_orders = relationship("WorkOrder", back_populates="report", cascade="all, delete-orphan")
     report_photos = relationship("ReportPhoto", back_populates="report", cascade="all, delete-orphan")
@@ -169,6 +173,10 @@ class ReportPhoto(Base):
     ai_verified = Column(Boolean, nullable=True)
     ai_mask_path = Column(String, nullable=True)
     uploaded_at = Column(DateTime, default=datetime.utcnow)
+
+    # Trust scoring
+    trust_score = Column(String, nullable=True)  # "high" | "medium" | "low"
+    trust_signals = Column(Text, nullable=True)  # JSON-encoded signals dict
 
     report = relationship("Report", back_populates="report_photos")
 
