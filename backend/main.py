@@ -1231,9 +1231,9 @@ async def _bg_verify_submit(report_id: int) -> None:
         if any_verified:
             report.status = models.ReportStatus.VERIFIED
             passing = [
-                (r, row)
-                for r, (_, row) in zip(results, pairs)
-                if r.get("verified")
+                (result, row)
+                for (_, row), result in zip(pairs, results)
+                if result.get("verified")
             ]
             best_pass_result = max(passing, key=lambda x: x[0].get("confidence", 0.0))[0]
             if best_pass_result.get("mask_bytes"):
