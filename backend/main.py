@@ -1236,7 +1236,8 @@ async def _bg_verify_submit(report_id: int) -> None:
                 if r.get("verified")
             ]
             best_pass_result = max(passing, key=lambda x: x[0].get("confidence", 0.0))[0]
-            report.ai_mask_url = _save_mask_bytes(best_pass_result.get("mask_bytes"))
+            if best_pass_result.get("mask_bytes"):
+                report.ai_mask_url = _save_mask_bytes(best_pass_result.get("mask_bytes"))
         else:
             report.status = models.ReportStatus.REJECTED
 
