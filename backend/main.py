@@ -1262,26 +1262,51 @@ async def _bg_verify_submit(report_id: int) -> None:
 
 
 async def _bg_verify_resolve(report_id: int, user_id: int) -> None:
-    """Background task: AI re-verifies a barangay-uploaded cleanup photo."""
+    """Background task: AI re-verifies barangay-uploaded cleanup photos.
+    Inverted logic: AI detecting waste = cleanup FAILED."""
     db = SessionLocal()
     try:
         report = db.query(models.Report).filter(models.Report.id == report_id).first()
-        if not report or not report.cleanup_image_url:
-            logger.warning("BG resolve verify: report %s missing or has no cleanup image", report_id)
+        if not report:
             return
-        try:
-            with open(_disk_path_for_upload_url(report.cleanup_image_url), "rb") as f:
-                cleanup_bytes = f.read()
-        except FileNotFoundError:
-            logger.exception("BG resolve verify: cleanup image missing for report %s", report_id)
+
+        cleanup_rows = db.query(models.CleanupPhoto).filter(
+            models.CleanupPhoto.report_id == report_id,
+            models.CleanupPhoto.work_order_id.is_(None),
+            models.CleanupPhoto.ai_verified.is_(None),
+        ).all()
+
+        pairs: list[tuple[bytes, object]] = []
+        if cleanup_rows:
+            for row in cleanup_rows:
+                try:
+                    with open(_disk_path_for_upload_url(row.file_path), "rb") as f:
+                        pairs.append((f.read(), row))
+                except FileNotFoundError:
+                    logger.warning("BG resolve: missing file %s", row.file_path)
+        elif report.cleanup_image_url:
+            try:
+                with open(_disk_path_for_upload_url(report.cleanup_image_url), "rb") as f:
+                    pairs.append((f.read(), None))
+            except FileNotFoundError:
+                logger.exception("BG resolve: legacy cleanup image missing for report %s", report_id)
+
+        if not pairs:
             report.verification_pending = False
             report.verification_kind = None
             db.commit()
             return
 
-        results = await verify_images_async([cleanup_bytes])
-        verification = results[0]
-        if verification.get("verified"):
+        results = await verify_images_async([b for b, _ in pairs])
+        # ANY photo still showing waste = cleanup failed (inverted: waste detected = bad)
+        any_waste_detected = any(r.get("verified") for r in results)
+
+        for (_, row), result in zip(pairs, results):
+            if row is not None:
+                row.ai_confidence = result.get("confidence")
+                row.ai_verified = bool(result.get("verified", False))
+
+        if any_waste_detected:
             report.status = models.ReportStatus.FAILED_CLEANUP
         else:
             report.status = models.ReportStatus.RESOLVED
@@ -1756,15 +1781,18 @@ async def deploy_report(
 async def resolve_report(
     report_id: int,
     background_tasks: BackgroundTasks,
-    cleanup_image: UploadFile = File(...),
+    cleanup_images: List[UploadFile] = File(...),
     db: Session = Depends(get_db),
     user: models.User = Depends(require_role("barangay")),
 ):
     """
-    Barangay uploads cleanup photo. AI runs in background.
+    Barangay uploads cleanup photos (1–5). AI runs in background.
     Returns 202 immediately; frontend polls the report until
     `verification_pending` flips to false to see RESOLVED / FAILED_CLEANUP.
     """
+    if not (1 <= len(cleanup_images) <= 5):
+        raise HTTPException(status_code=422, detail="Upload between 1 and 5 photos.")
+
     report = db.query(models.Report).filter(models.Report.id == report_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
@@ -1775,13 +1803,29 @@ async def resolve_report(
             detail=f"Cannot resolve. Report status is '{report.status}', must be 'deployed'."
         )
 
-    cleanup_bytes = await cleanup_image.read()
-    validate_image(cleanup_image, cleanup_bytes)
+    saved_urls: list[str] = []
+    for img in cleanup_images:
+        try:
+            img_bytes = await img.read()
+            url = await save_upload(img, prefix="cleanup", contents=img_bytes)
+            saved_urls.append(url)
+        except HTTPException:
+            pass
 
-    cleanup_url = await save_upload(cleanup_image, prefix="cleanup", contents=cleanup_bytes)
-    report.cleanup_image_url = cleanup_url
+    if not saved_urls:
+        raise HTTPException(status_code=422, detail="No photos could be saved. Please try again.")
+
+    report.cleanup_image_url = saved_urls[0]  # backward compat
     report.verification_pending = True
     report.verification_kind = "resolve"
+    db.commit()
+
+    for url in saved_urls:
+        db.add(models.CleanupPhoto(
+            report_id=report.id,
+            work_order_id=None,
+            file_path=url,
+        ))
     db.commit()
     db.refresh(report)
 
