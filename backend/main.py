@@ -291,6 +291,7 @@ class ReportResponse(BaseModel):
     deployed_at: Optional[datetime] = None
     resolved_at: Optional[datetime] = None
     verification_pending: bool = False
+    photos: List[dict] = []
 
     class Config:
         from_attributes = True
@@ -1428,17 +1429,28 @@ async def track_report(tracking_slug: str, db: Session = Depends(get_db)):
     report = db.query(models.Report).filter(
         models.Report.tracking_url == f"/track/{tracking_slug}"
     ).first()
-    
+
     if not report:
-        # Try by tracking_id (e.g. "EW-0042")
         report = db.query(models.Report).filter(
             models.Report.tracking_id == tracking_slug
         ).first()
-    
+
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
-    
-    return ReportResponse.model_validate(report)
+
+    response = ReportResponse.model_validate(report)
+    photo_rows = db.query(models.ReportPhoto).filter(
+        models.ReportPhoto.report_id == report.id
+    ).all()
+    response.photos = [
+        {
+            "url": p.file_path,
+            "ai_confidence": p.ai_confidence,
+            "ai_verified": p.ai_verified,
+        }
+        for p in photo_rows
+    ]
+    return response
 
 def _apply_report_filters(
     query,
