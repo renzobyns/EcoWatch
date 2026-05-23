@@ -1,97 +1,492 @@
 # EcoWatch SJDM 🌿📍
 
-EcoWatch is a specialized geospatial reporting and environmental monitoring system designed for **San Jose del Monte (SJDM), Bulacan**. It empowers citizens to report illegal waste dumping near waterways and provides CENRO with advanced analytical tools for city-wide resolution.
+EcoWatch is a geospatial reporting and environmental monitoring system for **San Jose del Monte (SJDM), Bulacan**. Citizens submit photo reports of illegal dumping; a Mask R-CNN model verifies garbage presence; ray-casting routes the report to the correct barangay; DBSCAN clustering surfaces hotspots for CENRO.
+
+> **Capstone defense:** May 26, 2026.
+
+---
+
+## 📚 Table of Contents
+
+1. [Key Features](#-key-features)
+2. [Tech Stack](#-tech-stack)
+3. [Project Structure](#-project-structure)
+4. [Getting Started](#-getting-started)
+5. [End-to-End Workflow](#-end-to-end-workflow)
+6. [Roles & Portals](#-roles--portals)
+7. [API Surface](#-api-surface)
+8. [AI Model Details](#-ai-model-details)
+9. [How to Test](#-how-to-test)
+10. [Documentation Map](#-documentation-map)
+11. [Known Issues](#-known-issues)
+12. [License](#-license)
+
+---
 
 ## 🚀 Key Features
 
-- **QR-Tagged Reporting**: Instant access to reporting forms via physical markers.
-- **AI Verification (Mask R-CNN)**: Real-time instance segmentation using a custom-trained Mask R-CNN model to detect and verify garbage dumpsites in uploaded images.
-- **Spatial Accountability (Ray-Casting)**: Auto-assignment of reports to the correct Barangay official using point-in-polygon logic.
-- **Heatmap Analytics (DBSCAN)**: Spatial clustering to identify high-density dumping zones for CENRO.
-- **Cleanup Validation**: Required "After" photos with AI re-verification before case resolution.
+- **QR-Tagged Reporting** — Physical QR stickers open the report form with GPS pre-prompted; no app install.
+- **AI Verification (Mask R-CNN)** — Instance segmentation gates submissions; confidence stored on the report.
+- **Spatial Accountability (Ray-Casting)** — GPS-to-barangay assignment via point-in-polygon on the SJDM GeoJSON.
+- **Heatmap Analytics (DBSCAN)** — Density clustering of confirmed dumpsites for CENRO oversight.
+- **Cleanup Validation** — "After" photo + AI re-verification required before a case can be marked resolved.
+- **Trust Badges** — Per-report trust score surfaced on barangay/CENRO portals (computed from AI confidence, duplicate proximity, EXIF integrity).
+- **RBAC + Audit Log** — Every privileged mutation is recorded; CENRO can browse the trail.
+- **CSV Exports** — Barangay queue, CENRO analytics, and SLA reports all export to CSV.
 
-> 📖 **For detailed defense-grade documentation** on each core feature (what it is, how it's built, files involved, sources & citations), see [`FEATURES.md`](FEATURES.md).
+> Defense-grade per-feature deep dive: [`FEATURES.md`](FEATURES.md).
+
+---
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: Next.js 16 (React), Tailwind CSS v4, Lucide Icons.
-- **Backend**: Python 3.12 (FastAPI), SQLAlchemy, Scikit-learn, Shapely.
-- **AI/ML**: TensorFlow 2.16.1, Mask R-CNN (custom-trained on garbage dataset).
-- **Database**: SQLite (dev) / PostgreSQL with PostGIS (production).
-- **Hosting**: Vercel (Frontend), Render/Railway (Backend).
+| Layer | Choice |
+|---|---|
+| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS v4, Lucide |
+| Maps | Leaflet + React-Leaflet, custom barangay polygons (GeoJSON) |
+| Charts | Recharts |
+| Toasts | Sonner |
+| Backend | FastAPI, SQLAlchemy, Shapely, Scikit-learn |
+| AI/ML | TensorFlow 2.16.1 + tf-keras, Mask R-CNN (vendored `mrcnn/`) |
+| Database | SQLite (dev), PostgreSQL + PostGIS via Supabase (prod) |
+| Auth | Local email/password, bcrypt; session in `localStorage` |
+| Hosting (planned) | Vercel (frontend), Render/Railway (backend) |
+
+---
 
 ## 📂 Project Structure
 
-- `/frontend` — Next.js web application (Citizen Portal & Dashboards).
-- `/backend` — FastAPI microservice for AI and Spatial logic.
-  - `/backend/mrcnn` — Mask R-CNN inference library.
-  - `/backend/models` — Trained model weights (`.h5`, gitignored).
-  - `/backend/ai_verifier.py` — AI detection module (real Mask R-CNN with mock fallback).
-- `/data` — Geographic datasets, including SJDM Barangay boundaries (GeoJSON).
+```
+EcoWatch/
+├── frontend/                    Next.js app
+│   ├── app/                     Route segments
+│   │   ├── page.tsx             Landing page (citizen entry)
+│   │   ├── report/              Citizen submission form
+│   │   ├── track/[slug]/        Public report tracking
+│   │   ├── barangay/            Barangay admin portal
+│   │   ├── cenro/               CENRO city-wide dashboard
+│   │   ├── cleaner/             Cleanup team portal
+│   │   ├── login/  signup/      Auth screens
+│   │   └── api/                 Next API route handlers (server-side helpers)
+│   ├── components/              Shared UI (MapComponent, TrustBadge, QRCodeModal, ...)
+│   └── lib/                     Client-side helpers
+│
+├── backend/                     FastAPI service
+│   ├── main.py                  All routes (~3300 lines)
+│   ├── models.py                ORM: User, Report, WorkOrder, SystemConfig, AuditLog
+│   ├── database.py              Auto-selects SQLite vs PostgreSQL by DATABASE_URL
+│   ├── ai_verifier.py           Mask R-CNN wrapper (mock fallback when weights missing)
+│   ├── spatial_utils.py         Shapely point-in-polygon for barangay routing
+│   ├── analytics.py             DBSCAN clustering + AI-quality analytics
+│   ├── notifications.py         Cleaner notification helpers
+│   ├── mrcnn/                   Vendored Mask R-CNN library — do NOT modify
+│   ├── models/                  Trained weights (`*.h5`, gitignored)
+│   ├── seed_test_data.py        Creates demo accounts + sample reports
+│   └── requirements.txt
+│
+├── data/
+│   └── sjdm_barangays.geojson   59 barangay polygons for routing + map render
+│
+└── docs (root):
+    CLAUDE.md, FEATURES.md, CODEBASE_GUIDE.md, DEFENSE_PLAN.md,
+    MODEL_TRAINING.md, TESTING_CHECKLIST.md, REDESIGN_SPEC.md,
+    CHANGELOG.md, IMPROVEMENTS.md, erd_dataflow.md, sitemap.md, techstack.md
+```
+
+---
 
 ## 🚦 Getting Started
 
 ### Prerequisites
-- Node.js (v20 or later)
-- Python 3.12 (required for TensorFlow compatibility)
 
-### Frontend Setup
-1. `cd frontend`
-2. `npm install`
-3. `npm run dev`
+- **Node.js 20+**
+- **Python 3.12** (required for TensorFlow 2.16.1 compatibility)
+- **Git**
 
-### Backend Setup
-1. `cd backend`
-2. Create a Python 3.12 virtual environment:
-   ```bash
-   py -3.12 -m venv venv_tf
-   ```
-3. Activate the virtual environment:
-   ```bash
-   .\venv_tf\Scripts\activate   # Windows
-   source venv_tf/bin/activate  # macOS/Linux
-   ```
-4. Install dependencies:
-   ```bash
-   pip install tensorflow==2.16.1 tf-keras scikit-image h5py opencv-python-headless
-   pip install fastapi uvicorn sqlalchemy python-multipart bcrypt scikit-learn shapely
-   ```
-5. Place the trained model weights at `backend/models/mask_rcnn_garbage.h5`
-   - Download from Google Drive: `EcoWatch/models/mask_rcnn_garbage.h5`
-   - Without this file, AI detection runs in mock mode (random results).
-6. Seed test data (optional):
-   ```bash
-   python seed_test_data.py
-   ```
-7. Start the server:
-   ```bash
-   uvicorn main:app --host 0.0.0.0 --port 8000
-   ```
+### 1. Clone
+
+```powershell
+git clone <repo-url> EcoWatch
+cd EcoWatch
+```
+
+### 2. Frontend Setup
+
+```powershell
+cd frontend
+npm install
+```
+
+Create `frontend/.env.local`:
+
+```env
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+GOOGLE_GEMINI_API_KEY=your_key_here
+NEXT_PUBLIC_SUPABASE_URL=https://...supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+```
+
+Run the dev server:
+
+```powershell
+npm run dev          # http://localhost:3000
+npm run build        # production build
+npm run lint         # ESLint
+```
+
+### 3. Backend Setup
+
+```powershell
+cd backend
+py -3.12 -m venv venv_tf
+.\venv_tf\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+Place the trained model weights at [backend/models/mask_rcnn_garbage.h5](backend/models/mask_rcnn_garbage.h5):
+- Download from Google Drive (`EcoWatch/models/mask_rcnn_garbage.h5`) or Hugging Face Hub.
+- **Without this file**, `ai_verifier.py` falls back to a mock that returns ~80% positive at random — fine for UI work, not for real demos.
+
+Seed demo data:
+
+```powershell
+python seed_test_data.py
+```
+
+Start the API:
+
+```powershell
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+API docs at http://localhost:8000/docs (Swagger UI).
+
+### Test Accounts (after seeding)
+
+| Role | Email | Password | Notes |
+|---|---|---|---|
+| Citizen | `citizen@test.com` | `password123` | Public reporting only |
+| Barangay | `barangay@test.com` | `password123` | Assigned to **Muzon** |
+| CENRO | `cenro@test.com` | `password123` | City-wide oversight |
+
+---
+
+## 🔁 End-to-End Workflow
+
+### A. Citizen submits a report
+
+```
+┌──────────────────┐    ┌──────────────────┐    ┌───────────────────────┐
+│  Scan QR /       │ →  │  /report page    │ →  │  POST /report/submit  │
+│  open homepage   │    │  GPS + photo     │    │  (multipart form)     │
+└──────────────────┘    └──────────────────┘    └───────────┬───────────┘
+                                                            │
+            ┌───────────────────────────────────────────────┘
+            ▼
+    ┌──────────────────────────┐
+    │ 1. EXIF / image validate │ ai_verifier + main.py
+    │ 2. Mask R-CNN inference  │ confidence ≥ 0.5 → verified
+    │ 3. Ray-cast → barangay   │ spatial_utils.point_in_polygon
+    │ 4. Persist Report row    │ models.Report (tracking_id EW-XXXX, slug)
+    │ 5. Trust score computed  │ (AI confidence + EXIF + duplicate proximity)
+    └────────────┬─────────────┘
+                 ▼
+        ┌─────────────────────┐
+        │  Response: slug +   │
+        │  /track/<slug> URL  │
+        └─────────────────────┘
+```
+
+**Status flow:**
+```
+pending → verified | rejected
+verified → deployed (barangay assigns cleaner)
+deployed → resolved | failed_cleanup
+```
+
+### B. Barangay processes the report
+
+1. Login → routed to `/barangay`.
+2. Queue filtered to the user's `barangay_assignment` (e.g. Muzon).
+3. Reports are sortable by SLA badge (green ≤2d, yellow 3–4d, red ≥5d).
+4. Click a `verified` report → **Deploy** modal → choose cleaner + add deployment notes → `PUT /report/{id}/deploy`.
+5. After cleanup, cleaner uploads "after" photo → AI re-verifies → `POST /report/{id}/resolve` (or `failed_cleanup`).
+6. Export queue to CSV via the filter bar button.
+
+### C. CENRO oversees the city
+
+1. Login → routed to `/cenro`.
+2. Four tabs: **Command Center**, **Oversight Queue**, **Audit Log**, **User Management**.
+3. Command Center surfaces SLA breach count, barangay ranking, heatmap, AI-quality histogram.
+4. Oversight Queue allows **reassign** (`PUT /report/{id}/reassign`) and **force-close** (`PUT /report/{id}/force-close`).
+5. User Management — create / disable / reactivate barangay & cleaner accounts; CSV import/export.
+6. Audit Log — every privileged mutation with `user_email`, `action`, `target_id`, `details`, `created_at`.
+
+### D. Cleaner (per-barangay)
+
+1. Login → `/cleaner`.
+2. Sees only WorkOrders assigned to them.
+3. **Start** → **Complete** (with after photo) → AI re-verifies → status updates.
+4. Notifications panel pulls from `notifications.py`.
+
+---
+
+## 👥 Roles & Portals
+
+| Role | Portal route | Key endpoints | Capabilities |
+|---|---|---|---|
+| `citizen` | `/report`, `/track/[slug]` | `POST /report/submit`, `GET /report/track/{slug}` | Submit reports, view public map, track own case |
+| `barangay` | `/barangay` | `GET /reports/barangay/{name}`, `PUT /report/{id}/deploy`, `GET /reports/export` | Manage jurisdictional reports, deploy/resolve, export CSV |
+| `cleaner` | `/cleaner` | `GET /work-orders/cleaner/{id}`, `PUT /work-orders/{id}/start|complete` | Pick up work, upload after-photo, complete cleanup |
+| `cenro` | `/cenro` | `GET /audit-log`, `PUT /report/{id}/reassign|force-close`, `POST /users`, `GET /analytics/*` | City-wide analytics, RBAC overrides, user mgmt |
+
+**Authentication.** Local email/password (bcrypt). Session stored in `localStorage` under `ecowatch_user`. Server gates protected endpoints via the `X-User-Id` header — disabled users return 401.
+
+---
+
+## 🌐 API Surface
+
+Full route list lives in [`backend/main.py`](backend/main.py). Highlights:
+
+**Auth & users**
+- `POST /auth/register`, `POST /auth/login`
+- `GET /users/me`, `PUT /users/me`, `PUT /users/me/password`
+- `GET /users`, `POST /users`, `PUT /users/{id}/disable|reactivate`
+- `GET/POST /users/export`, `/users/import`
+
+**Reports**
+- `POST /report/submit` (multipart)
+- `GET /report/track/{slug}` — public
+- `GET /reports/recent` — supports `status`, `search`, `limit`, `offset`, `date_from`
+- `GET /reports/barangay/{name}` — same filters, barangay-scoped
+- `GET /reports/sla-breaches?days=N`
+- `GET /reports/export` — CSV
+- `PUT /report/{id}/deploy|reassign|force-close`
+- `POST /report/{id}/resolve`
+
+**Work orders & cleaners**
+- `POST/GET /work-orders`
+- `GET /work-orders/cleaner/{id}`
+- `PUT /work-orders/{id}/start|complete|reassign|priority|force-resolve`
+- `GET /work-orders/breached|at-risk`
+- `GET /notifications/cleaner/{id}`
+
+**Analytics & config**
+- `GET /analytics/overview|barangay-ranking|barangay-overview|sla-compliance|insights`
+- `GET /analytics/barangay-overview/export|sla-export|insights-export` — CSV
+- `GET /spatial/heatmaps`, `GET /spatial/barangays`
+- `GET/PUT /config/sla`, `GET /config/sla/history`
+- `GET /audit-log`
+
+Interactive docs: <http://localhost:8000/docs>.
+
+---
 
 ## 🤖 AI Model Details
 
 | Property | Value |
 |---|---|
-| Architecture | Mask R-CNN (ResNet-101 backbone) |
-| Framework | TensorFlow 2.16.1 + Legacy Keras |
-| Training Data | 10 images, 75 polygon annotations |
+| Architecture | Mask R-CNN (ResNet-101 + FPN backbone) |
+| Framework | TensorFlow 2.16.1 + tf-keras (legacy) |
+| Training data | 10 images, 75 polygon annotations |
 | Training | 15 epochs, transfer learning from COCO weights |
-| Final Loss | 0.54 (training), 0.43 (validation) |
-| Classes | Background, Garbage |
+| Final loss | 0.54 train / 0.43 validation |
+| Classes | `background`, `garbage` |
 | Inference | CPU (no GPU required) |
+| Confidence gate | 0.5 (below → auto-rejected) |
 
-### Retraining the Model
-1. Add more annotated images to Google Drive → `EcoWatch/garbage/`
-2. Open the Colab notebook and re-run all cells
-3. Download the new `mask_rcnn_garbage.h5` from Drive
-4. Replace `backend/models/mask_rcnn_garbage.h5`
-5. Restart the backend — no code changes needed
+**Retrain workflow** — see [`MODEL_TRAINING.md`](MODEL_TRAINING.md) for the full Colab notebook walkthrough including cold-start vs. continued training.
 
-## 🔑 Test Accounts
-For local testing, the following pre-seeded accounts are available:
-- **Citizen**: `citizen@test.com` | `password123`
-- **Barangay Admin**: `barangay@test.com` | `password123` (Assigned: Muzon)
-- **CENRO Official**: `cenro@test.com` | `password123`
+1. Add annotated images to Google Drive → `EcoWatch/garbage/`.
+2. Run the Colab notebook end-to-end.
+3. Download the new `mask_rcnn_garbage.h5` and drop it in [`backend/models/`](backend/models/).
+4. Restart the backend — no code changes needed.
+
+---
+
+## ✅ How to Test
+
+The granular per-sprint checklist is in [`TESTING_CHECKLIST.md`](TESTING_CHECKLIST.md). The sections below show the practical test recipes.
+
+### 1. Backend smoke tests (script-based)
+
+```powershell
+cd backend
+.\venv_tf\Scripts\Activate.ps1
+
+python seed_test_data.py        # idempotent — re-seeds demo data
+python test_auth.py             # auth endpoint sanity
+python test_analytics.py        # DBSCAN clustering correctness
+```
+
+There is **no pytest suite** — use `py_compile` for syntax checks on touched files:
+
+```powershell
+python -m py_compile main.py models.py ai_verifier.py
+```
+
+### 2. Manual API testing (Postman / curl)
+
+Seeded user IDs: `1` = citizen, `2` = barangay (Muzon), `3` = cenro. All protected endpoints require an `X-User-Id` header.
+
+```bash
+# Login (returns user object + sets role/id)
+curl -X POST http://localhost:8000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"barangay@test.com","password":"password123"}'
+
+# Pull the Muzon queue
+curl http://localhost:8000/reports/barangay/Muzon \
+  -H "X-User-Id: 2"
+
+# Deploy a report (must be in `verified` state)
+curl -X PUT http://localhost:8000/report/5/deploy \
+  -H "X-User-Id: 2" -H "Content-Type: application/json" \
+  -d '{"deployment_notes":"Dispatching crew A"}'
+
+# Audit log (CENRO only)
+curl http://localhost:8000/audit-log -H "X-User-Id: 3"
+```
+
+RBAC quick-checks:
+- No `X-User-Id` → `401 Missing X-User-Id header`
+- Wrong role → `403 Requires role: <role>`
+- Disabled user (`is_active=false`) → `401 Invalid or disabled user`
+
+### 3. Submit a report end-to-end (curl)
+
+```bash
+curl -X POST http://localhost:8000/report/submit \
+  -F "photo=@./test.jpg" \
+  -F "lat=14.8136" \
+  -F "lon=121.0450" \
+  -F "description=Pile of trash near canal"
+```
+
+Expected `202 Accepted` JSON:
+```json
+{
+  "report_id": 17,
+  "tracking_id": "EW-0017",
+  "tracking_slug": "a1b2c3d4",
+  "barangay": "Muzon",
+  "ai_verified": true,
+  "ai_confidence": 0.87,
+  "status": "verified"
+}
+```
+
+Then verify the public tracking page loads: `GET /report/track/a1b2c3d4`.
+
+### 4. Image upload validation (X8)
+
+| Upload | Expected |
+|---|---|
+| `.txt` file | `400 Only JPEG or PNG images are allowed.` |
+| `.gif` (`image/gif`) | `400 Only JPEG or PNG images are allowed.` |
+| Image > 10 MB | `400 Image must be 10 MB or smaller.` |
+| Valid `.jpg` ≤ 10 MB | `200/202` with `report_id` |
+
+### 5. Frontend manual tests
+
+Start the dev server (`npm run dev`) and walk the goldens:
+
+**Citizen flow**
+- [ ] Landing page renders; map shows barangay polygons
+- [ ] Click **Share QR Code** → modal opens, image renders, "Save Image" downloads
+- [ ] `/report` requests geolocation, accepts photo, posts to backend, redirects to `/track/<slug>`
+- [ ] `/track/<slug>` shows status, AI mask overlay, timeline
+
+**Barangay portal (`barangay@test.com`)**
+- [ ] Filter bar search debounces ~300ms (Network tab in DevTools)
+- [ ] Date From/To updates the list
+- [ ] SLA badges colored correctly (green ≤2d, yellow 3–4d, red ≥5d), resolved rows show `—`
+- [ ] Deploy modal shows Deployment Notes textarea on `verified` reports
+- [ ] **Export CSV** downloads a file containing only this barangay's reports
+- [ ] Trust badge appears on each report card and detail view
+- [ ] Skeleton rows during fetch; Sonner toasts for success/error
+- [ ] Empty filter result shows "No reports found in this category."
+
+**CENRO portal (`cenro@test.com`)**
+- [ ] Four tabs visible: Command Center, Oversight Queue, Audit Log, User Management
+- [ ] SLA breach widget on Command Center → clicking navigates to filtered Oversight Queue
+- [ ] Oversight Queue filters (date, status, barangay dropdown, search) send correct query params
+- [ ] Reassign report → audit log shows the action immediately after refresh
+- [ ] Force-close report → status becomes `resolved`, audit entry created
+- [ ] User Management: create barangay account → returned temp password → that user can log in
+- [ ] Disable user → that user's login returns `403 Account disabled. Contact CENRO administrator.`
+- [ ] Cannot disable own account → `400 Cannot disable your own account`
+- [ ] Analytics CSV export downloads per-barangay breakdown
+
+**Cleaner portal**
+- [ ] Login as a cleaner → only their WorkOrders visible
+- [ ] Start → Complete with after photo → AI re-verifies → status updates
+- [ ] Notifications panel shows unread count
+
+### 6. Database inspection
+
+```powershell
+cd backend
+.\venv_tf\Scripts\python.exe inspect_db.py
+```
+
+Or a one-shot query:
+
+```powershell
+.\venv_tf\Scripts\python.exe -c "from database import engine; from sqlalchemy import text; print(list(engine.connect().execute(text('SELECT id, tracking_id, status, barangay FROM reports ORDER BY id DESC LIMIT 10'))))"
+```
+
+### 7. Pre-defense smoke (run on deployed URL)
+
+See the **Defense Day** section of [`TESTING_CHECKLIST.md`](TESTING_CHECKLIST.md). Quick version:
+
+- [ ] Landing loads, map renders polygons
+- [ ] Citizen submit from a phone → tracking URL works
+- [ ] Barangay queue → SLA badges visible → deploy with notes works
+- [ ] CENRO reassign → Audit Log reflects it
+- [ ] CSV exports download on both portals
+- [ ] Zero red errors in browser console
+- [ ] Zero Python tracebacks in `uvicorn` logs
+
+### 8. Offline fallback (Wi-Fi failure plan)
+
+- [ ] Set `NEXT_PUBLIC_API_URL` to laptop's LAN IP → frontend reaches backend
+- [ ] Map tiles served from `backend/tiles/` (no internet required)
+- [ ] `mask_rcnn_garbage.h5` present in `backend/models/`
+- [ ] Full citizen → barangay → resolve loop works disconnected
+
+---
+
+## 📖 Documentation Map
+
+| File | Purpose |
+|---|---|
+| [`README.md`](README.md) | This file — entry point, workflow, testing |
+| [`CLAUDE.md`](CLAUDE.md) | Architecture cheat sheet for Claude Code sessions |
+| [`FEATURES.md`](FEATURES.md) | Defense-grade per-feature deep dive (what, why, how, sources) |
+| [`CODEBASE_GUIDE.md`](CODEBASE_GUIDE.md) | File-by-file walkthrough |
+| [`DEFENSE_PLAN.md`](DEFENSE_PLAN.md) | Defense day talking points and demo script |
+| [`MODEL_TRAINING.md`](MODEL_TRAINING.md) | Mask R-CNN Colab notebook walkthrough (cold start vs. continued) |
+| [`TESTING_CHECKLIST.md`](TESTING_CHECKLIST.md) | Sprint-day "definition of done" checklist |
+| [`REDESIGN_SPEC.md`](REDESIGN_SPEC.md) | UI/UX redesign spec |
+| [`CHANGELOG.md`](CHANGELOG.md) | Per-sprint change log |
+| [`IMPROVEMENTS.md`](IMPROVEMENTS.md) | Backlog of follow-up improvements |
+| [`erd_dataflow.md`](erd_dataflow.md) | Entity-relationship diagram + data flow |
+| [`sitemap.md`](sitemap.md) | Frontend route map |
+| [`techstack.md`](techstack.md) | Tech stack rationale |
+
+---
+
+## ⚠️ Known Issues
+
+- CORS is `allow_origins=["*"]` in [`backend/main.py`](backend/main.py) — must be locked to the Vercel domain before production deploy.
+- Duplicate "Graceville" entry historically lived in the BARANGAYS array of [`frontend/app/cenro/page.tsx:22`](frontend/app/cenro/page.tsx#L22) — verify it has been removed post-C6.
+- LocalStorage auth has no expiry — users stay logged in indefinitely until manual logout.
+- No ORM migrations; schema applied via [`database/schema.sql`](database/schema.sql) or SQLAlchemy `create_all()` on startup. Schema changes in dev may require deleting `backend/ecowatch.db`.
+- `backend/mrcnn/` is vendored from the original Matterport repo — do **not** modify; patches go in `ai_verifier.py`.
+
+---
 
 ## 📝 License
-Capstone Project - 3rd Year 2nd Sem
+
+Capstone Project — 3rd Year, 2nd Semester. Not for redistribution outside the academic context.
