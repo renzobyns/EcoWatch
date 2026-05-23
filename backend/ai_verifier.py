@@ -5,6 +5,8 @@ import sys
 import numpy as np
 import cv2
 import io
+from math import radians, cos, sin, asin, sqrt
+from datetime import datetime, timezone
 
 # Set legacy Keras before any TF import
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
@@ -16,6 +18,14 @@ if BACKEND_DIR not in sys.path:
 
 # Model weights path
 MODEL_PATH = os.path.join(BACKEND_DIR, "models", "mask_rcnn_garbage.h5")
+
+# Trust score constants
+_KNOWN_EDITOR_KEYWORDS = [
+    "photoshop", "lightroom", "gimp", "picsart", "snapseed",
+    "facetune", "meitu", "midjourney", "stable diffusion",
+    "dall-e", "canva", "pixlr"
+]
+_GPS_LOW_TRUST_METERS = 500
 
 logger = logging.getLogger(__name__)
 
@@ -242,14 +252,6 @@ def compute_trust_score(image_bytes: bytes, submitted_lat: float, submitted_lon:
 
     Never raises; wraps all exceptions and returns score="medium" on failure.
     """
-    from math import radians, cos, sin, asin, sqrt
-    from datetime import datetime, timezone
-
-    KNOWN_EDITORS = [
-        "photoshop", "lightroom", "gimp", "picsart", "snapseed",
-        "facetune", "meitu", "midjourney", "stable diffusion",
-        "dall-e", "canva", "pixlr"
-    ]
 
     def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
         """Calculate distance in meters between two lat/lon coordinates."""
@@ -278,7 +280,6 @@ def compute_trust_score(image_bytes: bytes, submitted_lat: float, submitted_lon:
             "gps_lon": None,
             "gps_distance_m": None,
             "software_tag": None,
-            "format_match": False,
         }
 
         failing_signals = []
@@ -301,7 +302,7 @@ def compute_trust_score(image_bytes: bytes, submitted_lat: float, submitted_lon:
                 signals["software_tag"] = exif[0x0131]
 
                 # Check against known editors/AI tools
-                if any(editor in software for editor in KNOWN_EDITORS):
+                if any(editor in software for editor in _KNOWN_EDITOR_KEYWORDS):
                     failing_signals.append(f"Software: {exif[0x0131]}")
 
             # DateTimeOriginal (0x9003) in Exif IFD (0x8769)
@@ -364,33 +365,22 @@ def compute_trust_score(image_bytes: bytes, submitted_lat: float, submitted_lon:
                         )
                         signals["gps_distance_m"] = distance
 
-                        if distance > 500:
-                            failing_signals.append(f"GPS mismatch >500m ({distance:.0f}m)")
+                        if distance > _GPS_LOW_TRUST_METERS:
+                            failing_signals.append(f"GPS mismatch >{_GPS_LOW_TRUST_METERS}m ({distance:.0f}m)")
             except Exception:
                 pass  # No GPS IFD
 
         except Exception:
             failing_signals.append("EXIF unreadable")
 
-        # Check format match (magic bytes)
-        try:
-            actual_format = img.format or "unknown"
-            # Simple heuristic: does the file extension loosely match the PIL-detected format?
-            signals["format_match"] = True  # Default to true if we can read it
-        except Exception:
-            signals["format_match"] = False
-
         # Compute trust score
         score = "high"
 
-        # LOW if any of these:
-        if (failing_signals or
-            (signals["gps_distance_m"] is not None and signals["gps_distance_m"] > 500) or
-            (signals["datetime_age_hours"] is not None and
-             (signals["datetime_age_hours"] > 24 or signals["datetime_age_hours"] < -1))):
+        # LOW if any failing signals detected
+        if failing_signals:
             score = "low"
         # MEDIUM if not LOW and any of these:
-        elif (not signals["has_camera_make"] and not signals["has_camera_model"] or
+        elif (not (signals["has_camera_make"] or signals["has_camera_model"]) or
               signals["datetime_original"] is None or
               signals["gps_lat"] is None):
             score = "medium"
@@ -401,7 +391,7 @@ def compute_trust_score(image_bytes: bytes, submitted_lat: float, submitted_lon:
             "failing_signals": failing_signals,
         }
 
-    except Exception as e:
+    except Exception:
         logger.exception("compute_trust_score failed")
         return {
             "score": "medium",
