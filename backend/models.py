@@ -70,6 +70,12 @@ class Report(Base):
     notes = Column(Text, nullable=True)
     deployment_notes = Column(Text, nullable=True)  # Set when barangay dispatches a team
 
+    # Async AI verification: True while a background task is running Mask R-CNN
+    # for either the initial photo or a cleanup photo. Drives the frontend
+    # "AI verifying…" spinner and is the source of truth for startup recovery.
+    verification_pending = Column(Boolean, nullable=False, default=False, index=True)
+    verification_kind = Column(String, nullable=True)  # submit | resolve | complete
+
     # Tracking (for anonymous access)
     tracking_id = Column(String, unique=True, nullable=True)  # e.g. "EW-0042"
     tracking_url = Column(String, unique=True, nullable=True)  # e.g. "/track/abc123"

@@ -254,21 +254,48 @@ export default function BarangayPortal() {
                 method: "POST",
                 body: formData,
             });
-            setReports(reports.map(r => r.id === reportId ? { ...r, status: data.status, cleanup_image_url: data.report.cleanup_image_url } : r));
-            setSelectedReport({ ...selectedReport, status: data.status, cleanup_image_url: data.report.cleanup_image_url });
+            // 202: photo saved, AI runs in background. Show "verifying" then poll.
+            const reportSnapshot = data.report;
+            setReports(prev => prev.map(r => r.id === reportId ? { ...r, ...reportSnapshot } : r));
+            setSelectedReport((prev: any) => prev ? { ...prev, ...reportSnapshot } : prev);
             setCleanupImage(null);
             setCleanupPreview(null);
-            if (data.status === 'failed_cleanup') {
-                toast.warning("AI detected waste is still present. Please clean thoroughly and try again.");
-            } else {
-                toast.success("Report resolved!");
-                setSelectedReport(null); // Close modal on success
-            }
+            toast.info("Cleanup photo uploaded. AI verifying…");
+            pollResolveOutcome(reportId, reportSnapshot.tracking_id);
         } catch (err) {
             toast.error(err instanceof ApiError ? err.message : "Network error.");
         } finally {
             setActionLoading(false);
         }
+    };
+
+    const pollResolveOutcome = (reportId: number, trackingId: string | null) => {
+        if (!trackingId) return;
+        let attempts = 0;
+        const MAX_ATTEMPTS = 40; // ~2 minutes at 3s
+        const tick = async () => {
+            attempts++;
+            try {
+                const res = await fetch(`${API_URL}/report/track/${trackingId}`);
+                if (res.ok) {
+                    const fresh = await res.json();
+                    setReports(prev => prev.map(r => r.id === reportId ? { ...r, ...fresh } : r));
+                    setSelectedReport((prev: any) => prev?.id === reportId ? { ...prev, ...fresh } : prev);
+                    if (!fresh.verification_pending) {
+                        if (fresh.status === "failed_cleanup") {
+                            toast.warning("AI detected waste is still present. Please clean thoroughly and try again.");
+                        } else if (fresh.status === "resolved") {
+                            toast.success("Report resolved!");
+                            setSelectedReport((prev: any) => prev?.id === reportId ? null : prev);
+                        }
+                        return;
+                    }
+                }
+            } catch { /* transient — retry */ }
+            if (attempts < MAX_ATTEMPTS) setTimeout(tick, 3000);
+            else toast.error("AI verification is taking longer than expected. Refresh later for the result.");
+        };
+        setTimeout(tick, 1500);
     };
 
     const handleExport = async () => {

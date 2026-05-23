@@ -20,6 +20,9 @@ export default function TrackReportPage() {
     const [showAiMask, setShowAiMask] = useState(false);
 
     useEffect(() => {
+        let cancelled = false;
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
         const fetchReport = async () => {
             try {
                 const res = await fetch(`${API_URL}/report/track/${trackingId}`);
@@ -27,15 +30,25 @@ export default function TrackReportPage() {
                     throw new Error(res.status === 404 ? "Report not found" : "Server error");
                 }
                 const data = await res.json();
+                if (cancelled) return;
                 setReport(data);
+                setError(null);
+                // Poll while AI verification is still running in the background.
+                if (data?.verification_pending) {
+                    timeoutId = setTimeout(fetchReport, 3000);
+                }
             } catch (err: any) {
-                setError(err.message);
+                if (!cancelled) setError(err.message);
             } finally {
-                setLoading(false);
+                if (!cancelled) setLoading(false);
             }
         };
 
         fetchReport();
+        return () => {
+            cancelled = true;
+            if (timeoutId) clearTimeout(timeoutId);
+        };
     }, [trackingId]);
 
     if (loading) {

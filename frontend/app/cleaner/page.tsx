@@ -156,24 +156,53 @@ export default function CleanerPortal() {
                 method: "PUT",
                 body: formData,
             });
+            // 202: cleanup photo saved, AI runs in background. Show "verifying" then poll.
             setWorkOrders((prev) =>
                 prev.map((wo) => (wo.id === workOrderId ? { ...wo, ...data.work_order } : wo))
             );
             setSelectedWorkOrder((prev: any) =>
                 prev?.id === workOrderId ? { ...prev, ...data.work_order } : prev
             );
-
-            if (data.work_order.status === "needs_redo") {
-                toast.warning("AI detected waste is still present. Clean thoroughly and try again.");
-            } else {
-                toast.success("Work completed! Thank you!");
-                setSelectedWorkOrder(null);
-            }
+            toast.info("Cleanup photo uploaded. AI verifying…");
+            pollCompleteOutcome(workOrderId);
         } catch (err) {
             toast.error(err instanceof ApiError ? err.message : "Upload failed. Tap Submit to try again.");
         } finally {
             setActionLoading(false);
         }
+    };
+
+    const pollCompleteOutcome = (workOrderId: number) => {
+        if (!user?.id) return;
+        let attempts = 0;
+        const MAX_ATTEMPTS = 40; // ~2 minutes at 3s
+        const tick = async () => {
+            attempts++;
+            try {
+                const data = await api(`/work-orders/cleaner/${user.id}`);
+                if (Array.isArray(data)) {
+                    setWorkOrders(data);
+                    const fresh = data.find((wo: any) => wo.id === workOrderId);
+                    if (fresh) {
+                        setSelectedWorkOrder((prev: any) =>
+                            prev?.id === workOrderId ? { ...prev, ...fresh } : prev
+                        );
+                        if (!fresh.report_verification_pending) {
+                            if (fresh.status === "needs_redo") {
+                                toast.warning("AI detected waste is still present. Clean thoroughly and try again.");
+                            } else if (fresh.status === "verified") {
+                                toast.success("Work completed! Thank you!");
+                                setSelectedWorkOrder((prev: any) => prev?.id === workOrderId ? null : prev);
+                            }
+                            return;
+                        }
+                    }
+                }
+            } catch { /* transient — retry */ }
+            if (attempts < MAX_ATTEMPTS) setTimeout(tick, 3000);
+            else toast.error("AI verification is taking longer than expected. Pull-to-refresh later for the result.");
+        };
+        setTimeout(tick, 1500);
     };
 
     if (loading && !user) {
