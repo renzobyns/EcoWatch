@@ -27,7 +27,8 @@ This document explains the **Google Colab notebook** used to train the garbage-d
 6. [How it connects to the EcoWatch backend](#how-it-connects-to-the-ecowatch-backend)
 7. [Troubleshooting](#troubleshooting)
 8. [Re-training with new data](#re-training-with-new-data)
-9. [Defense talking points](#defense-talking-points)
+9. [Adding more photos — cold start vs. continued training](#adding-more-photos--cold-start-vs-continued-training)
+10. [Defense talking points](#defense-talking-points)
 
 ---
 
@@ -730,6 +731,118 @@ When you add more labeled images to your dataset:
 3. **Consider increasing `STEPS_PER_EPOCH`** to match the new dataset size (rough rule: `len(dataset) / IMAGES_PER_GPU`).
 4. **Optionally unfreeze more layers** for longer training: change `layers='heads'` to `layers='3+'` or `layers='all'`. This trains deeper layers and improves accuracy at the cost of much longer training time.
 5. **Always verify with Cell 11** before deploying — visually check that detections are sensible on held-out images.
+
+---
+
+## Adding more photos — cold start vs. continued training
+
+This section answers the question: **if I train a new model with additional photos, will the new model inherit what the previous model already learned, or does it start from zero?**
+
+The answer depends entirely on **which file you load as the starting weights in Cell 9.**
+
+---
+
+### What the current code does (cold start every time)
+
+Cell 9 currently loads `mask_rcnn_coco.h5`:
+
+```python
+model.load_weights("mask_rcnn_coco.h5", by_name=True,
+                   exclude=["mrcnn_class_logits", "mrcnn_bbox_fc", "mrcnn_bbox", "mrcnn_mask"])
+```
+
+Every time you run the notebook, the model **starts fresh from the generic COCO brain** — it has never seen garbage before. It does not read your previous `mask_rcnn_garbage.h5` at all. That file just sits in Drive as an output.
+
+**Result:** if your original dataset had photos 1, 2, 3 and you add photos 4, 5, 6, the new model only benefits from what it sees in training. If you only train on 4, 5, 6, it knows nothing about 1, 2, 3. If you train on all 6, it learns all 6 — but from a cold COCO start, not building on the previous garbage training.
+
+```
+Run 1:  COCO weights → train on photos 1, 2, 3 → garbage model v1
+Run 2:  COCO weights → train on photos 4, 5, 6 → garbage model v2  ← v1 was thrown away
+```
+
+---
+
+### How to make the new model inherit the old model's learning
+
+Two changes are needed together. **Both are required** — doing only one doesn't give the full benefit.
+
+#### Change 1 — Load the previous garbage model instead of COCO in Cell 9
+
+Replace this:
+
+```python
+# OLD — always cold-starts from COCO, ignores your previous garbage model
+model.load_weights("mask_rcnn_coco.h5", by_name=True,
+                   exclude=["mrcnn_class_logits", "mrcnn_bbox_fc", "mrcnn_bbox", "mrcnn_mask"])
+```
+
+With this:
+
+```python
+# NEW — starts from your existing garbage model, already knows photos 1, 2, 3
+model.load_weights("/content/drive/MyDrive/EcoWatch/models/mask_rcnn_garbage.h5",
+                   by_name=True)
+# No exclude list — all layers including the head are already trained for garbage
+```
+
+**Why remove the exclude list:** The `exclude` list existed because the COCO head layers were shaped for 80 classes and needed to be reset for 2 (garbage). Your `mask_rcnn_garbage.h5` already has 2-class heads — they're ready to continue training, not reset.
+
+#### Change 2 — Include the old photos in the dataset alongside the new ones
+
+Even after Change 1, if you only feed the model photos 4, 5, 6 during training, the model **slowly overwrites what it learned about photos 1, 2, 3** to better fit the new images. This is called **catastrophic forgetting** — a known limitation of neural networks.
+
+The fix: put all photos (old + new) into `dataset/` and make sure `annotations.json` covers all of them.
+
+```
+Before:  dataset/ → img004.jpg, img005.jpg, img006.jpg  (new only)
+After:   dataset/ → img001.jpg, img002.jpg, img003.jpg,  ← keep old ones
+                    img004.jpg, img005.jpg, img006.jpg   ← add new ones
+```
+
+---
+
+### What each combination actually produces
+
+| Cell 9 weights | Dataset used | Result |
+|---|---|---|
+| `mask_rcnn_coco.h5` | Photos 4, 5, 6 only | Knows 4, 5, 6. Cold start — previous training wasted. |
+| `mask_rcnn_coco.h5` | Photos 1–6 combined | Knows all 6. Cold start but trained on everything. |
+| `mask_rcnn_garbage.h5` | Photos 4, 5, 6 only | Starts knowing 1–3, but **gradually forgets** them as it trains on 4–6. |
+| `mask_rcnn_garbage.h5` | Photos 1–6 combined ⭐ | Keeps knowledge of 1–3 AND adds 4–6. True accumulation. |
+
+The last row is what you want when building up the model over multiple sessions.
+
+---
+
+### The full flow when correctly done
+
+```
+Session 1:
+  COCO weights
+      │
+      ▼ train on photos 1, 2, 3
+  mask_rcnn_garbage.h5  (brain knows photos 1, 2, 3 on top of COCO backbone)
+
+Session 2:
+  mask_rcnn_garbage.h5  ← load this instead of COCO
+      │
+      ▼ train on photos 1, 2, 3, 4, 5, 6  ← must include old photos too
+  mask_rcnn_garbage.h5  (brain now knows 1, 2, 3, 4, 5, 6)
+
+Session 3:
+  mask_rcnn_garbage.h5  ← same pattern
+      │
+      ▼ train on photos 1–6 + new photos 7, 8, 9
+  mask_rcnn_garbage.h5  (brain knows everything cumulatively)
+```
+
+Each session genuinely builds on the last. The model's knowledge compounds — not resets.
+
+---
+
+### Why the current code doesn't do this by default
+
+When the notebook was first written, there was no previous garbage model to load from — so it had to start from COCO. That's still the correct starting point for the very first training run. For every run after the first, the Cell 9 code should be updated to load the previous output file instead.
 
 ---
 
