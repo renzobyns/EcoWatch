@@ -1809,8 +1809,8 @@ async def resolve_report(
             img_bytes = await img.read()
             url = await save_upload(img, prefix="cleanup", contents=img_bytes)
             saved_urls.append(url)
-        except HTTPException:
-            pass
+        except HTTPException as e:
+            logger.warning("resolve_report: skipping photo that failed validation: %s", e.detail)
 
     if not saved_urls:
         raise HTTPException(status_code=422, detail="No photos could be saved. Please try again.")
