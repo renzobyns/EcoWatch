@@ -16,7 +16,7 @@ import uuid
 import bcrypt
 from datetime import datetime, timedelta
 from sqlalchemy import or_, text
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from database import engine, get_db, SessionLocal
 import models
 from ai_verifier import verifier, verify_images_async, compute_trust_score
@@ -1646,14 +1646,21 @@ async def get_recent_reports(
     limit = min(max(limit, 1), 200)
     offset = max(offset, 0)
     query = _apply_report_filters(
-        db.query(models.Report), status, date_from, date_to, search
+        db.query(models.Report).options(joinedload(models.Report.report_photos)),
+        status, date_from, date_to, search
     )
-    return (
+    reports = (
         query.order_by(models.Report.created_at.desc())
         .offset(offset)
         .limit(limit)
         .all()
     )
+    results = []
+    for report in reports:
+        r = ReportResponse.model_validate(report)
+        r.failing_signals = _get_report_failing_signals(list(report.report_photos))
+        results.append(r)
+    return results
 
 
 @app.get("/reports/barangay/{name}", response_model=List[ReportResponse])
@@ -1670,14 +1677,22 @@ async def get_barangay_reports(
     """Get reports for a specific barangay (barangay portal)."""
     limit = min(max(limit, 1), 200)
     offset = max(offset, 0)
-    query = db.query(models.Report).filter(models.Report.barangay == name)
+    query = db.query(models.Report).options(joinedload(models.Report.report_photos)).filter(
+        models.Report.barangay == name
+    )
     query = _apply_report_filters(query, status, date_from, date_to, search)
-    return (
+    reports = (
         query.order_by(models.Report.created_at.desc())
         .offset(offset)
         .limit(limit)
         .all()
     )
+    results = []
+    for report in reports:
+        r = ReportResponse.model_validate(report)
+        r.failing_signals = _get_report_failing_signals(list(report.report_photos))
+        results.append(r)
+    return results
 
 
 @app.get("/reports/sla-breaches", response_model=List[ReportResponse])
@@ -1690,6 +1705,7 @@ async def get_sla_breaches(db: Session = Depends(get_db)):
     # Find all reports with at least one active work order past deadline
     breached_reports = (
         db.query(models.Report)
+        .options(joinedload(models.Report.report_photos))
         .join(models.WorkOrder, models.Report.id == models.WorkOrder.report_id)
         .filter(
             models.WorkOrder.status.in_([
@@ -1703,7 +1719,12 @@ async def get_sla_breaches(db: Session = Depends(get_db)):
         .order_by(models.Report.created_at.asc())
         .all()
     )
-    return breached_reports
+    results = []
+    for report in breached_reports:
+        r = ReportResponse.model_validate(report)
+        r.failing_signals = _get_report_failing_signals(list(report.report_photos))
+        results.append(r)
+    return results
 
 
 @app.get("/reports/export")
