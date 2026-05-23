@@ -13,7 +13,7 @@ interface CleanerJobDrawerProps {
     workOrder: any;
     onClose: () => void;
     onStart: (workOrderId: number) => Promise<void> | void;
-    onComplete: (workOrderId: number, image: File) => Promise<void> | void;
+    onComplete: (workOrderId: number, images: File[]) => Promise<void> | void;
     actionLoading?: boolean;
 }
 
@@ -27,8 +27,8 @@ export function CleanerJobDrawer({
     actionLoading = false,
 }: CleanerJobDrawerProps) {
     const [photoModalOpen, setPhotoModalOpen] = useState(false);
-    const [cleanupImage, setCleanupImage] = useState<File | null>(null);
-    const [cleanupPreview, setCleanupPreview] = useState<string | null>(null);
+    const [cleanupImages, setCleanupImages] = useState<File[]>([]);
+    const [cleanupPreviews, setCleanupPreviews] = useState<string[]>([]);
 
     // Close drawer on Escape
     useEffect(() => {
@@ -58,34 +58,49 @@ export function CleanerJobDrawer({
         ? `https://www.google.com/maps/dir/?api=1&destination=${workOrder.report_lat},${workOrder.report_lon}`
         : "#";
 
-    const handlePickImage = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        if (file.size > MAX_UPLOAD_BYTES) {
-            toast.error("Image must be 10 MB or smaller.");
+    const handlePickImages = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files ?? []);
+        if (files.length === 0) return;
+        const oversized = files.filter((f) => f.size > MAX_UPLOAD_BYTES);
+        if (oversized.length > 0) {
+            toast.error("Each image must be 10 MB or smaller.");
             return;
         }
-        setCleanupImage(file);
-        const reader = new FileReader();
-        reader.onload = (ev) => setCleanupPreview(ev.target?.result as string);
-        reader.readAsDataURL(file);
+        const total = cleanupImages.length + files.length;
+        if (total > 5) {
+            toast.error("Maximum 5 cleanup photos allowed.");
+            return;
+        }
+        setCleanupImages((prev) => [...prev, ...files]);
+        files.forEach((file) => {
+            const reader = new FileReader();
+            reader.onload = (ev) =>
+                setCleanupPreviews((prev) => [...prev, ev.target?.result as string]);
+            reader.readAsDataURL(file);
+        });
+        e.target.value = "";
+    };
+
+    const removeCleanupImage = (index: number) => {
+        setCleanupImages((prev) => prev.filter((_, i) => i !== index));
+        setCleanupPreviews((prev) => prev.filter((_, i) => i !== index));
     };
 
     const handleSubmitPhoto = async () => {
-        if (!cleanupImage) {
-            toast.error("Please choose a photo first.");
+        if (cleanupImages.length === 0) {
+            toast.error("Please choose at least one photo.");
             return;
         }
-        await onComplete(workOrder.id, cleanupImage);
-        setCleanupImage(null);
-        setCleanupPreview(null);
+        await onComplete(workOrder.id, cleanupImages);
+        setCleanupImages([]);
+        setCleanupPreviews([]);
         setPhotoModalOpen(false);
     };
 
     const closePhotoModal = () => {
         setPhotoModalOpen(false);
-        setCleanupImage(null);
-        setCleanupPreview(null);
+        setCleanupImages([]);
+        setCleanupPreviews([]);
     };
 
     const priorityClass =
@@ -322,27 +337,42 @@ export function CleanerJobDrawer({
                                 )}
                             </div>
 
-                            {/* AFTER */}
-                            <label className="rounded-xl overflow-hidden border-2 border-dashed border-foreground/20 hover:border-primary/60 bg-black/20 cursor-pointer relative group">
-                                <div className="text-[10px] uppercase tracking-widest font-bold text-foreground/50 p-2 border-b border-border/50">After</div>
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    capture="environment"
-                                    className="hidden"
-                                    onChange={handlePickImage}
-                                />
-                                {cleanupPreview ? (
-                                    <img src={cleanupPreview} alt="After preview" className="w-full h-32 object-cover" />
-                                ) : (
-                                    <div className="w-full h-32 flex items-center justify-center text-center px-2">
-                                        <div>
+                            {/* AFTER — multi-photo */}
+                            <div className="rounded-xl overflow-hidden border border-border bg-black/30">
+                                <div className="text-[10px] uppercase tracking-widest font-bold text-foreground/50 p-2 border-b border-border bg-black/20">
+                                    After ({cleanupImages.length}/5)
+                                </div>
+                                {cleanupPreviews.length === 0 ? (
+                                    <label className="w-full h-32 flex items-center justify-center cursor-pointer group">
+                                        <input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={handlePickImages} />
+                                        <div className="text-center">
                                             <Camera className="size-6 mx-auto mb-1 text-foreground/40 group-hover:text-primary transition-colors" />
                                             <p className="text-[10px] font-bold text-foreground/50">Tap to capture</p>
                                         </div>
+                                    </label>
+                                ) : (
+                                    <div className="flex gap-1 overflow-x-auto p-1">
+                                        {cleanupPreviews.map((url, i) => (
+                                            <div key={url} className="relative shrink-0 w-20 h-20 rounded-lg overflow-hidden group">
+                                                <img src={url} alt={`After ${i + 1}`} className="w-full h-full object-cover" />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeCleanupImage(i)}
+                                                    className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold"
+                                                >
+                                                    Remove
+                                                </button>
+                                            </div>
+                                        ))}
+                                        {cleanupImages.length < 5 && (
+                                            <label className="shrink-0 w-20 h-20 rounded-lg border-2 border-dashed border-foreground/20 hover:border-primary/50 cursor-pointer flex items-center justify-center text-foreground/40 hover:text-primary transition-colors">
+                                                <input type="file" accept="image/*" multiple className="hidden" onChange={handlePickImages} />
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                            </label>
+                                        )}
                                     </div>
                                 )}
-                            </label>
+                            </div>
                         </div>
 
                         <p className="text-[11px] text-foreground/50 mb-4 text-center">
@@ -361,7 +391,7 @@ export function CleanerJobDrawer({
                             <button
                                 type="button"
                                 onClick={handleSubmitPhoto}
-                                disabled={!cleanupImage || actionLoading}
+                                disabled={cleanupImages.length === 0 || actionLoading}
                                 className="flex-1 px-4 py-2.5 eco-gradient text-white text-sm font-bold rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
                             >
                                 {actionLoading ? "Uploading…" : "Submit"}
