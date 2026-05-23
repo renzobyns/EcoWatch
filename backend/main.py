@@ -19,7 +19,7 @@ from sqlalchemy import or_, text
 from sqlalchemy.orm import Session
 from database import engine, get_db, SessionLocal
 import models
-from ai_verifier import verifier, verify_images_async
+from ai_verifier import verifier, verify_images_async, compute_trust_score
 import analytics
 from notifications import emit_notification
 
@@ -52,6 +52,10 @@ with engine.connect() as _conn:
         "ALTER TABLE users ADD COLUMN last_login_at DATETIME",
         "ALTER TABLE reports ADD COLUMN verification_pending BOOLEAN DEFAULT 0 NOT NULL",
         "ALTER TABLE reports ADD COLUMN verification_kind VARCHAR",
+        "ALTER TABLE reports ADD COLUMN trust_score VARCHAR",
+        "ALTER TABLE reports ADD COLUMN needs_human_review BOOLEAN DEFAULT 0 NOT NULL",
+        "ALTER TABLE report_photos ADD COLUMN trust_score VARCHAR",
+        "ALTER TABLE report_photos ADD COLUMN trust_signals TEXT",
     ):
         try:
             _conn.execute(text(_ddl))
@@ -291,6 +295,9 @@ class ReportResponse(BaseModel):
     deployed_at: Optional[datetime] = None
     resolved_at: Optional[datetime] = None
     verification_pending: bool = False
+    trust_score: Optional[str] = None
+    needs_human_review: bool = False
+    failing_signals: List[str] = []
     photos: List[dict] = []
 
     class Config:
@@ -1174,6 +1181,25 @@ def _save_mask_bytes(mask_bytes: bytes) -> Optional[str]:
     return f"/uploads/{mask_filename}"
 
 
+def _get_report_failing_signals(report) -> list:
+    """Return failing_signals from the lowest-trust ReportPhoto, or [] if none."""
+    photos = getattr(report, "report_photos", []) or []
+    priority = {"low": 0, "medium": 1, "high": 2}
+    worst_photo = None
+    worst_priority = 99
+    for p in photos:
+        score = getattr(p, "trust_score", None)
+        if score and priority.get(score, 99) < worst_priority:
+            worst_priority = priority[score]
+            worst_photo = p
+    if worst_photo and worst_photo.trust_signals:
+        try:
+            return json.loads(worst_photo.trust_signals).get("failing_signals", [])
+        except Exception:
+            return []
+    return []
+
+
 async def _bg_verify_submit(report_id: int) -> None:
     """Background task: run Mask R-CNN on all evidence photos for a freshly-submitted report."""
     db = SessionLocal()
@@ -1219,12 +1245,27 @@ async def _bg_verify_submit(report_id: int) -> None:
         best = max(results, key=lambda r: r.get("confidence", 0.0))
 
         # Update individual photo rows with per-photo AI results
-        for (_, row), result in zip(pairs, results):
+        for (img_bytes, row), result in zip(pairs, results):
             if row is not None:
                 row.ai_confidence = result.get("confidence")
                 row.ai_verified = bool(result.get("verified", False))
                 if result.get("verified") and result.get("mask_bytes"):
                     row.ai_mask_path = _save_mask_bytes(result.get("mask_bytes"))
+                # Trust scoring per photo
+                trust_result = compute_trust_score(img_bytes, report.lat, report.lon)
+                row.trust_score = trust_result["score"]
+                row.trust_signals = json.dumps(trust_result)
+
+        # Compute aggregate trust score from all photo rows
+        photo_rows_with_score = [row for (_, row), _ in zip(pairs, results) if row is not None and row.trust_score]
+        if photo_rows_with_score:
+            _trust_priority = {"low": 0, "medium": 1, "high": 2}
+            worst_score = min(
+                (row.trust_score for row in photo_rows_with_score),
+                key=lambda s: _trust_priority.get(s, 99),
+            )
+            report.trust_score = worst_score
+            report.needs_human_review = (worst_score == "low")
 
         # Update report aggregate: use best passing result's mask (or best overall if none pass)
         report.ai_confidence = best.get("confidence")
@@ -1542,6 +1583,7 @@ async def track_report(tracking_slug: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Report not found")
 
     response = ReportResponse.model_validate(report)
+    response.needs_human_review = getattr(report, "needs_human_review", False)
     photo_rows = db.query(models.ReportPhoto).filter(
         models.ReportPhoto.report_id == report.id
     ).all()
@@ -1550,9 +1592,15 @@ async def track_report(tracking_slug: str, db: Session = Depends(get_db)):
             "url": p.file_path,
             "ai_confidence": p.ai_confidence,
             "ai_verified": p.ai_verified,
+            "trust_score": getattr(p, "trust_score", None),
+            "failing_signals": json.loads(p.trust_signals or "{}").get("failing_signals", [])
+            if getattr(p, "trust_signals", None) else [],
         }
         for p in photo_rows
     ]
+    # Attach report-level trust signals from the lowest-trust photo
+    # (photo_rows already loaded so pass them via the report relationship proxy)
+    response.failing_signals = _get_report_failing_signals(report)
     return response
 
 def _apply_report_filters(
