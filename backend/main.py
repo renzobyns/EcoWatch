@@ -76,6 +76,53 @@ def _seed_sla_config_defaults() -> None:
 _seed_sla_config_defaults()
 
 
+def _migrate_single_photos_to_tables() -> None:
+    """Backfill legacy single image_url / cleanup_image_url into new photo tables. Idempotent."""
+    db = SessionLocal()
+    try:
+        # Evidence photos
+        for report in db.query(models.Report).filter(models.Report.image_url.isnot(None)).all():
+            exists = db.query(models.ReportPhoto).filter(
+                models.ReportPhoto.report_id == report.id
+            ).first()
+            if not exists:
+                db.add(models.ReportPhoto(
+                    report_id=report.id,
+                    file_path=report.image_url,
+                    ai_confidence=report.ai_confidence,
+                    ai_verified=(report.ai_confidence >= 0.5)
+                        if report.ai_confidence is not None else None,
+                    ai_mask_path=report.ai_mask_url,
+                ))
+
+        # Cleanup photos
+        for report in db.query(models.Report).filter(models.Report.cleanup_image_url.isnot(None)).all():
+            exists = db.query(models.CleanupPhoto).filter(
+                models.CleanupPhoto.report_id == report.id
+            ).first()
+            if not exists:
+                wo = (
+                    db.query(models.WorkOrder)
+                    .filter(models.WorkOrder.report_id == report.id)
+                    .order_by(models.WorkOrder.created_at.desc())
+                    .first()
+                )
+                db.add(models.CleanupPhoto(
+                    report_id=report.id,
+                    work_order_id=wo.id if wo else None,
+                    file_path=report.cleanup_image_url,
+                ))
+        db.commit()
+    except Exception:
+        logger.exception("Startup migration: photo backfill failed")
+        db.rollback()
+    finally:
+        db.close()
+
+
+_migrate_single_photos_to_tables()
+
+
 def _log_orphan_pending_verifications() -> None:
     """Log a warning for any reports left in verification_pending=True after a crash.
     Re-queueing happens via the FastAPI startup hook below, which has access to the
