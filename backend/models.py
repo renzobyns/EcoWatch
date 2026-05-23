@@ -87,6 +87,8 @@ class Report(Base):
 
     # Work orders (one Report can have multiple work orders if a cleanup fails and is re-dispatched)
     work_orders = relationship("WorkOrder", back_populates="report", cascade="all, delete-orphan")
+    report_photos = relationship("ReportPhoto", back_populates="report", cascade="all, delete-orphan")
+    cleanup_photos = relationship("CleanupPhoto", back_populates="report", cascade="all, delete-orphan")
 
 
 class WorkOrder(Base):
@@ -154,3 +156,33 @@ class Notification(Base):
     report_id = Column(Integer, ForeignKey("reports.id"), nullable=True, index=True)
     is_read = Column(Boolean, nullable=False, default=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+class ReportPhoto(Base):
+    """One row per evidence photo uploaded by a citizen for a report."""
+    __tablename__ = "report_photos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    report_id = Column(Integer, ForeignKey("reports.id"), nullable=False, index=True)
+    file_path = Column(String, nullable=False)
+    ai_confidence = Column(Float, nullable=True)
+    ai_verified = Column(Boolean, nullable=True)
+    ai_mask_path = Column(String, nullable=True)
+    uploaded_at = Column(DateTime, default=datetime.utcnow)
+
+    report = relationship("Report", back_populates="report_photos")
+
+
+class CleanupPhoto(Base):
+    """One row per cleanup proof photo. work_order_id is null for direct barangay resolves."""
+    __tablename__ = "cleanup_photos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    report_id = Column(Integer, ForeignKey("reports.id"), nullable=False, index=True)
+    work_order_id = Column(Integer, ForeignKey("work_orders.id"), nullable=True, index=True)
+    file_path = Column(String, nullable=False)
+    ai_confidence = Column(Float, nullable=True)
+    ai_verified = Column(Boolean, nullable=True)
+    uploaded_at = Column(DateTime, default=datetime.utcnow)
+
+    report = relationship("Report", back_populates="cleanup_photos")
