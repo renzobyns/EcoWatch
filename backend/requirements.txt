@@ -5,6 +5,7 @@ python-multipart
 bcrypt
 scikit-learn
 shapely
+Pillow
 
 # AI / Mask R-CNN
 tensorflow==2.16.1
