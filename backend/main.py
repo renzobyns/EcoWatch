@@ -1,9 +1,10 @@
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, Header
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, Header, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, List
+import asyncio
 import spatial_utils
 import csv
 import io
@@ -18,7 +19,7 @@ from sqlalchemy import or_, text
 from sqlalchemy.orm import Session
 from database import engine, get_db, SessionLocal
 import models
-from ai_verifier import verifier
+from ai_verifier import verifier, verify_images_async
 import analytics
 from notifications import emit_notification
 
@@ -49,6 +50,8 @@ with engine.connect() as _conn:
         "ALTER TABLE reports ADD COLUMN deployment_notes TEXT",
         "ALTER TABLE users ADD COLUMN phone_number TEXT",
         "ALTER TABLE users ADD COLUMN last_login_at DATETIME",
+        "ALTER TABLE reports ADD COLUMN verification_pending BOOLEAN DEFAULT 0 NOT NULL",
+        "ALTER TABLE reports ADD COLUMN verification_kind VARCHAR",
     ):
         try:
             _conn.execute(text(_ddl))
@@ -71,6 +74,23 @@ def _seed_sla_config_defaults() -> None:
 
 
 _seed_sla_config_defaults()
+
+
+def _log_orphan_pending_verifications() -> None:
+    """Log a warning for any reports left in verification_pending=True after a crash.
+    Re-queueing happens via the FastAPI startup hook below, which has access to the
+    running event loop."""
+    db = SessionLocal()
+    try:
+        rows = db.query(models.Report).filter(models.Report.verification_pending == True).all()
+        if rows:
+            ids = [r.id for r in rows]
+            logger.warning("Found %d orphan pending verification(s) on startup: %s", len(rows), ids)
+    finally:
+        db.close()
+
+
+_log_orphan_pending_verifications()
 
 # Ensure uploads directory exists
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
@@ -190,6 +210,7 @@ class WorkOrderResponse(BaseModel):
     report_status: str
     report_notes: Optional[str] = None
     report_cleanup_image_url: Optional[str] = None
+    report_verification_pending: bool = False
 
     class Config:
         from_attributes = True
@@ -220,6 +241,7 @@ class ReportResponse(BaseModel):
     created_at: datetime
     deployed_at: Optional[datetime] = None
     resolved_at: Optional[datetime] = None
+    verification_pending: bool = False
 
     class Config:
         from_attributes = True
@@ -361,6 +383,7 @@ def serialize_work_order(wo: models.WorkOrder) -> dict:
         "report_status": wo.report.status if wo.report else None,
         "report_notes": wo.report.notes if wo.report else None,
         "report_cleanup_image_url": wo.report.cleanup_image_url if wo.report else None,
+        "report_verification_pending": bool(wo.report.verification_pending) if wo.report else False,
     }
 
 
@@ -1082,89 +1105,267 @@ async def get_barangays_geojson():
 
 
 # ─────────────────────────────────────────────────────────
+# ASYNC AI VERIFICATION (background tasks)
+# ─────────────────────────────────────────────────────────
+
+def _disk_path_for_upload_url(upload_url: str) -> str:
+    """Convert a stored '/uploads/foo.jpg' URL back to its filesystem path."""
+    filename = os.path.basename(upload_url)
+    return os.path.join(UPLOAD_DIR, filename)
+
+
+def _save_mask_bytes(mask_bytes: bytes) -> Optional[str]:
+    """Persist a generated AI mask image to disk and return its /uploads URL."""
+    if not mask_bytes:
+        return None
+    mask_filename = f"mask_{uuid.uuid4().hex[:8]}.jpg"
+    with open(os.path.join(UPLOAD_DIR, mask_filename), "wb") as f:
+        f.write(mask_bytes)
+    return f"/uploads/{mask_filename}"
+
+
+async def _bg_verify_submit(report_id: int) -> None:
+    """Background task: run Mask R-CNN on a freshly-submitted report's image."""
+    db = SessionLocal()
+    try:
+        report = db.query(models.Report).filter(models.Report.id == report_id).first()
+        if not report or not report.image_url:
+            logger.warning("BG submit verify: report %s missing or has no image", report_id)
+            return
+        try:
+            with open(_disk_path_for_upload_url(report.image_url), "rb") as f:
+                image_bytes = f.read()
+        except FileNotFoundError:
+            logger.exception("BG submit verify: image file missing for report %s", report_id)
+            report.status = models.ReportStatus.REJECTED
+            report.verification_pending = False
+            report.verification_kind = None
+            db.commit()
+            return
+
+        results = await verify_images_async([image_bytes])
+        result = results[0]
+        report.ai_confidence = result.get("confidence")
+        if result.get("verified"):
+            report.status = models.ReportStatus.VERIFIED
+            report.ai_mask_url = _save_mask_bytes(result.get("mask_bytes"))
+        else:
+            report.status = models.ReportStatus.REJECTED
+        report.verification_pending = False
+        report.verification_kind = None
+
+        if report.reporter_id:
+            emit_notification(
+                db, report.reporter_id,
+                "verified" if report.status == models.ReportStatus.VERIFIED else "rejected",
+                f"Report {report.tracking_id} {report.status}",
+                "AI verification complete." if report.status == models.ReportStatus.VERIFIED
+                else "AI did not detect waste in the photo.",
+                report_id=report.id,
+            )
+        db.commit()
+    except Exception:
+        logger.exception("BG submit verify failed for report %s", report_id)
+        db.rollback()
+    finally:
+        db.close()
+
+
+async def _bg_verify_resolve(report_id: int, user_id: int) -> None:
+    """Background task: AI re-verifies a barangay-uploaded cleanup photo."""
+    db = SessionLocal()
+    try:
+        report = db.query(models.Report).filter(models.Report.id == report_id).first()
+        if not report or not report.cleanup_image_url:
+            logger.warning("BG resolve verify: report %s missing or has no cleanup image", report_id)
+            return
+        try:
+            with open(_disk_path_for_upload_url(report.cleanup_image_url), "rb") as f:
+                cleanup_bytes = f.read()
+        except FileNotFoundError:
+            logger.exception("BG resolve verify: cleanup image missing for report %s", report_id)
+            report.verification_pending = False
+            report.verification_kind = None
+            db.commit()
+            return
+
+        results = await verify_images_async([cleanup_bytes])
+        verification = results[0]
+        if verification.get("verified"):
+            report.status = models.ReportStatus.FAILED_CLEANUP
+        else:
+            report.status = models.ReportStatus.RESOLVED
+            report.resolved_at = datetime.utcnow()
+        report.verification_pending = False
+        report.verification_kind = None
+
+        write_audit(db, user_id, "resolve", report.id, {
+            "tracking_id": report.tracking_id,
+            "outcome": report.status,
+        })
+        db.commit()
+    except Exception:
+        logger.exception("BG resolve verify failed for report %s", report_id)
+        db.rollback()
+    finally:
+        db.close()
+
+
+async def _bg_verify_complete(work_order_id: int, user_id: int) -> None:
+    """Background task: AI re-verifies a cleaner-uploaded cleanup photo on a WO."""
+    db = SessionLocal()
+    try:
+        wo = db.query(models.WorkOrder).filter(models.WorkOrder.id == work_order_id).first()
+        if not wo or not wo.report or not wo.report.cleanup_image_url:
+            logger.warning("BG complete verify: work order %s missing context", work_order_id)
+            return
+        report = wo.report
+        try:
+            with open(_disk_path_for_upload_url(report.cleanup_image_url), "rb") as f:
+                cleanup_bytes = f.read()
+        except FileNotFoundError:
+            logger.exception("BG complete verify: cleanup image missing for WO %s", work_order_id)
+            report.verification_pending = False
+            report.verification_kind = None
+            db.commit()
+            return
+
+        results = await verify_images_async([cleanup_bytes])
+        verification = results[0]
+        if verification.get("verified"):
+            wo.status = models.WorkOrderStatus.NEEDS_REDO
+            report.status = models.ReportStatus.FAILED_CLEANUP
+            emit_notification(
+                db, wo.assigned_cleaner_id, "needs_redo",
+                f"Cleanup needs redo: {report.tracking_id}",
+                "AI still detected waste. Please clean more thoroughly and try again.",
+                work_order_id=wo.id, report_id=report.id,
+            )
+        else:
+            wo.status = models.WorkOrderStatus.VERIFIED
+            report.status = models.ReportStatus.RESOLVED
+            report.resolved_at = datetime.utcnow()
+            emit_notification(
+                db, wo.assigned_cleaner_id, "verified",
+                f"Job verified: {report.tracking_id}",
+                "AI confirmed cleanup. Thank you!",
+                work_order_id=wo.id, report_id=report.id,
+            )
+        report.verification_pending = False
+        report.verification_kind = None
+
+        write_audit(db, user_id, "complete_work_order", report.id, {
+            "work_order_id": wo.id,
+            "tracking_id": report.tracking_id,
+            "outcome": wo.status,
+        })
+        db.commit()
+    except Exception:
+        logger.exception("BG complete verify failed for WO %s", work_order_id)
+        db.rollback()
+    finally:
+        db.close()
+
+
+@app.on_event("startup")
+async def _resume_orphan_verifications() -> None:
+    """Re-dispatch background AI tasks for reports that were mid-verification when
+    the server stopped. Looks up the kind in `verification_kind` to pick the right BG fn."""
+    db = SessionLocal()
+    try:
+        orphans = db.query(models.Report).filter(
+            models.Report.verification_pending == True
+        ).all()
+        for r in orphans:
+            kind = r.verification_kind
+            if kind == "submit":
+                asyncio.create_task(_bg_verify_submit(r.id))
+            elif kind == "resolve":
+                # Recovery loses the original triggering user_id; use 0 as a sentinel
+                # for system-recovered audits.
+                asyncio.create_task(_bg_verify_resolve(r.id, 0))
+            elif kind == "complete":
+                wo = (
+                    db.query(models.WorkOrder)
+                    .filter(
+                        models.WorkOrder.report_id == r.id,
+                        models.WorkOrder.status == models.WorkOrderStatus.IN_PROGRESS,
+                    )
+                    .order_by(models.WorkOrder.created_at.desc())
+                    .first()
+                )
+                if wo:
+                    asyncio.create_task(_bg_verify_complete(wo.id, wo.assigned_cleaner_id or 0))
+                else:
+                    logger.warning("Orphan report %s has kind=complete but no IN_PROGRESS WO", r.id)
+            else:
+                logger.warning("Orphan report %s has unknown verification_kind=%s", r.id, kind)
+        if orphans:
+            logger.info("Re-dispatched %d orphan verification(s) on startup", len(orphans))
+    finally:
+        db.close()
+
+
+# ─────────────────────────────────────────────────────────
 # REPORT SUBMISSION
 # ─────────────────────────────────────────────────────────
 
-@app.post("/report/submit")
+@app.post("/report/submit", status_code=202)
 async def submit_report(
+    background_tasks: BackgroundTasks,
     lat: float = Form(...),
     lon: float = Form(...),
     notes: Optional[str] = Form(None),
     reporter_id: Optional[int] = Form(None),
     image: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
-    Full report submission pipeline:
-    1. Save uploaded image to disk
-    2. Run Mask R-CNN verification
-    3. Determine Barangay via Ray-Casting
-    4. Generate tracking ID + URL
-    5. Save to database
+    Citizen report submission. Returns 202 immediately; Mask R-CNN runs in
+    a background task. Frontend polls /report/track/{slug} until
+    `verification_pending` flips to false.
     """
-    # 1. Read image bytes for AI verification (validates MIME + size below)
     image_bytes = await image.read()
     validate_image(image, image_bytes)
 
-    # 2. Run Mask R-CNN verification
-    verification_result = verifier.verify_image(image_bytes)
-
-    # 3. Save image to disk (reuse bytes — avoids re-reading 10 MB)
+    # Persist photo + report row with PENDING status — AI runs after response is sent.
     image_url = await save_upload(image, prefix="report", contents=image_bytes)
 
-    ai_mask_url = None
-    # 4. Determine initial status based on AI result
-    if not verification_result["verified"]:
-        status = models.ReportStatus.REJECTED
-    else:
-        status = models.ReportStatus.VERIFIED
-        # Generate and save the mask image
-        mask_bytes = verifier.generate_mask_image()
-        if mask_bytes:
-            mask_filename = f"mask_{uuid.uuid4().hex[:8]}.jpg"
-            mask_filepath = os.path.join(UPLOAD_DIR, mask_filename)
-            with open(mask_filepath, "wb") as f:
-                f.write(mask_bytes)
-            ai_mask_url = f"/uploads/{mask_filename}"
-    
-    # 5. Spatial assignment
     spatial_result = spatial_utils.get_barangay_from_coords(lat, lon)
     barangay = spatial_result.get("barangay") if "error" not in spatial_result else "Unknown"
-    
-    # 6. Generate tracking
+
     tracking_id = generate_tracking_id(db)
     tracking_slug = generate_tracking_slug()
     tracking_url = f"/track/{tracking_slug}"
-    
-    # 7. Create Report
+
     new_report = models.Report(
         lat=lat,
         lon=lon,
         barangay=barangay,
         reporter_id=reporter_id,
         image_url=image_url,
-        ai_mask_url=ai_mask_url,
-        ai_confidence=verification_result["confidence"],
-        status=status,
+        status=models.ReportStatus.PENDING,
         notes=notes,
         tracking_id=tracking_id,
-        tracking_url=tracking_url
+        tracking_url=tracking_url,
+        verification_pending=True,
+        verification_kind="submit",
     )
-    
     db.add(new_report)
     db.commit()
     db.refresh(new_report)
-    
+
+    background_tasks.add_task(_bg_verify_submit, new_report.id)
+
     return {
-        "success": True if status != models.ReportStatus.REJECTED else False,
-        "message": "Report successfully verified and submitted." if status != models.ReportStatus.REJECTED 
-                   else "AI could not verify the presence of illegal waste.",
+        "success": True,
+        "message": "Report received. AI verification is running in the background.",
         "report_id": new_report.id,
         "tracking_id": tracking_id,
         "tracking_url": tracking_url,
         "barangay_assigned": barangay,
-        "status": status,
-        "ai_details": verification_result
+        "status": new_report.status,
+        "verification_pending": True,
     }
 
 
@@ -1436,16 +1637,18 @@ async def deploy_report(
         "report": ReportResponse.model_validate(report)
     }
 
-@app.post("/report/{report_id}/resolve")
+@app.post("/report/{report_id}/resolve", status_code=202)
 async def resolve_report(
     report_id: int,
+    background_tasks: BackgroundTasks,
     cleanup_image: UploadFile = File(...),
     db: Session = Depends(get_db),
     user: models.User = Depends(require_role("barangay")),
 ):
     """
-    Barangay uploads cleanup photo.
-    AI re-verifies — if clean, mark resolved; if still dirty, mark failed_cleanup.
+    Barangay uploads cleanup photo. AI runs in background.
+    Returns 202 immediately; frontend polls the report until
+    `verification_pending` flips to false to see RESOLVED / FAILED_CLEANUP.
     """
     report = db.query(models.Report).filter(models.Report.id == report_id).first()
     if not report:
@@ -1457,35 +1660,24 @@ async def resolve_report(
             detail=f"Cannot resolve. Report status is '{report.status}', must be 'deployed'."
         )
 
-    # Read cleanup image bytes for AI verification (validates MIME + size below)
     cleanup_bytes = await cleanup_image.read()
     validate_image(cleanup_image, cleanup_bytes)
-    verification = verifier.verify_image(cleanup_bytes)
 
-    # Save cleanup image to disk (reuse bytes)
     cleanup_url = await save_upload(cleanup_image, prefix="cleanup", contents=cleanup_bytes)
     report.cleanup_image_url = cleanup_url
-
-    if verification["verified"]:
-        # AI still sees waste → cleanup failed
-        report.status = models.ReportStatus.FAILED_CLEANUP
-    else:
-        # AI sees no waste → cleanup successful
-        report.status = models.ReportStatus.RESOLVED
-        report.resolved_at = datetime.utcnow()
-
-    write_audit(db, user.id, "resolve", report.id, {
-        "tracking_id": report.tracking_id,
-        "outcome": report.status,
-    })
+    report.verification_pending = True
+    report.verification_kind = "resolve"
     db.commit()
     db.refresh(report)
-    
+
+    background_tasks.add_task(_bg_verify_resolve, report.id, user.id)
+
     return {
         "success": True,
-        "message": f"Report {report.tracking_id} — {'Resolved! ✅' if report.status == models.ReportStatus.RESOLVED else 'Cleanup needs retry ⚠️'}",
+        "message": f"Cleanup photo received for {report.tracking_id}. AI verification running.",
         "status": report.status,
-        "report": ReportResponse.model_validate(report)
+        "verification_pending": True,
+        "report": ReportResponse.model_validate(report),
     }
 
 
@@ -1653,16 +1845,18 @@ async def start_work_order(
     }
 
 
-@app.put("/work-orders/{work_order_id}/complete")
+@app.put("/work-orders/{work_order_id}/complete", status_code=202)
 async def complete_work_order(
     work_order_id: int,
+    background_tasks: BackgroundTasks,
     cleanup_image: UploadFile = File(...),
     db: Session = Depends(get_db),
     user: models.User = Depends(require_role("cleaner")),
 ):
     """
-    Cleaner uploads cleanup photo.
-    AI re-verifies — if clean, mark completed/verified; if still dirty, mark needs_redo.
+    Cleaner uploads cleanup photo. AI runs in background.
+    Returns 202 immediately; WO stays IN_PROGRESS with `report_verification_pending=true`
+    until the BG task flips it to VERIFIED or NEEDS_REDO.
     """
     wo = db.query(models.WorkOrder).filter(models.WorkOrder.id == work_order_id).first()
     if not wo:
@@ -1681,52 +1875,24 @@ async def complete_work_order(
     if not report:
         raise HTTPException(status_code=404, detail="Associated report not found")
 
-    # Read and validate cleanup image
     cleanup_bytes = await cleanup_image.read()
     validate_image(cleanup_image, cleanup_bytes)
-    verification = verifier.verify_image(cleanup_bytes)
 
-    # Save cleanup image to disk
     cleanup_url = await save_upload(cleanup_image, prefix="cleanup", contents=cleanup_bytes)
     report.cleanup_image_url = cleanup_url
-
-    # Update work order and report based on verification
+    report.verification_pending = True
+    report.verification_kind = "complete"
     wo.completed_at = datetime.utcnow()
-
-    if verification["verified"]:
-        # AI still sees waste → cleanup failed, mark for redo
-        wo.status = models.WorkOrderStatus.NEEDS_REDO
-        report.status = models.ReportStatus.FAILED_CLEANUP
-        emit_notification(
-            db, wo.assigned_cleaner_id, "needs_redo",
-            f"Cleanup needs redo: {report.tracking_id}",
-            "AI still detected waste. Please clean more thoroughly and try again.",
-            work_order_id=wo.id, report_id=report.id,
-        )
-    else:
-        # AI sees no waste → cleanup successful
-        wo.status = models.WorkOrderStatus.VERIFIED
-        report.status = models.ReportStatus.RESOLVED
-        report.resolved_at = datetime.utcnow()
-        emit_notification(
-            db, wo.assigned_cleaner_id, "verified",
-            f"Job verified: {report.tracking_id}",
-            "AI confirmed cleanup. Thank you!",
-            work_order_id=wo.id, report_id=report.id,
-        )
-
-    write_audit(db, user.id, "complete_work_order", report.id, {
-        "work_order_id": wo.id,
-        "tracking_id": report.tracking_id,
-        "outcome": wo.status,
-    })
     db.commit()
     db.refresh(wo)
     db.refresh(report)
 
+    background_tasks.add_task(_bg_verify_complete, wo.id, user.id)
+
     return {
         "success": True,
-        "message": f"Work order completed. Report is {report.status}.",
+        "message": f"Cleanup photo received for {report.tracking_id}. AI verification running.",
+        "verification_pending": True,
         "work_order": serialize_work_order(wo),
     }
 

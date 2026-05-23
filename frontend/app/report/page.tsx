@@ -84,13 +84,12 @@ export default function ReportPage() {
             });
 
             const data = await res.json();
-            
+
             if (res.ok && data.success) {
-                // Success! Redirect to tracking page
+                // Report saved. AI runs in the background — tracking page polls for the result.
                 router.push(data.tracking_url);
             } else {
-                // AI Rejected it or server error
-                setError(data.message || "Failed to submit report.");
+                setError(data.message || data.detail || "Failed to submit report.");
             }
         } catch (err) {
             console.error("Submit error:", err);
@@ -270,7 +269,7 @@ export default function ReportPage() {
                                 {isSubmitting ? (
                                     <>
                                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        Running AI...
+                                        Submitting...
                                     </>
                                 ) : (
                                     <>

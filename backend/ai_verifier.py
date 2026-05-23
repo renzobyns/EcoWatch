@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import sys
@@ -174,6 +175,25 @@ class AIVerifier:
         
         return buffer.tobytes()
 
+    def verify_images(self, images_bytes: list) -> list:
+        """
+        Run Mask R-CNN on multiple images for a single report.
+
+        v1: loops verify_image() — safe on CPU, no extra memory pressure.
+        v2 (future): true batch forward pass with IMAGES_PER_GPU > 1.
+        Also returns the mask bytes per image (since generate_mask_image
+        is stateful on the verifier and would otherwise be clobbered).
+        """
+        out = []
+        for img_bytes in images_bytes:
+            result = self.verify_image(img_bytes)
+            mask_bytes = None
+            if result.get("verified") and self.is_loaded:
+                mask_bytes = self.generate_mask_image()
+            result["mask_bytes"] = mask_bytes
+            out.append(result)
+        return out
+
     def _mock_verify(self):
         """Fallback mock verification when model is not available."""
         import random
@@ -194,3 +214,18 @@ class AIVerifier:
 
 # Singleton instance
 verifier = AIVerifier()
+
+# Global inference lock: Mask R-CNN holds graph state across detect() calls,
+# so we must serialize calls even though FastAPI is async. Inference itself
+# runs in a thread executor so it does not block the event loop.
+INFERENCE_LOCK = asyncio.Lock()
+
+
+async def verify_images_async(images_bytes: list) -> list:
+    """
+    Async-safe entry point used by background tasks.
+    Acquires the global inference lock, then runs the (CPU/GPU-bound)
+    Mask R-CNN call in a worker thread so other endpoints stay responsive.
+    """
+    async with INFERENCE_LOCK:
+        return await asyncio.to_thread(verifier.verify_images, images_bytes)
