@@ -80,12 +80,17 @@ def _migrate_single_photos_to_tables() -> None:
     """Backfill legacy single image_url / cleanup_image_url into new photo tables. Idempotent."""
     db = SessionLocal()
     try:
+        # Pre-fetch migrated IDs in two queries rather than N+1
+        already_report_photo_ids = set(
+            db.query(models.ReportPhoto.report_id).scalars().all()
+        )
+        already_cleanup_photo_ids = set(
+            db.query(models.CleanupPhoto.report_id).scalars().all()
+        )
+
         # Evidence photos
         for report in db.query(models.Report).filter(models.Report.image_url.isnot(None)).all():
-            exists = db.query(models.ReportPhoto).filter(
-                models.ReportPhoto.report_id == report.id
-            ).first()
-            if not exists:
+            if report.id not in already_report_photo_ids:
                 db.add(models.ReportPhoto(
                     report_id=report.id,
                     file_path=report.image_url,
@@ -97,10 +102,7 @@ def _migrate_single_photos_to_tables() -> None:
 
         # Cleanup photos
         for report in db.query(models.Report).filter(models.Report.cleanup_image_url.isnot(None)).all():
-            exists = db.query(models.CleanupPhoto).filter(
-                models.CleanupPhoto.report_id == report.id
-            ).first()
-            if not exists:
+            if report.id not in already_cleanup_photo_ids:
                 wo = (
                     db.query(models.WorkOrder)
                     .filter(models.WorkOrder.report_id == report.id)
