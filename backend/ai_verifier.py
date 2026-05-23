@@ -321,10 +321,9 @@ def compute_trust_score(image_bytes: bytes, submitted_lat: float, submitted_lon:
                         age_hours = (now - dt_original).total_seconds() / 3600
                         signals["datetime_age_hours"] = age_hours
 
-                        if age_hours > 24 or age_hours < -1:
-                            failing_signals.append(
-                                f"Photo taken >24h ago or >1h in future (age: {age_hours:.1f}h)"
-                            )
+                        # NOTE: DateTimeOriginal is local time with no timezone offset,
+                        # so age-based LOW trust would false-positive for Philippine evening
+                        # photos (UTC+8). Age is kept as a debug signal only.
                     except ValueError:
                         pass  # Could not parse date
             except Exception:
