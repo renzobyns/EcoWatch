@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
 import { slaInfo, SLA_PILL_CLASSES, slaDeadlineColor, slaDeadlineLabel } from "@/lib/sla";
 import { PortalShell, type PortalNavItem } from "@/components/portal/PortalShell";
+import { TrustBadge } from "@/components/TrustBadge";
 
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
@@ -1601,6 +1602,9 @@ export default function BarangayPortal() {
                                                                 </td>
                                                                 <td className="p-4 text-sm font-bold text-foreground/80">
                                                                     {report.ai_confidence ? `${(report.ai_confidence * 100).toFixed(0)}%` : 'N/A'}
+                                                                    {(report as any).needs_human_review && (
+                                                                        <span title="Low-trust photo — needs human review" className="text-yellow-400 ml-1 text-xs">⚠</span>
+                                                                    )}
                                                                 </td>
                                                                 <td className="p-4 text-right">
                                                                     <button
@@ -1691,6 +1695,13 @@ export default function BarangayPortal() {
                                                 AI Confidence: {(selectedReport.ai_confidence * 100).toFixed(0)}%
                                             </div>
                                         )}
+                                    </div>
+                                    <div className="mt-2">
+                                        <TrustBadge
+                                            trust_score={(selectedReport as any).trust_score}
+                                            failing_signals={(selectedReport as any).failing_signals}
+                                            needs_human_review={(selectedReport as any).needs_human_review}
+                                        />
                                     </div>
                                 </div>
 
