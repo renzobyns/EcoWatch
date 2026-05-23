@@ -247,7 +247,7 @@ export default function BarangayPortal() {
         setActionLoading(true);
 
         const formData = new FormData();
-        formData.append("cleanup_image", cleanupImage);
+        formData.append("cleanup_images", cleanupImage);
 
         try {
             const data = await api(`/report/${reportId}/resolve`, {
