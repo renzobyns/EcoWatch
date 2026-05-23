@@ -1175,32 +1175,71 @@ def _save_mask_bytes(mask_bytes: bytes) -> Optional[str]:
 
 
 async def _bg_verify_submit(report_id: int) -> None:
-    """Background task: run Mask R-CNN on a freshly-submitted report's image."""
+    """Background task: run Mask R-CNN on all evidence photos for a freshly-submitted report."""
     db = SessionLocal()
     try:
         report = db.query(models.Report).filter(models.Report.id == report_id).first()
-        if not report or not report.image_url:
-            logger.warning("BG submit verify: report %s missing or has no image", report_id)
+        if not report:
+            logger.warning("BG submit verify: report %s missing", report_id)
             return
-        try:
-            with open(_disk_path_for_upload_url(report.image_url), "rb") as f:
-                image_bytes = f.read()
-        except FileNotFoundError:
-            logger.exception("BG submit verify: image file missing for report %s", report_id)
+
+        photo_rows = db.query(models.ReportPhoto).filter(
+            models.ReportPhoto.report_id == report_id,
+            models.ReportPhoto.ai_verified.is_(None),
+        ).all()
+
+        # Build list of (raw_bytes, db_row_or_None) pairs; skip missing files
+        pairs: list[tuple[bytes, object]] = []
+        if photo_rows:
+            for row in photo_rows:
+                try:
+                    with open(_disk_path_for_upload_url(row.file_path), "rb") as f:
+                        pairs.append((f.read(), row))
+                except FileNotFoundError:
+                    logger.warning("BG submit: missing file %s for report %s", row.file_path, report_id)
+        elif report.image_url:
+            # Legacy record — no photo table rows; fall back to image_url
+            try:
+                with open(_disk_path_for_upload_url(report.image_url), "rb") as f:
+                    pairs.append((f.read(), None))
+            except FileNotFoundError:
+                logger.exception("BG submit: legacy image missing for report %s", report_id)
+
+        if not pairs:
             report.status = models.ReportStatus.REJECTED
             report.verification_pending = False
             report.verification_kind = None
             db.commit()
             return
 
-        results = await verify_images_async([image_bytes])
-        result = results[0]
-        report.ai_confidence = result.get("confidence")
-        if result.get("verified"):
+        results = await verify_images_async([b for b, _ in pairs])
+
+        # ANY-wins: if any photo passes the threshold, the report is verified
+        any_verified = any(r.get("verified") for r in results)
+        best = max(results, key=lambda r: r.get("confidence", 0.0))
+
+        # Update individual photo rows with per-photo AI results
+        for (_, row), result in zip(pairs, results):
+            if row is not None:
+                row.ai_confidence = result.get("confidence")
+                row.ai_verified = bool(result.get("verified", False))
+                if result.get("verified") and result.get("mask_bytes"):
+                    row.ai_mask_path = _save_mask_bytes(result.get("mask_bytes"))
+
+        # Update report aggregate: use best passing result's mask (or best overall if none pass)
+        report.ai_confidence = best.get("confidence")
+        if any_verified:
             report.status = models.ReportStatus.VERIFIED
-            report.ai_mask_url = _save_mask_bytes(result.get("mask_bytes"))
+            passing = [
+                (r, row)
+                for r, (_, row) in zip(results, pairs)
+                if r.get("verified")
+            ]
+            best_pass_result = max(passing, key=lambda x: x[0].get("confidence", 0.0))[0]
+            report.ai_mask_url = _save_mask_bytes(best_pass_result.get("mask_bytes"))
         else:
             report.status = models.ReportStatus.REJECTED
+
         report.verification_pending = False
         report.verification_kind = None
 
@@ -1367,19 +1406,29 @@ async def submit_report(
     lon: float = Form(...),
     notes: Optional[str] = Form(None),
     reporter_id: Optional[int] = Form(None),
-    image: UploadFile = File(...),
+    images: List[UploadFile] = File(...),
     db: Session = Depends(get_db),
 ):
     """
-    Citizen report submission. Returns 202 immediately; Mask R-CNN runs in
-    a background task. Frontend polls /report/track/{slug} until
-    `verification_pending` flips to false.
+    Citizen report submission. Accepts 1–5 evidence photos.
+    Returns 202 immediately; Mask R-CNN runs in a background task.
+    Frontend polls /report/track/{slug} until `verification_pending` flips to false.
     """
-    image_bytes = await image.read()
-    validate_image(image, image_bytes)
+    if not (1 <= len(images) <= 5):
+        raise HTTPException(status_code=422, detail="Upload between 1 and 5 photos.")
 
-    # Persist photo + report row with PENDING status — AI runs after response is sent.
-    image_url = await save_upload(image, prefix="report", contents=image_bytes)
+    # Save each photo; skip bad files but proceed if at least one succeeds
+    saved_urls: list[str] = []
+    for img in images:
+        try:
+            img_bytes = await img.read()
+            url = await save_upload(img, prefix="report", contents=img_bytes)
+            saved_urls.append(url)
+        except HTTPException:
+            pass  # skip invalid file; continue with the rest
+
+    if not saved_urls:
+        raise HTTPException(status_code=422, detail="No photos could be saved. Please try again.")
 
     spatial_result = spatial_utils.get_barangay_from_coords(lat, lon)
     barangay = spatial_result.get("barangay") if "error" not in spatial_result else "Unknown"
@@ -1393,7 +1442,7 @@ async def submit_report(
         lon=lon,
         barangay=barangay,
         reporter_id=reporter_id,
-        image_url=image_url,
+        image_url=saved_urls[0],  # backward compat: first photo
         status=models.ReportStatus.PENDING,
         notes=notes,
         tracking_id=tracking_id,
@@ -1404,6 +1453,10 @@ async def submit_report(
     db.add(new_report)
     db.commit()
     db.refresh(new_report)
+
+    for url in saved_urls:
+        db.add(models.ReportPhoto(report_id=new_report.id, file_path=url))
+    db.commit()
 
     background_tasks.add_task(_bg_verify_submit, new_report.id)
 
