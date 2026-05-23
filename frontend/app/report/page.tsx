@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
@@ -57,9 +57,16 @@ export default function ReportPage() {
     };
 
     const removeImage = (index: number) => {
+        URL.revokeObjectURL(previewUrls[index]);
         setImages((prev) => prev.filter((_, i) => i !== index));
         setPreviewUrls((prev) => prev.filter((_, i) => i !== index));
     };
+
+    // Revoke all blob URLs when component unmounts to avoid memory leaks
+    useEffect(() => {
+        return () => { previewUrls.forEach((u) => URL.revokeObjectURL(u)); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Step 3: Final Submission
     const handleSubmit = async () => {
@@ -186,7 +193,7 @@ export default function ReportPage() {
                         {previewUrls.length > 0 && (
                             <div className="flex gap-2 overflow-x-auto pb-2 mb-4">
                                 {previewUrls.map((url, i) => (
-                                    <div key={i} className="relative shrink-0 w-24 h-24 rounded-xl overflow-hidden border border-border group">
+                                    <div key={url} className="relative shrink-0 w-24 h-24 rounded-xl overflow-hidden border border-border group">
                                         <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
                                         <button
                                             type="button"
