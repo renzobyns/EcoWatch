@@ -33,8 +33,8 @@ export default function ReportPage() {
     // Form Data
     const [lat, setLat] = useState<number | null>(null);
     const [lon, setLon] = useState<number | null>(null);
-    const [image, setImage] = useState<File | null>(null);
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [images, setImages] = useState<File[]>([]);
+    const [previewUrls, setPreviewUrls] = useState<string[]>([]);
     const [notes, setNotes] = useState("");
     
     // UI States
@@ -43,18 +43,27 @@ export default function ReportPage() {
 
     // Step 2: Handle Image Selection
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            setImage(file);
-            const url = URL.createObjectURL(file);
-            setPreviewUrl(url);
-            setError(null);
+        const files = Array.from(e.target.files ?? []);
+        if (files.length === 0) return;
+        const total = images.length + files.length;
+        if (total > 5) {
+            setError("Maximum 5 photos allowed.");
+            return;
         }
+        setImages((prev) => [...prev, ...files]);
+        setPreviewUrls((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))]);
+        setError(null);
+        e.target.value = "";
+    };
+
+    const removeImage = (index: number) => {
+        setImages((prev) => prev.filter((_, i) => i !== index));
+        setPreviewUrls((prev) => prev.filter((_, i) => i !== index));
     };
 
     // Step 3: Final Submission
     const handleSubmit = async () => {
-        if (!lat || !lon || !image) {
+        if (!lat || !lon || images.length === 0) {
             setError("Missing required data (Location or Image).");
             return;
         }
@@ -66,7 +75,7 @@ export default function ReportPage() {
         formData.append("lat", lat.toString());
         formData.append("lon", lon.toString());
         if (notes) formData.append("notes", notes);
-        formData.append("image", image);
+        images.forEach((img) => formData.append("images", img));
 
         // Optional: Check if logged in to attach reporter_id
         const storedUser = localStorage.getItem('ecowatch_user');
@@ -170,34 +179,44 @@ export default function ReportPage() {
                         </div>
                         <h2 className="text-2xl font-bold text-foreground mb-1.5">Capture Evidence</h2>
                         <p className="text-sm text-foreground/60 font-medium mb-5">
-                            Take a clear photo of the illegal waste. Our AI will verify the image before submission.
+                            Take up to 5 clear photos of the illegal waste. Our AI will verify before submission.
                         </p>
 
-                        {previewUrl ? (
-                            <div className="mb-6 relative h-60 rounded-xl overflow-hidden border border-border group">
-                                <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
-                                <button
-                                    onClick={() => {
-                                        setPreviewUrl(null);
-                                        setImage(null);
-                                    }}
-                                    className="absolute top-3 right-3 glass px-2.5 py-1 rounded-md text-xs font-semibold text-foreground hover:bg-red-500/80 hover:text-white transition-colors shadow-xl opacity-0 group-hover:opacity-100"
-                                >
-                                    Remove
-                                </button>
+                        {/* Photo strip */}
+                        {previewUrls.length > 0 && (
+                            <div className="flex gap-2 overflow-x-auto pb-2 mb-4">
+                                {previewUrls.map((url, i) => (
+                                    <div key={i} className="relative shrink-0 w-24 h-24 rounded-xl overflow-hidden border border-border group">
+                                        <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
+                                        <button
+                                            type="button"
+                                            onClick={() => removeImage(i)}
+                                            className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold"
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                ))}
+                                {previewUrls.length < 5 && (
+                                    <label className="shrink-0 w-24 h-24 rounded-xl border-2 border-dashed border-foreground/20 hover:border-primary/50 cursor-pointer flex items-center justify-center text-foreground/40 hover:text-primary transition-colors">
+                                        <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                    </label>
+                                )}
                             </div>
-                        ) : (
+                        )}
+
+                        {previewUrls.length === 0 && (
                             <div className="grid grid-cols-2 gap-3 mb-6">
                                 <label className="cursor-pointer glass rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 transition-all p-5 flex flex-col items-center justify-center gap-2.5 group">
-                                    <input type="file" accept="image/*" capture="environment" onChange={handleImageChange} className="hidden" />
+                                    <input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={handleImageChange} />
                                     <div className="w-10 h-10 rounded-full bg-foreground/5 flex items-center justify-center text-foreground/50 group-hover:bg-primary/20 group-hover:text-primary transition-colors">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                                     </div>
                                     <span className="text-sm font-semibold text-foreground/70 text-center">Open Camera</span>
                                 </label>
-
                                 <label className="cursor-pointer glass rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 transition-all p-5 flex flex-col items-center justify-center gap-2.5 group">
-                                    <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                                    <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
                                     <div className="w-10 h-10 rounded-full bg-foreground/5 flex items-center justify-center text-foreground/50 group-hover:bg-primary/20 group-hover:text-primary transition-colors">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                                     </div>
@@ -206,16 +225,14 @@ export default function ReportPage() {
                             </div>
                         )}
 
-                        <div className="flex gap-3">
-                            <Button
-                                onClick={() => setStep(3)}
-                                disabled={!image}
-                                size="lg"
-                                className="w-full"
-                            >
-                                Continue to Review
-                            </Button>
-                        </div>
+                        <Button
+                            onClick={() => setStep(3)}
+                            disabled={images.length === 0}
+                            size="lg"
+                            className="w-full"
+                        >
+                            Continue to Review ({images.length} photo{images.length !== 1 ? "s" : ""})
+                        </Button>
                     </div>
                 )}
 
@@ -232,8 +249,13 @@ export default function ReportPage() {
 
                         <div className="mb-6">
                             <div className="flex gap-3 mb-5">
-                                <div className="w-20 h-20 rounded-lg overflow-hidden shrink-0 border border-border">
-                                    <img src={previewUrl!} alt="Preview" className="w-full h-full object-cover" />
+                                <div className="w-20 h-20 rounded-lg overflow-hidden shrink-0 border border-border relative">
+                                    <img src={previewUrls[0]} alt="Preview" className="w-full h-full object-cover" />
+                                    {images.length > 1 && (
+                                        <div className="absolute bottom-1 right-1 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                                            +{images.length - 1}
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="flex-1 h-20 rounded-lg overflow-hidden border border-border relative bg-black/50">
                                     <MiniMap lat={lat!} lon={lon!} />
