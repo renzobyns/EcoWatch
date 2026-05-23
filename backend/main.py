@@ -1181,9 +1181,8 @@ def _save_mask_bytes(mask_bytes: bytes) -> Optional[str]:
     return f"/uploads/{mask_filename}"
 
 
-def _get_report_failing_signals(report) -> list:
+def _get_report_failing_signals(photos: list) -> list:
     """Return failing_signals from the lowest-trust ReportPhoto, or [] if none."""
-    photos = getattr(report, "report_photos", []) or []
     priority = {"low": 0, "medium": 1, "high": 2}
     worst_photo = None
     worst_priority = 99
@@ -1192,7 +1191,7 @@ def _get_report_failing_signals(report) -> list:
         if score and priority.get(score, 99) < worst_priority:
             worst_priority = priority[score]
             worst_photo = p
-    if worst_photo and worst_photo.trust_signals:
+    if worst_photo and getattr(worst_photo, "trust_signals", None):
         try:
             return json.loads(worst_photo.trust_signals).get("failing_signals", [])
         except Exception:
@@ -1244,26 +1243,34 @@ async def _bg_verify_submit(report_id: int) -> None:
         any_verified = any(r.get("verified") for r in results)
         best = max(results, key=lambda r: r.get("confidence", 0.0))
 
-        # Update individual photo rows with per-photo AI results
+        # Update individual photo rows with per-photo AI results (no trust scoring yet)
+        photo_bytes_for_trust: list[tuple[bytes, object]] = []
         for (img_bytes, row), result in zip(pairs, results):
             if row is not None:
                 row.ai_confidence = result.get("confidence")
                 row.ai_verified = bool(result.get("verified", False))
                 if result.get("verified") and result.get("mask_bytes"):
                     row.ai_mask_path = _save_mask_bytes(result.get("mask_bytes"))
-                # Trust scoring per photo
-                trust_result = compute_trust_score(img_bytes, report.lat, report.lon)
-                row.trust_score = trust_result["score"]
-                row.trust_signals = json.dumps(trust_result)
+                photo_bytes_for_trust.append((img_bytes, row))
 
-        # Compute aggregate trust score from all photo rows
-        photo_rows_with_score = [row for (_, row), _ in zip(pairs, results) if row is not None and row.trust_score]
-        if photo_rows_with_score:
+        # Run ALL trust scoring off the event loop in a single thread to avoid blocking
+        def _run_trust_batch():
+            results_trust = []
+            for b, p in photo_bytes_for_trust:
+                trust = compute_trust_score(b, report.lat, report.lon)
+                results_trust.append((p, trust))
+            return results_trust
+
+        trust_results = await asyncio.to_thread(_run_trust_batch)
+        for photo, trust_result in trust_results:
+            photo.trust_score = trust_result["score"]
+            photo.trust_signals = json.dumps(trust_result)
+
+        # Compute aggregate trust score from the scored photos
+        photo_scores = [p.trust_score for p, _ in trust_results if p.trust_score]
+        if photo_scores:
             _trust_priority = {"low": 0, "medium": 1, "high": 2}
-            worst_score = min(
-                (row.trust_score for row in photo_rows_with_score),
-                key=lambda s: _trust_priority.get(s, 99),
-            )
+            worst_score = min(photo_scores, key=lambda s: _trust_priority.get(s, 99))
             report.trust_score = worst_score
             report.needs_human_review = (worst_score == "low")
 
@@ -1583,7 +1590,6 @@ async def track_report(tracking_slug: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Report not found")
 
     response = ReportResponse.model_validate(report)
-    response.needs_human_review = getattr(report, "needs_human_review", False)
     photo_rows = db.query(models.ReportPhoto).filter(
         models.ReportPhoto.report_id == report.id
     ).all()
@@ -1593,14 +1599,12 @@ async def track_report(tracking_slug: str, db: Session = Depends(get_db)):
             "ai_confidence": p.ai_confidence,
             "ai_verified": p.ai_verified,
             "trust_score": getattr(p, "trust_score", None),
-            "failing_signals": json.loads(p.trust_signals or "{}").get("failing_signals", [])
-            if getattr(p, "trust_signals", None) else [],
+            "failing_signals": json.loads(getattr(p, "trust_signals", None) or "{}").get("failing_signals", []),
         }
         for p in photo_rows
     ]
     # Attach report-level trust signals from the lowest-trust photo
-    # (photo_rows already loaded so pass them via the report relationship proxy)
-    response.failing_signals = _get_report_failing_signals(report)
+    response.failing_signals = _get_report_failing_signals(photo_rows)
     return response
 
 def _apply_report_filters(
