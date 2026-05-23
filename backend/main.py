@@ -82,10 +82,10 @@ def _migrate_single_photos_to_tables() -> None:
     try:
         # Pre-fetch migrated IDs in two queries rather than N+1
         already_report_photo_ids = set(
-            db.query(models.ReportPhoto.report_id).scalars().all()
+            row[0] for row in db.query(models.ReportPhoto.report_id).all()
         )
         already_cleanup_photo_ids = set(
-            db.query(models.CleanupPhoto.report_id).scalars().all()
+            row[0] for row in db.query(models.CleanupPhoto.report_id).all()
         )
 
         # Evidence photos
