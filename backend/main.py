@@ -1327,27 +1327,51 @@ async def _bg_verify_resolve(report_id: int, user_id: int) -> None:
 
 
 async def _bg_verify_complete(work_order_id: int, user_id: int) -> None:
-    """Background task: AI re-verifies a cleaner-uploaded cleanup photo on a WO."""
+    """Background task: AI re-verifies cleaner-uploaded cleanup photos on a WO.
+    Inverted logic: AI detecting waste = cleanup FAILED."""
     db = SessionLocal()
     try:
         wo = db.query(models.WorkOrder).filter(models.WorkOrder.id == work_order_id).first()
-        if not wo or not wo.report or not wo.report.cleanup_image_url:
+        if not wo or not wo.report:
             logger.warning("BG complete verify: work order %s missing context", work_order_id)
             return
         report = wo.report
-        try:
-            with open(_disk_path_for_upload_url(report.cleanup_image_url), "rb") as f:
-                cleanup_bytes = f.read()
-        except FileNotFoundError:
-            logger.exception("BG complete verify: cleanup image missing for WO %s", work_order_id)
+
+        cleanup_rows = db.query(models.CleanupPhoto).filter(
+            models.CleanupPhoto.work_order_id == work_order_id,
+            models.CleanupPhoto.ai_verified.is_(None),
+        ).all()
+
+        pairs: list[tuple[bytes, object]] = []
+        if cleanup_rows:
+            for row in cleanup_rows:
+                try:
+                    with open(_disk_path_for_upload_url(row.file_path), "rb") as f:
+                        pairs.append((f.read(), row))
+                except FileNotFoundError:
+                    logger.warning("BG complete: missing file %s", row.file_path)
+        elif report.cleanup_image_url:
+            try:
+                with open(_disk_path_for_upload_url(report.cleanup_image_url), "rb") as f:
+                    pairs.append((f.read(), None))
+            except FileNotFoundError:
+                logger.exception("BG complete: legacy cleanup image missing for WO %s", work_order_id)
+
+        if not pairs:
             report.verification_pending = False
             report.verification_kind = None
             db.commit()
             return
 
-        results = await verify_images_async([cleanup_bytes])
-        verification = results[0]
-        if verification.get("verified"):
+        results = await verify_images_async([b for b, _ in pairs])
+        any_waste_detected = any(r.get("verified") for r in results)
+
+        for (_, row), result in zip(pairs, results):
+            if row is not None:
+                row.ai_confidence = result.get("confidence")
+                row.ai_verified = bool(result.get("verified", False))
+
+        if any_waste_detected:
             wo.status = models.WorkOrderStatus.NEEDS_REDO
             report.status = models.ReportStatus.FAILED_CLEANUP
             emit_notification(
@@ -2008,15 +2032,18 @@ async def start_work_order(
 async def complete_work_order(
     work_order_id: int,
     background_tasks: BackgroundTasks,
-    cleanup_image: UploadFile = File(...),
+    cleanup_images: List[UploadFile] = File(...),
     db: Session = Depends(get_db),
     user: models.User = Depends(require_role("cleaner")),
 ):
     """
-    Cleaner uploads cleanup photo. AI runs in background.
+    Cleaner uploads cleanup photos (1–5). AI runs in background.
     Returns 202 immediately; WO stays IN_PROGRESS with `report_verification_pending=true`
     until the BG task flips it to VERIFIED or NEEDS_REDO.
     """
+    if not (1 <= len(cleanup_images) <= 5):
+        raise HTTPException(status_code=422, detail="Upload between 1 and 5 photos.")
+
     wo = db.query(models.WorkOrder).filter(models.WorkOrder.id == work_order_id).first()
     if not wo:
         raise HTTPException(status_code=404, detail="Work order not found")
@@ -2034,14 +2061,30 @@ async def complete_work_order(
     if not report:
         raise HTTPException(status_code=404, detail="Associated report not found")
 
-    cleanup_bytes = await cleanup_image.read()
-    validate_image(cleanup_image, cleanup_bytes)
+    saved_urls: list[str] = []
+    for img in cleanup_images:
+        try:
+            img_bytes = await img.read()
+            url = await save_upload(img, prefix="cleanup", contents=img_bytes)
+            saved_urls.append(url)
+        except HTTPException as e:
+            logger.warning("complete_work_order: skipping photo that failed validation: %s", e.detail)
 
-    cleanup_url = await save_upload(cleanup_image, prefix="cleanup", contents=cleanup_bytes)
-    report.cleanup_image_url = cleanup_url
+    if not saved_urls:
+        raise HTTPException(status_code=422, detail="No photos could be saved. Please try again.")
+
+    report.cleanup_image_url = saved_urls[0]  # backward compat
     report.verification_pending = True
     report.verification_kind = "complete"
     wo.completed_at = datetime.utcnow()
+    db.commit()
+
+    for url in saved_urls:
+        db.add(models.CleanupPhoto(
+            report_id=report.id,
+            work_order_id=wo.id,
+            file_path=url,
+        ))
     db.commit()
     db.refresh(wo)
     db.refresh(report)
