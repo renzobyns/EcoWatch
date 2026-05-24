@@ -906,7 +906,7 @@ export default function CenroDashboard() {
             onNavChange={(k) => setActiveTab(k as TabKey)}
             notificationCount={slaBreaches.length}
         >
-            <div className="max-w-[1600px] mx-auto min-h-full flex flex-col">
+            <div className="max-w-[1600px] mx-auto h-full flex flex-col">
 
                 {/* ANALYTICS TAB */}
                 {activeTab === 'analytics' && (
