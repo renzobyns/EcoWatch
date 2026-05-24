@@ -1596,6 +1596,7 @@ async def track_report(tracking_slug: str, db: Session = Depends(get_db)):
     response.photos = [
         {
             "url": p.file_path,
+            "mask_url": p.ai_mask_path,
             "ai_confidence": p.ai_confidence,
             "ai_verified": p.ai_verified,
             "trust_score": getattr(p, "trust_score", None),
