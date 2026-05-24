@@ -71,7 +71,6 @@ const BARANGAY_NAV_PROFILE: PortalNavItem[] = [
     { key: "reports", label: "Reports", icon: FileText },
     { key: "map_view", label: "Map View", icon: Map },
     { key: "workorders", label: "Workorders", icon: ClipboardList, sectionBreakBefore: true },
-    { key: "cleaners", label: "Cleaners", icon: Users },
     { key: "accounts", label: "Accounts", icon: BookUser },
     { key: "profile", label: "Profile View", icon: UserCircle, sectionBreakBefore: true },
 ];
