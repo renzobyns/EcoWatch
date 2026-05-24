@@ -967,21 +967,11 @@ export default function CenroDashboard() {
 
                 {activeTab === 'command_center' && (
                     /* COMMAND CENTER TAB */
-                    <div className="flex-1 flex flex-col gap-6 min-h-0 overflow-y-auto scrollbar-hide pb-8">
+                    <div className="flex-1 flex flex-col gap-6 min-h-0 pb-8">
 
                         {/* Top Stats Bar + Export */}
-                        <div className="flex flex-col gap-4 shrink-0">
-                            <div className="flex items-center justify-end">
-                                <button
-                                    onClick={handleExportAnalytics}
-                                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/20 border border-primary/30 text-primary text-xs font-bold uppercase tracking-widest hover:bg-primary/30 transition-colors"
-                                    title="Export analytics summary as CSV"
-                                >
-                                    <Download size={14} />
-                                    Export Analytics CSV
-                                </button>
-                            </div>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 animate-slide-up stagger-1">
+                        <div className="flex items-start gap-4 shrink-0 animate-slide-up stagger-1">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 flex-1">
                                 <div className="glass-pro p-5 rounded-2xl bento-card">
                                     <div className="text-[11px] text-foreground/50 uppercase tracking-widest font-semibold mb-1.5">Total Reports</div>
                                     <div className="text-3xl font-bold text-emerald-400 tracking-tight">{stats.total}</div>
@@ -999,6 +989,14 @@ export default function CenroDashboard() {
                                     <div className="text-3xl font-bold text-green-400 tracking-tight">{successRate}%</div>
                                 </div>
                             </div>
+                            <button
+                                onClick={handleExportAnalytics}
+                                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/20 border border-primary/30 text-primary text-xs font-bold uppercase tracking-widest hover:bg-primary/30 transition-colors shrink-0 self-stretch"
+                                title="Export analytics summary as CSV"
+                            >
+                                <Download size={14} />
+                                Export Analytics CSV
+                            </button>
                         </div>
 
                         {/* C3 — SLA Breaches Card */}
