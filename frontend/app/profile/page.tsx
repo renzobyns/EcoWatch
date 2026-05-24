@@ -9,7 +9,7 @@ import {
     GitBranch, ShieldX, Settings, UserPlus, ClipboardList,
     LayoutDashboard, FileText, Map, ShieldCheck, BarChart3,
     Image as ImageIcon, History, BookUser, Briefcase, Users, AlertCircle,
-    Eye, EyeOff,
+    Eye, EyeOff, HelpCircle,
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { PortalShell, type PortalNavItem } from "@/components/portal/PortalShell";
@@ -77,7 +77,11 @@ const BARANGAY_NAV_PROFILE: PortalNavItem[] = [
 ];
 
 const CLEANER_NAV_PROFILE: PortalNavItem[] = [
-    { key: "jobs", label: "Jobs", icon: Briefcase },
+    { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, subtitle: "My day at a glance" },
+    { key: "jobs", label: "My Jobs", icon: Briefcase },
+    { key: "map_view", label: "Map View", icon: Map },
+    { key: "history", label: "History", icon: History, sectionBreakBefore: true },
+    { key: "help", label: "Help", icon: HelpCircle },
     { key: "profile", label: "Profile View", icon: UserCircle, sectionBreakBefore: true },
 ];
 
