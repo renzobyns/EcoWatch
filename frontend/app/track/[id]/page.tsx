@@ -18,6 +18,12 @@ export default function TrackReportPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [showAiMask, setShowAiMask] = useState(false);
+    const [selectedPhotoIdx, setSelectedPhotoIdx] = useState(0);
+
+    function selectPhoto(idx: number) {
+        setSelectedPhotoIdx(idx);
+        setShowAiMask(false);
+    }
 
     useEffect(() => {
         let cancelled = false;
@@ -167,64 +173,74 @@ export default function TrackReportPage() {
                     {/* Report Details */}
                     <div className="p-6 md:p-8 grid md:grid-cols-2 gap-8">
                         <div>
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-sm font-bold text-foreground/50 uppercase tracking-widest">Evidence Photo</h3>
-                                {report.ai_mask_url && (
-                                    <button 
-                                        onClick={() => setShowAiMask(!showAiMask)}
-                                        className={`px-3 py-1 text-xs font-bold rounded-full transition-all flex items-center gap-2 ${showAiMask ? 'bg-primary text-white shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-foreground/10 text-foreground/70 hover:bg-foreground/20'}`}
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-                                        {showAiMask ? "Hide AI Mask" : "View AI Mask"}
-                                    </button>
-                                )}
-                            </div>
-                            <div className="w-full aspect-square rounded-2xl overflow-hidden bg-black/50 border border-border relative">
-                                {report.image_url ? (
+                            {(() => {
+                                const photos = Array.isArray(report.photos) && report.photos.length > 0 ? report.photos : null;
+                                const activePhoto = photos ? photos[selectedPhotoIdx] : null;
+                                const activeImageUrl = activePhoto?.url ?? report.image_url;
+                                const activeMaskUrl = activePhoto?.mask_url ?? report.ai_mask_url;
+                                const activeConfidence = activePhoto?.ai_confidence ?? report.ai_confidence;
+                                return (
                                     <>
-                                        <img 
-                                            src={`${API_URL}${showAiMask && report.ai_mask_url ? report.ai_mask_url : report.image_url}`} 
-                                            alt="Report Evidence" 
-                                            className="w-full h-full object-cover transition-opacity duration-300" 
-                                        />
-                                    </>
-                                ) : (
-                                    <div className="absolute inset-0 flex items-center justify-center text-foreground/30">No Image</div>
-                                )}
-                                
-                                {/* AI Confidence Badge */}
-                                {report.ai_confidence && (
-                                    <div className="absolute bottom-3 right-3 glass px-3 py-1.5 rounded-lg border border-primary/30 flex items-center gap-2 backdrop-blur-md">
-                                        <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                                        <span className="text-xs font-bold text-foreground">AI Confidence: {(report.ai_confidence * 100).toFixed(0)}%</span>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Multi-photo strip — shown when report has >1 evidence photo */}
-                            {Array.isArray(report.photos) && report.photos.length > 1 && (
-                                <div className="mt-3">
-                                    <p className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-2">
-                                        All Evidence Photos ({report.photos.length})
-                                    </p>
-                                    <div className="flex gap-2 overflow-x-auto pb-1">
-                                        {report.photos.map((photo: any, i: number) => (
-                                            <div key={i} className="relative shrink-0 w-20 h-20 rounded-xl overflow-hidden border border-border">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h3 className="text-sm font-bold text-foreground/50 uppercase tracking-widest">Evidence Photo</h3>
+                                            {activeMaskUrl && (
+                                                <button
+                                                    onClick={() => setShowAiMask(!showAiMask)}
+                                                    className={`px-3 py-1 text-xs font-bold rounded-full transition-all flex items-center gap-2 ${showAiMask ? 'bg-primary text-white shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-foreground/10 text-foreground/70 hover:bg-foreground/20'}`}
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                                    {showAiMask ? "Hide AI Mask" : "View AI Mask"}
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div className="w-full aspect-square rounded-2xl overflow-hidden bg-black/50 border border-border relative">
+                                            {activeImageUrl ? (
                                                 <img
-                                                    src={`${API_URL}${photo.url}`}
-                                                    alt={`Evidence ${i + 1}`}
-                                                    className="w-full h-full object-cover"
+                                                    src={`${API_URL}${showAiMask && activeMaskUrl ? activeMaskUrl : activeImageUrl}`}
+                                                    alt="Report Evidence"
+                                                    className="w-full h-full object-cover transition-opacity duration-300"
                                                 />
-                                                {photo.ai_verified != null && (
-                                                    <div className={`absolute bottom-0 inset-x-0 text-center text-[9px] font-bold py-0.5 ${photo.ai_verified ? 'bg-primary/80 text-white' : 'bg-red-500/80 text-white'}`}>
-                                                        {photo.ai_verified ? "✓ Pass" : "✕ Fail"}
-                                                    </div>
-                                                )}
+                                            ) : (
+                                                <div className="absolute inset-0 flex items-center justify-center text-foreground/30">No Image</div>
+                                            )}
+                                            {activeConfidence && (
+                                                <div className="absolute bottom-3 right-3 glass px-3 py-1.5 rounded-lg border border-primary/30 flex items-center gap-2 backdrop-blur-md">
+                                                    <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                                                    <span className="text-xs font-bold text-foreground">AI Confidence: {(activeConfidence * 100).toFixed(0)}%</span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {photos && photos.length > 1 && (
+                                            <div className="mt-3">
+                                                <p className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-2">
+                                                    All Evidence Photos ({photos.length})
+                                                </p>
+                                                <div className="flex gap-2 overflow-x-auto pb-1">
+                                                    {photos.map((photo: any, i: number) => (
+                                                        <button
+                                                            key={i}
+                                                            onClick={() => selectPhoto(i)}
+                                                            className={`relative shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all focus:outline-none ${i === selectedPhotoIdx ? 'border-primary shadow-[0_0_10px_rgba(16,185,129,0.4)]' : 'border-border hover:border-primary/50'}`}
+                                                        >
+                                                            <img
+                                                                src={`${API_URL}${photo.url}`}
+                                                                alt={`Evidence ${i + 1}`}
+                                                                className="w-full h-full object-cover"
+                                                            />
+                                                            {photo.ai_verified != null && (
+                                                                <div className={`absolute bottom-0 inset-x-0 text-center text-[9px] font-bold py-0.5 ${photo.ai_verified ? 'bg-primary/80 text-white' : 'bg-red-500/80 text-white'}`}>
+                                                                    {photo.ai_verified ? "✓ Pass" : "✕ Fail"}
+                                                                </div>
+                                                            )}
+                                                        </button>
+                                                    ))}
+                                                </div>
                                             </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+                                        )}
+                                    </>
+                                );
+                            })()}
 
                             {/* Cleanup Photo (if resolved or failed) */}
                             {report.cleanup_image_url && (
