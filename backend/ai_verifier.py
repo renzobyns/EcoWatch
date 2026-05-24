@@ -38,6 +38,8 @@ class AIVerifier:
     """
     def __init__(self):
         self.model = None
+        self.graph = None
+        self.session = None
         self.is_loaded = False
 
         if os.path.exists(MODEL_PATH):
@@ -51,6 +53,7 @@ class AIVerifier:
 
     def _load_model(self):
         """Load the Mask R-CNN model with trained weights."""
+        import tensorflow as tf
         import mrcnn.config
         import mrcnn.model
 
@@ -70,6 +73,17 @@ class AIVerifier:
             model_dir=os.path.join(BACKEND_DIR, "logs")
         )
         self.model.load_weights(MODEL_PATH, by_name=True)
+        # tf_keras (TF1-style) binds both the default graph AND the Keras session
+        # to the thread the model was built on. Capture both so inference can
+        # re-enter the right context from a worker thread (asyncio.to_thread).
+        # Without the session, detect() runs against an uninitialized graph and
+        # returns padded-buffer garbage (35 boxes at conf 1.0, all-zero masks).
+        self.graph = tf.compat.v1.get_default_graph()
+        try:
+            import tf_keras
+            self.session = tf_keras.backend.get_session()
+        except Exception:
+            self.session = tf.compat.v1.keras.backend.get_session()
         self.is_loaded = True
         logger.info("Mask R-CNN model loaded successfully!")
 
@@ -101,8 +115,14 @@ class AIVerifier:
             # Convert BGR to RGB (Mask R-CNN expects RGB)
             image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-            # Run detection
-            results = self.model.detect([image_rgb], verbose=0)
+            # Run detection inside the model's captured graph AND session so
+            # worker-thread calls (asyncio.to_thread) don't hit "Tensor is not an
+            # element of this graph" and don't return padded-buffer garbage.
+            if self.graph is not None and self.session is not None:
+                with self.graph.as_default(), self.session.as_default():
+                    results = self.model.detect([image_rgb], verbose=0)
+            else:
+                results = self.model.detect([image_rgb], verbose=0)
             r = results[0]
 
             num_detections = len(r['rois'])
