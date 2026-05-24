@@ -74,7 +74,7 @@ export function PortalShell({
                         notificationCount={notificationCount}
                     />
                 </div>
-                <main className="relative z-0 flex-1 overflow-y-auto px-4 md:px-8 py-6">
+                <main className="relative flex-1 overflow-y-auto px-4 md:px-8 py-6">
                     {children}
                 </main>
             </div>
