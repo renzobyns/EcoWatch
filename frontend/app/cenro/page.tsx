@@ -1066,64 +1066,55 @@ export default function CenroDashboard() {
                             </div>
                         </div>
 
-                        {/* Main Grid */}
-                        <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0">
+                        {/* Main Grid — Map hero + 2×2 panels */}
+                        <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-6 min-h-0">
 
-                            {/* Left: Charts */}
-                            <div className="lg:col-span-1 flex flex-col gap-6 min-h-0 animate-slide-up stagger-3">
-                                <div className="flex-1 glass-pro p-8 rounded-[2.5rem] flex flex-col min-h-0 bento-card">
-                                    <h3 className="text-[11px] font-bold text-foreground/40 uppercase tracking-widest mb-6 shrink-0">Status Breakdown</h3>
-                                    <div className="flex-1 relative min-h-[160px]">
+                            {/* Left: Map hero */}
+                            <div className="glass rounded-2xl border border-border overflow-hidden relative min-h-[300px] animate-slide-up stagger-3">
+                                <div className="absolute top-4 left-4 z-[1000] glass px-3 py-1.5 rounded-full text-[10px] font-bold text-foreground uppercase tracking-widest border border-foreground/20 pointer-events-none">Live City Map</div>
+                                <MapComponent height="100%" reports={reports} heatmaps={heatmaps} focusedBarangay={null} onBarangayClick={() => {}} />
+                            </div>
+
+                            {/* Right: 2×2 panel grid */}
+                            <div className="grid grid-cols-2 grid-rows-2 gap-6 min-h-0 animate-slide-up stagger-4">
+
+                                {/* Top-left: Status Breakdown */}
+                                <div className="glass-pro p-6 rounded-[2rem] flex flex-col min-h-0 bento-card">
+                                    <h3 className="text-[11px] font-bold text-foreground/40 uppercase tracking-widest mb-4 shrink-0">Status Breakdown</h3>
+                                    <div className="flex-1 relative min-h-0">
                                         <ResponsiveContainer width="100%" height="100%">
                                             <PieChart>
-                                                <Pie data={pieData} cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={8} dataKey="value">
+                                                <Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={8} dataKey="value">
                                                     {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />)}
                                                 </Pie>
-                                                <Tooltip 
+                                                <Tooltip
                                                     contentStyle={{ backgroundColor: 'rgba(10, 15, 10, 0.9)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px' }}
                                                     itemStyle={{ color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
                                                 />
                                             </PieChart>
                                         </ResponsiveContainer>
                                     </div>
-                                    <div className="flex flex-wrap justify-center gap-4 mt-6 shrink-0">
+                                    <div className="flex flex-wrap justify-center gap-3 mt-3 shrink-0">
                                         {pieData.map(d => (
-                                            <div key={d.name} className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest text-foreground/60"><div className="w-2 h-2 rounded-full shadow-[0_0_8px_currentColor]" style={{backgroundColor: d.color, color: d.color}}></div>{d.name}</div>
+                                            <div key={d.name} className="flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-widest text-foreground/60">
+                                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }}></div>
+                                                {d.name}
+                                            </div>
                                         ))}
                                     </div>
                                 </div>
-                                <div className="flex-1 glass-pro p-8 rounded-[2.5rem] flex flex-col min-h-0 bento-card">
-                                    <h3 className="text-[11px] font-bold text-foreground/40 uppercase tracking-widest mb-8 shrink-0">City-Wide Trend</h3>
-                                    <div className="flex-1 relative min-h-[160px]">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <LineChart data={lineData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                                                <XAxis dataKey="date" stroke="rgba(255,255,255,0.2)" fontSize={10} tickMargin={15} axisLine={false} tickLine={false} />
-                                                <Tooltip contentStyle={{ backgroundColor: 'rgba(10, 15, 10, 0.9)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px' }} />
-                                                <Line type="monotone" dataKey="count" stroke="#10b981" strokeWidth={4} dot={{ r: 6, fill: '#10b981', strokeWidth: 3, stroke: '#0a0f0a' }} activeDot={{ r: 8, fill: '#34d399' }} />
-                                            </LineChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
-                            </div>
 
-                            {/* Center: Map */}
-                            <div className="lg:col-span-1 glass rounded-2xl border border-border overflow-hidden relative min-h-[300px]">
-                                <div className="absolute top-4 left-4 z-[1000] glass px-3 py-1.5 rounded-full text-[10px] font-bold text-foreground uppercase tracking-widest border border-foreground/20 pointer-events-none">Live City Map</div>
-                                <MapComponent height="100%" reports={reports} heatmaps={heatmaps} focusedBarangay={null} onBarangayClick={() => {}} />
-                            </div>
-
-                            {/* Right: Lists */}
-                            <div className="lg:col-span-1 flex flex-col gap-6 min-h-0 animate-slide-up stagger-4">
-                                <div className="flex-1 glass-pro p-8 rounded-[2.5rem] flex flex-col min-h-0 bento-card">
-                                    <h3 className="text-[11px] font-bold text-foreground/40 uppercase tracking-widest mb-6 shrink-0">Barangay Rankings</h3>
-                                    <div className="flex-1 overflow-y-auto pr-2 space-y-4 scrollbar-hide">
+                                {/* Top-right: Barangay Rankings */}
+                                <div className="glass-pro p-6 rounded-[2rem] flex flex-col min-h-0 bento-card">
+                                    <h3 className="text-[11px] font-bold text-foreground/40 uppercase tracking-widest mb-4 shrink-0">Barangay Rankings</h3>
+                                    <div className="flex-1 overflow-y-auto pr-1 space-y-3 scrollbar-hide">
                                         {barangayStats.map((b, i) => (
-                                            <div key={b.name} className="flex items-center justify-between p-4 rounded-2xl bg-foreground/[0.03] border border-border hover:bg-foreground/[0.08] transition-colors group">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-8 h-8 rounded-lg bg-foreground/5 flex items-center justify-center text-xs font-semibold text-foreground/30 group-hover:text-primary transition-colors">{i + 1}</div>
-                                                    <div className="text-sm font-bold text-foreground/90">{b.name}</div>
+                                            <div key={b.name} className="flex items-center justify-between p-3 rounded-xl bg-foreground/[0.03] border border-border hover:bg-foreground/[0.08] transition-colors group">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-7 h-7 rounded-lg bg-foreground/5 flex items-center justify-center text-xs font-semibold text-foreground/30 group-hover:text-primary transition-colors">{i + 1}</div>
+                                                    <div className="text-sm font-bold text-foreground/90 truncate">{b.name}</div>
                                                 </div>
-                                                <div className="text-right">
+                                                <div className="text-right shrink-0 ml-2">
                                                     <div className="text-sm font-semibold text-emerald-400">{b.rate.toFixed(0)}%</div>
                                                     <div className="text-[10px] text-foreground/30 uppercase tracking-widest font-bold">{b.resolved} reports</div>
                                                 </div>
@@ -1131,19 +1122,36 @@ export default function CenroDashboard() {
                                         ))}
                                     </div>
                                 </div>
-                                <div className="flex-1 glass-pro p-8 rounded-[2.5rem] flex flex-col min-h-0 bento-card">
-                                    <h3 className="text-[11px] font-bold text-foreground/40 uppercase tracking-widest mb-6 shrink-0">Live City Feed</h3>
-                                    <div className="flex-1 overflow-y-auto pr-2 space-y-5 scrollbar-hide">
+
+                                {/* Bottom-left: City-Wide Trend */}
+                                <div className="glass-pro p-6 rounded-[2rem] flex flex-col min-h-0 bento-card">
+                                    <h3 className="text-[11px] font-bold text-foreground/40 uppercase tracking-widest mb-4 shrink-0">City-Wide Trend</h3>
+                                    <div className="flex-1 relative min-h-0">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <LineChart data={lineData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                                                <XAxis dataKey="date" stroke="rgba(255,255,255,0.2)" fontSize={10} tickMargin={12} axisLine={false} tickLine={false} />
+                                                <Tooltip contentStyle={{ backgroundColor: 'rgba(10, 15, 10, 0.9)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px' }} />
+                                                <Line type="monotone" dataKey="count" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#0a0f0a' }} activeDot={{ r: 6, fill: '#34d399' }} />
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+
+                                {/* Bottom-right: Live City Feed */}
+                                <div className="glass-pro p-6 rounded-[2rem] flex flex-col min-h-0 bento-card">
+                                    <h3 className="text-[11px] font-bold text-foreground/40 uppercase tracking-widest mb-4 shrink-0">Live City Feed</h3>
+                                    <div className="flex-1 overflow-y-auto pr-1 space-y-4 scrollbar-hide">
                                         {recentFeed.map(r => (
-                                            <div key={r.id} className="relative pl-6 border-l border-border">
-                                                <div className="absolute w-2.5 h-2.5 rounded-full bg-emerald-500 -left-[5px] top-1.5 shadow-[0_0_15px_rgba(16,185,129,0.8)]"></div>
-                                                <div className="text-[13px] font-semibold text-foreground mb-1 tracking-tight">Report {r.tracking_id}</div>
-                                                <div className="text-[11px] text-foreground/40 mb-3 font-medium uppercase tracking-wider">{r.barangay} • {new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                            <div key={r.id} className="relative pl-5 border-l border-border">
+                                                <div className="absolute w-2 h-2 rounded-full bg-emerald-500 -left-[4px] top-1.5 shadow-[0_0_10px_rgba(16,185,129,0.8)]"></div>
+                                                <div className="text-[12px] font-semibold text-foreground mb-0.5 tracking-tight">Report {r.tracking_id}</div>
+                                                <div className="text-[10px] text-foreground/40 mb-2 font-medium uppercase tracking-wider">{r.barangay} • {new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                                                 <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-widest ${r.status === 'resolved' ? 'bg-green-500/20 text-green-400' : r.status === 'deployed' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'}`}>{r.status}</span>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
+
                             </div>
                         </div>
                     </div>
