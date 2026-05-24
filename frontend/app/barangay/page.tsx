@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { Search, Download, LayoutDashboard, FileText, Map, ClipboardList, Users, BookUser, Phone, MoreVertical, FileDown, Eye, EyeOff, Edit2, Key, UserCheck, UserX, Plus } from "lucide-react";
+import { Search, Download, LayoutDashboard, FileText, Map, ClipboardList, BookUser, MoreVertical, FileDown, Eye, EyeOff, Edit2, Key, UserCheck, UserX, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
 import { slaInfo, SLA_PILL_CLASSES, slaDeadlineColor, slaDeadlineLabel } from "@/lib/sla";
@@ -14,7 +15,7 @@ const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
-type BarangayView = "dashboard" | "reports" | "map_view" | "workorders" | "cleaners" | "accounts";
+type BarangayView = "dashboard" | "reports" | "map_view" | "workorders" | "accounts";
 type ReportSubFilter = "pending" | "deployed" | "resolved";
 
 const BARANGAY_NAV: PortalNavItem[] = [
@@ -22,7 +23,6 @@ const BARANGAY_NAV: PortalNavItem[] = [
     { key: "reports", label: "Reports", icon: FileText },
     { key: "map_view", label: "Map View", icon: Map },
     { key: "workorders", label: "Workorders", icon: ClipboardList, sectionBreakBefore: true },
-    { key: "cleaners", label: "Cleaners", icon: Users },
     { key: "accounts", label: "Accounts", icon: BookUser },
 ];
 
@@ -100,17 +100,8 @@ export default function BarangayPortal() {
     // SLA Policy (loaded on mount so deploy modal labels are accurate)
     const [slaPolicy, setSlaPolicy] = useState({ low: 7, medium: 3, high: 1 });
 
-    // Team Management States
+    // Team Management States (cleaners list used for deploy/workorder modals)
     const [cleaners, setCleaners] = useState<any[]>([]);
-    const [teamLoading, setTeamLoading] = useState(false);
-    const [showAddCleanerModal, setShowAddCleanerModal] = useState(false);
-    const [newCleanerEmail, setNewCleanerEmail] = useState("");
-    const [newCleanerName, setNewCleanerName] = useState("");
-    const [newCleanerLoading, setNewCleanerLoading] = useState(false);
-    const [showPasswordModal, setShowPasswordModal] = useState(false);
-    const [tempPassword, setTempPassword] = useState("");
-    const [showDisableConfirm, setShowDisableConfirm] = useState(false);
-    const [disableTargetId, setDisableTargetId] = useState<number | null>(null);
 
     // -- Accounts Tab State ---------------------------------------------------
     const [barangayUsers, setBarangayUsers] = useState<BarangayUser[]>([]);
@@ -310,16 +301,11 @@ export default function BarangayPortal() {
 
     const fetchCleaners = async () => {
         if (!user?.barangay_assignment) return;
-        setTeamLoading(true);
         try {
             const data = await api("/users");
-            if (Array.isArray(data)) {
-                setCleaners(data);
-            }
+            if (Array.isArray(data)) setCleaners(data);
         } catch (err) {
             toast.error(err instanceof ApiError ? err.message : "Failed to load team");
-        } finally {
-            setTeamLoading(false);
         }
     };
 
@@ -409,53 +395,8 @@ export default function BarangayPortal() {
         }
     };
 
-    const handleAddCleaner = async () => {
-        if (!newCleanerEmail.trim() || !newCleanerName.trim()) {
-            toast.error("Email and name are required.");
-            return;
-        }
-        setNewCleanerLoading(true);
-        try {
-            const data = await api("/users", {
-                method: "POST",
-                body: JSON.stringify({
-                    email: newCleanerEmail.trim(),
-                    full_name: newCleanerName.trim(),
-                    barangay_assignment: user.barangay_assignment,
-                    role: "cleaner",
-                }),
-            });
-            setTempPassword(data.temporary_password);
-            setShowPasswordModal(true);
-            setNewCleanerEmail("");
-            setNewCleanerName("");
-            await fetchCleaners();
-            toast.success("Cleaner account created!");
-        } catch (err) {
-            toast.error(err instanceof ApiError ? err.message : "Failed to create account");
-        } finally {
-            setNewCleanerLoading(false);
-        }
-    };
-
-    const handleDisableCleaner = async (cleanerId: number) => {
-        setNewCleanerLoading(true);
-        try {
-            await api(`/users/${cleanerId}/disable`, { method: "PUT" });
-            await fetchCleaners();
-            toast.success("Cleaner disabled.");
-            setShowDisableConfirm(false);
-            setDisableTargetId(null);
-        } catch (err) {
-            toast.error(err instanceof ApiError ? err.message : "Failed to disable");
-        } finally {
-            setNewCleanerLoading(false);
-        }
-    };
-
-    // Fetch cleaners/accounts when sidebar switches views
+    // Fetch accounts when sidebar switches to that view
     useEffect(() => {
-        if (activeView === 'cleaners') fetchCleaners();
         if (activeView === 'accounts') fetchBrgyUsers();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeView]);
@@ -1034,7 +975,7 @@ export default function BarangayPortal() {
                             )}
 
                             {/* Detail Drawer */}
-                            {selectedWorkOrder && (
+                            {selectedWorkOrder && createPortal(
                                 <div className="fixed inset-0 z-50" onClick={() => { setSelectedWorkOrder(null); setShowReassignModal(false); setShowPriorityModal(false); setShowForceResolveModal(false); }}>
                                     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
                                     <div
@@ -1228,7 +1169,7 @@ export default function BarangayPortal() {
                                         </div>
                                     </div>
                                 </div>
-                            )}
+                            , document.body)}
                         </div>
                     );
                 })()}
@@ -1370,8 +1311,8 @@ export default function BarangayPortal() {
                     );
                 })()}
 
-                {/* REPORTS VIEW + CLEANERS VIEW share the glass-pro table container below */}
-                {(activeView === 'reports' || activeView === 'cleaners') && (
+                {/* REPORTS VIEW */}
+                {activeView === 'reports' && (
                     <div className="flex flex-col flex-1 min-h-0 animate-slide-up">
                         <div className="glass-pro rounded-[2.5rem] flex flex-col flex-1 min-h-0 shadow-2xl overflow-hidden">
                             {/* Filter Bar — Reports view only */}
@@ -1458,84 +1399,7 @@ export default function BarangayPortal() {
 
                             {/* Table Container */}
                             <div className="flex-1 overflow-y-auto">
-                                {activeView === 'cleaners' ? (
-                                    // Team Management View
-                                    <div className="w-full">
-                                        <div className="flex items-center justify-between p-4 border-b border-border">
-                                            <h3 className="text-sm font-bold text-foreground uppercase tracking-widest">Cleanup Team</h3>
-                                            <button
-                                                onClick={() => setShowAddCleanerModal(true)}
-                                                className="px-4 py-2 glass border border-primary text-primary text-xs font-bold rounded-lg hover:bg-primary/10 transition-colors"
-                                            >
-                                                + Add Cleaner
-                                            </button>
-                                        </div>
-                                        {teamLoading ? (
-                                            <table className="w-full text-left border-collapse">
-                                                <thead>
-                                                    <tr className="border-b border-border text-xs text-foreground/40 uppercase tracking-widest bg-black/20">
-                                                        <th className="p-4">Name</th>
-                                                        <th className="p-4">Email</th>
-                                                        <th className="p-4">Status</th>
-                                                        <th className="p-4 text-right">Action</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {Array.from({ length: 3 }).map((_, i) => (
-                                                        <tr key={i} className="border-b border-border">
-                                                            {Array.from({ length: 4 }).map((__, j) => (
-                                                                <td key={j} className="p-4"><div className="h-3 bg-foreground/10 rounded animate-pulse" /></td>
-                                                            ))}
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        ) : cleaners.length === 0 ? (
-                                            <div className="p-12 text-center text-foreground/50 font-bold">No team members yet. Add a cleaner to get started.</div>
-                                        ) : (
-                                            <table className="w-full text-left border-collapse">
-                                                <thead>
-                                                    <tr className="border-b border-border text-xs text-foreground/40 uppercase tracking-widest bg-black/20">
-                                                        <th className="p-4">Name</th>
-                                                        <th className="p-4">Email</th>
-                                                        <th className="p-4">Status</th>
-                                                        <th className="p-4 text-right">Action</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {cleaners.map(cleaner => (
-                                                        <tr key={cleaner.id} className="border-b border-border hover:bg-foreground/5 transition-colors">
-                                                            <td className="p-4 text-sm font-semibold text-foreground">{cleaner.full_name}</td>
-                                                            <td className="p-4 text-sm text-foreground/70 font-mono">{cleaner.email}</td>
-                                                            <td className="p-4">
-                                                                <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
-                                                                    cleaner.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-                                                                }`}>
-                                                                    {cleaner.is_active ? 'Active' : 'Disabled'}
-                                                                </span>
-                                                            </td>
-                                                            <td className="p-4 text-right">
-                                                                {cleaner.is_active && (
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            setDisableTargetId(cleaner.id);
-                                                                            setShowDisableConfirm(true);
-                                                                        }}
-                                                                        className="px-4 py-2 glass border border-red-500/50 text-red-400 text-xs font-bold rounded-lg hover:bg-red-500/10 transition-colors"
-                                                                    >
-                                                                        Disable
-                                                                    </button>
-                                                                )}
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        )}
-                                    </div>
-                                ) : (
-                                    // Reports View
-                                    <>
+                                <>
                                         {tableLoading ? (
                                             <table className="w-full text-left border-collapse">
                                                 <thead>
@@ -1626,7 +1490,6 @@ export default function BarangayPortal() {
                                             </table>
                                         )}
                                     </>
-                                )}
                             </div>
                         </div>
                     </div>
@@ -1821,112 +1684,6 @@ export default function BarangayPortal() {
                     </div>
                 </div>
             )}
-
-            {/* Add Cleaner Modal */}
-            {showAddCleanerModal && (
-                <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="glass p-6 max-w-md w-full rounded-2xl border border-border shadow-2xl animate-in zoom-in-95 duration-300">
-                        <h3 className="text-lg font-bold text-foreground mb-4">Add Team Member</h3>
-                        <div className="space-y-4">
-                            <input
-                                type="text"
-                                placeholder="Full Name"
-                                value={newCleanerName}
-                                onChange={(e) => setNewCleanerName(e.target.value)}
-                                className="w-full px-3 py-2 glass border border-border rounded-lg text-sm text-foreground placeholder-foreground/30 focus:outline-none focus:border-primary"
-                            />
-                            <input
-                                type="email"
-                                placeholder="Email Address"
-                                value={newCleanerEmail}
-                                onChange={(e) => setNewCleanerEmail(e.target.value)}
-                                className="w-full px-3 py-2 glass border border-border rounded-lg text-sm text-foreground placeholder-foreground/30 focus:outline-none focus:border-primary"
-                            />
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => {
-                                        setShowAddCleanerModal(false);
-                                        setNewCleanerEmail("");
-                                        setNewCleanerName("");
-                                    }}
-                                    className="flex-1 px-4 py-2 glass border border-border text-foreground/70 text-sm font-bold rounded-lg hover:bg-foreground/10 transition-colors"
-                                    disabled={newCleanerLoading}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleAddCleaner}
-                                    className="flex-1 px-4 py-2 bg-primary text-primary-foreground text-sm font-bold rounded-lg hover:bg-primary/80 transition-colors disabled:opacity-50"
-                                    disabled={newCleanerLoading}
-                                >
-                                    {newCleanerLoading ? "Creating..." : "Create"}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Password Reveal Modal */}
-            {showPasswordModal && (
-                <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="glass p-6 max-w-md w-full rounded-2xl border border-border shadow-2xl animate-in zoom-in-95 duration-300">
-                        <h3 className="text-lg font-bold text-foreground mb-2">Temporary Password</h3>
-                        <p className="text-xs text-foreground/50 mb-4">Share this with the new team member. They must change it on first login.</p>
-                        <div className="bg-black/40 border border-border rounded-lg p-4 mb-4 font-mono text-sm text-emerald-400 text-center tracking-wider">
-                            {tempPassword}
-                        </div>
-                        <button
-                            onClick={() => {
-                                navigator.clipboard.writeText(tempPassword);
-                                toast.success("Copied to clipboard!");
-                            }}
-                            className="w-full px-4 py-2 bg-primary text-primary-foreground text-sm font-bold rounded-lg hover:bg-primary/80 transition-colors mb-2"
-                        >
-                            Copy Password
-                        </button>
-                        <button
-                            onClick={() => {
-                                setShowPasswordModal(false);
-                                setTempPassword("");
-                            }}
-                            className="w-full px-4 py-2 glass border border-border text-foreground text-sm font-bold rounded-lg hover:bg-foreground/10 transition-colors"
-                        >
-                            Done
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* Disable Confirmation Modal */}
-            {showDisableConfirm && disableTargetId !== null && (
-                <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="glass p-6 max-w-md w-full rounded-2xl border border-border shadow-2xl animate-in zoom-in-95 duration-300">
-                        <h3 className="text-lg font-bold text-foreground mb-2">Disable Team Member?</h3>
-                        <p className="text-sm text-foreground/50 mb-6">This person will no longer have access to their account. They can be re-enabled later.</p>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => {
-                                    setShowDisableConfirm(false);
-                                    setDisableTargetId(null);
-                                }}
-                                className="flex-1 px-4 py-2 glass border border-border text-foreground text-sm font-bold rounded-lg hover:bg-foreground/10 transition-colors"
-                                disabled={newCleanerLoading}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={() => handleDisableCleaner(disableTargetId)}
-                                className="flex-1 px-4 py-2 bg-red-500/20 text-red-400 text-sm font-bold rounded-lg hover:bg-red-500/30 transition-colors disabled:opacity-50"
-                                disabled={newCleanerLoading}
-                            >
-                                {newCleanerLoading ? "Disabling..." : "Disable"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
 
             {/* C1 - Create Cleaner Modal */}
             {showCreateCleanerModal && (
