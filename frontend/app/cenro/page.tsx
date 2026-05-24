@@ -1081,7 +1081,7 @@ export default function CenroDashboard() {
                                 {/* Top-left: Status Breakdown */}
                                 <div className="glass-pro p-6 rounded-[2rem] flex flex-col min-h-0 bento-card">
                                     <h3 className="text-[11px] font-bold text-foreground/40 uppercase tracking-widest mb-4 shrink-0">Status Breakdown</h3>
-                                    <div className="flex-1 relative min-h-0">
+                                    <div className="flex-1 relative min-h-[130px]">
                                         <ResponsiveContainer width="100%" height="100%">
                                             <PieChart>
                                                 <Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={8} dataKey="value">
@@ -1126,7 +1126,7 @@ export default function CenroDashboard() {
                                 {/* Bottom-left: City-Wide Trend */}
                                 <div className="glass-pro p-6 rounded-[2rem] flex flex-col min-h-0 bento-card">
                                     <h3 className="text-[11px] font-bold text-foreground/40 uppercase tracking-widest mb-4 shrink-0">City-Wide Trend</h3>
-                                    <div className="flex-1 relative min-h-0">
+                                    <div className="flex-1 relative min-h-[100px]">
                                         <ResponsiveContainer width="100%" height="100%">
                                             <LineChart data={lineData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                                                 <XAxis dataKey="date" stroke="rgba(255,255,255,0.2)" fontSize={10} tickMargin={12} axisLine={false} tickLine={false} />
