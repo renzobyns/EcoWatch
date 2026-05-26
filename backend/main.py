@@ -2127,15 +2127,19 @@ async def complete_work_order(
     if wo.assigned_cleaner_id != user.id:
         raise HTTPException(status_code=403, detail="Can only complete your own work orders")
 
-    if wo.status != models.WorkOrderStatus.IN_PROGRESS:
+    if wo.status not in (models.WorkOrderStatus.IN_PROGRESS, models.WorkOrderStatus.NEEDS_REDO):
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot complete. Status is '{wo.status}', must be 'in_progress'."
+            detail=f"Cannot complete. Status is '{wo.status}', must be 'in_progress' or 'needs_redo'."
         )
 
     report = wo.report
     if not report:
         raise HTTPException(status_code=404, detail="Associated report not found")
+
+    if wo.status == models.WorkOrderStatus.NEEDS_REDO:
+        wo.status = models.WorkOrderStatus.IN_PROGRESS
+        report.status = models.ReportStatus.IN_PROGRESS
 
     saved_urls: list[str] = []
     for img in cleanup_images:
