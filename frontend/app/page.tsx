@@ -151,7 +151,10 @@ export default function LandingPage() {
                                         <div className="flex items-center gap-2">
                                             <div className={`w-1.5 h-1.5 rounded-full ${
                                                 report.status === 'resolved' ? 'bg-green-500' :
-                                                report.status === 'deployed' ? 'bg-yellow-500' : 'bg-red-500'
+                                                report.status === 'assigned' ? 'bg-yellow-500' :
+                                                report.status === 'in_progress' ? 'bg-blue-500' :
+                                                report.status === 'verified' ? 'bg-orange-500' :
+                                                'bg-red-500'
                                             }`} />
                                             <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider">{report.status}</span>
                                         </div>
