@@ -19,7 +19,7 @@ export function slaInfo(
     createdAt: string,
     status: string
 ): { days: number; color: SLAColor } | null {
-    const active = ["pending", "verified", "deployed", "failed_cleanup"].includes(status);
+    const active = ["pending", "verified", "assigned", "in_progress", "failed_cleanup"].includes(status);
     if (!active) return null;
     const days = Math.floor((Date.now() - new Date(createdAt).getTime()) / 86400000);
     const color: SLAColor = days <= 2 ? "green" : days <= 4 ? "yellow" : "red";

@@ -31,11 +31,13 @@ const createCustomIcon = (color: string) => {
 };
 
 const icons = {
-    pending: createCustomIcon('#ef4444'), // Red
-    verified: createCustomIcon('#ef4444'), // Red
-    deployed: createCustomIcon('#eab308'), // Yellow
-    resolved: createCustomIcon('#22c55e'), // Green
-    failed_cleanup: createCustomIcon('#ef4444'), // Red
+    pending: createCustomIcon('#ef4444'),       // Red
+    verified: createCustomIcon('#f97316'),      // Orange
+    assigned: createCustomIcon('#eab308'),      // Yellow
+    in_progress: createCustomIcon('#3b82f6'),   // Blue
+    resolved: createCustomIcon('#22c55e'),      // Green
+    failed_cleanup: createCustomIcon('#b91c1c'), // Dark Red
+    rejected: createCustomIcon('#6b7280'),      // Gray
 };
 
 // Priority-coloured icons for the cleaner Map View
@@ -308,7 +310,11 @@ export default function SJDMMap({
                                     <div className="flex items-center gap-2 mb-2">
                                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider
                                             ${report.status === 'resolved' ? 'bg-green-500/20 text-green-500 border border-green-500/30' :
-                                              report.status === 'deployed' ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30' :
+                                              report.status === 'assigned' ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30' :
+                                              report.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
+                                              report.status === 'verified' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' :
+                                              report.status === 'failed_cleanup' ? 'bg-red-900/30 text-red-400 border border-red-900/40' :
+                                              report.status === 'rejected' ? 'bg-foreground/10 text-foreground/40 border border-foreground/20' :
                                               'bg-red-500/20 text-red-500 border border-red-500/30'}`}>
                                             {report.status}
                                         </span>

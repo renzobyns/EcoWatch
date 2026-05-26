@@ -8,7 +8,7 @@ import dynamic from "next/dynamic";
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
-const STATUS_STEPS = ["pending", "verified", "deployed", "resolved"];
+const STATUS_STEPS = ["pending", "verified", "assigned", "in_progress", "resolved"];
 
 export default function TrackReportPage() {
     const params = useParams();
@@ -90,7 +90,7 @@ export default function TrackReportPage() {
     
     // Fallbacks for edge cases
     if (isRejected) currentStepIndex = -1;
-    if (isFailed) currentStepIndex = 2; // Deployed, but failed resolving
+    if (isFailed) currentStepIndex = 3; // in_progress step, but failed resolving
 
     return (
         <div className="min-h-screen bg-background pt-20 pb-12 px-4 flex flex-col items-center">
@@ -123,8 +123,9 @@ export default function TrackReportPage() {
                         </h2>
                         <p className="text-sm text-foreground/60 mt-2 font-medium">
                             {report.status === 'pending' && "Report received, waiting for AI verification."}
-                            {report.status === 'verified' && "AI Verified! Awaiting barangay deployment."}
-                            {report.status === 'deployed' && "Cleanup team has been deployed to the location!"}
+                            {report.status === 'verified' && "AI Verified! Awaiting barangay assignment."}
+                            {report.status === 'assigned' && "Cleanup team has been assigned to the location!"}
+                            {report.status === 'in_progress' && "Cleanup is actively in progress!"}
                             {report.status === 'resolved' && "Issue resolved. Thank you for keeping SJDM clean!"}
                             {isFailed && "The cleanup attempt was rejected by the AI. A retry is required."}
                             {isRejected && "This report was rejected by the AI (No waste detected)."}
@@ -140,15 +141,15 @@ export default function TrackReportPage() {
                                 {/* Fill Line */}
                                 <div 
                                     className={`absolute top-1/2 left-0 h-1 -translate-y-1/2 rounded-full transition-all duration-1000 ${isFailed ? 'bg-red-500' : 'eco-gradient'}`}
-                                    style={{ width: `${Math.max(0, (currentStepIndex / 3) * 100)}%` }}
+                                    style={{ width: `${Math.max(0, (currentStepIndex / 4) * 100)}%` }}
                                 />
                                 
                                 {/* Steps */}
                                 <div className="relative flex justify-between">
-                                    {["Pending", "Verified", "Deployed", "Resolved"].map((stepLabel, idx) => {
+                                    {["Pending", "Verified", "Assigned", "In Progress", "Resolved"].map((stepLabel, idx) => {
                                         const isActive = idx <= currentStepIndex;
                                         const isCurrent = idx === currentStepIndex;
-                                        const isErrorStep = isFailed && idx === 3; // Red cross on resolved if failed
+                                        const isErrorStep = isFailed && idx === 4; // Red cross on resolved if failed
 
                                         return (
                                             <div key={stepLabel} className="flex flex-col items-center">
