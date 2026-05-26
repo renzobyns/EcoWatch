@@ -224,7 +224,7 @@ export default function BarangayPortal() {
             if (trimmed) formData.append("deployment_notes", trimmed);
             if (selectedPriority) formData.append("priority", selectedPriority);
             if (selectedCleaner) formData.append("assigned_cleaner_id", String(selectedCleaner));
-            const data = await api(`/report/${reportId}/deploy`, { method: "PUT", body: formData });
+            const data = await api(`/report/${reportId}/assign`, { method: "PUT", body: formData });
             const updated = { status: 'assigned', deployment_notes: trimmed || null };
             setReports(reports.map(r => r.id === reportId ? { ...r, ...updated, ...(data?.report || {}) } : r));
             setSelectedReport({ ...selectedReport, ...updated, ...(data?.report || {}) });
