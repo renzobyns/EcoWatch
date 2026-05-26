@@ -154,7 +154,12 @@ class Notification(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    kind = Column(String, nullable=False)  # job_assigned | priority_changed | reassigned | needs_redo | verified | force_resolved
+    kind = Column(String, nullable=False)
+    # Cleaner: job_assigned | priority_changed | reassigned | needs_redo | verified | force_resolved | rejected
+    # Barangay: report_verified_in_barangay | cleanup_verified | cleanup_needs_redo
+    #          | sla_approaching | sla_breached
+    #          | report_reassigned_in | report_reassigned_out
+    # CENRO:   cenro_sla_breached | cenro_force_resolved | cenro_high_priority_deployed | cenro_stale_deploy
     title = Column(String, nullable=False)
     body = Column(Text, nullable=False)
     work_order_id = Column(Integer, ForeignKey("work_orders.id"), nullable=True, index=True)
