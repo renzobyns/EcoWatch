@@ -22,7 +22,7 @@ type KpiBlock = {
     resolved: number;
     resolution_rate: number;
     avg_resolve_days: number;
-    sla_compliance: number;
+    sla_compliance: number | null;
 };
 
 type KpiSet = {
@@ -32,7 +32,7 @@ type KpiSet = {
         reports_pct: number | null;
         resolution_rate_pts: number;
         avg_resolve_days_pct: number | null;
-        sla_compliance_pts: number;
+        sla_compliance_pts: number | null;
     };
 };
 
@@ -103,6 +103,7 @@ interface Props {
     onExport: () => void;
     onRefresh: () => void;
     lastUpdated: Date | null;
+    onReportsClick?: (dateFrom: string, dateTo: string) => void;
 }
 
 const WINDOW_PRESETS: Array<{ days: number; label: string }> = [
@@ -182,7 +183,7 @@ function DeltaArrow({ value, higherIsBetter = true, suffix = "%" }: { value: num
 }
 
 function HeroKpi({
-    label, value, suffix, icon, accent, delta, deltaSuffix, higherIsBetter, priorLabel,
+    label, value, suffix, icon, accent, delta, deltaSuffix, higherIsBetter, priorLabel, onClick,
 }: {
     label: string;
     value: string;
@@ -193,6 +194,7 @@ function HeroKpi({
     deltaSuffix?: string;
     higherIsBetter?: boolean;
     priorLabel: string;
+    onClick?: () => void;
 }) {
     const accentMap = {
         emerald: { glow: "rgba(16,185,129,0.18)", text: "text-emerald-300", bg: "bg-emerald-500/15", ring: "ring-emerald-500/20", grad: "from-emerald-500/30 via-emerald-500/5 to-transparent" },
@@ -203,7 +205,10 @@ function HeroKpi({
     } as const;
     const a = accentMap[accent];
     return (
-        <div className="relative glass-pro rounded-2xl bento-card overflow-hidden group">
+        <div
+            className={`relative glass-pro rounded-2xl bento-card overflow-hidden group ${onClick ? "cursor-pointer hover:ring-2 hover:ring-blue-500/40 transition-shadow" : ""}`}
+            onClick={onClick}
+        >
             <div className={`absolute inset-0 bg-gradient-to-br ${a.grad} opacity-50 pointer-events-none`} />
             <div className="absolute -top-12 -right-12 w-44 h-44 rounded-full blur-[60px] pointer-events-none" style={{ background: a.glow }} />
             <div className="relative z-10 p-5 flex flex-col gap-3">
@@ -217,7 +222,7 @@ function HeroKpi({
                 </div>
                 <div className="flex items-center justify-between gap-2 pt-1 border-t border-foreground/10">
                     <DeltaArrow value={delta} higherIsBetter={higherIsBetter} suffix={deltaSuffix || "%"} />
-                    <span className="text-[10px] text-foreground/40 uppercase tracking-widest font-bold truncate">{priorLabel}</span>
+                    <span className="text-[10px] text-foreground/40 uppercase tracking-widest font-bold truncate">{onClick ? "View reports →" : priorLabel}</span>
                 </div>
             </div>
         </div>
@@ -257,7 +262,7 @@ function TrendArrow({ trend }: { trend: "up" | "down" | "flat" | "new" }) {
     return <Minus size={14} className="text-foreground/30" />;
 }
 export function AnalyticsTab({
-    loading, data, windowDays, onWindowChange, exporting, onExport, onRefresh, lastUpdated,
+    loading, data, windowDays, onWindowChange, exporting, onExport, onRefresh, lastUpdated, onReportsClick,
 }: Props) {
     const trendChartData = useMemo(() => {
         if (!data) return [];
@@ -355,6 +360,7 @@ export function AnalyticsTab({
                             delta={data.kpis.delta.reports_pct}
                             higherIsBetter={false}
                             priorLabel={`Prior: ${data.kpis.prior.reports}`}
+                            onClick={onReportsClick ? () => onReportsClick(data.window.start.slice(0, 10), data.window.end.slice(0, 10)) : undefined}
                         />
                         <HeroKpi
                             label="Resolution Rate"
@@ -379,14 +385,14 @@ export function AnalyticsTab({
                         />
                         <HeroKpi
                             label="SLA Compliance"
-                            value={data.kpis.current.sla_compliance.toFixed(1)}
-                            suffix="%"
+                            value={data.kpis.current.sla_compliance != null ? data.kpis.current.sla_compliance.toFixed(1) : "–"}
+                            suffix={data.kpis.current.sla_compliance != null ? "%" : undefined}
                             icon={<CheckCircle2 size={18} />}
                             accent="violet"
                             delta={data.kpis.delta.sla_compliance_pts}
                             deltaSuffix="pts"
                             higherIsBetter
-                            priorLabel={`Prior: ${data.kpis.prior.sla_compliance.toFixed(1)}%`}
+                            priorLabel={data.kpis.prior.sla_compliance != null ? `Prior: ${data.kpis.prior.sla_compliance.toFixed(1)}%` : "Prior: N/A"}
                         />
                     </>
                 ) : null}
@@ -712,14 +718,15 @@ export function AnalyticsTab({
 function PvpRow({
     label, current, prior, delta, suffix, deltaSuffix, higherIsBetter,
 }: {
-    label: string; current: number; prior: number; delta: number | null; suffix: string; deltaSuffix: string; higherIsBetter: boolean;
+    label: string; current: number | null; prior: number | null; delta: number | null; suffix: string; deltaSuffix: string; higherIsBetter: boolean;
 }) {
+    const fmt = (v: number | null) => v != null ? `${v.toFixed(label === "Reports" ? 0 : 1)}${suffix}` : "N/A";
     return (
         <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-foreground/5 border border-border">
             <div>
                 <div className="text-[10px] text-foreground/40 uppercase tracking-widest font-bold mb-0.5">{label}</div>
-                <div className="text-lg font-bold text-foreground">{current.toFixed(label === "Reports" ? 0 : 1)}{suffix}</div>
-                <div className="text-[10px] text-foreground/40 mt-0.5">vs {prior.toFixed(label === "Reports" ? 0 : 1)}{suffix}</div>
+                <div className="text-lg font-bold text-foreground">{fmt(current)}</div>
+                <div className="text-[10px] text-foreground/40 mt-0.5">vs {fmt(prior)}</div>
             </div>
             <DeltaArrow value={delta} higherIsBetter={higherIsBetter} suffix={deltaSuffix} />
         </div>

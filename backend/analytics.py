@@ -76,7 +76,7 @@ def _pct_delta(current, prior):
 
 def _summarize_window(reports, wo_compliance_records, start, end):
     in_window = [r for r in reports if r.created_at and start <= r.created_at < end]
-    submitted = len(in_window)
+    submitted = sum(1 for r in in_window if r.status != "rejected")
 
     denom = sum(1 for r in in_window if r.status in _RESOLUTION_DENOM_STATUSES)
     resolved = sum(1 for r in in_window if r.status == "resolved")
@@ -94,7 +94,7 @@ def _summarize_window(reports, wo_compliance_records, start, end):
         on_time = sum(1 for wo in completed_in_window if wo["on_time"])
         sla_compliance = round(on_time / len(completed_in_window) * 100, 1)
     else:
-        sla_compliance = 0.0
+        sla_compliance = None
 
     return {
         "reports": submitted,
@@ -314,11 +314,13 @@ def compute_insights(reports, work_orders, days, now=None):
     current_kpis = _summarize_window(reports, wo_compliance_records, start, end)
     prior_kpis = _summarize_window(reports, wo_compliance_records, prior_start, start)
 
+    cur_sla = current_kpis["sla_compliance"]
+    pri_sla = prior_kpis["sla_compliance"]
     deltas = {
         "reports_pct": _pct_delta(current_kpis["reports"], prior_kpis["reports"]),
         "resolution_rate_pts": round(current_kpis["resolution_rate"] - prior_kpis["resolution_rate"], 1),
         "avg_resolve_days_pct": _pct_delta(current_kpis["avg_resolve_days"], prior_kpis["avg_resolve_days"]),
-        "sla_compliance_pts": round(current_kpis["sla_compliance"] - prior_kpis["sla_compliance"], 1),
+        "sla_compliance_pts": round(cur_sla - pri_sla, 1) if cur_sla is not None and pri_sla is not None else None,
     }
 
     return {

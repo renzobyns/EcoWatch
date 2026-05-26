@@ -919,6 +919,14 @@ export default function CenroDashboard() {
                         onExport={handleExportInsights}
                         onRefresh={() => fetchInsights(insightsWindowDays)}
                         lastUpdated={insightsLastUpdated}
+                        onReportsClick={(dateFrom, dateTo) => {
+                            setOversightDateFrom(dateFrom);
+                            setOversightDateTo(dateTo);
+                            setOversightStatus("");
+                            setOversightSearch("");
+                            setOversightBarangay("");
+                            setActiveTab('oversight');
+                        }}
                     />
                 )}
 
