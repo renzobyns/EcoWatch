@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Search, Download, LayoutDashboard, FileText, Map, ClipboardList, BookUser, MoreVertical, FileDown, Eye, EyeOff, Edit2, Key, UserCheck, UserX, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -75,13 +75,21 @@ interface BarangayUser {
 
 export default function BarangayPortal() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [user, setUser] = useState<any>(null);
     const [reports, setReports] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [tableLoading, setTableLoading] = useState(false);
     const [selectedReport, setSelectedReport] = useState<any>(null);
-    const [activeView, setActiveView] = useState<BarangayView>('dashboard');
-    const [reportSubFilter, setReportSubFilter] = useState<ReportSubFilter>('pending');
+    const rawTab = searchParams.get('tab');
+    const [activeView, setActiveView] = useState<BarangayView>(
+        BARANGAY_NAV.some(n => n.key === rawTab) ? (rawTab as BarangayView) : 'dashboard'
+    );
+    const rawSub = searchParams.get('sub');
+    const VALID_SUBS: ReportSubFilter[] = ['pending', 'deployed', 'resolved'];
+    const [reportSubFilter, setReportSubFilter] = useState<ReportSubFilter>(
+        VALID_SUBS.includes(rawSub as ReportSubFilter) ? (rawSub as ReportSubFilter) : 'pending'
+    );
 
     // Filters (B1)
     const [search, setSearch] = useState("");
@@ -578,7 +586,10 @@ export default function BarangayPortal() {
             role="BARANGAY"
             nav={BARANGAY_NAV}
             activeKey={activeView}
-            onNavChange={(k) => setActiveView(k as BarangayView)}
+            onNavChange={(k) => {
+                    setActiveView(k as BarangayView);
+                    router.replace('?tab=' + k, { scroll: false });
+                }}
             notificationCount={stats.pending}
         >
             <div className="max-w-[1600px] mx-auto h-full flex flex-col gap-5">
@@ -1377,19 +1388,19 @@ export default function BarangayPortal() {
                             {activeView === 'reports' && (
                                 <div className="flex border-b border-border shrink-0">
                                     <button
-                                        onClick={() => setReportSubFilter('pending')}
+                                        onClick={() => { setReportSubFilter('pending'); router.replace('?tab=reports&sub=pending', { scroll: false }); }}
                                         className={`flex-1 py-3 text-[11px] font-semibold uppercase tracking-widest transition-colors ${reportSubFilter === 'pending' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-foreground/50 hover:bg-foreground/5 hover:text-foreground'}`}
                                     >
                                         Pending
                                     </button>
                                     <button
-                                        onClick={() => setReportSubFilter('deployed')}
+                                        onClick={() => { setReportSubFilter('deployed'); router.replace('?tab=reports&sub=deployed', { scroll: false }); }}
                                         className={`flex-1 py-3 text-[11px] font-semibold uppercase tracking-widest transition-colors ${reportSubFilter === 'deployed' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-foreground/50 hover:bg-foreground/5 hover:text-foreground'}`}
                                     >
                                         Deployed
                                     </button>
                                     <button
-                                        onClick={() => setReportSubFilter('resolved')}
+                                        onClick={() => { setReportSubFilter('resolved'); router.replace('?tab=reports&sub=resolved', { scroll: false }); }}
                                         className={`flex-1 py-3 text-[11px] font-semibold uppercase tracking-widest transition-colors ${reportSubFilter === 'resolved' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-foreground/50 hover:bg-foreground/5 hover:text-foreground'}`}
                                     >
                                         Done
