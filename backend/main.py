@@ -1746,6 +1746,7 @@ async def get_report_detail(
             joinedload(models.Report.report_photos),
             joinedload(models.Report.cleanup_photos),
             joinedload(models.Report.work_orders).joinedload(models.WorkOrder.assigned_cleaner),
+            joinedload(models.Report.work_orders).joinedload(models.WorkOrder.report),
         )
         .filter(models.Report.id == report_id)
         .first()
@@ -1769,9 +1770,11 @@ async def get_report_detail(
     response.failing_signals = _get_report_failing_signals(list(report.report_photos))
 
     # Cleanup photos (proof of resolution)
+    wo_by_id = {wo.id: wo for wo in report.work_orders}
+
     cleanup_photos = []
     for cp in report.cleanup_photos:
-        wo = next((w for w in report.work_orders if w.id == cp.work_order_id), None)
+        wo = wo_by_id.get(cp.work_order_id)
         cleaner = wo.assigned_cleaner if wo else None
         cleanup_photos.append({
             "id": cp.id,
