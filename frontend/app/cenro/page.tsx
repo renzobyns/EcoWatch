@@ -16,6 +16,7 @@ import { SlaManagementTab } from "@/components/portal/SlaManagementTab";
 import { AnalyticsTab, type InsightsData } from "@/components/portal/AnalyticsTab";
 import { BarangayManagementTab, type BarangayOverviewRow, type BarangayCityWide } from "@/components/portal/BarangayManagementTab";
 import { BarangayDetailDrawer } from "@/components/portal/BarangayDetailDrawer";
+import { ReportDetailDrawer } from "@/components/portal/ReportDetailDrawer";
 import { BARANGAYS } from "@/lib/barangays";
 import { TrustBadge } from "@/components/TrustBadge";
 
@@ -1310,25 +1311,24 @@ export default function CenroDashboard() {
                                         <th className="p-4">Status</th>
                                         <th className="p-4">Open</th>
                                         <th className="p-4">Date Reported</th>
-                                        <th className="p-4 text-right">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {queueLoading ? (
                                         Array.from({ length: 5 }).map((_, i) => (
                                             <tr key={i} className="border-b border-border">
-                                                {Array.from({ length: 6 }).map((__, j) => (
+                                                {Array.from({ length: 5 }).map((__, j) => (
                                                     <td key={j} className="p-4"><div className="h-3 bg-foreground/10 rounded animate-pulse" /></td>
                                                 ))}
                                             </tr>
                                         ))
                                     ) : displayedQueueReports.length === 0 ? (
-                                        <tr><td colSpan={6} className="p-12 text-center text-foreground/50 font-bold">No reports match the current filters.</td></tr>
+                                        <tr><td colSpan={5} className="p-12 text-center text-foreground/50 font-bold">No reports match the current filters.</td></tr>
                                     ) : (
                                         displayedQueueReports.map(report => {
                                             const sla = slaInfo(report.created_at, report.status);
                                             return (
-                                                <tr key={report.id} className="border-b border-border hover:bg-foreground/5 transition-colors">
+                                                <tr key={report.id} className="border-b border-border hover:bg-foreground/5 transition-colors cursor-pointer" onClick={() => { setSelectedReport(report); setNewBarangay(report.barangay ?? ""); }}>
                                                     <td className="p-4 font-mono text-sm text-foreground font-bold">{report.tracking_id}</td>
                                                     <td className="p-4 text-sm font-bold text-emerald-300">{report.barangay}</td>
                                                     <td className="p-4">
@@ -1354,17 +1354,6 @@ export default function CenroDashboard() {
                                                     </td>
                                                     <td className="p-4 text-sm text-foreground/60">
                                                         {new Date(report.created_at).toLocaleDateString()}
-                                                    </td>
-                                                    <td className="p-4 text-right">
-                                                        <button
-                                                            onClick={() => {
-                                                                setSelectedReport(report);
-                                                                setNewBarangay(report.barangay);
-                                                            }}
-                                                            className="px-4 py-2 bg-foreground/10 hover:bg-foreground/20 text-foreground text-xs font-bold rounded-lg transition-colors border border-border"
-                                                        >
-                                                            Oversight
-                                                        </button>
                                                     </td>
                                                 </tr>
                                             );
@@ -1754,77 +1743,17 @@ export default function CenroDashboard() {
                 })()}
             </div>
 
-            {/* Oversight Detail Modal */}
-            {selectedReport && (
-                <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="glass p-0 max-w-2xl w-full rounded-2xl border border-emerald-500/30 shadow-[0_0_50px_rgba(16,185,129,0.1)] relative overflow-hidden">
-
-                        <div className="bg-emerald-900/40 border-b border-emerald-500/30 px-6 py-4 flex items-center justify-between">
-                            <div>
-                                <div className="text-[10px] text-emerald-300 font-bold uppercase tracking-widest mb-1">Cenro Override Console</div>
-                                <h2 className="text-lg font-semibold text-foreground">Report {selectedReport.tracking_id}</h2>
-                            </div>
-                            <button
-                                onClick={() => setSelectedReport(null)}
-                                className="p-2 text-foreground/50 hover:text-foreground bg-foreground/5 hover:bg-foreground/10 rounded-full transition-colors"
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
-
-                        <div className="p-6 md:p-8 space-y-8">
-
-                            {/* Evidence / Trust */}
-                            <div className="mt-2">
-                                <TrustBadge
-                                    trust_score={selectedReport.trust_score}
-                                    failing_signals={selectedReport.failing_signals}
-                                    needs_human_review={selectedReport.needs_human_review}
-                                />
-                            </div>
-
-                            {/* Reassign Action */}
-                            <div className="space-y-3">
-                                <h3 className="text-sm font-bold text-foreground uppercase tracking-widest border-b border-border pb-2">1. Reassign Barangay</h3>
-                                <p className="text-xs text-foreground/50">If the algorithm assigned this to the wrong jurisdiction, override it here.</p>
-                                <div className="flex gap-4">
-                                    <select
-                                        value={newBarangay}
-                                        onChange={(e) => setNewBarangay(e.target.value)}
-                                        className="flex-1 bg-foreground/5 border border-border rounded-xl px-4 text-sm text-foreground focus:outline-none focus:border-primary"
-                                    >
-                                        {BARANGAYS.map(b => (
-                                            <option key={b} value={b}>{b}</option>
-                                        ))}
-                                    </select>
-                                    <button
-                                        onClick={() => handleReassign(selectedReport.id)}
-                                        disabled={actionLoading || newBarangay === selectedReport.barangay}
-                                        className="px-6 py-3 bg-primary hover:bg-emerald-400 text-white rounded-xl font-bold shadow-lg disabled:opacity-50 transition-colors whitespace-nowrap"
-                                    >
-                                        Update Route
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Force Close Action */}
-                            <div className="space-y-3">
-                                <h3 className="text-sm font-bold text-foreground uppercase tracking-widest border-b border-border pb-2">2. Administrative Override</h3>
-                                <p className="text-xs text-foreground/50">Force-close this ticket. Use this if AI verification is repeatedly failing but visual inspection confirms cleanup.</p>
-                                <button
-                                    onClick={() => handleForceClose(selectedReport.id)}
-                                    disabled={actionLoading || selectedReport.status === 'resolved'}
-                                    className="w-full py-4 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold shadow-lg disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-                                    Force Close Ticket
-                                </button>
-                            </div>
-
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ReportDetailDrawer
+                open={selectedReport !== null}
+                report={selectedReport}
+                barangays={[...BARANGAYS]}
+                newBarangay={newBarangay}
+                setNewBarangay={setNewBarangay}
+                actionLoading={actionLoading}
+                onClose={() => setSelectedReport(null)}
+                onReassign={() => selectedReport && handleReassign(selectedReport.id)}
+                onForceClose={() => selectedReport && handleForceClose(selectedReport.id)}
+            />
 
             {/* Create Account Modal */}
             {showCreateUserModal && (
