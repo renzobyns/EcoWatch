@@ -129,6 +129,9 @@ export default function PinpointFullscreen({
     const { theme } = useTheme();
     const [fc, setFc] = useState<BarangayFeatureCollection | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
+    const [coordLat, setCoordLat] = useState("");
+    const [coordLon, setCoordLon] = useState("");
+    const [coordError, setCoordError] = useState<string | null>(null);
     const [isLocating, setIsLocating] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const wrapperRef = useRef<HTMLDivElement>(null);
@@ -258,6 +261,20 @@ export default function PinpointFullscreen({
         const n = Math.max(1, ring.length);
         handleFlyTo(sy / n, sx / n);
         setSearchQuery("");
+    };
+
+    const handleCoordSearch = () => {
+        setCoordError(null);
+        const la = parseFloat(coordLat.trim());
+        const lo = parseFloat(coordLon.trim());
+        if (isNaN(la) || isNaN(lo)) {
+            setCoordError("Enter valid numbers for both fields.");
+            return;
+        }
+        if (la < -90 || la > 90) { setCoordError("Latitude must be between -90 and 90."); return; }
+        if (lo < -180 || lo > 180) { setCoordError("Longitude must be between -180 and 180."); return; }
+        onLocationChange(la, lo);
+        mapRef.current?.flyTo([la, lo], 17, { duration: 0.8 });
     };
 
     const handleToggleFullscreen = () => {
@@ -512,6 +529,37 @@ export default function PinpointFullscreen({
                                     )}
                                 </button>
                             ))
+                        )}
+                    </div>
+
+                    <div className="mt-3 pt-3 border-t border-border">
+                        <p className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest px-1 mb-2">
+                            Go to Coordinates
+                        </p>
+                        <div className="flex gap-2 mb-1.5">
+                            <Input
+                                value={coordLat}
+                                onChange={(e) => { setCoordLat(e.target.value); setCoordError(null); }}
+                                onKeyDown={(e) => e.key === "Enter" && handleCoordSearch()}
+                                placeholder="Latitude"
+                                className="h-9 text-xs tabular-nums"
+                            />
+                            <Input
+                                value={coordLon}
+                                onChange={(e) => { setCoordLon(e.target.value); setCoordError(null); }}
+                                onKeyDown={(e) => e.key === "Enter" && handleCoordSearch()}
+                                placeholder="Longitude"
+                                className="h-9 text-xs tabular-nums"
+                            />
+                            <button
+                                onClick={handleCoordSearch}
+                                className="shrink-0 h-9 px-3 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary text-xs font-bold transition-colors border border-primary/30"
+                            >
+                                Go
+                            </button>
+                        </div>
+                        {coordError && (
+                            <p className="text-[10px] text-red-400 px-1">{coordError}</p>
                         )}
                     </div>
 
