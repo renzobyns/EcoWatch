@@ -5,6 +5,8 @@ import { X, FileText, Camera, Shield, Clock, MapPin, User, Mail, Phone, External
 import { api, ApiError } from "@/lib/api";
 import { TrustBadge } from "@/components/TrustBadge";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type DrawerTab = "overview" | "evidence" | "work_orders" | "timeline";
@@ -582,18 +584,18 @@ function EvidenceTab({
                             <div key={i} className="glass-pro rounded-xl border border-border p-3">
                                 <div className="grid grid-cols-2 gap-2">
                                     <button
-                                        onClick={() => setLightbox(p.url)}
+                                        onClick={() => setLightbox(`${API_URL}${p.url}`)}
                                         className="aspect-square rounded-lg overflow-hidden bg-foreground/5 border border-border hover:border-primary/40 transition-colors"
                                     >
-                                        <img src={p.url} alt="Citizen photo" className="w-full h-full object-cover" />
+                                        <img src={`${API_URL}${p.url}`} alt="Citizen photo" className="w-full h-full object-cover" />
                                     </button>
                                     <button
-                                        onClick={() => p.mask_url && setLightbox(p.mask_url)}
+                                        onClick={() => p.mask_url && setLightbox(`${API_URL}${p.mask_url}`)}
                                         disabled={!p.mask_url}
                                         className="aspect-square rounded-lg overflow-hidden bg-foreground/5 border border-border hover:border-primary/40 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
                                     >
                                         {p.mask_url ? (
-                                            <img src={p.mask_url} alt="AI mask" className="w-full h-full object-cover" />
+                                            <img src={`${API_URL}${p.mask_url}`} alt="AI mask" className="w-full h-full object-cover" />
                                         ) : (
                                             <span className="text-[10px] text-foreground/40 uppercase tracking-widest">No mask</span>
                                         )}
@@ -617,10 +619,10 @@ function EvidenceTab({
                         {cleanupPhotos.map((cp) => (
                             <div key={cp.id} className="glass-pro rounded-xl border border-border p-3 flex gap-3">
                                 <button
-                                    onClick={() => setLightbox(cp.url)}
+                                    onClick={() => setLightbox(`${API_URL}${cp.url}`)}
                                     className="w-20 h-20 rounded-lg overflow-hidden bg-foreground/5 border border-border shrink-0 hover:border-primary/40 transition-colors"
                                 >
-                                    <img src={cp.url} alt="Cleanup proof" className="w-full h-full object-cover" />
+                                    <img src={`${API_URL}${cp.url}`} alt="Cleanup proof" className="w-full h-full object-cover" />
                                 </button>
                                 <div className="min-w-0 flex-1 text-xs">
                                     <div className="font-semibold text-foreground truncate">
