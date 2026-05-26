@@ -9,7 +9,8 @@ class ReportStatus(str, enum.Enum):
     PENDING = "pending"
     VERIFIED = "verified"
     REJECTED = "rejected"
-    DEPLOYED = "deployed"
+    ASSIGNED = "assigned"
+    IN_PROGRESS = "in_progress"
     RESOLVED = "resolved"
     FAILED_CLEANUP = "failed_cleanup"
 
