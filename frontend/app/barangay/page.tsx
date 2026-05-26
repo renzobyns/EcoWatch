@@ -16,7 +16,7 @@ const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: f
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 type BarangayView = "dashboard" | "reports" | "map_view" | "workorders" | "accounts";
-type ReportSubFilter = "pending" | "deployed" | "resolved";
+type ReportSubFilter = "pending" | "assigned" | "resolved";
 
 const BARANGAY_NAV: PortalNavItem[] = [
     { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, subtitle: "Jurisdiction overview" },
@@ -86,7 +86,7 @@ export default function BarangayPortal() {
         BARANGAY_NAV.some(n => n.key === rawTab) ? (rawTab as BarangayView) : 'dashboard'
     );
     const rawSub = searchParams.get('sub');
-    const VALID_SUBS: ReportSubFilter[] = ['pending', 'deployed', 'resolved'];
+    const VALID_SUBS: ReportSubFilter[] = ['pending', 'assigned', 'resolved'];
     const [reportSubFilter, setReportSubFilter] = useState<ReportSubFilter>(
         VALID_SUBS.includes(rawSub as ReportSubFilter) ? (rawSub as ReportSubFilter) : 'pending'
     );
@@ -225,7 +225,7 @@ export default function BarangayPortal() {
             if (selectedPriority) formData.append("priority", selectedPriority);
             if (selectedCleaner) formData.append("assigned_cleaner_id", String(selectedCleaner));
             const data = await api(`/report/${reportId}/deploy`, { method: "PUT", body: formData });
-            const updated = { status: 'deployed', deployment_notes: trimmed || null };
+            const updated = { status: 'assigned', deployment_notes: trimmed || null };
             setReports(reports.map(r => r.id === reportId ? { ...r, ...updated, ...(data?.report || {}) } : r));
             setSelectedReport({ ...selectedReport, ...updated, ...(data?.report || {}) });
             setDeploymentNotes("");
@@ -403,6 +403,21 @@ export default function BarangayPortal() {
         }
     };
 
+    const handleRetry = async (reportId: number) => {
+        setActionLoading(true);
+        try {
+            const data = await api(`/report/${reportId}/retry`, { method: "PUT" });
+            const updated = { status: 'assigned', ...(data?.report || {}) };
+            setReports(prev => prev.map(r => r.id === reportId ? { ...r, ...updated } : r));
+            setSelectedReport((prev: any) => prev ? { ...prev, ...updated } : prev);
+            toast.success("Cleanup retried. Report moved back to assigned.");
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Retry failed.");
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     // Fetch accounts when sidebar switches to that view
     useEffect(() => {
         if (activeView === 'accounts') fetchBrgyUsers();
@@ -566,13 +581,13 @@ export default function BarangayPortal() {
 
     const displayReports = reports.filter(r => {
         if (reportSubFilter === 'pending') return r.status === 'pending' || r.status === 'verified';
-        if (reportSubFilter === 'deployed') return r.status === 'deployed' || r.status === 'failed_cleanup';
+        if (reportSubFilter === 'assigned') return r.status === 'assigned' || r.status === 'in_progress' || r.status === 'failed_cleanup';
         return r.status === 'resolved';
     });
 
     const stats = {
         pending: reports.filter(r => r.status === 'pending' || r.status === 'verified').length,
-        deployed: reports.filter(r => r.status === 'deployed' || r.status === 'failed_cleanup').length,
+        deployed: reports.filter(r => r.status === 'assigned' || r.status === 'in_progress' || r.status === 'failed_cleanup').length,
         resolved: reports.filter(r => r.status === 'resolved').length
     };
 
@@ -639,8 +654,11 @@ export default function BarangayPortal() {
                                                     <span className="font-mono text-sm font-bold text-foreground truncate">{r.tracking_id}</span>
                                                     <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
                                                         r.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
-                                                        r.status === 'deployed' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                        r.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
+                                                        r.status === 'assigned' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                        r.status === 'verified' ? 'bg-orange-500/20 text-orange-400' :
                                                         r.status === 'failed_cleanup' ? 'bg-red-500/20 text-red-400' :
+                                                        r.status === 'rejected' ? 'bg-foreground/5 text-foreground/40' :
                                                         'bg-foreground/10 text-foreground/70'
                                                     }`}>{r.status}</span>
                                                 </div>
@@ -1394,10 +1412,10 @@ export default function BarangayPortal() {
                                         Pending
                                     </button>
                                     <button
-                                        onClick={() => { setReportSubFilter('deployed'); router.replace('?tab=reports&sub=deployed', { scroll: false }); }}
-                                        className={`flex-1 py-3 text-[11px] font-semibold uppercase tracking-widest transition-colors ${reportSubFilter === 'deployed' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-foreground/50 hover:bg-foreground/5 hover:text-foreground'}`}
+                                        onClick={() => { setReportSubFilter('assigned'); router.replace('?tab=reports&sub=assigned', { scroll: false }); }}
+                                        className={`flex-1 py-3 text-[11px] font-semibold uppercase tracking-widest transition-colors ${reportSubFilter === 'assigned' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-foreground/50 hover:bg-foreground/5 hover:text-foreground'}`}
                                     >
-                                        Deployed
+                                        Assigned
                                     </button>
                                     <button
                                         onClick={() => { setReportSubFilter('resolved'); router.replace('?tab=reports&sub=resolved', { scroll: false }); }}
@@ -1459,9 +1477,12 @@ export default function BarangayPortal() {
                                                                 <td className="p-4">
                                                                     <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
                                                                         report.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
-                                                                        report.status === 'deployed' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                                        report.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
+                                                                        report.status === 'assigned' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                                        report.status === 'verified' ? 'bg-orange-500/20 text-orange-400' :
                                                                         report.status === 'failed_cleanup' ? 'bg-red-500/20 text-red-400' :
-                                                                        'bg-foreground/10 text-foreground'
+                                                                        report.status === 'rejected' ? 'bg-foreground/5 text-foreground/40' :
+                                                                        'bg-foreground/10 text-foreground/70'
                                                                     }`}>
                                                                         {report.status}
                                                                     </span>
@@ -1633,12 +1654,12 @@ export default function BarangayPortal() {
                                         </div>
                                     )}
 
-                                    {(selectedReport.status === 'deployed' || selectedReport.status === 'failed_cleanup') && (
+                                    {(selectedReport.status === 'assigned' || selectedReport.status === 'in_progress') && (
                                         <div>
                                             <p className="text-xs text-foreground/60 mb-4">
-                                                {selectedReport.status === 'failed_cleanup'
-                                                    ? "Previous cleanup was rejected by AI. Please upload a new proof photo."
-                                                    : "Team is deployed. Upload a clear photo of the cleaned area to resolve."}
+                                                {selectedReport.status === 'in_progress'
+                                                    ? "Cleaner is actively working. Upload a clear photo of the cleaned area to resolve."
+                                                    : "Team is assigned. Upload a clear photo of the cleaned area to resolve."}
                                             </p>
 
                                             <label className="block w-full h-32 border-2 border-dashed border-foreground/20 hover:border-primary/50 rounded-xl mb-4 cursor-pointer overflow-hidden relative group">
@@ -1671,6 +1692,21 @@ export default function BarangayPortal() {
                                                 className="w-full py-3 bg-primary hover:bg-emerald-400 text-white rounded-xl font-bold shadow-lg shadow-emerald-900/50 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
                                             >
                                                 {actionLoading ? "AI Verifying..." : "Mark as Resolved"}
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {selectedReport.status === 'failed_cleanup' && (
+                                        <div>
+                                            <p className="text-xs text-foreground/60 mb-4">
+                                                Previous cleanup was rejected by AI. Retry to loop the report back to assigned so the cleaner can attempt again.
+                                            </p>
+                                            <button
+                                                onClick={() => handleRetry(selectedReport.id)}
+                                                disabled={actionLoading}
+                                                className="w-full py-3 bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 rounded-xl font-bold hover:bg-yellow-500/30 active:scale-95 transition-all disabled:opacity-50"
+                                            >
+                                                {actionLoading ? "Processing..." : "Retry Cleanup"}
                                             </button>
                                         </div>
                                     )}
