@@ -132,8 +132,11 @@ export default function PinpointFullscreen({
     const [coordLat, setCoordLat] = useState("");
     const [coordLon, setCoordLon] = useState("");
     const [coordError, setCoordError] = useState<string | null>(null);
+    const [coordDescription, setCoordDescription] = useState<string | null>(null);
     const [isLocating, setIsLocating] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [leftOpen, setLeftOpen] = useState(true);
+    const [rightOpen, setRightOpen] = useState(true);
     const wrapperRef = useRef<HTMLDivElement>(null);
     const mapRef = useRef<L.Map | null>(null);
 
@@ -265,6 +268,7 @@ export default function PinpointFullscreen({
 
     const handleCoordSearch = () => {
         setCoordError(null);
+        setCoordDescription(null);
         const la = parseFloat(coordLat.trim());
         const lo = parseFloat(coordLon.trim());
         if (isNaN(la) || isNaN(lo)) {
@@ -275,6 +279,12 @@ export default function PinpointFullscreen({
         if (lo < -180 || lo > 180) { setCoordError("Longitude must be between -180 and 180."); return; }
         onLocationChange(la, lo);
         mapRef.current?.flyTo([la, lo], 17, { duration: 0.8 });
+        const brgy = fc ? pointInBarangay(la, lo, fc) : null;
+        if (brgy) {
+            setCoordDescription(`📍 ${brgy.name}, San Jose del Monte, Bulacan`);
+        } else {
+            setCoordDescription(`📍 ${la.toFixed(5)}° N, ${lo.toFixed(5)}° E — outside SJDM`);
+        }
     };
 
     const handleToggleFullscreen = () => {
@@ -348,7 +358,21 @@ export default function PinpointFullscreen({
                 Exit Map
             </button>
 
+            {/* Left panel toggle (always visible when panel is closed) */}
+            {!leftOpen && (
+                <button
+                    onClick={() => setLeftOpen(true)}
+                    className="absolute top-20 left-4 z-[1001] glass-pro w-10 h-10 rounded-xl flex items-center justify-center text-primary hover:bg-primary/10 transition-colors"
+                    title="Show location info"
+                >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+                    </svg>
+                </button>
+            )}
+
             {/* Jurisdiction Info Card */}
+            {leftOpen && (
             <div className="absolute top-20 left-4 w-[320px] max-w-[calc(100vw-2rem)] z-[1000] animate-in fade-in slide-in-from-left-4 duration-300">
                 <div
                     className={`glass-pro rounded-2xl p-4 ${
@@ -451,10 +475,35 @@ export default function PinpointFullscreen({
                             </div>
                         </div>
                     )}
+                    {/* Left panel hide button */}
+                    <button
+                        onClick={() => setLeftOpen(false)}
+                        className="absolute top-3 right-3 w-6 h-6 rounded-lg bg-foreground/10 hover:bg-foreground/20 flex items-center justify-center text-foreground/50 hover:text-foreground transition-colors"
+                        title="Hide panel"
+                    >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
                 </div>
             </div>
+            )}
+
+            {/* Right panel toggle (always visible when panel is closed) */}
+            {!rightOpen && (
+                <button
+                    onClick={() => setRightOpen(true)}
+                    className="absolute top-4 right-4 z-[1001] glass-pro w-10 h-10 rounded-xl flex items-center justify-center text-primary hover:bg-primary/10 transition-colors"
+                    title="Show search"
+                >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                </button>
+            )}
 
             {/* Search + Nearby */}
+            {rightOpen && (
             <div className="absolute top-4 right-4 w-[340px] max-w-[calc(100vw-2rem)] z-[1000] animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="glass-pro rounded-2xl p-3">
                     <div className="relative mb-3">
@@ -561,18 +610,28 @@ export default function PinpointFullscreen({
                         {coordError && (
                             <p className="text-[10px] text-red-400 px-1">{coordError}</p>
                         )}
+                        {coordDescription && !coordError && (
+                            <p className="text-[10px] text-primary px-1 mt-1 font-medium">{coordDescription}</p>
+                        )}
                     </div>
 
                     <div className="flex items-center justify-between mt-2 pt-2 px-1 border-t border-border">
                         <span className="text-[10px] font-medium text-foreground/40 italic">
                             Viewing SJDM Map Boundaries
                         </span>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-foreground/40">
-                            <path d="M9 18l6-6-6-6" />
-                        </svg>
+                        <button
+                            onClick={() => setRightOpen(false)}
+                            className="w-5 h-5 rounded flex items-center justify-center text-foreground/40 hover:text-foreground/70 transition-colors"
+                            title="Hide panel"
+                        >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                        </button>
                     </div>
                 </div>
             </div>
+            )}
 
             {/* Map Controls */}
             <div className="absolute right-4 top-1/2 -translate-y-1/2 z-[1000] flex flex-col gap-2">
