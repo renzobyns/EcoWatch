@@ -24,6 +24,13 @@ def seed():
     # ─────────────────────────────────────────────
     # CLEAR EXISTING DATA
     # ─────────────────────────────────────────────
+    # Bulk Query.delete() bypasses SQLAlchemy's ORM cascade rules, so child
+    # tables must be wiped explicitly before their parents. Otherwise orphan
+    # photo rows survive and silently re-attach to future reports that happen
+    # to reuse the same auto-increment id.
+    db.query(models.CleanupPhoto).delete()
+    db.query(models.ReportPhoto).delete()
+    db.query(models.AuditLog).delete()
     db.query(models.Notification).delete()
     db.query(models.WorkOrder).delete()
     db.query(models.Report).delete()
