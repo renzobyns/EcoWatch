@@ -3440,27 +3440,32 @@ async def export_analytics_insights(
 
 
 # ─────────────────────────────────────────────────────────
-# NOTIFICATIONS (Cleaner in-app feed)
+# NOTIFICATIONS (user-scoped in-app feed)
 # ─────────────────────────────────────────────────────────
 
-@app.get("/notifications/cleaner/{cleaner_id}")
+@app.get("/notifications/user/{user_id}")
 async def list_notifications(
-    cleaner_id: int,
+    user_id: int,
     limit: int = 50,
     db: Session = Depends(get_db),
-    user: models.User = Depends(require_role("cleaner")),
+    user: models.User = Depends(get_current_user),
 ):
-    """List a cleaner's notifications, newest first. Caps at 200 rows."""
-    if user.id != cleaner_id:
+    """List a user's notifications, newest first. Caps at 200 rows.
+
+    For CENRO callers, also returns synthetic 'cenro_stale_deploy' items
+    (negative ids) for reports verified >48h ago with no WorkOrder.
+    """
+    if user.id != user_id:
         raise HTTPException(status_code=403, detail="Can only view your own notifications")
+
     rows = (
         db.query(models.Notification)
-        .filter(models.Notification.user_id == cleaner_id)
+        .filter(models.Notification.user_id == user_id)
         .order_by(models.Notification.created_at.desc())
         .limit(max(1, min(limit, 200)))
         .all()
     )
-    return [
+    out = [
         {
             "id": n.id,
             "kind": n.kind,
@@ -3474,20 +3479,54 @@ async def list_notifications(
         for n in rows
     ]
 
+    if user.role == "cenro":
+        from datetime import datetime, timedelta
+        cutoff = datetime.utcnow() - timedelta(hours=48)
+        stale = (
+            db.query(models.Report)
+            .outerjoin(models.WorkOrder, models.WorkOrder.report_id == models.Report.id)
+            .filter(models.Report.status == models.ReportStatus.VERIFIED)
+            .filter(models.Report.created_at < cutoff)
+            .filter(models.WorkOrder.id.is_(None))
+            .order_by(models.Report.created_at.asc())
+            .limit(20)
+            .all()
+        )
+        for r in stale:
+            out.insert(0, {
+                "id": -r.id,
+                "kind": "cenro_stale_deploy",
+                "title": f"Stale verified report: {r.tracking_id}",
+                "body": f"{r.barangay or 'Unknown'} hasn't deployed in 48h+.",
+                "work_order_id": None,
+                "report_id": r.id,
+                "is_read": False,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            })
 
-@app.get("/notifications/cleaner/{cleaner_id}/unread-count")
+    return out
+
+
+@app.get("/notifications/user/{user_id}/unread-count")
 async def unread_notification_count(
-    cleaner_id: int,
+    user_id: int,
     db: Session = Depends(get_db),
-    user: models.User = Depends(require_role("cleaner")),
+    user: models.User = Depends(get_current_user),
 ):
-    """Bell-badge counter. Polled every 30s by the cleaner portal."""
-    if user.id != cleaner_id:
+    """Bell-badge counter. Polled every 30s by all portals.
+    Triggers the SLA sweep (debounced to once per 5 min)."""
+    if user.id != user_id:
         raise HTTPException(status_code=403, detail="Can only view your own notifications")
+
+    try:
+        sweep_sla_notifications(db)
+    except Exception:
+        logger.exception("SLA sweep failed (non-fatal)")
+
     count = (
         db.query(models.Notification)
         .filter(
-            models.Notification.user_id == cleaner_id,
+            models.Notification.user_id == user_id,
             models.Notification.is_read == False,  # noqa: E712
         )
         .count()
@@ -3499,8 +3538,10 @@ async def unread_notification_count(
 async def mark_notification_read(
     notification_id: int,
     db: Session = Depends(get_db),
-    user: models.User = Depends(require_role("cleaner")),
+    user: models.User = Depends(get_current_user),
 ):
+    if notification_id <= 0:
+        return {"success": True, "synthetic": True}
     n = db.query(models.Notification).filter(models.Notification.id == notification_id).first()
     if not n:
         raise HTTPException(status_code=404, detail="Notification not found")
@@ -3511,17 +3552,46 @@ async def mark_notification_read(
     return {"success": True}
 
 
-@app.post("/notifications/cleaner/{cleaner_id}/mark-all-read")
+@app.post("/notifications/user/{user_id}/mark-all-read")
 async def mark_all_notifications_read(
-    cleaner_id: int,
+    user_id: int,
     db: Session = Depends(get_db),
-    user: models.User = Depends(require_role("cleaner")),
+    user: models.User = Depends(get_current_user),
 ):
-    if user.id != cleaner_id:
+    if user.id != user_id:
         raise HTTPException(status_code=403, detail="Can only mark your own notifications")
     db.query(models.Notification).filter(
-        models.Notification.user_id == cleaner_id,
+        models.Notification.user_id == user_id,
         models.Notification.is_read == False,  # noqa: E712
     ).update({"is_read": True})
     db.commit()
     return {"success": True}
+
+
+# ──────────────────────────────────────────────────────────────────
+# Back-compat shims for the old /notifications/cleaner/... paths.
+# TODO: delete after 2026-06-15 once frontend cutover is verified.
+# ──────────────────────────────────────────────────────────────────
+@app.get("/notifications/cleaner/{cleaner_id}")
+async def _legacy_list_cleaner_notifications(
+    cleaner_id: int, limit: int = 50,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    return await list_notifications(cleaner_id, limit, db, user)
+
+@app.get("/notifications/cleaner/{cleaner_id}/unread-count")
+async def _legacy_unread_cleaner_count(
+    cleaner_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    return await unread_notification_count(cleaner_id, db, user)
+
+@app.post("/notifications/cleaner/{cleaner_id}/mark-all-read")
+async def _legacy_mark_all_cleaner(
+    cleaner_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    return await mark_all_notifications_read(cleaner_id, db, user)
