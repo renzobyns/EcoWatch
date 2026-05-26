@@ -11,6 +11,7 @@ import { slaInfo, SLA_PILL_CLASSES, slaDeadlineColor, slaDeadlineLabel } from "@
 import { formatDate, formatDateTime, formatRelative } from "@/lib/date-utils";
 import { PortalShell, type PortalNavItem } from "@/components/portal/PortalShell";
 import { TrustBadge } from "@/components/TrustBadge";
+import { useUnreadNotificationCount } from "@/lib/notification-poll";
 
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
@@ -82,6 +83,7 @@ export default function BarangayPortal() {
     const [loading, setLoading] = useState(true);
     const [tableLoading, setTableLoading] = useState(false);
     const [selectedReport, setSelectedReport] = useState<any>(null);
+    const [unreadCount] = useUnreadNotificationCount(user?.id);
     const rawTab = searchParams.get('tab');
     const [activeView, setActiveView] = useState<BarangayView>(
         BARANGAY_NAV.some(n => n.key === rawTab) ? (rawTab as BarangayView) : 'dashboard'
@@ -152,6 +154,7 @@ export default function BarangayPortal() {
     const [woSearch, setWoSearch] = useState("");
     const [woKpiWindow, setWoKpiWindow] = useState<"week" | "month" | "all">("week");
     const [selectedWorkOrder, setSelectedWorkOrder] = useState<any>(null);
+    const [pendingFocusReportId, setPendingFocusReportId] = useState<number | null>(null);
     const [woActionLoading, setWoActionLoading] = useState(false);
     const [showReassignModal, setShowReassignModal] = useState(false);
     const [reassignCleaner, setReassignCleaner] = useState<number | null>(null);
@@ -425,6 +428,39 @@ export default function BarangayPortal() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeView]);
 
+    useEffect(() => {
+        const handler = (e: Event) => {
+            const ce = e as CustomEvent<{ report_id: number | null; work_order_id: number | null; kind: string }>;
+            const { report_id, kind } = ce.detail || {};
+
+            if (kind === "report_reassigned_out") {
+                toast.info("This report has been moved to another barangay.");
+                return;
+            }
+            if (kind === "sla_approaching" || kind === "sla_breached" || kind === "cleanup_needs_redo") {
+                setActiveView("workorders" as BarangayView);
+                router.replace("?tab=workorders", { scroll: false });
+                return;
+            }
+            if (report_id) {
+                setActiveView("reports" as BarangayView);
+                router.replace("?tab=reports", { scroll: false });
+                setPendingFocusReportId(report_id);
+            }
+        };
+        window.addEventListener("ecowatch:open-target", handler as EventListener);
+        return () => window.removeEventListener("ecowatch:open-target", handler as EventListener);
+    }, [router]);
+
+    useEffect(() => {
+        if (pendingFocusReportId == null) return;
+        const target = reports.find(r => r.id === pendingFocusReportId);
+        if (target) {
+            setSelectedReport(target);
+            setPendingFocusReportId(null);
+        }
+    }, [pendingFocusReportId, reports]);
+
     const fetchBrgyUsers = async () => {
         setUserLoading(true);
         try {
@@ -607,7 +643,7 @@ export default function BarangayPortal() {
                     setActiveView(k as BarangayView);
                     router.replace('?tab=' + k, { scroll: false });
                 }}
-            notificationCount={stats.pending}
+            notificationCount={unreadCount}
         >
             <div className="max-w-[1600px] mx-auto h-full flex flex-col gap-5">
 
