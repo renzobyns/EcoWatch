@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Briefcase, LayoutDashboard, Map, History, HelpCircle } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
@@ -27,12 +27,16 @@ const UNREAD_POLL_MS = 30_000;
 
 export default function CleanerPortal() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [user, setUser] = useState<any>(null);
     const [workOrders, setWorkOrders] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
     const [selectedWorkOrder, setSelectedWorkOrder] = useState<any>(null);
-    const [activeView, setActiveView] = useState<CleanerView>("dashboard");
+    const rawTab = searchParams.get('tab');
+    const [activeView, setActiveView] = useState<CleanerView>(
+        CLEANER_NAV.some(n => n.key === rawTab) ? (rawTab as CleanerView) : 'dashboard'
+    );
     const [unreadCount, setUnreadCount] = useState(0);
 
     useEffect(() => {
@@ -226,7 +230,10 @@ export default function CleanerPortal() {
             role="CLEANER"
             nav={CLEANER_NAV}
             activeKey={activeView}
-            onNavChange={(k) => setActiveView(k as CleanerView)}
+            onNavChange={(k) => {
+                setActiveView(k as CleanerView);
+                router.replace('?tab=' + k, { scroll: false });
+            }}
             notificationCount={unreadCount}
         >
             <div className="max-w-[1600px] mx-auto h-full flex flex-col gap-5">
