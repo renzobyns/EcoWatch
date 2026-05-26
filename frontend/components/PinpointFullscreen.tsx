@@ -634,7 +634,7 @@ export default function PinpointFullscreen({
             )}
 
             {/* Map Controls */}
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 z-[1000] flex flex-col gap-2">
+            <div className="absolute right-4 bottom-36 sm:bottom-auto sm:top-1/2 sm:-translate-y-1/2 z-[1000] flex flex-col gap-2">
                 <MapControlButton
                     label="Zoom in"
                     onClick={() => mapRef.current?.zoomIn()}
