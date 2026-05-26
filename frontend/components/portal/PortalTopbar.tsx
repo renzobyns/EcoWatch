@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell } from "lucide-react";
+import { useEffect, useState } from "react";
 import { ProfileDropdown } from "./ProfileDropdown";
 import { NotificationDropdown } from "./NotificationDropdown";
 
@@ -10,22 +10,27 @@ interface PortalTopbarProps {
     notificationCount?: number;
 }
 
-/**
- * The bell dispatches a "cleaner:open-wo" CustomEvent when a notification is clicked.
- * The cleaner page listens and opens its drawer for the matching work order.
- */
-function emitOpenWorkOrder(workOrderId: number | null) {
-    if (workOrderId == null) return;
+interface StoredUser { id?: number; }
+
+function emitOpenTarget(detail: { report_id: number | null; work_order_id: number | null; kind: string }) {
     if (typeof window === "undefined") return;
-    window.dispatchEvent(new CustomEvent("cleaner:open-wo", { detail: { work_order_id: workOrderId } }));
+    window.dispatchEvent(new CustomEvent("ecowatch:open-target", { detail }));
 }
 
-export function PortalTopbar({
-    role,
-    pageBadge,
-    notificationCount = 0,
-}: PortalTopbarProps) {
-    const isCleaner = role?.toUpperCase() === "CLEANER";
+export function PortalTopbar({ role, pageBadge, notificationCount = 0 }: PortalTopbarProps) {
+    const [userId, setUserId] = useState<number | null>(null);
+    useEffect(() => {
+        try {
+            const stored = localStorage.getItem("ecowatch_user");
+            if (stored) {
+                const u: StoredUser = JSON.parse(stored);
+                if (typeof u.id === "number") setUserId(u.id);
+            }
+        } catch { /* ignore */ }
+    }, []);
+
+    const listPath = userId != null ? `/notifications/user/${userId}?limit=50` : "";
+    const markAllPath = userId != null ? `/notifications/user/${userId}/mark-all-read` : "";
 
     return (
         <header className="h-16 shrink-0 flex items-center justify-between border-b border-border glass px-4 md:px-6">
@@ -42,24 +47,17 @@ export function PortalTopbar({
             </div>
 
             <div className="flex items-center gap-3 shrink-0">
-                {isCleaner ? (
+                {userId != null && (
                     <NotificationDropdown
                         unreadCount={notificationCount}
-                        onNotificationClick={(n) => emitOpenWorkOrder(n.work_order_id)}
+                        listPath={listPath}
+                        markAllPath={markAllPath}
+                        onNotificationClick={(n) => emitOpenTarget({
+                            report_id: n.report_id,
+                            work_order_id: n.work_order_id,
+                            kind: n.kind,
+                        })}
                     />
-                ) : (
-                    <button
-                        type="button"
-                        className="relative size-10 rounded-full flex items-center justify-center text-foreground/70 hover:bg-foreground/5 hover:text-foreground transition-colors"
-                        aria-label={`${notificationCount} notifications`}
-                    >
-                        <Bell className="size-5" />
-                        {notificationCount > 0 && (
-                            <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1">
-                                {notificationCount > 99 ? "99+" : notificationCount}
-                            </span>
-                        )}
-                    </button>
                 )}
                 <div className="h-6 w-px bg-border" />
                 <ProfileDropdown />
