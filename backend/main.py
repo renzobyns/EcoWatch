@@ -1728,6 +1728,88 @@ async def get_sla_breaches(db: Session = Depends(get_db)):
     return results
 
 
+@app.get("/reports/{report_id}/detail")
+async def get_report_detail(
+    report_id: int,
+    db: Session = Depends(get_db),
+    _user: models.User = Depends(require_role("cenro")),
+):
+    """Hydrated detail payload for the CENRO Report Detail Drawer.
+
+    Bundles the report, all citizen photos, all cleanup proof photos, and
+    all work orders (with assigned cleaner) in one round-trip.
+    """
+    report = (
+        db.query(models.Report)
+        .options(
+            joinedload(models.Report.reporter),
+            joinedload(models.Report.report_photos),
+            joinedload(models.Report.cleanup_photos),
+            joinedload(models.Report.work_orders).joinedload(models.WorkOrder.assigned_cleaner),
+        )
+        .filter(models.Report.id == report_id)
+        .first()
+    )
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    # Hydrate the base ReportResponse with photos[] (same shape as /track/{slug})
+    response = ReportResponse.model_validate(report)
+    response.photos = [
+        {
+            "url": p.file_path,
+            "mask_url": p.ai_mask_path,
+            "ai_confidence": p.ai_confidence,
+            "ai_verified": p.ai_verified,
+            "trust_score": getattr(p, "trust_score", None),
+            "failing_signals": json.loads(getattr(p, "trust_signals", None) or "{}").get("failing_signals", []),
+        }
+        for p in report.report_photos
+    ]
+    response.failing_signals = _get_report_failing_signals(list(report.report_photos))
+
+    # Cleanup photos (proof of resolution)
+    cleanup_photos = []
+    for cp in report.cleanup_photos:
+        wo = next((w for w in report.work_orders if w.id == cp.work_order_id), None)
+        cleaner = wo.assigned_cleaner if wo else None
+        cleanup_photos.append({
+            "id": cp.id,
+            "url": cp.file_path,
+            "ai_confidence": cp.ai_confidence,
+            "ai_verified": cp.ai_verified,
+            "uploaded_at": cp.uploaded_at,
+            "work_order_id": cp.work_order_id,
+            "cleaner": (
+                {"id": cleaner.id, "full_name": cleaner.full_name, "email": cleaner.email}
+                if cleaner else None
+            ),
+        })
+
+    # Work orders (newest first)
+    work_orders = [
+        serialize_work_order(wo)
+        for wo in sorted(report.work_orders, key=lambda w: w.created_at, reverse=True)
+    ]
+
+    # Reporter info (None for anonymous reports)
+    reporter = None
+    if report.reporter:
+        reporter = {
+            "id": report.reporter.id,
+            "full_name": report.reporter.full_name,
+            "email": report.reporter.email,
+            "phone_number": report.reporter.phone_number,
+        }
+
+    return {
+        "report": response.model_dump(mode="json"),
+        "reporter": reporter,
+        "cleanup_photos": cleanup_photos,
+        "work_orders": work_orders,
+    }
+
+
 @app.get("/reports/export")
 async def export_reports(
     barangay: Optional[str] = None,
