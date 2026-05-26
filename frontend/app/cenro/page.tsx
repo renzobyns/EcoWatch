@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import {
@@ -142,13 +142,16 @@ interface BarangayUser {
 
 export default function CenroDashboard() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [user, setUser] = useState<any>(null);
     const [reports, setReports] = useState<any[]>([]);
     const [heatmaps, setHeatmaps] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     // UI State
-    const [activeTab, setActiveTab] = useState<TabKey>('command_center');
+    const [activeTab, setActiveTab] = useState<TabKey>(
+        (searchParams.get('tab') as TabKey) || 'command_center'
+    );
     const [selectedReport, setSelectedReport] = useState<any>(null);
 
     // Action State (Oversight modal)
@@ -903,7 +906,10 @@ export default function CenroDashboard() {
             role="CENRO"
             nav={CENRO_NAV}
             activeKey={activeTab}
-            onNavChange={(k) => setActiveTab(k as TabKey)}
+            onNavChange={(k) => {
+                setActiveTab(k as TabKey);
+                router.replace('?tab=' + k, { scroll: false });
+            }}
             notificationCount={slaBreaches.length}
         >
             <div className="max-w-[1600px] mx-auto h-full flex flex-col">
