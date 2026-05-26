@@ -2,6 +2,7 @@
 
 /* Light mode (default) — soft sage palette, not pure white */
 :root {
+  color-scheme: light;
   --background: #e9f0eb;
   --foreground: #052e16;
   --card: #f5faf6;
@@ -22,6 +23,7 @@
 
 /* Dark mode */
 .dark {
+  color-scheme: dark;
   --background: #0a0f0a;
   --foreground: #ecfdf5;
   --card: #0f1410;
@@ -167,6 +169,17 @@ body {
   outline: 2px solid #10b981;
   outline-offset: 2px;
   border-radius: 6px;
+}
+
+/* Fix native dropdown option visibility in both themes */
+select option {
+  background-color: #f5faf6;
+  color: #052e16;
+}
+
+.dark select option {
+  background-color: #111a12;
+  color: #ecfdf5;
 }
 
 /* Respect reduced motion preference */
