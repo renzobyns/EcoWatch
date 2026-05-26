@@ -13,7 +13,7 @@ export type BarangayOverviewRow = {
     admin: { id: number; full_name: string; email: string; phone_number: string | null; last_login_at: string | null } | null;
     total_reports: number;
     pending: number;
-    deployed: number;
+    active: number;
     resolved: number;
     rejected: number;
     failed_cleanup: number;

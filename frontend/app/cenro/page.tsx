@@ -22,7 +22,7 @@ import { TrustBadge } from "@/components/TrustBadge";
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
-const STATUS_OPTIONS = ["", "pending", "verified", "deployed", "resolved", "failed_cleanup", "rejected"];
+const STATUS_OPTIONS = ["", "pending", "verified", "assigned", "in_progress", "resolved", "failed_cleanup", "rejected"];
 
 const ACTION_FILTER_OPTIONS = ["all", "deploy", "resolve", "reassign", "force_close", "create_user", "disable_user"];
 
@@ -51,7 +51,7 @@ function useDebounce<T>(value: T, delayMs: number): T {
 }
 
 function slaInfo(createdAt: string, status: string): { days: number; color: "green" | "yellow" | "red" } | null {
-    const active = ["pending", "verified", "deployed", "failed_cleanup"].includes(status);
+    const active = ["pending", "verified", "assigned", "in_progress", "failed_cleanup"].includes(status);
     if (!active) return null;
     const days = Math.floor((Date.now() - new Date(createdAt).getTime()) / 86400000);
     const color: "green" | "yellow" | "red" = days <= 2 ? "green" : days <= 4 ? "yellow" : "red";
@@ -68,13 +68,13 @@ function buildAnalyticsCsv(overview: Record<string, any>, ranking: any[]): strin
     Object.entries(overview).forEach(([k, v]) => lines.push(`${k},${v}`));
     lines.push("");
     lines.push("Barangay Ranking");
-    lines.push("Barangay,Total Reports,Resolved,Deployed,Pending,Resolution Rate");
+    lines.push("Barangay,Total Reports,Resolved,Active,Pending,Resolution Rate");
     ranking.forEach((r) => {
         lines.push([
             r.barangay,
             r.total_reports,
             r.resolved,
-            r.deployed,
+            r.active,
             r.pending,
             r.resolution_rate,
         ].join(","));
@@ -825,7 +825,7 @@ export default function CenroDashboard() {
             const overview = {
                 total: stats.total,
                 pending,
-                deployed: stats.deployed,
+                active: stats.active,
                 failed_cleanup: stats.failed,
                 resolved: stats.resolved,
                 success_rate: successRate,
@@ -834,7 +834,7 @@ export default function CenroDashboard() {
                 barangay: b.name,
                 total_reports: b.total,
                 resolved: b.resolved,
-                deployed: reports.filter((r) => r.barangay === b.name && r.status === 'deployed').length,
+                active: reports.filter((r) => r.barangay === b.name && (r.status === 'assigned' || r.status === 'in_progress')).length,
                 pending: reports.filter((r) => r.barangay === b.name && (r.status === 'pending' || r.status === 'verified')).length,
                 resolution_rate: b.rate.toFixed(1),
             }));
@@ -871,10 +871,10 @@ export default function CenroDashboard() {
     const stats = {
         total: reports.length,
         resolved: reports.filter(r => r.status === 'resolved').length,
-        deployed: reports.filter(r => r.status === 'deployed').length,
+        active: reports.filter(r => r.status === 'assigned' || r.status === 'in_progress').length,
         failed: reports.filter(r => r.status === 'failed_cleanup').length,
     };
-    const pending = stats.total - stats.resolved - stats.deployed - stats.failed;
+    const pending = stats.total - stats.resolved - stats.active - stats.failed;
     const successRate = stats.total > 0 ? Number(((stats.resolved / stats.total) * 100).toFixed(1)) : 0;
 
     const barangayStats = BARANGAYS.map(b => {
@@ -889,7 +889,7 @@ export default function CenroDashboard() {
 
     const pieData = [
         { name: 'Pending', value: pending, color: '#ef4444' },
-        { name: 'Deployed', value: stats.deployed, color: '#eab308' },
+        { name: 'Active', value: stats.active, color: '#eab308' },
         { name: 'Failed', value: stats.failed, color: '#f97316' },
         { name: 'Resolved', value: stats.resolved, color: '#22c55e' }
     ].filter(d => d.value > 0);
@@ -996,8 +996,8 @@ export default function CenroDashboard() {
                                     <div className="text-3xl font-bold text-red-400 tracking-tight">{pending}</div>
                                 </div>
                                 <div className="glass-pro p-5 rounded-2xl bento-card">
-                                    <div className="text-[11px] text-foreground/50 uppercase tracking-widest font-semibold mb-1.5">Teams Deployed</div>
-                                    <div className="text-3xl font-bold text-yellow-400 tracking-tight">{stats.deployed}</div>
+                                    <div className="text-[11px] text-foreground/50 uppercase tracking-widest font-semibold mb-1.5">Active Cleanups</div>
+                                    <div className="text-3xl font-bold text-yellow-400 tracking-tight">{stats.active}</div>
                                 </div>
                                 <div className="glass-pro p-5 rounded-2xl bento-card">
                                     <div className="text-[11px] text-foreground/50 uppercase tracking-widest font-semibold mb-1.5">Success Rate</div>
@@ -1161,7 +1161,15 @@ export default function CenroDashboard() {
                                                 <div className="absolute w-2 h-2 rounded-full bg-emerald-500 -left-[4px] top-1.5 shadow-[0_0_10px_rgba(16,185,129,0.8)]"></div>
                                                 <div className="text-[12px] font-semibold text-foreground mb-0.5 tracking-tight">Report {r.tracking_id}</div>
                                                 <div className="text-[10px] text-foreground/40 mb-2 font-medium uppercase tracking-wider">{r.barangay} • {new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                                                <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-widest ${r.status === 'resolved' ? 'bg-green-500/20 text-green-400' : r.status === 'deployed' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'}`}>{r.status}</span>
+                                                <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-widest ${
+                                                    r.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
+                                                    r.status === 'assigned' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                    r.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
+                                                    r.status === 'verified' ? 'bg-orange-500/20 text-orange-400' :
+                                                    r.status === 'failed_cleanup' ? 'bg-red-900/30 text-red-400' :
+                                                    r.status === 'rejected' ? 'bg-foreground/5 text-foreground/40' :
+                                                    'bg-red-500/20 text-red-400'
+                                                }`}>{r.status}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -1326,8 +1334,11 @@ export default function CenroDashboard() {
                                                     <td className="p-4">
                                                         <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
                                                             report.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
-                                                            report.status === 'deployed' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                            report.status === 'failed_cleanup' ? 'bg-red-500/20 text-red-400' :
+                                                            report.status === 'assigned' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                            report.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
+                                                            report.status === 'verified' ? 'bg-orange-500/20 text-orange-400' :
+                                                            report.status === 'pending' ? 'bg-red-500/20 text-red-400' :
+                                                            report.status === 'failed_cleanup' ? 'bg-red-900/30 text-red-400' :
                                                             report.status === 'rejected' ? 'bg-foreground/5 text-foreground/40' :
                                                             'bg-foreground/10 text-foreground'
                                                         }`}>
@@ -1467,7 +1478,12 @@ export default function CenroDashboard() {
                                                     <span className="font-mono text-xs font-bold text-emerald-300">{report.tracking_id}</span>
                                                     <span className={`px-2 py-1 rounded text-[10px] font-bold ${
                                                         report.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
-                                                        report.status === 'deployed' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                        report.status === 'assigned' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                        report.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
+                                                        report.status === 'verified' ? 'bg-orange-500/20 text-orange-400' :
+                                                        report.status === 'pending' ? 'bg-red-500/20 text-red-400' :
+                                                        report.status === 'failed_cleanup' ? 'bg-red-900/30 text-red-400' :
+                                                        report.status === 'rejected' ? 'bg-foreground/5 text-foreground/40' :
                                                         'bg-foreground/10 text-foreground'
                                                     }`}>
                                                         {report.status}

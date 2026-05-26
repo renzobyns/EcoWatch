@@ -38,12 +38,13 @@ interface Props {
 // ─── Pill lookup maps ─────────────────────────────────────────────────────────
 
 const REPORT_PILL: Record<string, string> = {
-    pending: "bg-yellow-500/15 border-yellow-500/30 text-yellow-300",
-    verified: "bg-blue-500/15 border-blue-500/30 text-blue-300",
-    deployed: "bg-orange-500/15 border-orange-500/30 text-orange-300",
+    pending: "bg-red-500/15 border-red-500/30 text-red-300",
+    verified: "bg-orange-500/15 border-orange-500/30 text-orange-300",
+    assigned: "bg-yellow-500/15 border-yellow-500/30 text-yellow-300",
+    in_progress: "bg-blue-500/15 border-blue-500/30 text-blue-300",
     resolved: "bg-emerald-500/15 border-emerald-500/30 text-emerald-300",
     rejected: "bg-foreground/10 border-border text-foreground/40",
-    failed_cleanup: "bg-red-500/15 border-red-500/30 text-red-300",
+    failed_cleanup: "bg-red-900/30 border-red-900/40 text-red-400",
 };
 
 const WO_STATUS_PILL: Record<string, string> = {
@@ -438,7 +439,7 @@ function OverviewTab({ barangay }: { barangay: BarangayOverviewRow }) {
                     {[
                         { label: "Total",    value: barangay.total_reports,    color: "text-foreground" },
                         { label: "Pending",  value: barangay.pending,          color: "text-yellow-400" },
-                        { label: "Deployed", value: barangay.deployed,         color: "text-orange-400" },
+                        { label: "Active",   value: barangay.active,           color: "text-yellow-400" },
                         { label: "Resolved", value: barangay.resolved,         color: "text-emerald-400" },
                         { label: "Rejected", value: barangay.rejected,         color: "text-foreground/50" },
                         { label: "Failed",   value: barangay.failed_cleanup,   color: "text-red-400" },
