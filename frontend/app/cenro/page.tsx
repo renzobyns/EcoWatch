@@ -149,8 +149,9 @@ export default function CenroDashboard() {
     const [loading, setLoading] = useState(true);
 
     // UI State
+    const rawTab = searchParams.get('tab');
     const [activeTab, setActiveTab] = useState<TabKey>(
-        (searchParams.get('tab') as TabKey) || 'command_center'
+        CENRO_NAV.some(n => n.key === rawTab) ? (rawTab as TabKey) : 'command_center'
     );
     const [selectedReport, setSelectedReport] = useState<any>(null);
 
