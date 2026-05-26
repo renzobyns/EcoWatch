@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import QRCodeModal from "@/components/QRCodeModal";
+import { formatRelative } from "@/lib/date-utils";
 
 // Dynamically import MapComponent to prevent SSR issues with Leaflet
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { 
@@ -159,7 +160,7 @@ export default function LandingPage() {
                                             <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider">{report.status}</span>
                                         </div>
                                         <span className="text-[10px] text-foreground/40 font-medium">
-                                            {new Date(report.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                            {formatRelative(report.created_at)}
                                         </span>
                                     </div>
                                     <h4 className="text-sm font-semibold text-foreground mb-1 group-hover:text-primary transition-colors">{report.barangay}</h4>

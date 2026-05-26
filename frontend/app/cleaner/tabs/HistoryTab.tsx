@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { formatDateTime } from "@/lib/date-utils";
 
 interface HistoryTabProps {
     user: any;
@@ -25,10 +26,14 @@ function classifyOutcome(wo: any): "verified" | "needs_redo" | "failed" {
     return "needs_redo";
 }
 
+function parseUTCMs(iso: string): number {
+    return new Date(iso.endsWith("Z") || iso.includes("+") || iso.includes("-", 10) ? iso : iso + "Z").getTime();
+}
+
 function formatDuration(startIso?: string | null, endIso?: string | null): string {
     if (!startIso || !endIso) return "—";
-    const start = new Date(startIso).getTime();
-    const end = new Date(endIso).getTime();
+    const start = parseUTCMs(startIso);
+    const end = parseUTCMs(endIso);
     const diffMs = Math.max(0, end - start);
     const h = Math.floor(diffMs / 3600000);
     const m = Math.floor((diffMs % 3600000) / 60000);
@@ -52,8 +57,8 @@ export function HistoryTab({ user, workOrders, onOpenWO }: HistoryTabProps) {
     const filtered = useMemo(() => {
         const list = filter === "all" ? historyList : historyList.filter((wo) => classifyOutcome(wo) === filter);
         return [...list].sort((a, b) => {
-            const da = a.completed_at ? new Date(a.completed_at).getTime() : 0;
-            const db = b.completed_at ? new Date(b.completed_at).getTime() : 0;
+            const da = a.completed_at ? parseUTCMs(a.completed_at) : 0;
+            const db = b.completed_at ? parseUTCMs(b.completed_at) : 0;
             return db - da;
         });
     }, [historyList, filter]);
@@ -132,7 +137,7 @@ export function HistoryTab({ user, workOrders, onOpenWO }: HistoryTabProps) {
                                                 </span>
                                             </td>
                                             <td className="p-4 text-sm text-foreground/80">
-                                                {wo.completed_at ? new Date(wo.completed_at).toLocaleString() : "—"}
+                                                {wo.completed_at ? formatDateTime(wo.completed_at) : "—"}
                                             </td>
                                             <td className="p-4 text-sm text-foreground/80">
                                                 {formatDuration(wo.started_at, wo.completed_at)}

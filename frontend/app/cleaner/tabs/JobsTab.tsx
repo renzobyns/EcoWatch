@@ -4,6 +4,10 @@ import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { slaDeadlineLabel, slaDeadlineColor, SLA_PILL_CLASSES } from "@/lib/sla";
 
+function parseUTCMs(iso: string): number {
+    return new Date(iso.endsWith("Z") || iso.includes("+") || iso.includes("-", 10) ? iso : iso + "Z").getTime();
+}
+
 interface JobsTabProps {
     user: any;
     workOrders: any[];
@@ -46,14 +50,14 @@ export function JobsTab({ user, workOrders, onOpenWO, loading }: JobsTabProps) {
         const sorted = [...list];
         if (sortBy === "sla_deadline") {
             sorted.sort((a, b) => {
-                const da = a.sla_deadline ? new Date(a.sla_deadline).getTime() : Infinity;
-                const db = b.sla_deadline ? new Date(b.sla_deadline).getTime() : Infinity;
+                const da = a.sla_deadline ? parseUTCMs(a.sla_deadline) : Infinity;
+                const db = b.sla_deadline ? parseUTCMs(b.sla_deadline) : Infinity;
                 return da - db;
             });
         } else if (sortBy === "priority") {
             sorted.sort((a, b) => (PRIORITY_RANK[a.priority] ?? 99) - (PRIORITY_RANK[b.priority] ?? 99));
         } else {
-            sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            sorted.sort((a, b) => parseUTCMs(b.created_at) - parseUTCMs(a.created_at));
         }
         return sorted;
     }, [openJobs, filter, search, sortBy]);

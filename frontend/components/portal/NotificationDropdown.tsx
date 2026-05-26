@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Bell, Briefcase, AlertTriangle, CheckCircle2, ArrowRightLeft, Shield, Sparkles } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { toast } from "sonner";
+import { formatRelative } from "@/lib/date-utils";
 
 interface Notification {
     id: number;
@@ -29,17 +30,6 @@ const ICON_MAP: Record<string, { icon: typeof Bell; color: string }> = {
     verified: { icon: CheckCircle2, color: "text-green-400" },
     force_resolved: { icon: Shield, color: "text-purple-400" },
 };
-
-function formatRelative(iso: string): string {
-    const then = new Date(iso).getTime();
-    const now = Date.now();
-    const deltaSec = Math.max(0, Math.floor((now - then) / 1000));
-    if (deltaSec < 60) return "Just now";
-    if (deltaSec < 3600) return `${Math.floor(deltaSec / 60)}m ago`;
-    if (deltaSec < 86400) return `${Math.floor(deltaSec / 3600)}h ago`;
-    if (deltaSec < 86400 * 7) return `${Math.floor(deltaSec / 86400)}d ago`;
-    return new Date(iso).toLocaleDateString();
-}
 
 interface NotificationDropdownProps {
     /** Unread count from the parent (so badge can update via poll without re-fetching list). */
