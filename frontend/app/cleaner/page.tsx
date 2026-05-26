@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Briefcase, LayoutDashboard, Map, History, HelpCircle } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
+import { useUnreadNotificationCount } from "@/lib/notification-poll";
 import { PortalShell, type PortalNavItem } from "@/components/portal/PortalShell";
 import { CleanerJobDrawer } from "@/components/portal/CleanerJobDrawer";
 import { DashboardTab } from "./tabs/DashboardTab";
@@ -23,8 +24,6 @@ const CLEANER_NAV: PortalNavItem[] = [
     { key: "help", label: "Help", icon: HelpCircle },
 ];
 
-const UNREAD_POLL_MS = 30_000;
-
 export default function CleanerPortal() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -37,8 +36,6 @@ export default function CleanerPortal() {
     const [activeView, setActiveView] = useState<CleanerView>(
         CLEANER_NAV.some(n => n.key === rawTab) ? (rawTab as CleanerView) : 'dashboard'
     );
-    const [unreadCount, setUnreadCount] = useState(0);
-
     useEffect(() => {
         // Auth check
         const storedUser = localStorage.getItem("ecowatch_user");
@@ -62,27 +59,7 @@ export default function CleanerPortal() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.id]);
 
-    // Poll unread count every 30s
-    useEffect(() => {
-        if (!user?.id) return;
-        let cancelled = false;
-        const tick = async () => {
-            try {
-                const data = await api(`/notifications/cleaner/${user.id}/unread-count`);
-                if (!cancelled && typeof data?.unread_count === "number") {
-                    setUnreadCount(data.unread_count);
-                }
-            } catch {
-                /* silent — background poll */
-            }
-        };
-        tick();
-        const id = setInterval(tick, UNREAD_POLL_MS);
-        return () => {
-            cancelled = true;
-            clearInterval(id);
-        };
-    }, [user?.id]);
+    const [unreadCount, setUnreadCount] = useUnreadNotificationCount(user?.id);
 
     // Listen for notification dropdown click → open the related WO drawer
     useEffect(() => {
@@ -106,8 +83,8 @@ export default function CleanerPortal() {
             // Also reduce unread count optimistically (the click already marks-read in dropdown)
             setUnreadCount((c) => Math.max(0, c - 1));
         };
-        window.addEventListener("cleaner:open-wo", handler as EventListener);
-        return () => window.removeEventListener("cleaner:open-wo", handler as EventListener);
+        window.addEventListener("ecowatch:open-target", handler as EventListener);
+        return () => window.removeEventListener("ecowatch:open-target", handler as EventListener);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [workOrders]);
 
