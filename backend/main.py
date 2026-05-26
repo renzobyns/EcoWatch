@@ -2761,7 +2761,7 @@ def _build_barangay_overview_data(db: Session) -> dict:
             "total_reports": total,
             "pending": pending,
             "verified": verified,
-            "deployed": deployed,
+            "active": deployed,
             "resolved": resolved,
             "rejected": rejected,
             "failed_cleanup": failed_cleanup,
@@ -2821,7 +2821,7 @@ async def export_barangay_overview_csv(
     writer = csv.writer(output)
     writer.writerow([
         "barangay", "admin_name", "admin_email",
-        "total_reports", "pending", "deployed", "resolved",
+        "total_reports", "pending", "active", "resolved",
         "resolution_rate", "active_breaches", "compliance_rate",
         "avg_resolution_days", "last_report_at", "status",
     ])
@@ -2833,7 +2833,7 @@ async def export_barangay_overview_csv(
             _csv_safe(admin["email"]) if admin else "",
             row["total_reports"],
             row["pending"],
-            row["deployed"],
+            row["active"],
             row["resolved"],
             row["resolution_rate"],
             row["active_breaches"],
@@ -3241,10 +3241,10 @@ async def export_analytics_insights(
     writer.writerow([])
 
     writer.writerow(["Barangay Leaderboard"])
-    writer.writerow(["Barangay", "Total", "Resolved", "Deployed", "Pending", "Resolution Rate (%)", "Avg Resolve Days", "Prior Total", "Trend"])
+    writer.writerow(["Barangay", "Total", "Resolved", "Active", "Pending", "Resolution Rate (%)", "Avg Resolve Days", "Prior Total", "Trend"])
     for row in data["barangay_leaderboard"]:
         writer.writerow([
-            row["barangay"], row["total"], row["resolved"], row["deployed"], row["pending"],
+            row["barangay"], row["total"], row["resolved"], row["active"], row["pending"],
             row["resolution_rate"], row["avg_resolve_days"], row["prior_total"], row["trend"],
         ])
     writer.writerow([])

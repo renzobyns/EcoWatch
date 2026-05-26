@@ -47,7 +47,7 @@ def get_heatmap_clusters(reports, eps=0.001, min_samples=2):
 # Insights aggregation - powers /analytics/insights
 # ---------------------------------------------------------
 
-_RESOLUTION_DENOM_STATUSES = {"resolved", "verified", "deployed", "failed_cleanup"}
+_RESOLUTION_DENOM_STATUSES = {"resolved", "verified", "assigned", "in_progress", "failed_cleanup"}
 _AI_REJECTED_THRESHOLD = 0.5
 
 
@@ -151,7 +151,7 @@ def _build_trend(reports, start, end, granularity):
 
 
 def _build_barangay_leaderboard(reports, start, end, prior_start):
-    current = defaultdict(lambda: {"total": 0, "resolved": 0, "deployed": 0, "pending": 0, "resolve_secs": 0.0, "resolve_n": 0})
+    current = defaultdict(lambda: {"total": 0, "resolved": 0, "active": 0, "pending": 0, "resolve_secs": 0.0, "resolve_n": 0})
     prior = defaultdict(int)
 
     for r in reports:
@@ -165,8 +165,8 @@ def _build_barangay_leaderboard(reports, start, end, prior_start):
                 if r.resolved_at:
                     c["resolve_secs"] += (r.resolved_at - r.created_at).total_seconds()
                     c["resolve_n"] += 1
-            elif r.status == "deployed":
-                c["deployed"] += 1
+            elif r.status in ("assigned", "in_progress"):
+                c["active"] += 1
             elif r.status in ("pending", "verified"):
                 c["pending"] += 1
         elif prior_start <= r.created_at < start:
@@ -174,7 +174,7 @@ def _build_barangay_leaderboard(reports, start, end, prior_start):
 
     rows = []
     for name, c in current.items():
-        denom = c["resolved"] + c["deployed"]
+        denom = c["resolved"] + c["active"]
         rate = round(c["resolved"] / denom * 100, 1) if denom > 0 else 0.0
         avg_days = round(c["resolve_secs"] / c["resolve_n"] / 86400, 2) if c["resolve_n"] > 0 else 0.0
         prior_n = prior[name]
@@ -190,7 +190,7 @@ def _build_barangay_leaderboard(reports, start, end, prior_start):
             "barangay": name,
             "total": c["total"],
             "resolved": c["resolved"],
-            "deployed": c["deployed"],
+            "active": c["active"],
             "pending": c["pending"],
             "resolution_rate": rate,
             "avg_resolve_days": avg_days,
@@ -203,21 +203,21 @@ def _build_barangay_leaderboard(reports, start, end, prior_start):
 
 
 def _build_funnel(reports, start, end):
-    counts = {"pending": 0, "verified": 0, "deployed": 0, "resolved": 0, "rejected": 0, "failed_cleanup": 0}
+    counts = {"pending": 0, "verified": 0, "assigned": 0, "in_progress": 0, "resolved": 0, "rejected": 0, "failed_cleanup": 0}
     for r in reports:
         if not r.created_at or not (start <= r.created_at < end):
             continue
         if r.status in counts:
             counts[r.status] += 1
     submitted = sum(counts.values())
-    verified_or_beyond = counts["verified"] + counts["deployed"] + counts["resolved"] + counts["failed_cleanup"]
-    deployed_or_beyond = counts["deployed"] + counts["resolved"] + counts["failed_cleanup"]
+    verified_or_beyond = counts["verified"] + counts["assigned"] + counts["in_progress"] + counts["resolved"] + counts["failed_cleanup"]
+    assigned_or_beyond = counts["assigned"] + counts["in_progress"] + counts["resolved"] + counts["failed_cleanup"]
     resolved_total = counts["resolved"]
     return {
         "stages": [
             {"key": "submitted", "label": "Submitted", "count": submitted},
             {"key": "verified", "label": "AI Verified", "count": verified_or_beyond},
-            {"key": "deployed", "label": "Team Deployed", "count": deployed_or_beyond},
+            {"key": "assigned", "label": "Team Assigned", "count": assigned_or_beyond},
             {"key": "resolved", "label": "Resolved", "count": resolved_total},
         ],
         "branches": [
