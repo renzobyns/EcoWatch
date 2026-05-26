@@ -3,6 +3,8 @@
 This document explains the **Google Colab notebook** used to train the garbage-detection model that powers EcoWatch's AI verification. The notebook produces the file `mask_rcnn_garbage.h5`, which the backend loads in [backend/ai_verifier.py](backend/ai_verifier.py).
 
 > **Note:** The notebook itself is not checked into this repo — it lives in Google Colab. This document is the canonical reference for what each cell does and why.
+>
+> **Colab notebook link:** https://colab.research.google.com/drive/1teQ_hFCvchK17bWkE-NbdFfY_h_aExQ-?usp=sharing
 
 ---
 
@@ -21,6 +23,7 @@ This document explains the **Google Colab notebook** used to train the garbage-d
    - [Cell 6 — Mount Google Drive](#cell-6--mount-google-drive)
    - [Cell 7 — Copy dataset to Colab local storage](#cell-7--copy-dataset-to-colab-local-storage)
    - [Cell 8 — Define training config and dataset class](#cell-8--define-training-config-and-dataset-class)
+   - [Cell 8.5 — Patch minimize_mask for newer skimage](#cell-85--patch-minimize_mask-for-newer-skimage)
    - [Cell 9 — Load data, configure model, run training](#cell-9--load-data-configure-model-run-training)
    - [Cell 10 — Save the trained weights to Google Drive](#cell-10--save-the-trained-weights-to-google-drive)
    - [Cell 11 — Run inference and visualize detections](#cell-11--run-inference-and-visualize-detections)
@@ -442,9 +445,15 @@ print(f"✅ Dataset copied! Images: {len(os.listdir('/content/maskrcnn/garbage/d
 ### Cell 8 — Define training config and dataset class
 
 ```python
+import os, json
+import numpy as np
+import skimage.draw
+import mrcnn.config, mrcnn.model, mrcnn.utils
+os.environ["TF_USE_LEGACY_KERAS"] = "1"
+
 class GarbageConfig(mrcnn.config.Config):
     NAME = "garbage"
-    NUM_CLASSES = 1 + 1
+    NUM_CLASSES = 1 + 1  # background + garbage
     GPU_COUNT = 1
     IMAGES_PER_GPU = 1
     STEPS_PER_EPOCH = 10
@@ -452,11 +461,42 @@ class GarbageConfig(mrcnn.config.Config):
     LEARNING_RATE = 0.001
     IMAGE_MIN_DIM = 512
     IMAGE_MAX_DIM = 512
+    USE_MINI_MASK = True   # required for non-square images (e.g. 640×384)
 
 class GarbageDataset(mrcnn.utils.Dataset):
-    def load_dataset(self, dataset_dir, annotations_file): ...
-    def load_mask(self, image_id): ...
-    def image_reference(self, image_id): ...
+    def load_dataset(self, dataset_dir, annotations_file):
+        self.add_class("garbage", 1, "garbage")
+        with open(annotations_file, 'r') as f:
+            coco = json.load(f)
+        self.img_anns = {}
+        for ann in coco['annotations']:
+            img_id = ann['image_id']
+            if img_id not in self.img_anns:
+                self.img_anns[img_id] = []
+            self.img_anns[img_id].append(ann)
+        for img_info in coco['images']:
+            image_path = os.path.join(dataset_dir, img_info['file_name'])
+            if os.path.exists(image_path):
+                self.add_image("garbage", image_id=img_info['id'],
+                               path=image_path,
+                               width=img_info['width'], height=img_info['height'])
+
+    def load_mask(self, image_id):
+        info = self.image_info[image_id]
+        anns = self.img_anns.get(info['id'], [])
+        masks = np.zeros([info['height'], info['width'], len(anns)], dtype='uint8')
+        for i, ann in enumerate(anns):
+            for seg in ann['segmentation']:
+                poly = np.array(seg).reshape(-1, 2)
+                rr, cc = skimage.draw.polygon(poly[:, 1], poly[:, 0],
+                                              (info['height'], info['width']))
+                masks[rr, cc, i] = 1
+        return masks, np.ones(len(anns), dtype=np.int32)  # all class 1 = garbage
+
+    def image_reference(self, image_id):
+        return self.image_info[image_id]['path']
+
+print("✅ Config & Dataset class defined!")
 ```
 
 **Purpose:** Defines the two core building blocks of training — how the model should be configured, and how to read your specific dataset. **Nothing runs yet**; these are just class definitions ready to be used in Cell 9.
@@ -465,20 +505,19 @@ class GarbageDataset(mrcnn.utils.Dataset):
 
 #### `GarbageConfig` — Model hyperparameters
 
-Each setting controls a different aspect of the model architecture or training behavior.
-
 | Setting | Value | What it means |
 |---|---|---|
 | `NAME = "garbage"` | `"garbage"` | Internal identifier. Used for naming log folders (`logs/garbage20241201T1234/`) and saved weight files (`mask_rcnn_garbage_0015.h5`). |
 | `NUM_CLASSES = 1 + 1` | `2` | Background (always class 0) + garbage (class 1). The `1 + 1` formula makes it explicit: 1 real class + 1 background class. |
 | `GPU_COUNT = 1` | `1` | Colab provides exactly 1 GPU. |
-| `IMAGES_PER_GPU = 1` | `1` | Batch size per GPU. Higher batch sizes train faster but use more GPU memory. 1 is safe for Colab's ~15 GB T4 GPU at 512×512 image size. |
-| `STEPS_PER_EPOCH = 10` | `10` | How many training batches per epoch. With 10 steps × 1 image/step = 10 images per epoch. **For a proper run, set this to `len(dataset) / IMAGES_PER_GPU`** — the current value is a quick-test setting. |
-| `DETECTION_MIN_CONFIDENCE = 0.7` | `0.7` | During training-time validation, only count detections above 70% confidence. Higher = stricter validation. |
-| `LEARNING_RATE = 0.001` | `0.001` | How much to adjust weights at each step. Standard starting value for fine-tuning. Too high = the model "forgets" what COCO taught it. Too low = it never learns garbage. |
-| `IMAGE_MIN_DIM` / `IMAGE_MAX_DIM` | `512` / `512` | All images are resized to fit within 512×512 pixels before going into the network. Smaller = faster training but loses detail. |
+| `IMAGES_PER_GPU = 1` | `1` | Batch size per GPU. 1 is safe for Colab's ~15 GB T4 GPU at 512×512. |
+| `STEPS_PER_EPOCH = 10` | `10` | How many training batches per epoch. **For a proper run, set this to `len(dataset) / IMAGES_PER_GPU`** — the current value is a quick-test setting. |
+| `DETECTION_MIN_CONFIDENCE = 0.7` | `0.7` | During training-time validation, only count detections above 70% confidence. |
+| `LEARNING_RATE = 0.001` | `0.001` | Standard starting value for fine-tuning. |
+| `IMAGE_MIN_DIM` / `IMAGE_MAX_DIM` | `512` / `512` | All images are resized to fit within 512×512 pixels. |
+| `USE_MINI_MASK = True` | `True` | **Added in Session 2.** Uses 56×56 mini masks instead of full-size masks. Required because the new dataset images are 640×384 (non-square) — the full-size mask resize path in the TF2 fork has a bug with non-square images. This is also the Mask R-CNN default and is more memory-efficient. |
 
-> **Inference uses the same config** — see `InferenceConfig` in [backend/ai_verifier.py:57-64](backend/ai_verifier.py#L57). The only difference is `DETECTION_MIN_CONFIDENCE = 0.5` for inference (more lenient at runtime).
+> **Inference uses the same config** — see `InferenceConfig` in [backend/ai_verifier.py:57-64](backend/ai_verifier.py#L57). The only difference is `DETECTION_MIN_CONFIDENCE = 0.5` for inference (more lenient at runtime). `USE_MINI_MASK` is a training-only concern and does not need to be set in `InferenceConfig`.
 
 ---
 
@@ -501,6 +540,40 @@ Mask R-CNN doesn't know about your specific dataset format. You teach it by subc
 **`image_reference(image_id)`**
 - Returns the file path for an image
 - Used only in debug output and error messages
+
+---
+
+### Cell 8.5 — Patch minimize_mask for newer skimage
+
+```python
+import mrcnn.utils as _mrcnn_utils
+import numpy as np
+
+def _fixed_minimize_mask(bbox, mask, mini_shape):
+    mini_mask = np.zeros(mini_shape + (mask.shape[-1],), dtype=bool)
+    for i in range(mask.shape[-1]):
+        m = mask[:, :, i].astype(np.float32)  # cast to float before resize
+        y1, x1, y2, x2 = bbox[i][:4]
+        m = m[y1:y2, x1:x2]
+        if m.size == 0:
+            raise Exception("Invalid bounding box with area of zero")
+        m = _mrcnn_utils.resize(m, mini_shape)
+        mini_mask[:, :, i] = np.around(m).astype(bool)
+    return mini_mask
+
+_mrcnn_utils.minimize_mask = _fixed_minimize_mask
+print("✅ minimize_mask patched for newer skimage")
+```
+
+**Purpose:** Monkey-patches the `minimize_mask` function in the Mask R-CNN library to fix a compatibility issue with newer scikit-image (0.25+, Python 3.12).
+
+**The problem:** The original `minimize_mask` casts masks to `bool` then passes them to `skimage.transform.resize` with bilinear interpolation (`order=1`). Newer scikit-image raises `ValueError: Input image dtype is bool. Interpolation is not defined with bool data type` — boolean arrays can't be bilinearly interpolated.
+
+**The fix:** Cast to `float32` before resizing, then cast back to `bool` after. Functionally identical, just compatible with the newer library.
+
+**Must run this cell every time before Cell 9** — it patches the in-memory module. If the Colab runtime is restarted, re-run this cell.
+
+> **Why not fix the source file?** We could `sed` the `utils.py` file, but monkey-patching in a cell is simpler, doesn't require reloading the module, and is transparent in the notebook.
 
 ---
 
@@ -552,14 +625,27 @@ model.train(dataset_train, dataset_val,
 | `config.display()` | Prints a full table of all config values (including inherited defaults like RPN anchor sizes, image dimensions, etc.). Useful for confirming settings before a long training run. |
 | `MaskRCNN(mode="training", ...)` | Creates the model in training mode (includes loss computation and gradient layers that aren't used at inference). Checkpoints and TensorBoard logs go to `./logs/`. |
 
-**Loading COCO weights (transfer learning):**
+**Loading weights — two options depending on your situation:**
+
+**Option A — First training run ever (no existing garbage model):**
 ```python
 model.load_weights("mask_rcnn_coco.h5", by_name=True,
                    exclude=["mrcnn_class_logits", "mrcnn_bbox_fc", "mrcnn_bbox", "mrcnn_mask"])
 ```
-- `by_name=True` — match layers by name, not position. Required because we changed `NUM_CLASSES` from 81 (COCO) to 2 (garbage), which changes some layer shapes.
-- `exclude=[...]` — these 4 layers are the **final classification/bbox/mask heads**. They were trained for 80 COCO classes and their shapes don't match our 2 classes. They're excluded so they get randomly initialized and learn from scratch.
-- **Every other layer (the ResNet101 backbone, FPN, RPN) keeps its COCO weights.** This is the heart of transfer learning.
+- `by_name=True` — match layers by name, not position. Required because we changed `NUM_CLASSES` from 81 (COCO) to 2, which changes some layer shapes.
+- `exclude=[...]` — these 4 layers are the final classification/bbox/mask heads trained for 80 COCO classes. Their shapes don't match our 2 classes, so they're excluded and randomly initialized.
+- Every other layer (ResNet101 backbone, FPN, RPN) keeps its COCO weights. This is the heart of transfer learning.
+
+**Option B — Continued training (you already have a garbage model):** ← *current notebook uses this*
+```python
+model.load_weights("/content/drive/MyDrive/EcoWatch/models/mask_rcnn_garbage_v1_backup.h5",
+                   by_name=True)
+# No exclude list — all layers including the head are already shaped for 2 classes
+```
+- Loads from the existing garbage model saved in Drive.
+- No `exclude` list needed — the head layers are already shaped for 2 classes (background + garbage), not 80.
+- The COCO backbone knowledge is already embedded inside `mask_rcnn_garbage_v1_backup.h5` from the first training run. Loading this file gives you: COCO backbone + old garbage knowledge. Training on new data adds on top of both.
+- **Back up the old model first** by renaming it to `mask_rcnn_garbage_v1_backup.h5` in Drive before running Cell 10, so Cell 10's overwrite doesn't lose it.
 
 **Training:**
 ```python
@@ -719,6 +805,8 @@ Cell 11  →  confirms it works visually           (sanity check)
 | Cell 11 detects nothing in any image | Model didn't learn, or `DETECTION_MIN_CONFIDENCE` too high | Drop confidence to 0.3 to see weak detections; if still nothing, retrain with more epochs/data |
 | `OOM` (out of memory) error during training | Image size or batch size too large | Drop `IMAGE_MAX_DIM` to 384, keep `IMAGES_PER_GPU = 1` |
 | Backend loads model but every detection has 0 confidence | `InferenceConfig` in `ai_verifier.py` doesn't match training `GarbageConfig` | Make sure `NUM_CLASSES`, `IMAGE_MIN_DIM`, `IMAGE_MAX_DIM` are identical |
+| `ValueError: expected input_gt_masks to have shape (512, 512, None) but got array with shape (640, 384, 100)` | Dataset images are non-square (e.g. 640×384); the full-size mask resize path in the TF2 fork is broken for non-square images | Add `USE_MINI_MASK = True` to `GarbageConfig` in Cell 8, then re-run Cell 8 and Cell 9 |
+| `ValueError: Input image dtype is bool. Interpolation is not defined with bool data type` | Newer scikit-image (0.25+) doesn't allow bilinear interpolation on bool arrays; triggered by `USE_MINI_MASK = True` in the unpatched library | Run Cell 8.5 (the `minimize_mask` monkey-patch) before Cell 9 |
 
 ---
 
