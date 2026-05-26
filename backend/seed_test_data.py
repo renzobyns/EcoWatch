@@ -104,8 +104,11 @@ def seed():
                     status=models.ReportStatus.VERIFIED, notes="Dump near river",
                     reporter_id=citizen.id),
         make_report(lat=14.8151, lon=121.0251, barangay="Muzon",
-                    status=models.ReportStatus.DEPLOYED, notes="Large pile at bridge",
+                    status=models.ReportStatus.ASSIGNED, notes="Large pile at bridge",
                     deployed_at=now - timedelta(hours=3)),
+        make_report(lat=14.8153, lon=121.0253, barangay="Muzon",
+                    status=models.ReportStatus.IN_PROGRESS, notes="Cleaner actively cleaning roadside",
+                    deployed_at=now - timedelta(hours=2)),
         make_report(lat=14.8152, lon=121.0252, barangay="Muzon",
                     status=models.ReportStatus.RESOLVED, notes="Cleaned up pile",
                     deployed_at=now - timedelta(hours=8),
@@ -120,7 +123,7 @@ def seed():
         make_report(lat=14.8197, lon=121.0478, barangay="Dulong Bayan",
                     status=models.ReportStatus.VERIFIED, notes="Tire dump"),
         make_report(lat=14.8198, lon=121.0479, barangay="Dulong Bayan",
-                    status=models.ReportStatus.DEPLOYED, notes="Construction debris",
+                    status=models.ReportStatus.ASSIGNED, notes="Construction debris",
                     deployed_at=now - timedelta(hours=5)),
         make_report(lat=14.8196, lon=121.0477, barangay="Dulong Bayan",
                     status=models.ReportStatus.PENDING, notes="Waste in drainage"),
@@ -181,7 +184,7 @@ def seed():
     # ─────────────────────────────────────────────
     cleaner = next(u for u in users if u.role == "cleaner")
 
-    # Pull the Muzon DEPLOYED/FAILED_CLEANUP reports for cleaner WOs
+    # Pull the Muzon ASSIGNED/IN_PROGRESS/FAILED_CLEANUP reports for cleaner WOs
     db.commit()
     for report in test_reports:
         db.refresh(report)
@@ -189,7 +192,7 @@ def seed():
     muzon_deployed = [
         r for r in test_reports
         if r.barangay == "Muzon"
-        and r.status in (models.ReportStatus.DEPLOYED, models.ReportStatus.FAILED_CLEANUP)
+        and r.status in (models.ReportStatus.ASSIGNED, models.ReportStatus.IN_PROGRESS, models.ReportStatus.FAILED_CLEANUP)
     ]
 
     sla_priority_days = {"low": 7, "medium": 3, "high": 1}
