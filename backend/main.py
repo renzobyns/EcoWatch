@@ -1794,8 +1794,8 @@ async def export_reports(
 # BARANGAY ACTIONS
 # ─────────────────────────────────────────────────────────
 
-@app.put("/report/{report_id}/deploy")
-async def deploy_report(
+@app.put("/report/{report_id}/assign")
+async def assign_report(
     report_id: int,
     deployment_notes: Optional[str] = Form(None),
     priority: Optional[str] = Form(None),
@@ -1804,25 +1804,25 @@ async def deploy_report(
     user: models.User = Depends(require_role("barangay")),
 ):
     """
-    Barangay marks a report as deployed.
+    Barangay marks a report as assigned for cleanup.
     If priority + assigned_cleaner_id provided, create a formal WorkOrder.
-    Otherwise, legacy behavior: just mark as deployed without work order.
+    Otherwise, just mark as assigned without work order.
     """
     report = db.query(models.Report).filter(models.Report.id == report_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
 
     if report.barangay != user.barangay_assignment:
-        raise HTTPException(status_code=403, detail="Cannot deploy a report outside your barangay")
+        raise HTTPException(status_code=403, detail="Cannot assign a report outside your barangay")
 
     if report.status != models.ReportStatus.VERIFIED:
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot deploy. Report status is '{report.status}', must be 'verified'."
+            detail=f"Cannot assign. Report status is '{report.status}', must be 'verified'."
         )
 
     notes_clean = (deployment_notes or "").strip() or None
-    report.status = models.ReportStatus.DEPLOYED
+    report.status = models.ReportStatus.ASSIGNED
     report.deployed_at = datetime.utcnow()
     report.deployment_notes = notes_clean
 
@@ -1860,8 +1860,8 @@ async def deploy_report(
             work_order_id=work_order.id, report_id=report.id,
         )
     else:
-        # Legacy: just mark as deployed without work order
-        write_audit(db, user.id, "deploy", report.id, {
+        # Just mark as assigned without work order
+        write_audit(db, user.id, "assign", report.id, {
             "tracking_id": report.tracking_id,
             **({"deployment_notes": notes_clean[:500]} if notes_clean else {})
         })
@@ -1871,7 +1871,7 @@ async def deploy_report(
 
     return {
         "success": True,
-        "message": f"Report {report.tracking_id} deployed successfully.",
+        "message": f"Report {report.tracking_id} assigned successfully.",
         "report": ReportResponse.model_validate(report)
     }
 
@@ -1895,10 +1895,10 @@ async def resolve_report(
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
 
-    if report.status != models.ReportStatus.DEPLOYED:
+    if report.status not in (models.ReportStatus.ASSIGNED, models.ReportStatus.IN_PROGRESS):
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot resolve. Report status is '{report.status}', must be 'deployed'."
+            detail=f"Cannot resolve. Report status is '{report.status}', must be 'assigned' or 'in_progress'."
         )
 
     saved_urls: list[str] = []
@@ -1948,7 +1948,7 @@ async def create_work_order(
     db: Session = Depends(get_db),
     user: models.User = Depends(require_role("barangay")),
 ):
-    """Barangay creates a work order from a VERIFIED report. Sets Report status to DEPLOYED."""
+    """Barangay creates a work order from a VERIFIED report. Sets Report status to ASSIGNED."""
     report = db.query(models.Report).filter(models.Report.id == req.report_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
@@ -1986,7 +1986,7 @@ async def create_work_order(
 
     db.add(work_order)
     db.flush()  # populate work_order.id for the notification FK
-    report.status = models.ReportStatus.DEPLOYED
+    report.status = models.ReportStatus.ASSIGNED
     report.deployed_at = datetime.utcnow()
 
     write_audit(db, user.id, "create_work_order", report.id, {
@@ -2087,6 +2087,8 @@ async def start_work_order(
 
     wo.status = models.WorkOrderStatus.IN_PROGRESS
     wo.started_at = datetime.utcnow()
+    if wo.report:
+        wo.report.status = models.ReportStatus.IN_PROGRESS
 
     write_audit(db, user.id, "start_work_order", wo.report_id, {
         "work_order_id": wo.id,
@@ -2464,6 +2466,33 @@ async def force_close_report(
     }
 
 
+@app.put("/report/{report_id}/retry")
+async def retry_report(
+    report_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("barangay")),
+):
+    """Barangay retries a failed cleanup by reassigning the report."""
+    report = db.query(models.Report).filter(models.Report.id == report_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    if report.status != models.ReportStatus.FAILED_CLEANUP:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot retry. Report status is '{report.status}', must be 'failed_cleanup'."
+        )
+
+    report.status = models.ReportStatus.ASSIGNED
+    write_audit(db, user.id, "retry_report", report.id, {
+        "tracking_id": report.tracking_id,
+    })
+    db.commit()
+    db.refresh(report)
+
+    return {"success": True, "message": "Report reassigned for retry."}
+
+
 # ─────────────────────────────────────────────────────────
 # AUDIT LOG (CENRO-only)
 # ─────────────────────────────────────────────────────────
@@ -2514,9 +2543,10 @@ async def get_heatmaps(db: Session = Depends(get_db)):
     """Runs DBSCAN clustering on current active reports to find hotspots."""
     reports = db.query(models.Report).filter(
         models.Report.status.in_([
-            models.ReportStatus.PENDING, 
+            models.ReportStatus.PENDING,
             models.ReportStatus.VERIFIED,
-            models.ReportStatus.DEPLOYED
+            models.ReportStatus.ASSIGNED,
+            models.ReportStatus.IN_PROGRESS,
         ])
     ).all()
     
@@ -2532,15 +2562,17 @@ async def get_analytics_overview(db: Session = Depends(get_db)):
     total = db.query(models.Report).count()
     pending = db.query(models.Report).filter(models.Report.status == models.ReportStatus.PENDING).count()
     verified = db.query(models.Report).filter(models.Report.status == models.ReportStatus.VERIFIED).count()
-    deployed = db.query(models.Report).filter(models.Report.status == models.ReportStatus.DEPLOYED).count()
+    assigned = db.query(models.Report).filter(models.Report.status == models.ReportStatus.ASSIGNED).count()
+    in_progress = db.query(models.Report).filter(models.Report.status == models.ReportStatus.IN_PROGRESS).count()
     resolved = db.query(models.Report).filter(models.Report.status == models.ReportStatus.RESOLVED).count()
     rejected = db.query(models.Report).filter(models.Report.status == models.ReportStatus.REJECTED).count()
     failed = db.query(models.Report).filter(models.Report.status == models.ReportStatus.FAILED_CLEANUP).count()
-    
+
     return {
         "total": total,
         "active": pending + verified,
-        "deployed": deployed,
+        "assigned": assigned,
+        "in_progress": in_progress,
         "resolved": resolved,
         "rejected": rejected,
         "failed_cleanup": failed,
@@ -2561,12 +2593,12 @@ async def get_barangay_ranking(db: Session = Depends(get_db)):
     for report in reports:
         name = report.barangay
         if name not in barangay_stats:
-            barangay_stats[name] = {"total": 0, "resolved": 0, "pending": 0, "deployed": 0}
+            barangay_stats[name] = {"total": 0, "resolved": 0, "pending": 0, "assigned": 0}
         barangay_stats[name]["total"] += 1
         if report.status == models.ReportStatus.RESOLVED:
             barangay_stats[name]["resolved"] += 1
-        elif report.status == models.ReportStatus.DEPLOYED:
-            barangay_stats[name]["deployed"] += 1
+        elif report.status in (models.ReportStatus.ASSIGNED, models.ReportStatus.IN_PROGRESS):
+            barangay_stats[name]["assigned"] += 1
         else:
             barangay_stats[name]["pending"] += 1
     
@@ -2578,7 +2610,7 @@ async def get_barangay_ranking(db: Session = Depends(get_db)):
             "barangay": name,
             "total_reports": stats["total"],
             "resolved": stats["resolved"],
-            "deployed": stats["deployed"],
+            "assigned": stats["assigned"],
             "pending": stats["pending"],
             "resolution_rate": round(rate, 1)
         })
@@ -2671,7 +2703,7 @@ def _build_barangay_overview_data(db: Session) -> dict:
         total = len(bar_reports)
         pending = sum(1 for r in bar_reports if r.status == models.ReportStatus.PENDING)
         verified = sum(1 for r in bar_reports if r.status == models.ReportStatus.VERIFIED)
-        deployed = sum(1 for r in bar_reports if r.status == models.ReportStatus.DEPLOYED)
+        deployed = sum(1 for r in bar_reports if r.status in (models.ReportStatus.ASSIGNED, models.ReportStatus.IN_PROGRESS))
         resolved = sum(1 for r in bar_reports if r.status == models.ReportStatus.RESOLVED)
         rejected = sum(1 for r in bar_reports if r.status == models.ReportStatus.REJECTED)
         failed_cleanup = sum(1 for r in bar_reports if r.status == models.ReportStatus.FAILED_CLEANUP)
