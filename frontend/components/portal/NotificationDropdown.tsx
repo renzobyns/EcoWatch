@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bell, Briefcase, AlertTriangle, CheckCircle2, ArrowRightLeft, Shield, Sparkles } from "lucide-react";
+import { Bell, Briefcase, AlertTriangle, CheckCircle2, ArrowRightLeft, Shield, Sparkles,
+         Clock, Flame, MapPin, AlertOctagon, ShieldAlert, Zap, Hourglass } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { toast } from "sonner";
 import { formatRelative } from "@/lib/date-utils";
@@ -17,44 +18,49 @@ interface Notification {
     created_at: string;
 }
 
-interface StoredUser {
-    id?: number;
-    role?: string;
-}
-
 const ICON_MAP: Record<string, { icon: typeof Bell; color: string }> = {
+    // Cleaner kinds
     job_assigned: { icon: Briefcase, color: "text-emerald-400" },
     priority_changed: { icon: Sparkles, color: "text-yellow-400" },
     reassigned: { icon: ArrowRightLeft, color: "text-blue-400" },
     needs_redo: { icon: AlertTriangle, color: "text-red-400" },
     verified: { icon: CheckCircle2, color: "text-green-400" },
     force_resolved: { icon: Shield, color: "text-purple-400" },
+    rejected: { icon: AlertTriangle, color: "text-orange-400" },
+    // Barangay kinds
+    report_verified_in_barangay: { icon: CheckCircle2, color: "text-emerald-400" },
+    cleanup_verified: { icon: CheckCircle2, color: "text-green-400" },
+    cleanup_needs_redo: { icon: AlertTriangle, color: "text-red-400" },
+    sla_approaching: { icon: Clock, color: "text-yellow-400" },
+    sla_breached: { icon: Flame, color: "text-red-500" },
+    report_reassigned_in: { icon: MapPin, color: "text-blue-400" },
+    report_reassigned_out: { icon: MapPin, color: "text-foreground/50" },
+    // CENRO kinds
+    cenro_sla_breached: { icon: AlertOctagon, color: "text-red-500" },
+    cenro_force_resolved: { icon: ShieldAlert, color: "text-purple-400" },
+    cenro_high_priority_deployed: { icon: Zap, color: "text-yellow-400" },
+    cenro_stale_deploy: { icon: Hourglass, color: "text-orange-400" },
 };
 
 interface NotificationDropdownProps {
-    /** Unread count from the parent (so badge can update via poll without re-fetching list). */
     unreadCount?: number;
-    /** Called when a notification is clicked. The host can route to the related WO. */
+    listPath: string;        // e.g. `/notifications/user/${userId}?limit=50`
+    markAllPath: string;     // e.g. `/notifications/user/${userId}/mark-all-read`
     onNotificationClick?: (n: Notification) => void;
 }
 
-export function NotificationDropdown({ unreadCount = 0, onNotificationClick }: NotificationDropdownProps) {
+export function NotificationDropdown({
+    unreadCount = 0,
+    listPath,
+    markAllPath,
+    onNotificationClick,
+}: NotificationDropdownProps) {
     const [open, setOpen] = useState(false);
-    const [user, setUser] = useState<StoredUser | null>(null);
     const [items, setItems] = useState<Notification[] | null>(null);
     const [loading, setLoading] = useState(false);
     const [loadError, setLoadError] = useState(false);
     const [markAllPending, setMarkAllPending] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        try {
-            const stored = localStorage.getItem("ecowatch_user");
-            if (stored) setUser(JSON.parse(stored));
-        } catch {
-            /* ignore */
-        }
-    }, []);
 
     // Close on outside click / Escape
     useEffect(() => {
@@ -74,11 +80,11 @@ export function NotificationDropdown({ unreadCount = 0, onNotificationClick }: N
     }, [open]);
 
     const fetchList = async () => {
-        if (!user?.id) return;
+        if (!listPath) return;
         setLoading(true);
         setLoadError(false);
         try {
-            const data = await api(`/notifications/cleaner/${user.id}?limit=50`);
+            const data = await api(listPath);
             if (Array.isArray(data)) setItems(data);
             else setItems([]);
         } catch {
@@ -90,11 +96,11 @@ export function NotificationDropdown({ unreadCount = 0, onNotificationClick }: N
 
     // Lazy-load on first open
     useEffect(() => {
-        if (open && items === null && user?.id) {
+        if (open && items === null && listPath) {
             fetchList();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, user?.id]);
+    }, [open, listPath]);
 
     const handleClickItem = async (n: Notification) => {
         if (!n.is_read) {
@@ -114,13 +120,13 @@ export function NotificationDropdown({ unreadCount = 0, onNotificationClick }: N
     };
 
     const handleMarkAll = async () => {
-        if (!user?.id || markAllPending) return;
+        if (!markAllPath || markAllPending) return;
         setMarkAllPending(true);
         const snapshot = items;
         // Optimistic
         setItems((prev) => prev?.map((x) => ({ ...x, is_read: true })) ?? prev);
         try {
-            await api(`/notifications/cleaner/${user.id}/mark-all-read`, { method: "POST" });
+            await api(markAllPath, { method: "POST" });
         } catch (err) {
             setItems(snapshot);
             toast.error(err instanceof ApiError ? err.message : "Couldn't mark all as read.");
