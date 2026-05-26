@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { X, MapPin, Clock, FileText, ExternalLink, Camera, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { slaDeadlineLabel, slaDeadlineColor, SLA_PILL_CLASSES } from "@/lib/sla";
+import { formatDateTime } from "@/lib/date-utils";
 
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -51,8 +52,13 @@ export function CleanerJobDrawer({
     const isReadOnly = status === "verified" || status === "completed";
     const hasCoords = workOrder.report_lat != null && workOrder.report_lon != null;
 
-    const sla = workOrder.sla_deadline ? slaDeadlineLabel(workOrder.sla_deadline) : null;
-    const slaColor = workOrder.sla_deadline ? slaDeadlineColor(workOrder.sla_deadline) : null;
+    const isCompleted = status === "completed";
+    const sla = workOrder.sla_deadline && !isCompleted ? slaDeadlineLabel(workOrder.sla_deadline) : null;
+    const slaColor = workOrder.sla_deadline && !isCompleted ? slaDeadlineColor(workOrder.sla_deadline) : null;
+    const completedOnTime =
+        isCompleted && workOrder.completed_at && workOrder.sla_deadline
+            ? new Date(workOrder.completed_at) <= new Date(workOrder.sla_deadline)
+            : null;
 
     const gmapsHref = hasCoords
         ? `https://www.google.com/maps/dir/?api=1&destination=${workOrder.report_lat},${workOrder.report_lon}`
@@ -234,18 +240,29 @@ export function CleanerJobDrawer({
                                 {sla}
                             </div>
                         )}
+                        {completedOnTime !== null && (
+                            <div
+                                className={`inline-block px-4 py-2 rounded-lg text-sm font-bold ${
+                                    completedOnTime
+                                        ? "bg-green-500/20 text-green-400"
+                                        : "bg-red-500/20 text-red-400"
+                                }`}
+                            >
+                                {completedOnTime ? "Completed on time" : "Completed overdue"}
+                            </div>
+                        )}
                         <div className="mt-2 text-xs text-foreground/60 space-y-0.5">
                             {workOrder.created_at && (
-                                <p>Assigned: {new Date(workOrder.created_at).toLocaleString()}</p>
+                                <p>Assigned: {formatDateTime(workOrder.created_at)}</p>
                             )}
                             {workOrder.sla_deadline && (
-                                <p>Deadline: {new Date(workOrder.sla_deadline).toLocaleString()}</p>
+                                <p>Deadline: {formatDateTime(workOrder.sla_deadline)}</p>
                             )}
                             {workOrder.started_at && (
-                                <p>Started: {new Date(workOrder.started_at).toLocaleString()}</p>
+                                <p>Started: {formatDateTime(workOrder.started_at)}</p>
                             )}
                             {workOrder.completed_at && (
-                                <p>Completed: {new Date(workOrder.completed_at).toLocaleString()}</p>
+                                <p>Completed: {formatDateTime(workOrder.completed_at)}</p>
                             )}
                         </div>
                     </section>

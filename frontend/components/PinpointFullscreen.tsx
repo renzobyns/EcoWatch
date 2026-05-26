@@ -506,6 +506,18 @@ export default function PinpointFullscreen({
             {rightOpen && (
             <div className="absolute top-4 right-4 w-[340px] max-w-[calc(100vw-2rem)] z-[1000] animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="glass-pro rounded-2xl p-3">
+                    <div className="flex items-center justify-between mb-3">
+                        <span className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest px-1">Search</span>
+                        <button
+                            onClick={() => setRightOpen(false)}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-foreground/60 hover:text-foreground hover:bg-foreground/10 transition-colors"
+                            title="Hide panel"
+                        >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                        </button>
+                    </div>
                     <div className="relative mb-3">
                         <svg
                             className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40 pointer-events-none"
@@ -615,19 +627,10 @@ export default function PinpointFullscreen({
                         )}
                     </div>
 
-                    <div className="flex items-center justify-between mt-2 pt-2 px-1 border-t border-border">
+                    <div className="mt-2 pt-2 px-1 border-t border-border">
                         <span className="text-[10px] font-medium text-foreground/40 italic">
                             Viewing SJDM Map Boundaries
                         </span>
-                        <button
-                            onClick={() => setRightOpen(false)}
-                            className="w-5 h-5 rounded flex items-center justify-center text-foreground/40 hover:text-foreground/70 transition-colors"
-                            title="Hide panel"
-                        >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                            </svg>
-                        </button>
                     </div>
                 </div>
             </div>
