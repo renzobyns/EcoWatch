@@ -2505,14 +2505,22 @@ async def retry_report(
 async def get_audit_log(
     limit: int = 50,
     offset: int = 0,
+    target_id: Optional[int] = None,
     db: Session = Depends(get_db),
     _user: models.User = Depends(require_role("cenro")),
 ):
-    """Newest-first audit trail of override actions."""
-    rows = (
+    """Newest-first audit trail of override actions.
+
+    Optional `target_id` filters to entries about a single report (or other target).
+    """
+    query = (
         db.query(models.AuditLog, models.User.email)
         .outerjoin(models.User, models.AuditLog.user_id == models.User.id)
-        .order_by(models.AuditLog.created_at.desc())
+    )
+    if target_id is not None:
+        query = query.filter(models.AuditLog.target_id == target_id)
+    rows = (
+        query.order_by(models.AuditLog.created_at.desc())
         .offset(offset)
         .limit(limit)
         .all()
