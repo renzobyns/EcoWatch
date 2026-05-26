@@ -21,7 +21,7 @@ from database import engine, get_db, SessionLocal
 import models
 from ai_verifier import verifier, verify_images_async, compute_trust_score
 import analytics
-from notifications import emit_notification
+from notifications import emit_notification, emit_to_barangay, emit_to_cenro, sweep_sla_notifications
 
 # SLA config keys + defaults (CENRO-editable at runtime via /config/sla)
 SLA_CONFIG_KEYS = ("sla_low_days", "sla_medium_days", "sla_high_days", "sla_compliance_target")
@@ -1286,6 +1286,13 @@ async def _bg_verify_submit(report_id: int) -> None:
             best_pass_result = max(passing, key=lambda x: x[0].get("confidence", 0.0))[0]
             if best_pass_result.get("mask_bytes"):
                 report.ai_mask_url = _save_mask_bytes(best_pass_result.get("mask_bytes"))
+            if report.barangay:
+                emit_to_barangay(
+                    db, report.barangay, "report_verified_in_barangay",
+                    f"New verified report: {report.tracking_id}",
+                    "AI confirmed waste. Deploy a cleaner.",
+                    report_id=report.id,
+                )
         else:
             report.status = models.ReportStatus.REJECTED
 
@@ -1428,6 +1435,13 @@ async def _bg_verify_complete(work_order_id: int, user_id: int) -> None:
                 "AI still detected waste. Please clean more thoroughly and try again.",
                 work_order_id=wo.id, report_id=report.id,
             )
+            if report.barangay:
+                emit_to_barangay(
+                    db, report.barangay, "cleanup_needs_redo",
+                    f"Cleanup needs redo: {report.tracking_id}",
+                    "AI still detected waste. Decide: retry or force-close.",
+                    work_order_id=wo.id, report_id=report.id,
+                )
         else:
             wo.status = models.WorkOrderStatus.VERIFIED
             report.status = models.ReportStatus.RESOLVED
@@ -1438,6 +1452,13 @@ async def _bg_verify_complete(work_order_id: int, user_id: int) -> None:
                 "AI confirmed cleanup. Thank you!",
                 work_order_id=wo.id, report_id=report.id,
             )
+            if report.barangay:
+                emit_to_barangay(
+                    db, report.barangay, "cleanup_verified",
+                    f"Cleanup verified: {report.tracking_id}",
+                    "AI confirmed the area is clean. Report resolved.",
+                    work_order_id=wo.id, report_id=report.id,
+                )
         report.verification_pending = False
         report.verification_kind = None
 
@@ -1944,6 +1965,13 @@ async def assign_report(
             f"Priority: {priority.upper()}. Deadline: {sla_deadline.strftime('%b %d %I:%M %p')}",
             work_order_id=work_order.id, report_id=report.id,
         )
+        if priority.lower() == "high":
+            emit_to_cenro(
+                db, "cenro_high_priority_deployed",
+                f"HIGH priority deployed: {report.tracking_id}",
+                f"{user.barangay_assignment} dispatched cleaner {assigned_cleaner_id}. Deadline: {sla_deadline.strftime('%b %d %I:%M %p')}.",
+                work_order_id=work_order.id, report_id=report.id,
+            )
     else:
         # Just mark as assigned without work order
         write_audit(db, user.id, "assign", report.id, {
@@ -2368,6 +2396,13 @@ async def update_work_order_priority(
         f"Updated from {old_priority.upper()} to {new_priority.upper()}. New deadline: {wo.sla_deadline.strftime('%b %d %I:%M %p')}",
         work_order_id=wo.id, report_id=wo.report_id,
     )
+    if new_priority == "high" and old_priority != "high":
+        emit_to_cenro(
+            db, "cenro_high_priority_deployed",
+            f"WO escalated to HIGH: {tracking_id}",
+            f"Barangay {user.barangay_assignment} raised priority. New deadline: {wo.sla_deadline.strftime('%b %d %I:%M %p')}.",
+            work_order_id=wo.id, report_id=wo.report_id,
+        )
     db.commit()
     db.refresh(wo)
 
@@ -2423,6 +2458,12 @@ async def force_resolve_work_order(
         db, wo.assigned_cleaner_id, "force_resolved",
         f"Job force-resolved: {report.tracking_id}",
         "Your supervisor closed this work order manually.",
+        work_order_id=wo.id, report_id=report.id,
+    )
+    emit_to_cenro(
+        db, "cenro_force_resolved",
+        f"Force-resolved by {user.barangay_assignment}: {report.tracking_id}",
+        f"Reason: {reason}",
         work_order_id=wo.id, report_id=report.id,
     )
     db.commit()
@@ -2518,6 +2559,19 @@ async def reassign_report(
         "from": old_barangay,
         "to": new_barangay,
     })
+    if old_barangay:
+        emit_to_barangay(
+            db, old_barangay, "report_reassigned_out",
+            f"Report moved out: {report.tracking_id}",
+            f"CENRO moved this report to {new_barangay}.",
+            report_id=report.id,
+        )
+    emit_to_barangay(
+        db, new_barangay, "report_reassigned_in",
+        f"Report moved in: {report.tracking_id}",
+        f"CENRO moved this report here from {old_barangay or 'unknown'}.",
+        report_id=report.id,
+    )
     db.commit()
     db.refresh(report)
 
