@@ -20,6 +20,7 @@ import { BarangayDetailDrawer } from "@/components/portal/BarangayDetailDrawer";
 import { ReportDetailDrawer } from "@/components/portal/ReportDetailDrawer";
 import { BARANGAYS } from "@/lib/barangays";
 import { TrustBadge } from "@/components/TrustBadge";
+import { useUnreadNotificationCount } from "@/lib/notification-poll";
 
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -243,6 +244,8 @@ export default function CenroDashboard() {
     const [userPage, setUserPage] = useState(1);
     const USER_PAGE_SIZE = 8;
 
+    const [unreadCount] = useUnreadNotificationCount(user?.id);
+
     // Auth + initial load
     useEffect(() => {
         const storedUser = localStorage.getItem('ecowatch_user');
@@ -288,6 +291,32 @@ export default function CenroDashboard() {
             console.error("Failed to load SLA breaches", err);
         }
     };
+
+    // Event listener: navigate to the right tab and open the target report
+    useEffect(() => {
+        const handler = (e: Event) => {
+            const ce = e as CustomEvent<{ report_id: number | null; work_order_id: number | null; kind: string }>;
+            const { report_id, kind } = ce.detail || {};
+
+            if (kind === "cenro_stale_deploy" || kind === "cenro_force_resolved") {
+                setActiveTab("oversight");
+                router.replace("?tab=oversight", { scroll: false });
+            } else if (kind === "cenro_sla_breached" || kind === "cenro_high_priority_deployed") {
+                setActiveTab("sla_management");
+                router.replace("?tab=sla_management", { scroll: false });
+            } else if (report_id) {
+                setActiveTab("oversight");
+                router.replace("?tab=oversight", { scroll: false });
+            }
+
+            if (report_id) {
+                const target = reports.find((r: any) => r.id === report_id);
+                if (target) setSelectedReport(target);
+            }
+        };
+        window.addEventListener("ecowatch:open-target", handler as EventListener);
+        return () => window.removeEventListener("ecowatch:open-target", handler as EventListener);
+    }, [router, reports]);
 
     // C4 — refetch queue when filters change AND oversight tab active
     const buildQueueQuery = () => {
@@ -914,7 +943,7 @@ export default function CenroDashboard() {
                 setActiveTab(k as TabKey);
                 router.replace('?tab=' + k, { scroll: false });
             }}
-            notificationCount={slaBreaches.length}
+            notificationCount={unreadCount}
         >
             <div className="max-w-[1600px] mx-auto h-full flex flex-col">
 
