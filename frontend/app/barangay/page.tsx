@@ -8,6 +8,7 @@ import { Search, Download, LayoutDashboard, FileText, Map, ClipboardList, BookUs
 import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
 import { slaInfo, SLA_PILL_CLASSES, slaDeadlineColor, slaDeadlineLabel } from "@/lib/sla";
+import { formatDate, formatDateTime, formatRelative } from "@/lib/date-utils";
 import { PortalShell, type PortalNavItem } from "@/components/portal/PortalShell";
 import { TrustBadge } from "@/components/TrustBadge";
 
@@ -591,8 +592,9 @@ export default function BarangayPortal() {
         resolved: reports.filter(r => r.status === 'resolved').length
     };
 
+    const toUTCMs = (iso: string) => new Date(iso.endsWith("Z") || iso.includes("+") || iso.includes("-", 10) ? iso : iso + "Z").getTime();
     const recentReports = [...reports]
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .sort((a, b) => toUTCMs(b.created_at) - toUTCMs(a.created_at))
         .slice(0, 5);
 
     return (
@@ -937,7 +939,7 @@ export default function BarangayPortal() {
                                                                 </span>
                                                             </td>
                                                             <td className="p-4 text-sm text-foreground/70">
-                                                                {wo.sla_deadline ? new Date(wo.sla_deadline).toLocaleDateString() : "—"}
+                                                                {wo.sla_deadline ? formatDate(wo.sla_deadline) : "—"}
                                                             </td>
                                                             <td className="p-4">
                                                                 {wo.sla_deadline ? (
@@ -947,7 +949,7 @@ export default function BarangayPortal() {
                                                                 ) : <span className="text-foreground/30 text-sm">—</span>}
                                                             </td>
                                                             <td className="p-4 text-sm text-foreground/50">
-                                                                {wo.created_at ? new Date(wo.created_at).toLocaleDateString() : "—"}
+                                                                {wo.created_at ? formatDate(wo.created_at) : "—"}
                                                             </td>
                                                             <td className="p-4 text-right">
                                                                 <button
@@ -1083,9 +1085,9 @@ export default function BarangayPortal() {
                                                 <div className="flex flex-col gap-2 text-sm">
                                                     <div className="flex justify-between"><span className="text-foreground/40">Cleaner</span><span className="text-foreground font-medium">{selectedWorkOrder.assigned_cleaner_name}</span></div>
                                                     <div className="flex justify-between"><span className="text-foreground/40">Email</span><span className="text-foreground/70 text-xs">{selectedWorkOrder.assigned_cleaner_email}</span></div>
-                                                    <div className="flex justify-between"><span className="text-foreground/40">Created</span><span className="text-foreground/70">{selectedWorkOrder.created_at ? new Date(selectedWorkOrder.created_at).toLocaleString() : "—"}</span></div>
-                                                    <div className="flex justify-between"><span className="text-foreground/40">Started</span><span className="text-foreground/70">{selectedWorkOrder.started_at ? new Date(selectedWorkOrder.started_at).toLocaleString() : "Not started"}</span></div>
-                                                    <div className="flex justify-between"><span className="text-foreground/40">Completed</span><span className="text-foreground/70">{selectedWorkOrder.completed_at ? new Date(selectedWorkOrder.completed_at).toLocaleString() : "—"}</span></div>
+                                                    <div className="flex justify-between"><span className="text-foreground/40">Created</span><span className="text-foreground/70">{selectedWorkOrder.created_at ? formatDateTime(selectedWorkOrder.created_at) : "—"}</span></div>
+                                                    <div className="flex justify-between"><span className="text-foreground/40">Started</span><span className="text-foreground/70">{selectedWorkOrder.started_at ? formatDateTime(selectedWorkOrder.started_at) : "Not started"}</span></div>
+                                                    <div className="flex justify-between"><span className="text-foreground/40">Completed</span><span className="text-foreground/70">{selectedWorkOrder.completed_at ? formatDateTime(selectedWorkOrder.completed_at) : "—"}</span></div>
                                                 </div>
                                             </div>
 
@@ -1208,16 +1210,7 @@ export default function BarangayPortal() {
                     const getInitials = (name: string) => name.split(" ").map((p: string) => p[0]).join("").slice(0, 2).toUpperCase();
                     const fmtLogin = (dt: string | null) => {
                         if (!dt) return "Never";
-                        const diff = Date.now() - new Date(dt).getTime();
-                        const mins = Math.floor(diff / 60000);
-                        if (mins < 1) return "Just now";
-                        if (mins < 60) return mins + "m ago";
-                        const hrs = Math.floor(mins / 60);
-                        if (hrs < 24) return hrs + "h ago";
-                        const days = Math.floor(hrs / 24);
-                        if (days === 1) return "Yesterday";
-                        if (days < 30) return days + "d ago";
-                        return new Date(dt).toLocaleDateString();
+                        return formatRelative(dt);
                     };
                     const filtered = barangayUsers.filter(u => {
                         const q = debouncedUserSearch.toLowerCase();
@@ -1472,7 +1465,7 @@ export default function BarangayPortal() {
                                                             <tr key={report.id} className="border-b border-border hover:bg-foreground/5 transition-colors">
                                                                 <td className="p-4 font-mono text-sm text-foreground font-bold">{report.tracking_id}</td>
                                                                 <td className="p-4 text-sm text-foreground/70">
-                                                                    {new Date(report.created_at).toLocaleDateString()}
+                                                                    {formatDate(report.created_at)}
                                                                 </td>
                                                                 <td className="p-4">
                                                                     <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
@@ -1575,7 +1568,7 @@ export default function BarangayPortal() {
                                 )}
 
                                 <div className="text-xs text-foreground/40">
-                                    Reported: {new Date(selectedReport.created_at).toLocaleString()}
+                                    Reported: {formatDateTime(selectedReport.created_at)}
                                 </div>
                             </div>
 

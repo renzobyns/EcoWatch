@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle, Clock, ShieldCheck, Activity, Settings2, History, Award, FileDown, RefreshCw, TrendingUp } from "lucide-react";
+import { formatDateTime } from "@/lib/date-utils";
 
 type ComplianceData = {
     city_wide: {
@@ -108,16 +109,6 @@ function remainingPillColor(seconds: number): string {
     if (seconds <= 4 * 3600) return "bg-red-500/20 text-red-300 border-red-500/30";
     if (seconds <= 12 * 3600) return "bg-orange-500/20 text-orange-300 border-orange-500/30";
     return "bg-yellow-500/20 text-yellow-300 border-yellow-500/30";
-}
-
-function formatDateTime(iso: string): string {
-    try {
-        const d = new Date(iso);
-        return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) +
-            " " + d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
-    } catch {
-        return iso;
-    }
 }
 
 function complianceColor(rate: number, target: number): string {

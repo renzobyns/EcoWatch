@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
+import { formatDate, formatDateTime, formatRelative } from "@/lib/date-utils";
 import { PortalShell, type PortalNavItem } from "@/components/portal/PortalShell";
 import { SlaManagementTab } from "@/components/portal/SlaManagementTab";
 import { AnalyticsTab, type InsightsData } from "@/components/portal/AnalyticsTab";
@@ -886,7 +887,8 @@ export default function CenroDashboard() {
         return { name: b, total, resolved, rate };
     }).filter(b => b.total > 0).sort((a, b) => b.rate - a.rate);
 
-    const recentFeed = [...reports].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 10);
+    const toUTCMs = (iso: string) => new Date(iso.endsWith("Z") || iso.includes("+") || iso.includes("-", 10) ? iso : iso + "Z").getTime();
+    const recentFeed = [...reports].sort((a, b) => toUTCMs(b.created_at) - toUTCMs(a.created_at)).slice(0, 10);
 
     const pieData = [
         { name: 'Pending', value: pending, color: '#ef4444' },
@@ -896,8 +898,8 @@ export default function CenroDashboard() {
     ].filter(d => d.value > 0);
 
     const dateMap: Record<string, number> = {};
-    [...reports].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()).forEach(r => {
-        const d = new Date(r.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    [...reports].sort((a, b) => toUTCMs(a.created_at) - toUTCMs(b.created_at)).forEach(r => {
+        const d = new Date(r.created_at.endsWith("Z") || r.created_at.includes("+") || r.created_at.includes("-", 10) ? r.created_at : r.created_at + "Z").toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
         dateMap[d] = (dateMap[d] || 0) + 1;
     });
     const lineData = Object.entries(dateMap).map(([date, count]) => ({ date, count })).slice(-14);
@@ -1161,7 +1163,7 @@ export default function CenroDashboard() {
                                             <div key={r.id} className="relative pl-5 border-l border-border">
                                                 <div className="absolute w-2 h-2 rounded-full bg-emerald-500 -left-[4px] top-1.5 shadow-[0_0_10px_rgba(16,185,129,0.8)]"></div>
                                                 <div className="text-[12px] font-semibold text-foreground mb-0.5 tracking-tight">Report {r.tracking_id}</div>
-                                                <div className="text-[10px] text-foreground/40 mb-2 font-medium uppercase tracking-wider">{r.barangay} • {new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                                <div className="text-[10px] text-foreground/40 mb-2 font-medium uppercase tracking-wider">{r.barangay} • {formatRelative(r.created_at)}</div>
                                                 <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-widest ${
                                                     r.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
                                                     r.status === 'assigned' ? 'bg-yellow-500/20 text-yellow-400' :
@@ -1353,7 +1355,7 @@ export default function CenroDashboard() {
                                                         )}
                                                     </td>
                                                     <td className="p-4 text-sm text-foreground/60">
-                                                        {new Date(report.created_at).toLocaleDateString()}
+                                                        {formatDate(report.created_at)}
                                                     </td>
                                                 </tr>
                                             );
@@ -1415,7 +1417,7 @@ export default function CenroDashboard() {
                                             const targetLabel = e.details?.tracking_id || `${e.target_type} #${e.target_id ?? "—"}`;
                                             return (
                                                 <tr key={e.id} className="border-b border-border hover:bg-foreground/5">
-                                                    <td className="p-4 text-xs text-foreground/70 whitespace-nowrap">{new Date(e.created_at).toLocaleString()}</td>
+                                                    <td className="p-4 text-xs text-foreground/70 whitespace-nowrap">{formatDateTime(e.created_at)}</td>
                                                     <td className="p-4 text-sm text-foreground">{e.user_email || "—"}</td>
                                                     <td className="p-4">
                                                         <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider ${ACTION_PILL_CLASSES[e.action] || 'bg-foreground/10 text-foreground'}`}>
@@ -1511,7 +1513,7 @@ export default function CenroDashboard() {
                                             </div>
 
                                             <div className="p-3 border-t border-border text-[11px] text-foreground/50">
-                                                <div>Reported: {new Date(report.created_at).toLocaleDateString()}</div>
+                                                <div>Reported: {formatDate(report.created_at)}</div>
                                                 {report.ai_confidence && (
                                                     <div>AI: {(report.ai_confidence * 100).toFixed(0)}%</div>
                                                 )}
@@ -1553,17 +1555,7 @@ export default function CenroDashboard() {
                     const getInitials = (name: string) => name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
                     const fmtLogin = (ts: string | null) => {
                         if (!ts) return "Never";
-                        const d = new Date(ts);
-                        const diffMs = Date.now() - d.getTime();
-                        const mins = Math.floor(diffMs / 60000);
-                        if (mins < 2) return "Just now";
-                        if (mins < 60) return `${mins} mins ago`;
-                        const hrs = Math.floor(mins / 60);
-                        if (hrs < 24) return `${hrs} hr${hrs > 1 ? "s" : ""} ago`;
-                        const days = Math.floor(hrs / 24);
-                        if (days === 1) return "Yesterday";
-                        if (days < 30) return `${days} days ago`;
-                        return d.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
+                        return formatRelative(ts);
                     };
                     return (
                     <div className="flex-1 flex flex-col min-h-0 gap-4">

@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { Briefcase, Loader2, CheckCircle2, Target, AlertTriangle, ArrowRight, Activity } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { slaDeadlineLabel, slaDeadlineColor, SLA_PILL_CLASSES } from "@/lib/sla";
+import { formatDate } from "@/lib/date-utils";
 
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
 
@@ -215,7 +216,7 @@ export function DashboardTab({ user, workOrders, onOpenWO, onJump }: DashboardTa
                                     </p>
                                 </div>
                                 <span className="text-[10px] uppercase tracking-widest text-foreground/40 font-semibold shrink-0">
-                                    {new Date(a.created_at).toLocaleDateString()}
+                                    {formatDate(a.created_at)}
                                 </span>
                             </li>
                         ))}

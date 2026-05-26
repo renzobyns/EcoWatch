@@ -6,6 +6,7 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import Link from "next/link";
 import { useTheme } from "@/components/ThemeProvider";
+import { formatDate } from "@/lib/date-utils";
 
 // Fix for default leaflet icons
 const fixLeafletIcons = () => {
@@ -318,7 +319,7 @@ export default function SJDMMap({
                                               'bg-red-500/20 text-red-500 border border-red-500/30'}`}>
                                             {report.status}
                                         </span>
-                                        <span className="text-xs text-gray-400 font-medium">{new Date(report.created_at).toLocaleDateString()}</span>
+                                        <span className="text-xs text-gray-400 font-medium">{formatDate(report.created_at)}</span>
                                     </div>
                                     <p className="text-sm font-bold text-foreground mb-1">{report.barangay}</p>
                                     {report.notes && <p className="text-xs text-gray-300 mb-3 line-clamp-2">{report.notes}</p>}
