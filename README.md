@@ -87,11 +87,29 @@ EcoWatch/
 ├── data/
 │   └── sjdm_barangays.geojson   59 barangay polygons for routing + map render
 │
-└── docs (root):
+├── database/                    Supabase production SQL (NOT used for local dev)
+│   ├── schema.sql               Postgres schema + RLS policies + storage buckets
+│   ├── fix_trigger.sql          Auto-profile trigger fix
+│   └── email_template.html      Supabase Auth email template
+│
+├── docs/                        Sprint plans + design specs (defense sprint)
+│   └── superpowers/
+│       ├── plans/               Per-feature implementation plans (dated)
+│       └── specs/               UI / data-model design specs (dated)
+│
+├── postman/                     Postman collections for backend API testing
+│   ├── collections/  environments/  flows/
+│   ├── globals/  mocks/  specs/
+│   └── .postman/resources.yaml
+│
+└── root-level docs:
     CLAUDE.md, FEATURES.md, CODEBASE_GUIDE.md, DEFENSE_PLAN.md,
     MODEL_TRAINING.md, TESTING_CHECKLIST.md, REDESIGN_SPEC.md,
-    CHANGELOG.md, IMPROVEMENTS.md, erd_dataflow.md, sitemap.md, techstack.md
+    CHANGELOG.md, IMPROVEMENTS.md, erd_dataflow.md, sitemap.md,
+    techstack.md, instructions.md (historical)
 ```
+
+> The `.claude/` folder you may see locally is Claude Code's session storage — not tracked in git, doesn't affect the app.
 
 ---
 
@@ -149,6 +167,16 @@ GOOGLE_GEMINI_API_KEY=your_key_here
 NEXT_PUBLIC_SUPABASE_URL=https://...supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 ```
+
+#### About the database
+
+The database **file** (`backend/ecowatch.db`) is gitignored, so a fresh clone does not include one — but you don't need to download it from anywhere. Here's how it works:
+
+- On first `uvicorn main:app --reload`, [backend/database.py](backend/database.py) calls SQLAlchemy `Base.metadata.create_all()` which **auto-creates** `backend/ecowatch.db` as an empty SQLite file with every table defined in [backend/models.py](backend/models.py) (`User`, `Report`, `WorkOrder`, `AuditLog`, `SystemConfig`, `Notification`).
+- `python seed_test_data.py` then fills it with 3 demo accounts (`citizen@test.com` / `barangay@test.com` / `cenro@test.com`, all `password123`) and ~14 sample reports.
+- The `database/` folder at the project root holds the **production** Supabase schema (`schema.sql`) — only used when deploying to Supabase Postgres, not for local dev.
+
+So: you get the table structure from the code, an empty DB from the first boot, and demo data from the seed script. Nothing to download.
 
 ---
 
