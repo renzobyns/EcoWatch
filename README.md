@@ -97,6 +97,39 @@ EcoWatch/
 
 ## 🚦 Getting Started
 
+### Cold Start TL;DR
+
+Fresh clone? Run these in order. The venv and `node_modules` are gitignored so you must create them locally.
+
+```powershell
+# ── BACKEND (terminal 1) ──────────────────────────────────
+cd backend
+py -3.12 -m venv venv_tf          # create venv — Python 3.12 required
+.\venv_tf\Scripts\Activate.ps1    # activate
+pip install -r requirements.txt   # install deps (takes a few minutes first time)
+python seed_test_data.py          # create demo accounts + sample reports
+uvicorn main:app --reload         # → http://localhost:8000
+
+# ── FRONTEND (terminal 2) ─────────────────────────────────
+cd frontend
+# Create frontend/.env.local first (see "Environment Variables" below)
+npm install                       # install node packages
+npm run dev                       # → http://localhost:3000
+```
+
+**You also need `frontend/.env.local`** — create it with:
+
+```env
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+GOOGLE_GEMINI_API_KEY=your_key_here
+NEXT_PUBLIC_SUPABASE_URL=https://...supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+```
+
+> The AI model weights (`backend/models/mask_rcnn_garbage.h5`) are also gitignored. Without them the backend falls back to a mock that returns ~80% positive — fine for UI work. See [AI Model Details](#-ai-model-details) to get the real weights.
+
+---
+
 ### Prerequisites
 
 - **Node.js 20+**

@@ -22,8 +22,11 @@ npm run lint
 
 ### Backend (`backend/`)
 ```powershell
-# Activate venv first
-.\venv\Scripts\Activate.ps1
+# First time only — create venv (Python 3.12 required)
+py -3.12 -m venv venv_tf
+
+# Activate
+.\venv_tf\Scripts\Activate.ps1
 
 pip install -r requirements.txt
 uvicorn main:app --reload                        # http://localhost:8000
