@@ -246,11 +246,36 @@ API docs at http://localhost:8000/docs (Swagger UI).
 
 ### Test Accounts (after seeding)
 
+**4 "quick demo" accounts** — these are the ones the smoke tests and docs reference:
+
 | Role | Email | Password | Notes |
 |---|---|---|---|
 | Citizen | `citizen@test.com` | `password123` | Public reporting only |
 | Barangay | `barangay@test.com` | `password123` | Assigned to **Muzon** |
 | CENRO | `cenro@test.com` | `password123` | City-wide oversight |
+| Cleaner | `cleaner@test.com` | `password123` | Assigned to **Muzon** (has WorkOrders) |
+
+**Per-barangay accounts** — every one of the **59 SJDM barangays** gets a default barangay officer + cleaner account, so you can log in as any barangay without manually creating users (useful when a panelist asks "show me Minuyan Proper's portal").
+
+| Pattern | Example | Role |
+|---|---|---|
+| `<slug>@barangay.com` | `minuyanproper@barangay.com` | barangay (assigned to that barangay) |
+| `<slug>@cleaners.com` | `minuyanproper@cleaners.com` | cleaner (assigned to that barangay) |
+
+**Slug rule:** lowercased barangay name with all non-alphanumeric characters stripped. A few examples:
+
+| Barangay | Slug | Accounts |
+|---|---|---|
+| Minuyan Proper | `minuyanproper` | `minuyanproper@barangay.com`, `minuyanproper@cleaners.com` |
+| San Roque | `sanroque` | `sanroque@barangay.com`, `sanroque@cleaners.com` |
+| Sto. Cristo | `stocristo` | `stocristo@barangay.com`, `stocristo@cleaners.com` |
+| Santo Niño | `santonino` | `santonino@barangay.com`, `santonino@cleaners.com` |
+| Francisco Homes-Guijo | `franciscohomesguijo` | `franciscohomesguijo@barangay.com`, … |
+| Bagong Buhay II | `bagongbuhayii` | `bagongbuhayii@barangay.com`, … |
+
+All passwords are `password123`. Total seeded: 4 quick-demo + 118 per-barangay = **122 accounts**.
+
+> The full source-of-truth list of barangays is [`data/sjdm_barangays.geojson`](data/sjdm_barangays.geojson) (`ADM4_EN` field). The seeder loops over it, so the account list always matches the GeoJSON.
 
 ---
 
