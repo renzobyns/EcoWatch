@@ -6,7 +6,7 @@ import numpy as np
 import cv2
 import io
 from math import radians, cos, sin, asin, sqrt
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 # Set legacy Keras before any TF import
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
@@ -27,7 +27,14 @@ _KNOWN_EDITOR_KEYWORDS = [
     "facetune", "meitu", "midjourney", "stable diffusion",
     "dall-e", "canva", "pixlr"
 ]
-_GPS_LOW_TRUST_METERS = 500
+_GPS_LOW_TRUST_METERS = 500    # photo GPS this far from the report pin → LOW (fraud signal)
+_GPS_HIGH_TRUST_METERS = 100   # within this of the pin → eligible for HIGH; 100–500m → MEDIUM
+_DATETIME_STALE_HOURS = 24     # photo taken >24h before the report → LOW (stale / reused)
+_DATETIME_FUTURE_GRACE_HOURS = 1  # tolerate minor clock skew before flagging a "future" timestamp
+# DateTimeOriginal is local wall-clock time with no offset. SJDM is Asia/Manila (UTC+8, no DST),
+# so we interpret it as +08:00 — this removes the ~8h skew that previously made legitimate evening
+# photos look like they were taken in the future, which is why age was unused before.
+_PH_TZ = timezone(timedelta(hours=8))
 
 logger = logging.getLogger(__name__)
 
@@ -338,14 +345,20 @@ def compute_trust_score(image_bytes: bytes, submitted_lat: float, submitted_lon:
                     # Format is typically "YYYY:MM:DD HH:MM:SS"
                     try:
                         dt_original = datetime.strptime(dt_str, "%Y:%m:%d %H:%M:%S")
-                        dt_original = dt_original.replace(tzinfo=timezone.utc)
+                        # Interpret as Philippine local time (UTC+8) — see _PH_TZ note above.
+                        dt_original = dt_original.replace(tzinfo=_PH_TZ)
                         now = datetime.now(timezone.utc)
                         age_hours = (now - dt_original).total_seconds() / 3600
                         signals["datetime_age_hours"] = age_hours
 
-                        # NOTE: DateTimeOriginal is local time with no timezone offset,
-                        # so age-based LOW trust would false-positive for Philippine evening
-                        # photos (UTC+8). Age is kept as a debug signal only.
+                        if age_hours > _DATETIME_STALE_HOURS:
+                            failing_signals.append(
+                                f"Photo taken >{_DATETIME_STALE_HOURS}h before report ({age_hours:.0f}h old)"
+                            )
+                        elif age_hours < -_DATETIME_FUTURE_GRACE_HOURS:
+                            failing_signals.append(
+                                f"Photo timestamp is in the future ({-age_hours:.0f}h ahead)"
+                            )
                     except ValueError:
                         pass  # Could not parse date
             except Exception:
@@ -400,10 +413,13 @@ def compute_trust_score(image_bytes: bytes, submitted_lat: float, submitted_lon:
         # LOW if any failing signals detected
         if failing_signals:
             score = "low"
-        # MEDIUM if not LOW and any of these:
+        # MEDIUM if not LOW and any of these: missing camera/timestamp/GPS metadata, or
+        # GPS present but 100–500m from the pin (>500m would already be a LOW failing signal).
         elif (not (signals["has_camera_make"] or signals["has_camera_model"]) or
               signals["datetime_original"] is None or
-              signals["gps_lat"] is None):
+              signals["gps_lat"] is None or
+              (signals["gps_distance_m"] is not None and
+               signals["gps_distance_m"] > _GPS_HIGH_TRUST_METERS)):
             score = "medium"
 
         return {

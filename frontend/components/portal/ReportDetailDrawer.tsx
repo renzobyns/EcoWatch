@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { X, FileText, Camera, Shield, Clock, MapPin, User, Mail, Phone, ExternalLink } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { TrustBadge } from "@/components/TrustBadge";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
+import { ConfidenceTooltipBody } from "@/components/ConfidenceTooltipBody";
 import { formatRelative, formatDate } from "@/lib/date-utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -28,6 +30,7 @@ export interface QueueReport {
     trust_score: string | null;
     needs_human_review: boolean;
     failing_signals: string[];
+    trust_reasons?: string[];
     created_at: string;
     deployed_at: string | null;
     resolved_at: string | null;
@@ -476,12 +479,16 @@ function OverviewTab({ report, detail, loading, error, onRetry }: {
                 <div className="text-[10px] text-foreground/40 uppercase tracking-widest font-bold mb-3">AI Verification</div>
                 <TrustBadge
                     trust_score={report.trust_score as "high" | "medium" | "low" | null}
+                    trust_reasons={report.trust_reasons}
                     failing_signals={report.failing_signals}
                     needs_human_review={report.needs_human_review}
                 />
                 {report.ai_confidence !== null && (
-                    <div className="mt-3 text-xs text-foreground/60">
-                        Confidence: <span className="font-bold text-foreground">{(report.ai_confidence * 100).toFixed(1)}%</span>
+                    <div className="mt-3 inline-flex items-center gap-1.5 text-xs text-foreground/60">
+                        <span>Confidence: <span className="font-bold text-foreground">{(report.ai_confidence * 100).toFixed(1)}%</span></span>
+                        <InfoTooltip label="How is AI confidence computed?">
+                            <ConfidenceTooltipBody />
+                        </InfoTooltip>
                     </div>
                 )}
                 {report.verification_pending && (

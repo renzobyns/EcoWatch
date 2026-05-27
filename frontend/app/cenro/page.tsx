@@ -18,6 +18,8 @@ import { AnalyticsTab, type InsightsData } from "@/components/portal/AnalyticsTa
 import { BarangayManagementTab, type BarangayOverviewRow, type BarangayCityWide } from "@/components/portal/BarangayManagementTab";
 import { BarangayDetailDrawer } from "@/components/portal/BarangayDetailDrawer";
 import { ReportDetailDrawer } from "@/components/portal/ReportDetailDrawer";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
+import { ConfidenceTooltipBody } from "@/components/ConfidenceTooltipBody";
 import { BARANGAYS } from "@/lib/barangays";
 import { TrustBadge } from "@/components/TrustBadge";
 import { useUnreadNotificationCount } from "@/lib/notification-poll";
@@ -1544,12 +1546,19 @@ export default function CenroDashboard() {
                                             <div className="p-3 border-t border-border text-[11px] text-foreground/50">
                                                 <div>Reported: {formatDate(report.created_at)}</div>
                                                 {report.ai_confidence && (
-                                                    <div>AI: {(report.ai_confidence * 100).toFixed(0)}%</div>
+                                                    <div className="inline-flex items-center gap-1.5">
+                                                        <span>AI: {(report.ai_confidence * 100).toFixed(0)}%</span>
+                                                        <InfoTooltip side="top" label="How is AI confidence computed?">
+                                                            <ConfidenceTooltipBody />
+                                                        </InfoTooltip>
+                                                    </div>
                                                 )}
                                                 <TrustBadge
                                                     trust_score={report.trust_score}
+                                                    trust_reasons={report.trust_reasons}
                                                     failing_signals={report.failing_signals}
                                                     needs_human_review={report.needs_human_review}
+                                                    tooltipSide="top"
                                                 />
                                             </div>
                                         </div>
