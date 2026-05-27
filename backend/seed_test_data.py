@@ -3,6 +3,11 @@ EcoWatch — Test Data Seeder
 Seeds the local SQLite database with test users and reports.
 Run: python seed_test_data.py
 """
+import json
+import re
+import unicodedata
+from pathlib import Path
+
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine
 import models
@@ -11,8 +16,23 @@ import bcrypt
 import uuid
 
 
+GEOJSON_PATH = Path(__file__).parent.parent / "data" / "sjdm_barangays.geojson"
+
+
 def hash_pw(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def slugify_barangay(name: str) -> str:
+    """'Minuyan Proper' -> 'minuyanproper', 'Santo Niño' -> 'santonino'."""
+    normalized = unicodedata.normalize("NFKD", name).encode("ASCII", "ignore").decode()
+    return re.sub(r"[^a-z0-9]", "", normalized.lower())
+
+
+def get_all_barangays() -> list[str]:
+    with open(GEOJSON_PATH, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    return sorted(f["properties"]["ADM4_EN"] for f in data["features"])
 
 
 def seed():
@@ -85,7 +105,46 @@ def seed():
     print(f"👤 Created {len(users)} test users:")
     for u in users:
         print(f"   → {u.email} ({u.role}) — password: password123")
-    
+
+    # ─────────────────────────────────────────────
+    # SEED PER-BARANGAY ACCOUNTS (1 barangay officer + 1 cleaner per barangay)
+    # Email pattern: <slug>@barangay.com  /  <slug>@cleaners.com
+    # Slug = lowercased name with non-alphanumeric stripped
+    #   "Minuyan Proper"  -> minuyanproper@barangay.com / minuyanproper@cleaners.com
+    #   "Santo Niño"      -> santonino@barangay.com    / santonino@cleaners.com
+    # Lets the demo log in as ANY barangay's account without manual setup.
+    # ─────────────────────────────────────────────
+    all_barangays = get_all_barangays()
+    per_brgy_users = []
+    for brgy_name in all_barangays:
+        slug = slugify_barangay(brgy_name)
+        per_brgy_users.append(models.User(
+            email=f"{slug}@barangay.com",
+            password_hash=hash_pw("password123"),
+            full_name=f"{brgy_name} Barangay Officer",
+            role="barangay",
+            barangay_assignment=brgy_name,
+        ))
+        per_brgy_users.append(models.User(
+            email=f"{slug}@cleaners.com",
+            password_hash=hash_pw("password123"),
+            full_name=f"{brgy_name} Cleaner",
+            role="cleaner",
+            barangay_assignment=brgy_name,
+        ))
+
+    for user in per_brgy_users:
+        db.add(user)
+    db.commit()
+
+    print(f"\n🏘️  Seeded {len(per_brgy_users)} per-barangay accounts "
+          f"({len(all_barangays)} barangays × 2 roles, password: password123)")
+    print(f"   Examples:")
+    for sample in all_barangays[:3]:
+        s = slugify_barangay(sample)
+        print(f"   → {s}@barangay.com  /  {s}@cleaners.com  ({sample})")
+    print(f"   ...and {len(all_barangays) - 3} more.")
+
     # ─────────────────────────────────────────────
     # SEED REPORTS (various statuses, barangays)
     # ─────────────────────────────────────────────
