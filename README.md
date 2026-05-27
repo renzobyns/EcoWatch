@@ -72,7 +72,7 @@ EcoWatch/
 │   └── lib/                     Client-side helpers
 │
 ├── backend/                     FastAPI service
-│   ├── main.py                  All routes (~3300 lines)
+│   ├── main.py                  All routes (~3600 lines)
 │   ├── models.py                ORM: User, Report, WorkOrder, SystemConfig, AuditLog
 │   ├── database.py              Auto-selects SQLite vs PostgreSQL by DATABASE_URL
 │   ├── ai_verifier.py           Mask R-CNN wrapper (mock fallback when weights missing)
@@ -99,10 +99,21 @@ EcoWatch/
 
 ### Cold Start TL;DR
 
-Fresh clone? Run these in order. The venv and `node_modules` are gitignored so you must create them locally.
+> **Step 0 — Install these first** (one-time, skip if you already have them):
+> - **[Git](https://git-scm.com/download/win)** — to clone the repo (`git --version` to check)
+> - **[Node.js 20+](https://nodejs.org/)** — comes with `npm` (`node -v` to check)
+> - **[Python 3.12](https://www.python.org/downloads/release/python-3120/)** — required for TensorFlow 2.16.1 (`py -3.12 --version` to check)
+>
+> If you don't know what Git or npm is, install the three above before continuing. They're all free.
+
+Fresh clone? Run these in order. The venv, `node_modules`, and `.env.local` are gitignored so you must create them locally.
 
 ```powershell
-# ── BACKEND (terminal 1) ──────────────────────────────────
+# ── STEP 1: Clone the repo ────────────────────────────────
+git clone https://github.com/renzobyns/EcoWatch.git
+cd EcoWatch
+
+# ── STEP 2: BACKEND (terminal 1) ──────────────────────────
 cd backend
 py -3.12 -m venv venv_tf          # create venv — Python 3.12 required
 .\venv_tf\Scripts\Activate.ps1    # activate
@@ -110,14 +121,16 @@ pip install -r requirements.txt   # install deps (takes a few minutes first time
 python seed_test_data.py          # create demo accounts + sample reports
 uvicorn main:app --reload         # → http://localhost:8000
 
-# ── FRONTEND (terminal 2) ─────────────────────────────────
+# ── STEP 3: FRONTEND (terminal 2) ─────────────────────────
 cd frontend
-# Create frontend/.env.local first (see "Environment Variables" below)
+# Create frontend/.env.local first (see "Step 4" below)
 npm install                       # install node packages
 npm run dev                       # → http://localhost:3000
 ```
 
-**You also need `frontend/.env.local`** — create it with:
+#### Step 4 — Create `frontend/.env.local`
+
+This file holds your API keys and isn't included in the clone (it's gitignored for security). Create a new file at `frontend/.env.local` and paste in:
 
 ```env
 NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
@@ -130,7 +143,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 
 ---
 
-### Prerequisites
+### Prerequisites (detailed)
 
 - **Node.js 20+**
 - **Python 3.12** (required for TensorFlow 2.16.1 compatibility)
@@ -139,7 +152,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 ### 1. Clone
 
 ```powershell
-git clone <repo-url> EcoWatch
+git clone https://github.com/renzobyns/EcoWatch.git
 cd EcoWatch
 ```
 

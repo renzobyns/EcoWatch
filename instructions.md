@@ -1,6 +1,16 @@
 # EcoWatch SJDM — System AI Instructions
 
-> **Purpose**: This document is the single source of truth for any AI or developer working on EcoWatch. Read this ENTIRE document before writing any code. Every decision, pattern, and convention is documented here.
+> ⚠️ **STATUS: HISTORICAL / SUPERSEDED** (kept for archival reference)
+>
+> This was the **original pre-development brief** written in early 2026 to guide the initial build. Much of the planned scope has now shipped, and some decisions have changed (e.g., we use local FastAPI bcrypt auth — *not* Supabase Auth — and the Mask R-CNN model is now trained and live, not a mock). Modules marked "To Build" below are all in production.
+>
+> **For current architecture, read these instead:**
+> - [`README.md`](README.md) — entry point, cold-start guide, API surface
+> - [`CODEBASE_GUIDE.md`](CODEBASE_GUIDE.md) — file-by-file walkthrough
+> - [`FEATURES.md`](FEATURES.md) — defense-grade per-feature deep dive
+> - [`CLAUDE.md`](CLAUDE.md) — quick architecture cheat sheet
+>
+> **Purpose of this file today**: To preserve the original design intent and naming conventions. Section 9 (Error Handling Philosophy), Section 10 (Design System), Section 12 (Feature Blueprint Template), and Section 13 (Git & Branch Strategy) are still actively followed.
 
 ---
 
@@ -672,8 +682,8 @@ npm run dev
 ### Backend Setup
 ```bash
 cd backend
-python -m venv venv
-.\venv\Scripts\activate    # Windows
+py -3.12 -m venv venv_tf         # Python 3.12 required for TensorFlow 2.16.1
+.\venv_tf\Scripts\Activate.ps1   # Windows PowerShell
 pip install -r requirements.txt
 uvicorn main:app --reload
 # → http://127.0.0.1:8000

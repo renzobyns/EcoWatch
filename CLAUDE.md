@@ -66,7 +66,7 @@ backend/ (FastAPI, SQLAlchemy, Shapely, Scikit-learn, TensorFlow 2.16)
 ### Key source files
 | File | Responsibility |
 |------|----------------|
-| `backend/main.py` | All FastAPI routes (~535 lines) |
+| `backend/main.py` | All FastAPI routes (~3600 lines) |
 | `backend/models.py` | SQLAlchemy ORM: User, Report, WorkOrder, SystemConfig, AuditLog |
 | `backend/database.py` | Engine setup — auto-selects SQLite (dev) vs PostgreSQL (prod via `DATABASE_URL` env var) |
 | `backend/ai_verifier.py` | Mask R-CNN wrapper; falls back to mock 80% positive if model file absent |
