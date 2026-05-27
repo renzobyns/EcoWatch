@@ -2,6 +2,39 @@
 
 All notable changes to the EcoWatch SJDM project will be documented in this file.
 
+## [Phase 7: Defense Sprint] - 2026-05-16 → 2026-05-26
+
+> The 10-day sprint that turned the working happy path into a defense-ready, role-aware product. See [`DEFENSE_PLAN.md`](DEFENSE_PLAN.md) for the day-by-day plan.
+
+### Added
+- **Role-Based Access Control (RBAC)**: `require_role()` FastAPI dependency reading `X-User-Id` header on every privileged endpoint (deploy / resolve / reassign / force-close / user mgmt).
+  - *Reason*: Anyone with the URL could hit admin endpoints — first thing a security-minded panelist would probe.
+- **AuditLog model + auto-write**: Every override action records `user_id`, `action`, `target_type`, `target_id`, `details`, `created_at`.
+  - *Reason*: Without an audit trail, "force-close" is indefensible for any compliance-aware reviewer.
+- **WorkOrder + Cleaner role**: Full cleanup-team lifecycle (assign → start → complete → resolve) with SLA deadlines and priorities.
+  - *Reason*: Barangays need to dispatch real teams, not just flip a status.
+- **Notifications**: Per-user inbox (`Notification` table), unread bell in `PortalTopbar`, role-agnostic `NotificationDropdown` shared across all portals, polling hook with generic event payload.
+  - *Reason*: Real LGU workflows need push to the assignee, not silent status changes.
+- **SystemConfig**: CENRO-configurable SLA thresholds (Low/Medium/High days) persisted to DB.
+- **Filtering + CSV exports**: `status`, `search`, `date_from`, `limit`, `offset` query params on all report endpoints; CSV exports for barangay queue, CENRO analytics, SLA reports, user management.
+- **SLA breach surfacing**: `GET /reports/sla-breaches?days=N` endpoint + Command Center widget + per-row SLA badge (green ≤2d, yellow 3–4d, red ≥5d).
+- **User management UI**: CENRO can create / disable / reactivate barangay and cleaner accounts, with CSV import/export.
+- **Trust score layer**: EXIF / GPS / software-tag signals scored per upload; LOW-trust uploads flagged for human review without hard-rejecting (handles WhatsApp EXIF-stripping case).
+- **Image validation**: 10 MB cap + JPEG/PNG MIME enforcement at the upload helper.
+- **Mask R-CNN model live**: Custom-trained `mask_rcnn_garbage.h5` (ResNet-101 backbone, 15 epochs, 0.43 val loss) replaces the mock for production; mock retained as dev fallback.
+- **Offline mode**: `OFFLINE_MODE` env flag swaps CartoDB CDN to local `backend/tiles/` — full demo without internet for OLFU Wi-Fi failure scenario.
+- **Cleaner UTC timestamp + SLA pill fix**: Job drawer timestamps render in local time; SLA pill consistent with barangay portal.
+
+### Fixed
+- **Duplicate "Graceville"** entry removed from CENRO `BARANGAYS` array.
+- **Silent `catch(e) {}`** in `Navbar.tsx` localStorage parse — now logs and clears corrupt state.
+- **`print()` → `logging`** in `ai_verifier.py` for production-grade observability.
+
+### Documentation
+- Added [`FEATURES.md`](FEATURES.md), [`MODEL_TRAINING.md`](MODEL_TRAINING.md), [`DEFENSE_PLAN.md`](DEFENSE_PLAN.md), [`TESTING_CHECKLIST.md`](TESTING_CHECKLIST.md), [`REDESIGN_SPEC.md`](REDESIGN_SPEC.md), [`IMPROVEMENTS.md`](IMPROVEMENTS.md).
+- Updated [`README.md`](README.md) with Cold Start TL;DR (prerequisites + real clone URL + venv setup).
+- Rewrote [`frontend/README.md`](frontend/README.md) with EcoWatch-specific content.
+
 ## [Phase 6: Final Polish & Optimization] - 2026-04-29
 
 ### Added

@@ -47,19 +47,19 @@ VERIFIED → DEPLOYED (barangay dispatches team)
 DEPLOYED → RESOLVED or FAILED_CLEANUP (AI checks cleanup photo)
 ```
 
-> **What we're adding on Day 2**: `AuditLog` table (tracks every admin action), `is_active` on User (for disabling accounts), `deployment_notes` on Report.
+> **Now also includes**: `AuditLog` table (tracks every admin action), `is_active` on User (for disabling accounts), `deployment_notes` on Report, `WorkOrder` (cleaner assignments + SLA), `SystemConfig` (SLA thresholds), `Notification` (per-user inbox).
 
 ---
 
 ### `main.py` — API Routes (The Orchestrator)
 **One job**: define all HTTP endpoints and wire them to the right modules.
 
-This is the biggest file (535 lines). Every time the frontend calls the backend, it hits an endpoint here. Structure:
+This is the biggest file (~3600 lines). Every time the frontend calls the backend, it hits an endpoint here. Structure:
 
 **Boot-up (lines 1–37)**
 - Imports all other modules
-- Line 19: `create_all()` auto-creates DB tables on every server start — that's why you never run migrations manually in dev
-- CORS is currently `allow_origins=["*"]` — allows all domains. We lock this to Vercel URL on Day 7
+- `create_all()` auto-creates DB tables on every server start — that's why you never run migrations manually in dev
+- CORS is currently `allow_origins=["*"]` — must be locked to the Vercel URL before production deploy
 
 **Pydantic Schemas (lines 40–86)**
 - `LoginRequest`, `ReportResponse`, etc. — these are like TypeScript interfaces for Python
@@ -75,13 +75,15 @@ This is the biggest file (535 lines). Every time the frontend calls the backend,
 | Group | Endpoints | Notes |
 |-------|-----------|-------|
 | Health | `GET /`, `GET /health` | Just status pings |
-| Auth | `POST /auth/register`, `POST /auth/login`, `GET /auth/users` | No RBAC yet — **we add this Day 2** |
+| Auth | `POST /auth/register`, `POST /auth/login`, `GET /auth/users` | RBAC via `X-User-Id` header + `require_role()` dependency |
 | Spatial | `POST /report/validate-location`, `GET /spatial/barangays` | Location validation + GeoJSON for map |
 | Report Submit | `POST /report/submit` | Biggest pipeline: image → AI → spatial → DB in one request |
-| Tracking | `GET /report/track/{slug}`, `GET /reports/recent`, `GET /reports/barangay/{name}` | Public reads |
-| Barangay Actions | `PUT /report/{id}/deploy`, `POST /report/{id}/resolve` | No auth check yet — **we fix Day 2** |
-| CENRO Actions | `PUT /report/{id}/reassign`, `PUT /report/{id}/force-close` | No auth check yet — **we fix Day 2** |
+| Tracking | `GET /report/track/{slug}`, `GET /reports/recent`, `GET /reports/barangay/{name}` | Public reads with filtering (status, search, date_from, limit, offset) |
+| Barangay Actions | `PUT /report/{id}/deploy`, `POST /report/{id}/resolve` | Gated by `require_role("barangay")`; writes to AuditLog |
+| CENRO Actions | `PUT /report/{id}/reassign`, `PUT /report/{id}/force-close` | Gated by `require_role("cenro")`; writes to AuditLog |
 | Analytics | `GET /spatial/heatmaps`, `GET /analytics/overview`, `GET /analytics/barangay-ranking` | Read-only stats |
+| Notifications | `GET /notifications/{role}/{user_id}`, polling-based unread count | Powers the bell icon across portals |
+| User Mgmt | `GET/POST /users`, `PUT /users/{id}/disable|reactivate`, CSV import/export | CENRO-only |
 
 **The submit pipeline** (`POST /report/submit`) is the most important endpoint:
 1. Read image bytes
@@ -195,7 +197,7 @@ Treat it like `node_modules` — it's a dependency, not your code.
 
 Mounts `<Navbar>` at the top, adds `pt-16` padding to the main content so it doesn't hide under the fixed navbar. Everything else is just HTML boilerplate (`<html lang="en">`, dark theme, antialiasing).
 
-> **What we're adding on Day 6**: `<ErrorBoundary>` wrapper here so a crashed component shows a friendly error instead of a blank page.
+> **Now also wraps**: `<ErrorBoundary>` so a crashed component shows a friendly error instead of a blank page. The shared `<PortalTopbar>` with notification bell mounts inside each portal layout.
 
 ---
 
@@ -209,7 +211,7 @@ Reads `ecowatch_user` from `localStorage` on mount. Based on the `role` field:
 
 Has a responsive mobile hamburger menu (the 3-line icon that becomes an X).
 
-**Known issue (line 21)**: `catch(e) {}` silently swallows JSON parse errors. If localStorage is corrupted, the user just stays "logged out" with no error. We fix this on Day 6.
+**Note on auth state**: The `try/catch` around `JSON.parse(localStorage)` now logs the error and clears the bad value instead of silently swallowing it.
 
 ---
 
@@ -248,12 +250,14 @@ Three-tab layout: Pending | Deployed | Done
 - From the modal: Deploy button (sends `PUT /report/{id}/deploy`) or upload cleanup photo + Resolve button (sends `POST /report/{id}/resolve`)
 - Right sidebar: `MapComponent` showing only this barangay's reports
 
-**What we're adding on Day 4:**
-- Search + date filter bar
-- SLA age badges (green/yellow/red by how many days old)
+**Now also includes:**
+- Search + date filter bar (debounced 300ms)
+- SLA age badges (green/yellow/red by how many days old, thresholds from `SystemConfig`)
 - Deployment notes field in the deploy modal
 - CSV export button
-- Toast notifications instead of inline error divs
+- Sonner toast notifications instead of inline error divs
+- Cleaner assignment dropdown when deploying
+- Notification bell + dropdown in the top bar
 
 ---
 
@@ -278,14 +282,14 @@ Three-tab layout: Command Center | Overview Map | Oversight Queue
 - Table of ALL reports city-wide
 - "Oversight" button per row → opens modal with Reassign and Force Close actions
 
-**Known bug (line 22):** `"Graceville"` appears twice in the `BARANGAYS` array. First fix on Day 4.
-
-**What we're adding on Day 5:**
-- Audit Log tab (4th tab)
-- User Management tab (5th tab)
+**Now also includes:**
+- Audit Log tab (4th tab) — every privileged mutation
+- User Management tab (5th tab) — create/disable/reactivate accounts, CSV import/export
 - SLA Breaches widget on Command Center
 - Date range filter + search on Oversight Queue
 - CSV export button
+- Notification bell + dropdown in the top bar
+- Duplicate "Graceville" entry removed from the BARANGAYS array
 
 ---
 
@@ -304,7 +308,7 @@ Accepts a `focusedBarangay` prop — when set, auto-zooms to that barangay's bou
 
 If the backend is unreachable, shows a banner "Backend unavailable — map overlay disabled" and still loads the base map.
 
-**What we're adding on Day 7.5 (offline mode):** A `OFFLINE_MODE` env flag that swaps the CartoDB CDN tile URL to a local `/tiles/{z}/{x}/{y}.png` path — so the map works with zero internet.
+**Offline mode:** An `OFFLINE_MODE` env flag swaps the CartoDB CDN tile URL to a local `/tiles/{z}/{x}/{y}.png` path served from `backend/tiles/` — so the map works with zero internet.
 
 ---
 
@@ -368,20 +372,26 @@ frontend/app/cenro/page.tsx    → fetches /reports/recent + /spatial/heatmaps
 
 ---
 
-## THINGS WE ARE CHANGING (Defense Sprint)
+## DEFENSE SPRINT — Completed (May 16–26, 2026)
 
-| What | File(s) | When |
-|------|---------|------|
-| Add AuditLog model, `is_active` on User | `models.py` | Day 2 |
-| Add RBAC (`require_role` dependency) | `main.py` | Day 2 |
-| Add filtering + CSV export + SLA endpoints | `main.py` | Day 3 |
-| Add `deployment_notes` column on Report | `models.py` | Day 4 |
-| Barangay portal: filters, SLA badges, export, toasts | `app/barangay/page.tsx` | Day 4 |
-| Fix duplicate Graceville | `app/cenro/page.tsx` line 22 | Day 4 |
-| CENRO portal: audit log tab, user mgmt tab, SLA widget | `app/cenro/page.tsx` | Day 5 |
-| Error boundaries, skeletons, pagination | `layout.tsx`, portals | Day 6 |
-| Offline tile swap | `components/MapComponent.tsx` | Day 7.5 |
-| Replace `print()` with `logging` | `ai_verifier.py` | Day 3 |
+All of the items below shipped during the sprint and are now live in the codebase. Kept here as a reference index of where each change lives.
+
+| What | File(s) |
+|------|---------|
+| AuditLog model, `is_active` on User, `WorkOrder`, `SystemConfig`, `Notification` | `models.py` |
+| RBAC (`require_role` dependency) on protected endpoints | `main.py` |
+| Filtering + CSV export + SLA endpoints | `main.py` |
+| `deployment_notes` column on Report | `models.py` |
+| Barangay portal: filters, SLA badges, export, toasts, cleaner dropdown | `app/barangay/page.tsx` |
+| Removed duplicate Graceville entry | `app/cenro/page.tsx` |
+| CENRO portal: audit log tab, user mgmt tab, SLA widget | `app/cenro/page.tsx` |
+| Cleaner portal with work-order lifecycle | `app/cleaner/page.tsx` |
+| Notification bell, role-agnostic dropdown, shared `PortalTopbar` | `components/NotificationDropdown.tsx`, `components/PortalTopbar.tsx` |
+| Error boundaries, skeletons, pagination | `layout.tsx`, portals |
+| Offline tile swap | `components/MapComponent.tsx` |
+| Replaced `print()` with `logging` | `ai_verifier.py` |
+
+See [`CHANGELOG.md`](CHANGELOG.md) for the per-phase log and [`DEFENSE_PLAN.md`](DEFENSE_PLAN.md) for the original sprint plan.
 
 ---
 
