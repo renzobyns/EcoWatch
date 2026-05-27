@@ -16,8 +16,10 @@ BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
-# Model weights path
+# Model weights path. We mkdir the parent so a fresh cloner can drop the
+# downloaded .h5 file straight in without having to create the folder first.
 MODEL_PATH = os.path.join(BACKEND_DIR, "models", "mask_rcnn_garbage.h5")
+os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
 
 # Trust score constants
 _KNOWN_EDITOR_KEYWORDS = [

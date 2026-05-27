@@ -226,9 +226,26 @@ py -3.12 -m venv venv_tf
 pip install -r requirements.txt
 ```
 
-**(Optional) Place the trained model weights** at [backend/models/mask_rcnn_garbage.h5](backend/models/mask_rcnn_garbage.h5):
-- The `.h5` file (~250 MB) is **not** in the git clone — it's gitignored because it's too big for GitHub. Download separately from Google Drive (`EcoWatch/models/mask_rcnn_garbage.h5`) or Hugging Face Hub.
-- **You can skip this for a basic local run.** Without the file, `ai_verifier.py` falls back to a mock that returns ~80% positive at random — the whole app still works end-to-end, but the AI isn't really looking at photos. Fine for UI/feature work; required for real demos or grading.
+#### (Optional) Add the trained Mask R-CNN model
+
+> **TL;DR:** You can **skip this entirely** for a basic local run — `ai_verifier.py` auto-falls-back to mock mode (returns ~80% positive at random). The app works end-to-end either way. Only follow these steps if you want the real AI verifying photos for a demo or grading.
+
+The model weights (`mask_rcnn_garbage.h5`, ~250 MB) are too big for git and not in the clone. Here's exactly what to do:
+
+1. **Download** `mask_rcnn_garbage.h5` from one of these sources:
+   - Google Drive: `EcoWatch/models/mask_rcnn_garbage.h5` (project-internal link)
+   - Hugging Face Hub (planned mirror — see [techstack.md](techstack.md))
+2. **Drop it into the folder** — the path must be exactly:
+
+   ```
+   backend/models/mask_rcnn_garbage.h5
+   ```
+
+   The `backend/models/` folder is auto-created the first time you run `uvicorn main:app --reload` (or start any Python file that imports `ai_verifier`), so you don't have to `mkdir` it yourself. If you'd rather create it manually first, that's fine too.
+
+3. **Restart the backend.** On startup, [ai_verifier.py:45](backend/ai_verifier.py#L45) checks for the file. If present → loads real Mask R-CNN. If missing → logs `"Model not found at: ..."` and runs in mock mode.
+
+> The vendored Mask R-CNN library lives at [backend/mrcnn/](backend/mrcnn/) and **is** in the git clone — no separate install needed. (Earlier versions accidentally gitignored this folder; it's tracked now.)
 
 Seed demo data:
 

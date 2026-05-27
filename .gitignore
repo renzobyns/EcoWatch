@@ -56,9 +56,12 @@ backend/ecowatch.db
 # Dynamic Uploads
 backend/uploads/
 
-# Mask R-CNN (cloned repo + model weights + inference library)
+# Mask R-CNN model weights (too big for git, downloaded separately)
 maskrcnn/
 *.h5
-backend/mrcnn/
 backend/models/
 backend/logs/
+
+# NOTE: backend/mrcnn/ is the vendored Mask R-CNN library (Python source, ~559 KB)
+# and IS tracked in git. Do not add it back to this ignore list — ai_verifier.py
+# imports from it and the app cannot load real model weights without it.
