@@ -15,6 +15,7 @@ import { formatDate, formatDateTime, formatRelative } from "@/lib/date-utils";
 import { PortalShell, type PortalNavItem } from "@/components/portal/PortalShell";
 import { SlaManagementTab } from "@/components/portal/SlaManagementTab";
 import { AnalyticsTab, type InsightsData } from "@/components/portal/AnalyticsTab";
+import { AnalyticsDrilldownModal, type DrilldownData } from "@/components/portal/AnalyticsDrilldownModal";
 import { BarangayManagementTab, type BarangayOverviewRow, type BarangayCityWide } from "@/components/portal/BarangayManagementTab";
 import { BarangayDetailDrawer } from "@/components/portal/BarangayDetailDrawer";
 import { ReportDetailDrawer } from "@/components/portal/ReportDetailDrawer";
@@ -189,6 +190,11 @@ export default function CenroDashboard() {
     const [insightsExporting, setInsightsExporting] = useState(false);
     const [insightsWindowDays, setInsightsWindowDays] = useState(30);
     const [insightsLastUpdated, setInsightsLastUpdated] = useState<Date | null>(null);
+    // Drilldown modal state
+    const [drilldownOpen, setDrilldownOpen] = useState(false);
+    const [drilldownLoading, setDrilldownLoading] = useState(false);
+    const [drilldownData, setDrilldownData] = useState<DrilldownData | null>(null);
+    const [drilldownError, setDrilldownError] = useState<string | null>(null);
 
     // Barangay Management tab
     const [barangayOverview, setBarangayOverview] = useState<BarangayOverviewRow[]>([]);
@@ -828,6 +834,25 @@ export default function CenroDashboard() {
         }
     };
 
+    const handleDrilldown = async (metric: string, key?: string) => {
+        setDrilldownOpen(true);
+        setDrilldownLoading(true);
+        setDrilldownData(null);
+        setDrilldownError(null);
+        try {
+            const params = new URLSearchParams({ metric, days: String(insightsWindowDays) });
+            if (key) params.set("key", key);
+            if (insightsData?.window.start) params.set("start", insightsData.window.start);
+            if (insightsData?.window.end) params.set("end", insightsData.window.end);
+            const data = await api(`/analytics/insights/drilldown?${params.toString()}`);
+            setDrilldownData(data);
+        } catch (err) {
+            setDrilldownError(err instanceof Error ? err.message : "Failed to load drill-down data");
+        } finally {
+            setDrilldownLoading(false);
+        }
+    };
+
     const handleExportInsights = async () => {
         setInsightsExporting(true);
         try {
@@ -960,14 +985,7 @@ export default function CenroDashboard() {
                         onExport={handleExportInsights}
                         onRefresh={() => fetchInsights(insightsWindowDays)}
                         lastUpdated={insightsLastUpdated}
-                        onReportsClick={(dateFrom, dateTo) => {
-                            setOversightDateFrom(dateFrom);
-                            setOversightDateTo(dateTo);
-                            setOversightStatus("");
-                            setOversightSearch("");
-                            setOversightBarangay("");
-                            setActiveTab('oversight');
-                        }}
+                        onDrilldown={handleDrilldown}
                     />
                 )}
 
@@ -1783,6 +1801,19 @@ export default function CenroDashboard() {
                 onClose={() => setSelectedReport(null)}
                 onReassign={() => selectedReport && handleReassign(selectedReport.id)}
                 onForceClose={() => selectedReport && handleForceClose(selectedReport.id)}
+            />
+
+            {/* Analytics Drill-down Modal */}
+            <AnalyticsDrilldownModal
+                open={drilldownOpen}
+                loading={drilldownLoading}
+                error={drilldownError}
+                data={drilldownData}
+                onClose={() => setDrilldownOpen(false)}
+                onRowClick={(row) => {
+                    setDrilldownOpen(false);
+                    setSelectedReport(row);
+                }}
             />
 
             {/* Create Account Modal */}

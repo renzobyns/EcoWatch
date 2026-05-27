@@ -103,7 +103,7 @@ interface Props {
     onExport: () => void;
     onRefresh: () => void;
     lastUpdated: Date | null;
-    onReportsClick?: (dateFrom: string, dateTo: string) => void;
+    onDrilldown?: (metric: string, key?: string) => void;
 }
 
 const WINDOW_PRESETS: Array<{ days: number; label: string }> = [
@@ -222,7 +222,7 @@ function HeroKpi({
                 </div>
                 <div className="flex items-center justify-between gap-2 pt-1 border-t border-foreground/10">
                     <DeltaArrow value={delta} higherIsBetter={higherIsBetter} suffix={deltaSuffix || "%"} />
-                    <span className="text-[10px] text-foreground/40 uppercase tracking-widest font-bold truncate">{onClick ? "View reports →" : priorLabel}</span>
+                    <span className="text-[10px] text-foreground/40 uppercase tracking-widest font-bold truncate">{onClick ? "View breakdown →" : priorLabel}</span>
                 </div>
             </div>
         </div>
@@ -230,12 +230,12 @@ function HeroKpi({
 }
 
 function FunnelRow({
-    label, count, percent, width, tone, sublabel,
+    label, count, percent, width, tone, sublabel, onClick,
 }: {
-    label: string; count: number; percent: number; width: number; tone: typeof FUNNEL_TONE[number]; sublabel?: string;
+    label: string; count: number; percent: number; width: number; tone: typeof FUNNEL_TONE[number]; sublabel?: string; onClick?: () => void;
 }) {
     return (
-        <div className="flex items-center gap-4 group">
+        <div className={`flex items-center gap-4 group ${onClick ? "cursor-pointer" : ""}`} onClick={onClick}>
             <div className="w-32 shrink-0">
                 <div className={`text-xs font-bold ${tone.text} uppercase tracking-widest`}>{label}</div>
                 {sublabel && <div className="text-[10px] text-foreground/40 mt-0.5">{sublabel}</div>}
@@ -262,7 +262,7 @@ function TrendArrow({ trend }: { trend: "up" | "down" | "flat" | "new" }) {
     return <Minus size={14} className="text-foreground/30" />;
 }
 export function AnalyticsTab({
-    loading, data, windowDays, onWindowChange, exporting, onExport, onRefresh, lastUpdated, onReportsClick,
+    loading, data, windowDays, onWindowChange, exporting, onExport, onRefresh, lastUpdated, onDrilldown,
 }: Props) {
     const trendChartData = useMemo(() => {
         if (!data) return [];
@@ -360,7 +360,7 @@ export function AnalyticsTab({
                             delta={data.kpis.delta.reports_pct}
                             higherIsBetter={false}
                             priorLabel={`Prior: ${data.kpis.prior.reports}`}
-                            onClick={onReportsClick ? () => onReportsClick(data.window.start.slice(0, 10), data.window.end.slice(0, 10)) : undefined}
+                            onClick={onDrilldown ? () => onDrilldown("reports") : undefined}
                         />
                         <HeroKpi
                             label="Resolution Rate"
@@ -372,6 +372,7 @@ export function AnalyticsTab({
                             deltaSuffix="pts"
                             higherIsBetter
                             priorLabel={`Prior: ${data.kpis.prior.resolution_rate.toFixed(1)}%`}
+                            onClick={onDrilldown ? () => onDrilldown("resolution_rate") : undefined}
                         />
                         <HeroKpi
                             label="Avg Time to Resolve"
@@ -382,6 +383,7 @@ export function AnalyticsTab({
                             delta={data.kpis.delta.avg_resolve_days_pct}
                             higherIsBetter={false}
                             priorLabel={`Prior: ${data.kpis.prior.avg_resolve_days.toFixed(1)}d`}
+                            onClick={onDrilldown ? () => onDrilldown("avg_resolve_days") : undefined}
                         />
                         <HeroKpi
                             label="SLA Compliance"
@@ -393,6 +395,7 @@ export function AnalyticsTab({
                             deltaSuffix="pts"
                             higherIsBetter
                             priorLabel={data.kpis.prior.sla_compliance != null ? `Prior: ${data.kpis.prior.sla_compliance.toFixed(1)}%` : "Prior: N/A"}
+                            onClick={onDrilldown ? () => onDrilldown("sla_compliance") : undefined}
                         />
                     </>
                 ) : null}
@@ -516,12 +519,17 @@ export function AnalyticsTab({
                                             width={widthPct}
                                             tone={FUNNEL_TONE[idx] || FUNNEL_TONE[0]}
                                             sublabel={idx > 0 ? `${(pct - priorPct).toFixed(0)}% from prev` : "Pipeline entry"}
+                                            onClick={onDrilldown ? () => onDrilldown("funnel", stage.key) : undefined}
                                         />
                                     );
                                 })}
                                 <div className="pt-3 border-t border-border grid grid-cols-2 gap-3">
                                     {data.funnel.branches.map((b) => (
-                                        <div key={b.key} className="p-3 rounded-xl bg-red-500/5 border border-red-500/20">
+                                        <div
+                                            key={b.key}
+                                            className={`p-3 rounded-xl bg-red-500/5 border border-red-500/20 ${onDrilldown ? "cursor-pointer hover:bg-red-500/10 transition-colors" : ""}`}
+                                            onClick={onDrilldown ? () => onDrilldown("branch", b.key) : undefined}
+                                        >
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-2">
                                                     <AlertTriangle size={14} className="text-red-300" />
@@ -580,7 +588,12 @@ export function AnalyticsTab({
                                                     cursor={{ fill: "rgba(255,255,255,0.04)" }}
                                                 />
                                                 <ReferenceLine x="0.5-0.6" stroke="rgba(245, 158, 11, 0.5)" strokeDasharray="4 4" label={{ value: "AI threshold", position: "top", fill: "#f59e0b", fontSize: 9 }} />
-                                                <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                                                <Bar
+                                                    dataKey="count"
+                                                    radius={[6, 6, 0, 0]}
+                                                    cursor={onDrilldown ? "pointer" : undefined}
+                                                    onClick={onDrilldown ? (payload: { bucket?: string }) => { if (payload?.bucket) onDrilldown("ai_bucket", payload.bucket); } : undefined}
+                                                >
                                                     {aiChartData.map((entry, idx) => (
                                                         <Cell key={idx} fill={entry.isAboveThreshold ? "#10b981" : "#ef4444"} />
                                                     ))}
@@ -632,7 +645,11 @@ export function AnalyticsTab({
                                 </thead>
                                 <tbody>
                                     {data.barangay_leaderboard.slice(0, 10).map((row, idx) => (
-                                        <tr key={row.barangay} className="border-b border-border/40 hover:bg-foreground/5 transition-colors">
+                                        <tr
+                                            key={row.barangay}
+                                            className={`border-b border-border/40 hover:bg-foreground/5 transition-colors ${onDrilldown ? "cursor-pointer" : ""}`}
+                                            onClick={onDrilldown ? () => onDrilldown("leaderboard", row.barangay) : undefined}
+                                        >
                                             <td className="py-3 pr-3">
                                                 <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold ${idx < 3 ? "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/30" : "bg-foreground/5 text-foreground/50"}`}>
                                                     {idx + 1}
@@ -676,7 +693,11 @@ export function AnalyticsTab({
                                 const c2d = row.avg_created_to_deployed_hours;
                                 const d2c = row.avg_deployed_to_completed_hours;
                                 return (
-                                    <div key={row.priority} className={`p-4 rounded-2xl border ${tone.border} ${tone.bg}`}>
+                                    <div
+                                        key={row.priority}
+                                        className={`p-4 rounded-2xl border ${tone.border} ${tone.bg} ${onDrilldown ? "cursor-pointer hover:brightness-110 transition-all" : ""}`}
+                                        onClick={onDrilldown ? () => onDrilldown("response_priority", row.priority) : undefined}
+                                    >
                                         <div className="flex items-center justify-between mb-3">
                                             <div className="flex items-center gap-2">
                                                 <span className={`w-2 h-2 rounded-full ${tone.dot} shadow-[0_0_8px_currentColor]`} style={{ color: "currentColor" }} />
