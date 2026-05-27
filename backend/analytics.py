@@ -294,6 +294,205 @@ def _build_response_time_by_priority(work_orders, start, end):
     return rows
 
 
+def compute_drilldown(reports, work_orders, metric, key=None, start=None, end=None, days=30, now=None):
+    """Return the records that compose one analytics element, with a formula/breakdown for display."""
+    if start is None or end is None:
+        now = now or datetime.utcnow()
+        end = now
+        start = now - timedelta(days=days)
+
+    in_window = [r for r in reports if r.created_at and start <= r.created_at < end]
+
+    # ---- KPI: total reports (excludes rejected, mirrors _summarize_window L79) ----
+    if metric == "reports":
+        rows = [r for r in in_window if r.status != "rejected"]
+        return {
+            "kind": "reports",
+            "title": "Reports",
+            "headline": str(len(rows)),
+            "formula": f"{len(rows)} non-rejected reports in the selected window",
+            "breakdown": [
+                {"label": "Submitted", "count": len(rows), "tone": "blue"},
+            ],
+            "report_rows": rows,
+            "wo_rows": [],
+        }
+
+    # ---- KPI: resolution rate (mirrors _summarize_window L81-83) ----
+    if metric == "resolution_rate":
+        eligible = [r for r in in_window if r.status in _RESOLUTION_DENOM_STATUSES]
+        resolved = [r for r in eligible if r.status == "resolved"]
+        rate = round(len(resolved) / len(eligible) * 100, 1) if eligible else 0.0
+        return {
+            "kind": "reports",
+            "title": "Resolution Rate",
+            "headline": f"{rate}%",
+            "formula": f"{len(resolved)} resolved ÷ {len(eligible)} eligible = {rate}%",
+            "breakdown": [
+                {"label": "Resolved", "count": len(resolved), "tone": "emerald"},
+                {"label": "Eligible", "count": len(eligible), "tone": "blue"},
+            ],
+            "report_rows": eligible,
+            "wo_rows": [],
+            "row_detail": {r.id: "resolved" if r.status == "resolved" else r.status for r in eligible},
+        }
+
+    # ---- KPI: avg time to resolve (mirrors _summarize_window L85-88) ----
+    if metric == "avg_resolve_days":
+        resolved_timed = [r for r in in_window if r.status == "resolved" and r.resolved_at and r.created_at]
+        if resolved_timed:
+            avg_days = round(sum((r.resolved_at - r.created_at).total_seconds() for r in resolved_timed) / len(resolved_timed) / 86400, 2)
+        else:
+            avg_days = 0.0
+        return {
+            "kind": "reports",
+            "title": "Avg Time to Resolve",
+            "headline": f"{avg_days}d",
+            "formula": f"mean of {len(resolved_timed)} resolve times = {avg_days}d",
+            "breakdown": [
+                {"label": "Resolved with timing", "count": len(resolved_timed), "tone": "yellow"},
+            ],
+            "report_rows": resolved_timed,
+            "wo_rows": [],
+            "row_detail": {
+                r.id: f"{round((r.resolved_at - r.created_at).total_seconds() / 86400, 1)}d"
+                for r in resolved_timed
+            },
+        }
+
+    # ---- KPI: SLA compliance (mirrors compute_insights L306-312 + _summarize_window L92-95) ----
+    if metric == "sla_compliance":
+        wo_in_window = [
+            wo for wo in work_orders
+            if wo.completed_at and wo.sla_deadline and start <= wo.completed_at < end
+        ]
+        on_time = [wo for wo in wo_in_window if wo.completed_at <= wo.sla_deadline]
+        late = [wo for wo in wo_in_window if wo.completed_at > wo.sla_deadline]
+        rate = round(len(on_time) / len(wo_in_window) * 100, 1) if wo_in_window else None
+        headline = f"{rate}%" if rate is not None else "N/A"
+        formula = (
+            f"{len(on_time)} on-time ÷ {len(wo_in_window)} completed = {rate}%"
+            if wo_in_window else "No completed work orders in window"
+        )
+        return {
+            "kind": "work_orders",
+            "title": "SLA Compliance",
+            "headline": headline,
+            "formula": formula,
+            "breakdown": [
+                {"label": "On-time", "count": len(on_time), "tone": "emerald"},
+                {"label": "Late", "count": len(late), "tone": "red"},
+            ],
+            "report_rows": [],
+            "wo_rows": wo_in_window,
+            "row_detail": {wo.id: "on-time" if wo.completed_at <= wo.sla_deadline else "late" for wo in wo_in_window},
+        }
+
+    # ---- Funnel stages (mirrors _build_funnel L205-228) ----
+    if metric == "funnel":
+        stage_sets = {
+            "submitted": in_window,
+            "verified": [r for r in in_window if r.status in {"verified", "assigned", "in_progress", "resolved", "failed_cleanup"}],
+            "assigned": [r for r in in_window if r.status in {"assigned", "in_progress", "resolved", "failed_cleanup"}],
+            "resolved": [r for r in in_window if r.status == "resolved"],
+        }
+        rows = stage_sets.get(key, [])
+        label_map = {"submitted": "Submitted", "verified": "AI Verified", "assigned": "Team Assigned", "resolved": "Resolved"}
+        label = label_map.get(key, key or "")
+        return {
+            "kind": "reports",
+            "title": f"Funnel — {label}",
+            "headline": str(len(rows)),
+            "formula": f"{len(rows)} reports at '{label}' stage or beyond",
+            "breakdown": [{"label": label, "count": len(rows), "tone": "blue"}],
+            "report_rows": rows,
+            "wo_rows": [],
+        }
+
+    # ---- Funnel branches: rejected / failed_cleanup ----
+    if metric == "branch":
+        rows = [r for r in in_window if r.status == key]
+        label_map = {"rejected": "Rejected by AI", "failed_cleanup": "Failed Cleanup"}
+        label = label_map.get(key, key or "")
+        return {
+            "kind": "reports",
+            "title": f"Branch — {label}",
+            "headline": str(len(rows)),
+            "formula": f"{len(rows)} reports with status '{key}'",
+            "breakdown": [{"label": label, "count": len(rows), "tone": "red"}],
+            "report_rows": rows,
+            "wo_rows": [],
+        }
+
+    # ---- Leaderboard row: one barangay's reports ----
+    if metric == "leaderboard":
+        rows = [r for r in in_window if r.barangay == key]
+        resolved = [r for r in rows if r.status == "resolved"]
+        return {
+            "kind": "reports",
+            "title": f"Barangay — {key}",
+            "headline": str(len(rows)),
+            "formula": f"{len(rows)} total | {len(resolved)} resolved",
+            "breakdown": [
+                {"label": "Total", "count": len(rows), "tone": "blue"},
+                {"label": "Resolved", "count": len(resolved), "tone": "emerald"},
+            ],
+            "report_rows": rows,
+            "wo_rows": [],
+            "row_detail": {r.id: r.status for r in rows},
+        }
+
+    # ---- AI confidence histogram bucket (mirrors _build_ai_quality L233-238) ----
+    if metric == "ai_bucket":
+        # key is the bucket label string e.g. "0.7-0.8"; match by label from histogram bins
+        bins = [(0.0, 0.5, "<0.5"), (0.5, 0.6, "0.5-0.6"), (0.6, 0.7, "0.6-0.7"),
+                (0.7, 0.8, "0.7-0.8"), (0.8, 0.9, "0.8-0.9"), (0.9, 1.01, "0.9-1.0")]
+        matched = next(((lo, hi, lbl) for lo, hi, lbl in bins if lbl == key), None)
+        if matched:
+            lo, hi, lbl = matched
+            rows = [r for r in in_window if r.ai_confidence is not None and lo <= r.ai_confidence < hi]
+        else:
+            rows = []
+            lbl = key or ""
+        above = hi > _AI_REJECTED_THRESHOLD if matched else False
+        tone = "emerald" if above else "red"
+        return {
+            "kind": "reports",
+            "title": f"AI Confidence Bucket — {lbl}",
+            "headline": str(len(rows)),
+            "formula": f"{len(rows)} reports with AI confidence in [{lbl}] ({'above' if above else 'below'} threshold)",
+            "breakdown": [{"label": lbl, "count": len(rows), "tone": tone}],
+            "report_rows": rows,
+            "wo_rows": [],
+            "row_detail": {r.id: f"{round((r.ai_confidence or 0) * 100)}%" for r in rows},
+        }
+
+    # ---- Response time by priority (mirrors _build_response_time_by_priority L268-274) ----
+    if metric == "response_priority":
+        wo_in_window = [
+            wo for wo in work_orders
+            if wo.created_at and start <= wo.created_at < end and (wo.priority or "medium").lower() == (key or "").lower()
+        ]
+        return {
+            "kind": "work_orders",
+            "title": f"Response Time — {(key or '').capitalize()} Priority",
+            "headline": str(len(wo_in_window)),
+            "formula": f"{len(wo_in_window)} work orders with {key} priority in the selected window",
+            "breakdown": [{"label": f"{key} priority WOs", "count": len(wo_in_window), "tone": "yellow"}],
+            "report_rows": [],
+            "wo_rows": wo_in_window,
+            "row_detail": {
+                wo.id: (
+                    f"start:{round((wo.started_at - wo.created_at).total_seconds()/3600,1)}h"
+                    if wo.started_at else "not started"
+                )
+                for wo in wo_in_window
+            },
+        }
+
+    raise ValueError(f"Unknown drilldown metric: {metric!r}")
+
+
 def compute_insights(reports, work_orders, days, now=None):
     """Pure aggregation - produces all data the Analytics tab needs."""
     now = now or datetime.utcnow()

@@ -3397,6 +3397,113 @@ async def get_analytics_insights(
     return analytics.compute_insights(reports, work_orders, days=days)
 
 
+@app.get("/analytics/insights/drilldown")
+async def get_analytics_drilldown(
+    metric: str,
+    key: Optional[str] = None,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+    days: int = 30,
+    limit: int = 500,
+    db: Session = Depends(get_db),
+    _user: models.User = Depends(require_role("cenro")),
+):
+    """Return the records behind a single analytics element. CENRO-only.
+
+    metric: reports | resolution_rate | avg_resolve_days | sla_compliance |
+            funnel | branch | leaderboard | ai_bucket | response_priority
+    key: sub-selector (e.g. barangay name, funnel stage, AI bucket label, priority)
+    start/end: ISO datetimes forwarded from the current insights window for exact reconciliation
+    """
+    if days < 1 or days > 365:
+        raise HTTPException(status_code=400, detail="days must be between 1 and 365")
+    limit = min(max(limit, 1), 1000)
+
+    # Parse explicit window bounds when provided (for exact reconciliation)
+    parsed_start: Optional[datetime] = None
+    parsed_end: Optional[datetime] = None
+    if start:
+        try:
+            parsed_start = datetime.fromisoformat(start.rstrip("Z"))
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid start datetime")
+    if end:
+        try:
+            parsed_end = datetime.fromisoformat(end.rstrip("Z"))
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid end datetime")
+
+    # Load data using the same horizon as /analytics/insights
+    now = datetime.utcnow()
+    horizon_start = now - timedelta(days=days * 2 + 1)
+    if parsed_start:
+        horizon_start = min(horizon_start, parsed_start - timedelta(days=1))
+
+    reports = (
+        db.query(models.Report)
+        .options(joinedload(models.Report.report_photos))
+        .filter(models.Report.created_at >= horizon_start)
+        .all()
+    )
+    work_orders = (
+        db.query(models.WorkOrder)
+        .filter(models.WorkOrder.created_at >= horizon_start)
+        .all()
+    )
+
+    try:
+        result = analytics.compute_drilldown(
+            reports, work_orders,
+            metric=metric, key=key,
+            start=parsed_start, end=parsed_end,
+            days=days, now=now,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    # Serialize rows
+    if result["kind"] == "reports":
+        serialized_rows = []
+        for report in result["report_rows"][:limit]:
+            r = ReportResponse.model_validate(report)
+            r.failing_signals = _get_report_failing_signals(list(report.report_photos))
+            r.trust_reasons = _get_report_trust_reasons(list(report.report_photos))
+            row_dict = r.model_dump()
+            row_dict["_detail"] = (result.get("row_detail") or {}).get(report.id)
+            serialized_rows.append(row_dict)
+        columns = ["tracking_id", "barangay", "status", "created_at", "resolved_at", "_detail"]
+    else:
+        # work_orders — build lite rows (join tracking_id via report relationship)
+        report_map = {r.id: r for r in reports}
+        serialized_rows = []
+        for wo in result["wo_rows"][:limit]:
+            linked = report_map.get(wo.report_id)
+            serialized_rows.append({
+                "id": wo.id,
+                "report_id": wo.report_id,
+                "tracking_id": linked.tracking_id if linked else None,
+                "barangay": linked.barangay if linked else None,
+                "priority": wo.priority,
+                "status": wo.status,
+                "created_at": wo.created_at.isoformat() if wo.created_at else None,
+                "sla_deadline": wo.sla_deadline.isoformat() if wo.sla_deadline else None,
+                "completed_at": wo.completed_at.isoformat() if wo.completed_at else None,
+                "_detail": (result.get("row_detail") or {}).get(wo.id),
+            })
+        columns = ["tracking_id", "barangay", "priority", "status", "sla_deadline", "_detail"]
+
+    return {
+        "kind": result["kind"],
+        "title": result["title"],
+        "headline": result["headline"],
+        "formula": result["formula"],
+        "breakdown": result["breakdown"],
+        "columns": columns,
+        "rows": serialized_rows,
+        "total": len(result["report_rows"]) if result["kind"] == "reports" else len(result["wo_rows"]),
+    }
+
+
 @app.get("/analytics/insights-export")
 async def export_analytics_insights(
     days: int = 30,
