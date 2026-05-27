@@ -11,6 +11,8 @@ import { slaInfo, SLA_PILL_CLASSES, slaDeadlineColor, slaDeadlineLabel } from "@
 import { formatDate, formatDateTime, formatRelative } from "@/lib/date-utils";
 import { PortalShell, type PortalNavItem } from "@/components/portal/PortalShell";
 import { TrustBadge } from "@/components/TrustBadge";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
+import { ConfidenceTooltipBody } from "@/components/ConfidenceTooltipBody";
 import { useUnreadNotificationCount } from "@/lib/notification-poll";
 
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
@@ -1615,14 +1617,18 @@ export default function BarangayPortal() {
                                     <div className="w-full aspect-video rounded-xl overflow-hidden border border-border bg-black/50 relative">
                                         <img src={`${API_URL}${selectedReport.image_url}`} className="w-full h-full object-cover" alt="Evidence" />
                                         {selectedReport.ai_confidence && (
-                                            <div className="absolute bottom-2 right-2 glass px-2 py-1 rounded text-[10px] font-bold text-white">
-                                                AI Confidence: {(selectedReport.ai_confidence * 100).toFixed(0)}%
+                                            <div className="absolute bottom-2 right-2 glass px-2 py-1 rounded text-[10px] font-bold text-white inline-flex items-center gap-1.5">
+                                                <span>AI Confidence: {(selectedReport.ai_confidence * 100).toFixed(0)}%</span>
+                                                <InfoTooltip side="top" align="right" label="How is AI confidence computed?">
+                                                    <ConfidenceTooltipBody />
+                                                </InfoTooltip>
                                             </div>
                                         )}
                                     </div>
                                     <div className="mt-2">
                                         <TrustBadge
                                             trust_score={(selectedReport as any).trust_score}
+                                            trust_reasons={(selectedReport as any).trust_reasons}
                                             failing_signals={(selectedReport as any).failing_signals}
                                             needs_human_review={(selectedReport as any).needs_human_review}
                                         />

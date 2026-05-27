@@ -19,7 +19,12 @@ from sqlalchemy import or_, text
 from sqlalchemy.orm import Session, joinedload
 from database import engine, get_db, SessionLocal
 import models
-from ai_verifier import verifier, verify_images_async, compute_trust_score
+from ai_verifier import (
+    verifier,
+    verify_images_async,
+    compute_trust_score,
+    _GPS_HIGH_TRUST_METERS,
+)
 import analytics
 from notifications import emit_notification, emit_to_barangay, emit_to_cenro, sweep_sla_notifications
 
@@ -298,6 +303,7 @@ class ReportResponse(BaseModel):
     trust_score: Optional[str] = None
     needs_human_review: bool = False
     failing_signals: List[str] = []
+    trust_reasons: List[str] = []
     photos: List[dict] = []
 
     class Config:
@@ -1199,6 +1205,51 @@ def _get_report_failing_signals(photos: list) -> list:
     return []
 
 
+def _trust_reasons_from_signals(trust_dict: dict) -> list:
+    """Human-readable reasons a photo landed in its trust tier.
+
+    For LOW trust this is the failing_signals (already readable). For MEDIUM,
+    the failing_signals list is empty, so we derive the missing-metadata reasons
+    from the stored signals dict (mirrors the medium-trust rule in
+    ai_verifier.compute_trust_score). HIGH trust returns [].
+    """
+    failing = trust_dict.get("failing_signals") or []
+    if failing:
+        return failing
+
+    signals = trust_dict.get("signals") or {}
+    reasons = []
+    if not (signals.get("has_camera_make") or signals.get("has_camera_model")):
+        reasons.append("No camera make/model in photo metadata")
+    if signals.get("datetime_original") is None:
+        reasons.append("No capture timestamp in photo metadata")
+    if signals.get("gps_lat") is None:
+        reasons.append("No GPS coordinates in photo metadata")
+    else:
+        dist = signals.get("gps_distance_m")
+        if dist is not None and dist > _GPS_HIGH_TRUST_METERS:
+            reasons.append(f"Photo GPS ~{dist:.0f}m from the report pin")
+    return reasons
+
+
+def _get_report_trust_reasons(photos: list) -> list:
+    """Return the human-readable trust reasons from the lowest-trust ReportPhoto."""
+    priority = {"low": 0, "medium": 1, "high": 2}
+    worst_photo = None
+    worst_priority = 99
+    for p in photos:
+        score = getattr(p, "trust_score", None)
+        if score and priority.get(score, 99) < worst_priority:
+            worst_priority = priority[score]
+            worst_photo = p
+    if worst_photo and getattr(worst_photo, "trust_signals", None):
+        try:
+            return _trust_reasons_from_signals(json.loads(worst_photo.trust_signals))
+        except Exception:
+            return []
+    return []
+
+
 async def _bg_verify_submit(report_id: int) -> None:
     """Background task: run Mask R-CNN on all evidence photos for a freshly-submitted report."""
     db = SessionLocal()
@@ -1627,6 +1678,7 @@ async def track_report(tracking_slug: str, db: Session = Depends(get_db)):
     ]
     # Attach report-level trust signals from the lowest-trust photo
     response.failing_signals = _get_report_failing_signals(photo_rows)
+    response.trust_reasons = _get_report_trust_reasons(photo_rows)
     return response
 
 def _apply_report_filters(
@@ -1681,6 +1733,7 @@ async def get_recent_reports(
     for report in reports:
         r = ReportResponse.model_validate(report)
         r.failing_signals = _get_report_failing_signals(list(report.report_photos))
+        r.trust_reasons = _get_report_trust_reasons(list(report.report_photos))
         results.append(r)
     return results
 
@@ -1713,6 +1766,7 @@ async def get_barangay_reports(
     for report in reports:
         r = ReportResponse.model_validate(report)
         r.failing_signals = _get_report_failing_signals(list(report.report_photos))
+        r.trust_reasons = _get_report_trust_reasons(list(report.report_photos))
         results.append(r)
     return results
 
@@ -1745,6 +1799,7 @@ async def get_sla_breaches(db: Session = Depends(get_db)):
     for report in breached_reports:
         r = ReportResponse.model_validate(report)
         r.failing_signals = _get_report_failing_signals(list(report.report_photos))
+        r.trust_reasons = _get_report_trust_reasons(list(report.report_photos))
         results.append(r)
     return results
 
@@ -1789,6 +1844,7 @@ async def get_report_detail(
         for p in report.report_photos
     ]
     response.failing_signals = _get_report_failing_signals(list(report.report_photos))
+    response.trust_reasons = _get_report_trust_reasons(list(report.report_photos))
 
     # Cleanup photos (proof of resolution)
     wo_by_id = {wo.id: wo for wo in report.work_orders}
