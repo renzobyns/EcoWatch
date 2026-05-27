@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# EcoWatch SJDM — Frontend
 
-## Getting Started
+Next.js 16 / React 19 / TypeScript / Tailwind CSS v4 frontend for the EcoWatch environmental reporting system.
 
-First, run the development server:
+See the [root README](../README.md) for the full project overview, architecture, and cold-start guide.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Quick Start
+
+```powershell
+# 1. Create frontend/.env.local (required)
+# NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+# GOOGLE_GEMINI_API_KEY=...
+# NEXT_PUBLIC_SUPABASE_URL=...
+# NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+
+npm install
+npm run dev     # http://localhost:3000
+npm run build
+npm run lint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The backend must be running on port 8000 before the frontend will work. See [backend setup](../README.md#3-backend-setup).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Routes
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Path | Role | Description |
+|---|---|---|
+| `/` | Public | Landing page + citizen entry |
+| `/report` | Public | Citizen report submission form |
+| `/track/[slug]` | Public | Report tracking page |
+| `/login` `/signup` | Public | Auth screens |
+| `/barangay` | barangay | Barangay admin portal |
+| `/cenro` | cenro | CENRO city-wide dashboard |
+| `/cleaner` | cleaner | Cleanup team portal |
 
-## Learn More
+## Key Components
 
-To learn more about Next.js, take a look at the following resources:
+| Component | Description |
+|---|---|
+| `components/MapComponent.tsx` | Leaflet map with barangay polygons, pins, heatmap overlay |
+| `components/NotificationDropdown.tsx` | Role-agnostic notification bell + dropdown |
+| `components/PortalTopbar.tsx` | Shared top bar across all portals |
+| `components/TrustBadge.tsx` | Per-report trust score badge |
+| `components/QRCodeModal.tsx` | QR code generator modal |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Environment Variables
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Variable | Required | Description |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | Yes | Backend base URL (e.g. `http://127.0.0.1:8000`) |
+| `GOOGLE_GEMINI_API_KEY` | Yes | Gemini API key for AI features |
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key |
