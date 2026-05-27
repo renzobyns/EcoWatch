@@ -123,14 +123,25 @@ uvicorn main:app --reload         # → http://localhost:8000
 
 # ── STEP 3: FRONTEND (terminal 2) ─────────────────────────
 cd frontend
-# Create frontend/.env.local first (see "Step 4" below)
 npm install                       # install node packages
 npm run dev                       # → http://localhost:3000
 ```
 
-#### Step 4 — Create `frontend/.env.local`
+That's it — the app should now work end-to-end at `http://localhost:3000` with the seeded accounts (`citizen@test.com` / `barangay@test.com` / `cenro@test.com`, all `password123`).
 
-This file holds your API keys and isn't included in the clone (it's gitignored for security). Create a new file at `frontend/.env.local` and paste in:
+> The AI model weights (`backend/models/mask_rcnn_garbage.h5`) are gitignored. Without them the backend falls back to a mock that returns ~80% positive — fine for UI work. See [AI Model Details](#-ai-model-details) to get the real weights.
+
+#### Optional — `frontend/.env.local`
+
+You **do not need this file for a basic local run.** The frontend has built-in fallbacks. Create it only if you want one of these specific things:
+
+| Variable | Needed when |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | Your backend runs on a non-default port or remote host. Default fallback: `http://127.0.0.1:8000`. |
+| `GOOGLE_GEMINI_API_KEY` | You want real Gemini responses in the AI chat widget. Without it, chat returns simulated text. |
+| `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` | You're testing the `/signup` page or OAuth callback. Login + all portals already work via local FastAPI bcrypt auth. |
+
+If you do need one, create `frontend/.env.local`:
 
 ```env
 NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
@@ -138,8 +149,6 @@ GOOGLE_GEMINI_API_KEY=your_key_here
 NEXT_PUBLIC_SUPABASE_URL=https://...supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 ```
-
-> The AI model weights (`backend/models/mask_rcnn_garbage.h5`) are also gitignored. Without them the backend falls back to a mock that returns ~80% positive — fine for UI work. See [AI Model Details](#-ai-model-details) to get the real weights.
 
 ---
 
@@ -189,9 +198,9 @@ py -3.12 -m venv venv_tf
 pip install -r requirements.txt
 ```
 
-Place the trained model weights at [backend/models/mask_rcnn_garbage.h5](backend/models/mask_rcnn_garbage.h5):
-- Download from Google Drive (`EcoWatch/models/mask_rcnn_garbage.h5`) or Hugging Face Hub.
-- **Without this file**, `ai_verifier.py` falls back to a mock that returns ~80% positive at random — fine for UI work, not for real demos.
+**(Optional) Place the trained model weights** at [backend/models/mask_rcnn_garbage.h5](backend/models/mask_rcnn_garbage.h5):
+- The `.h5` file (~250 MB) is **not** in the git clone — it's gitignored because it's too big for GitHub. Download separately from Google Drive (`EcoWatch/models/mask_rcnn_garbage.h5`) or Hugging Face Hub.
+- **You can skip this for a basic local run.** Without the file, `ai_verifier.py` falls back to a mock that returns ~80% positive at random — the whole app still works end-to-end, but the AI isn't really looking at photos. Fine for UI/feature work; required for real demos or grading.
 
 Seed demo data:
 
