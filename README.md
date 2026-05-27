@@ -180,6 +180,40 @@ So: you get the table structure from the code, an empty DB from the first boot, 
 
 ---
 
+### ✅ Verify Your Setup Works
+
+After running the steps above, **before you start clicking around**, prove the setup actually works end-to-end. The repo ships with two verification tools — one automated, one manual checklist — and a [`VERIFY_SETUP.md`](VERIFY_SETUP.md) that walks through both.
+
+#### Automated backend smoke test (5 minutes)
+
+With the backend running (`uvicorn main:app --reload`) and the DB seeded:
+
+```powershell
+cd backend
+.\venv_tf\Scripts\Activate.ps1
+python smoke_test.py
+```
+
+Runs 41 individual checks across 9 sections — health, auth (all 4 quick-demo + per-barangay accounts), ray-casting, DBSCAN clustering, full report submission pipeline (image upload + Mask R-CNN inference + spatial routing + tracking), RBAC, cross-portal visibility, work-order lifecycle, and Mask R-CNN mode detection (real vs mock).
+
+Expected output ends with:
+
+```
+SUMMARY
+  Passed: 41
+  Failed: 0
+
+All workflows verified. The setup is good to go.
+```
+
+Anything red? Each FAIL line gives you the endpoint, status code, and response body — no guessing where to look.
+
+#### Manual UI checklist (10 minutes)
+
+With both servers running, walk through the checkboxes in [`VERIFY_SETUP.md`](VERIFY_SETUP.md) Part 2 — covers every portal tab, every cross-portal reflection, and the cleaner finish-cleanup-with-photo flow. The smoke test can't see the browser, so this is how you verify rendering, charts, maps, drag/drop, etc.
+
+---
+
 ### Prerequisites (detailed)
 
 - **Node.js 20+**
