@@ -1,7 +1,65 @@
+import math
 import numpy as np
 from sklearn.cluster import DBSCAN
 from datetime import datetime, timedelta
 from collections import defaultdict
+
+import models
+
+
+def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Distance in meters between two lat/lon coordinates (great-circle)."""
+    lon1, lat1, lon2, lat2 = map(math.radians, [lon1, lat1, lon2, lat2])
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
+    c = 2 * math.asin(math.sqrt(a))
+    return c * 6371000  # Earth radius in meters
+
+
+# Statuses that are still "open" and therefore eligible to be someone's duplicate.
+_OPEN_FOR_DUPLICATE = (
+    models.ReportStatus.PENDING,
+    models.ReportStatus.VERIFIED,
+    models.ReportStatus.ASSIGNED,
+    models.ReportStatus.IN_PROGRESS,
+)
+
+
+def find_nearby_reports(report, db, radius_m: float = 100, within_days: int = 7):
+    """Return OPEN reports within `radius_m` meters and `within_days` days of `report`.
+
+    Used by Module 3 to surface possible duplicates. Excludes the report itself,
+    and any rejected/resolved/duplicate report. Returns dicts sorted by distance.
+    """
+    cutoff = datetime.utcnow() - timedelta(days=within_days)
+    candidates = (
+        db.query(models.Report)
+        .filter(
+            models.Report.id != report.id,
+            models.Report.status.in_(_OPEN_FOR_DUPLICATE),
+            models.Report.created_at >= cutoff,
+        )
+        .all()
+    )
+    matches = []
+    for r in candidates:
+        if r.lat is None or r.lon is None:
+            continue
+        dist = haversine_distance(report.lat, report.lon, r.lat, r.lon)
+        if dist <= radius_m:
+            matches.append({
+                "id": r.id,
+                "tracking_id": r.tracking_id,
+                "lat": r.lat,
+                "lon": r.lon,
+                "barangay": r.barangay,
+                "status": r.status,
+                "created_at": r.created_at,
+                "distance_m": round(dist, 1),
+            })
+    matches.sort(key=lambda m: m["distance_m"])
+    return matches
 
 
 def get_heatmap_clusters(reports, eps=0.001, min_samples=2):

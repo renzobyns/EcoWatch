@@ -294,14 +294,17 @@ def _read_exif_gps(exif) -> tuple:
         if not gps_ifd:
             return None, None
         gps_lat = gps_lon = None
+        # PIL returns EXIF rationals as IFDRational/Fraction; coerce each part to
+        # float so the result is a plain float (Fractions aren't JSON-serializable
+        # and would later crash json.dumps(trust_signals)).
         if 0x0002 in gps_ifd:
             t = gps_ifd[0x0002]
-            gps_lat = t[0] + t[1] / 60 + t[2] / 3600
+            gps_lat = float(t[0]) + float(t[1]) / 60 + float(t[2]) / 3600
             if 0x0001 in gps_ifd and str(gps_ifd[0x0001]).upper() == "S":
                 gps_lat = -gps_lat
         if 0x0004 in gps_ifd:
             t = gps_ifd[0x0004]
-            gps_lon = t[0] + t[1] / 60 + t[2] / 3600
+            gps_lon = float(t[0]) + float(t[1]) / 60 + float(t[2]) / 3600
             if 0x0003 in gps_ifd and str(gps_ifd[0x0003]).upper() == "W":
                 gps_lon = -gps_lon
         # Reject empty/garbage coords (NaN/inf, or impossible ranges) as no geotag.

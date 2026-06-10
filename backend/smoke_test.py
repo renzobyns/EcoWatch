@@ -316,7 +316,8 @@ def s4_report_submit_pipeline(users: dict) -> Optional[dict]:
 
     citizen_id = users.get("citizen", {}).get("id", 1)
 
-    # Module 2 gate: a submit with no reporter_id must be rejected (401).
+    # Module 2 (security-hardened): identity is the X-User-Id session header, not a
+    # form field. A submit with NO session must be rejected (401).
     geo_image_anon = _with_geotag(raw, lat, lon)
     ra = post(
         "/report/submit",
@@ -328,12 +329,13 @@ def s4_report_submit_pipeline(users: dict) -> Optional[dict]:
           ra.text[:200])
 
     # Module 1 hard gate: a photo with NO geotag must be rejected (422).
+    # Authenticated via X-User-Id header (user_id=citizen_id).
     no_geo = _without_geotag(raw)
     rg = post(
         "/report/submit",
         files=[("images", ("nogeo.jpg", no_geo, "image/jpeg"))],
-        data={"lat": lat, "lon": lon, "notes": "no-geotag reject test",
-              "reporter_id": citizen_id},
+        data={"lat": lat, "lon": lon, "notes": "no-geotag reject test"},
+        user_id=citizen_id,
     )
     check(rg.status_code == 422,
           f"no-geotag photo rejected by hard gate (got {rg.status_code}, want 422)",
@@ -346,8 +348,8 @@ def s4_report_submit_pipeline(users: dict) -> Optional[dict]:
     geo_image = _with_geotag(raw, lat, lon)
     files = [("images", ("geotagged.jpg", geo_image, "image/jpeg"))]
     data = {"lat": lat, "lon": lon, "device_lat": lat, "device_lon": lon,
-            "notes": "Smoke test submission", "reporter_id": citizen_id}
-    r = post("/report/submit", files=files, data=data)
+            "notes": "Smoke test submission"}
+    r = post("/report/submit", files=files, data=data, user_id=citizen_id)
 
     if r.status_code not in (200, 201, 202):
         fail("POST /report/submit", f"{r.status_code} {r.text[:300]}")
@@ -592,6 +594,87 @@ def s9_ai_verifier_mode() -> None:
         info("This is expected for UI work; download the .h5 for real demos.")
 
 
+def s10_duplicate_detection(users: dict) -> None:
+    section("10. DUPLICATE DETECTION (Module 3)")
+
+    images = [f for f in os.listdir(UPLOADS_DIR)
+              if f.lower().endswith((".jpg", ".jpeg", ".png"))]
+    if not images:
+        fail("no test image found in backend/uploads/", "duplicate test SKIPPED")
+        return
+    with open(os.path.join(UPLOADS_DIR, images[0]), "rb") as f:
+        raw = f.read()
+
+    citizen_id = users.get("citizen", {}).get("id", 1)
+    brgy_id = users.get("barangay", {}).get("id")
+    lat, lon = 14.8155, 121.0252  # inside Muzon
+    geo = _with_geotag(raw, lat, lon)
+
+    def submit():
+        return post(
+            "/report/submit",
+            files=[("images", ("dup.jpg", geo, "image/jpeg"))],
+            data={"lat": lat, "lon": lon, "device_lat": lat, "device_lon": lon,
+                  "notes": "dup test"},
+            user_id=citizen_id,
+        )
+
+    # Report A (the original) — pending/open immediately after submit.
+    ra = submit()
+    if ra.status_code != 202:
+        fail("submit report A", f"{ra.status_code} {ra.text[:200]}")
+        return
+    id_a = ra.json().get("report_id")
+
+    # Report B at the same coordinates — should be flagged as a possible duplicate.
+    rb = submit()
+    if rb.status_code != 202:
+        fail("submit report B", f"{rb.status_code} {rb.text[:200]}")
+        return
+    body_b = rb.json()
+    id_b = body_b.get("report_id")
+    check(body_b.get("possible_duplicate_flag") is True,
+          f"report B flagged as possible duplicate (got {body_b.get('possible_duplicate_flag')!r})",
+          "report A at identical coords should be detected as nearby")
+
+    # GET possible-duplicates (barangay, Muzon jurisdiction) → A should appear, distance ~0.
+    if brgy_id:
+        rp = get(f"/reports/{id_b}/possible-duplicates", user_id=brgy_id)
+        check(rp.status_code == 200,
+              f"GET possible-duplicates -> 200 (got {rp.status_code})", rp.text[:200])
+        if rp.status_code == 200:
+            matches = rp.json().get("possible_duplicates", [])
+            ids = [m["id"] for m in matches]
+            check(id_a in ids,
+                  f"report A ({id_a}) listed as a possible duplicate of B (ids={ids})")
+            if matches:
+                check(matches[0]["distance_m"] < 100,
+                      f"nearest match distance < 100 m (got {matches[0]['distance_m']})")
+
+    # RBAC: a citizen cannot mark duplicates → 403.
+    rc = post(f"/reports/{id_b}/mark-duplicate", user_id=citizen_id,
+              json={"duplicate_of_id": id_a})
+    check(rc.status_code == 403,
+          f"citizen mark-duplicate forbidden (got {rc.status_code}, want 403)", rc.text[:200])
+
+    # Barangay confirms B as a duplicate of A → status becomes 'duplicate'.
+    if brgy_id:
+        rm = post(f"/reports/{id_b}/mark-duplicate", user_id=brgy_id,
+                  json={"duplicate_of_id": id_a})
+        check(rm.status_code == 200,
+              f"barangay mark-duplicate -> 200 (got {rm.status_code})", rm.text[:200])
+        if rm.status_code == 200:
+            check(rm.json().get("status") == "duplicate",
+                  f"report B status is 'duplicate' (got {rm.json().get('status')!r})")
+
+        # Duplicate report should drop out of the active barangay queue.
+        rq = get("/reports/barangay/Muzon?limit=200", user_id=brgy_id)
+        if rq.status_code == 200:
+            queue_ids = [r["id"] for r in rq.json()]
+            check(id_b not in queue_ids,
+                  f"duplicate report B ({id_b}) removed from active Muzon queue")
+
+
 # ─── main ────────────────────────────────────────────────────────────
 def main() -> int:
     print(f"EcoWatch Smoke Test  ({BASE})")
@@ -619,6 +702,7 @@ def main() -> int:
     s7_cross_portal_visibility(users, report)
     s8_work_order_lifecycle(users)
     s9_ai_verifier_mode()
+    s10_duplicate_detection(users)
 
     # ─── summary ──────────────────────────────────────────────────
     section("SUMMARY")

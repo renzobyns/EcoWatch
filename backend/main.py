@@ -62,6 +62,8 @@ with engine.connect() as _conn:
         "ALTER TABLE reports ADD COLUMN needs_human_review BOOLEAN DEFAULT 0 NOT NULL",
         "ALTER TABLE report_photos ADD COLUMN trust_score VARCHAR",
         "ALTER TABLE report_photos ADD COLUMN trust_signals TEXT",
+        "ALTER TABLE reports ADD COLUMN duplicate_of_id INTEGER",
+        "ALTER TABLE reports ADD COLUMN possible_duplicate_flag BOOLEAN DEFAULT 0 NOT NULL",
     ):
         try:
             _conn.execute(text(_ddl))
@@ -303,6 +305,8 @@ class ReportResponse(BaseModel):
     verification_pending: bool = False
     trust_score: Optional[str] = None
     needs_human_review: bool = False
+    possible_duplicate_flag: bool = False
+    duplicate_of_id: Optional[int] = None
     failing_signals: List[str] = []
     trust_reasons: List[str] = []
     photos: List[dict] = []
@@ -1321,7 +1325,9 @@ async def _bg_verify_submit(report_id: int, device_lat: float = None, device_lon
         trust_results = await asyncio.to_thread(_run_trust_batch)
         for photo, trust_result in trust_results:
             photo.trust_score = trust_result["score"]
-            photo.trust_signals = json.dumps(trust_result)
+            # default=str is a safety net: never let an odd EXIF value (e.g. a raw
+            # rational) crash the whole verification over trust-signal logging.
+            photo.trust_signals = json.dumps(trust_result, default=str)
 
         # Compute aggregate trust score from the scored photos
         photo_scores = [p.trust_score for p, _ in trust_results if p.trust_score]
@@ -1581,11 +1587,11 @@ async def submit_report(
     lat: float = Form(...),
     lon: float = Form(...),
     notes: Optional[str] = Form(None),
-    reporter_id: Optional[int] = Form(None),
     device_lat: Optional[float] = Form(None),
     device_lon: Optional[float] = Form(None),
     images: List[UploadFile] = File(...),
     db: Session = Depends(get_db),
+    reporter: models.User = Depends(get_current_user),
 ):
     """
     Citizen report submission. Accepts 1–5 evidence photos.
@@ -1597,12 +1603,10 @@ async def submit_report(
     (real EXIF geotag, no editor/AI software tag, inside SJDM) — defense in depth, since
     the in-app camera enforces these client-side but uploads and clients can't be trusted.
     """
-    # Module 2: require a valid, active account — enforce before touching images.
-    if reporter_id is None:
-        raise HTTPException(status_code=401, detail="Please log in to submit a report.")
-    _reporter = db.query(models.User).filter(models.User.id == reporter_id).first()
-    if not _reporter or not _reporter.is_active:
-        raise HTTPException(status_code=401, detail="Your account is invalid or disabled. Please log in again.")
+    # Module 2 (security-hardened): identity comes from the authenticated session
+    # (X-User-Id header via get_current_user), NOT a spoofable client form field.
+    # get_current_user already raises 401 for missing/invalid/disabled users.
+    reporter_id = reporter.id
 
     if not (1 <= len(images) <= 5):
         raise HTTPException(status_code=422, detail="Upload between 1 and 5 photos.")
@@ -1673,6 +1677,13 @@ async def submit_report(
         db.add(models.ReportPhoto(report_id=new_report.id, file_path=url))
     db.commit()
 
+    # Module 3: flag if there's already an open report nearby (possible duplicate).
+    # Admins confirm/dismiss in their portal; this only surfaces a badge.
+    nearby = analytics.find_nearby_reports(new_report, db, radius_m=100, within_days=7)
+    if nearby:
+        new_report.possible_duplicate_flag = True
+        db.commit()
+
     background_tasks.add_task(_bg_verify_submit, new_report.id, device_lat, device_lon)
 
     return {
@@ -1684,6 +1695,7 @@ async def submit_report(
         "barangay_assigned": barangay,
         "status": new_report.status,
         "verification_pending": True,
+        "possible_duplicate_flag": new_report.possible_duplicate_flag,
     }
 
 
@@ -1737,7 +1749,11 @@ def _apply_report_filters(
     if status:
         query = query.filter(models.Report.status == status.lower())
     else:
-        query = query.filter(models.Report.status != models.ReportStatus.REJECTED)
+        # Hide rejected and confirmed-duplicate reports from active queues by default.
+        query = query.filter(models.Report.status.notin_([
+            models.ReportStatus.REJECTED,
+            models.ReportStatus.DUPLICATE,
+        ]))
     if date_from:
         query = query.filter(models.Report.created_at >= date_from)
     if date_to:
@@ -1938,6 +1954,69 @@ async def get_report_detail(
         "cleanup_photos": cleanup_photos,
         "work_orders": work_orders,
     }
+
+
+# ─────────────────────────────────────────────────────────
+# DUPLICATE DETECTION (Module 3)
+# ─────────────────────────────────────────────────────────
+
+class MarkDuplicateRequest(BaseModel):
+    duplicate_of_id: int
+
+
+@app.get("/reports/{report_id}/possible-duplicates")
+async def get_possible_duplicates(
+    report_id: int,
+    db: Session = Depends(get_db),
+    _user: models.User = Depends(require_role("cenro", "barangay")),
+):
+    """List OPEN reports within 100 m and 7 days of this report (possible duplicates).
+    Barangay users may only inspect reports in their own jurisdiction."""
+    report = db.query(models.Report).filter(models.Report.id == report_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    if _user.role == "barangay" and report.barangay != _user.barangay_assignment:
+        raise HTTPException(status_code=403, detail="Report is outside your barangay.")
+    matches = analytics.find_nearby_reports(report, db, radius_m=100, within_days=7)
+    return {"report_id": report_id, "possible_duplicates": matches}
+
+
+@app.post("/reports/{report_id}/mark-duplicate", response_model=ReportResponse)
+async def mark_report_duplicate(
+    report_id: int,
+    req: MarkDuplicateRequest,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("cenro", "barangay")),
+):
+    """Confirm a report duplicates an earlier one: set status=duplicate and link it.
+    Only pending/verified reports can be marked (a deployed/resolved report has an
+    in-flight work order). Barangay users restricted to their own jurisdiction."""
+    report = db.query(models.Report).filter(models.Report.id == report_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    if user.role == "barangay" and report.barangay != user.barangay_assignment:
+        raise HTTPException(status_code=403, detail="Report is outside your barangay.")
+    if report.status not in (models.ReportStatus.PENDING, models.ReportStatus.VERIFIED):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Only pending or verified reports can be marked duplicate (this one is '{report.status}').",
+        )
+    if req.duplicate_of_id == report_id:
+        raise HTTPException(status_code=422, detail="A report cannot be a duplicate of itself.")
+    original = db.query(models.Report).filter(models.Report.id == req.duplicate_of_id).first()
+    if not original:
+        raise HTTPException(status_code=404, detail="The original report was not found.")
+
+    report.duplicate_of_id = req.duplicate_of_id
+    report.status = models.ReportStatus.DUPLICATE
+    report.possible_duplicate_flag = False
+    write_audit(db, user.id, "mark_duplicate", report_id, {
+        "duplicate_of_id": req.duplicate_of_id,
+        "duplicate_of_tracking": original.tracking_id,
+    })
+    db.commit()
+    db.refresh(report)
+    return ReportResponse.model_validate(report)
 
 
 @app.get("/reports/export")

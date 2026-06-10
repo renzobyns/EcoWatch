@@ -29,6 +29,8 @@ export interface QueueReport {
     deployment_notes: string | null;
     trust_score: string | null;
     needs_human_review: boolean;
+    possible_duplicate_flag?: boolean;
+    duplicate_of_id?: number | null;
     failing_signals: string[];
     trust_reasons?: string[];
     created_at: string;
@@ -98,6 +100,7 @@ interface Props {
     onClose: () => void;
     onReassign: () => void;
     onForceClose: () => void;
+    onUpdated?: () => void;
 }
 
 // ─── Pill maps ────────────────────────────────────────────────────────────────
@@ -168,7 +171,7 @@ function TabEmpty({ message }: { message: string }) {
 
 export function ReportDetailDrawer({
     open, report, barangays, newBarangay, setNewBarangay,
-    actionLoading, onClose, onReassign, onForceClose,
+    actionLoading, onClose, onReassign, onForceClose, onUpdated,
 }: Props) {
     const [activeTab, setActiveTab] = useState<DrawerTab>("overview");
 
@@ -309,6 +312,7 @@ export function ReportDetailDrawer({
                             loading={detailLoading}
                             error={detailError}
                             onRetry={fetchDetail}
+                            onDuplicateConfirmed={() => { onUpdated?.(); onClose(); }}
                         />
                     )}
                     {activeTab === "evidence" && (
@@ -371,18 +375,86 @@ export function ReportDetailDrawer({
 
 // ─── Tab placeholders (filled in later tasks) ────────────────────────────────
 
-function OverviewTab({ report, detail, loading, error, onRetry }: {
+function DuplicateAlert({ report, onConfirmed }: { report: QueueReport; onConfirmed: () => void }) {
+    const [matches, setMatches] = useState<any[]>([]);
+    const [marking, setMarking] = useState(false);
+    const [err, setErr] = useState<string | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        api(`/reports/${report.id}/possible-duplicates`)
+            .then((data: any) => { if (!cancelled) setMatches(data?.possible_duplicates ?? []); })
+            .catch(() => { if (!cancelled) setMatches([]); });
+        return () => { cancelled = true; };
+    }, [report.id]);
+
+    if (matches.length === 0) return null;
+
+    const confirm = async (originalId: number) => {
+        setMarking(true);
+        setErr(null);
+        try {
+            await api(`/reports/${report.id}/mark-duplicate`, {
+                method: "POST",
+                body: JSON.stringify({ duplicate_of_id: originalId }),
+            });
+            onConfirmed();
+        } catch (e) {
+            setErr(e instanceof ApiError ? e.message : "Failed to mark as duplicate.");
+        } finally {
+            setMarking(false);
+        }
+    };
+
+    return (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
+            <div className="text-[10px] text-amber-400 uppercase tracking-widest font-bold mb-2 flex items-center gap-2">
+                <span>⚠</span> Possible Duplicates
+            </div>
+            <p className="text-[11px] text-foreground/50 mb-3">
+                Open reports near this one. If it&apos;s the same incident, confirm to remove it from the queue.
+            </p>
+            {err && <p className="text-[11px] text-red-400 mb-2">{err}</p>}
+            <div className="flex flex-col gap-2">
+                {matches.map((m) => (
+                    <div key={m.id} className="flex items-center justify-between gap-3 rounded-xl bg-foreground/5 border border-border px-3 py-2">
+                        <div className="min-w-0">
+                            <div className="font-mono text-xs font-bold text-foreground">{m.tracking_id}</div>
+                            <div className="text-[10px] text-foreground/50">
+                                {m.barangay ?? "—"} · {Math.round(m.distance_m)} m away · {formatDate(m.created_at)}
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => confirm(m.id)}
+                            disabled={marking}
+                            className="shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 disabled:opacity-50 transition-colors"
+                        >
+                            {marking ? "…" : "Confirm Duplicate"}
+                        </button>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function OverviewTab({ report, detail, loading, error, onRetry, onDuplicateConfirmed }: {
     report: QueueReport;
     detail: ReportDetailPayload | null;
     loading: boolean;
     error: string | null;
     onRetry: () => void;
+    onDuplicateConfirmed: () => void;
 }) {
     const mapsUrl = `https://www.google.com/maps?q=${report.lat},${report.lon}`;
     const reporter = detail?.reporter ?? null;
 
     return (
         <div className="flex flex-col gap-4">
+            {report.possible_duplicate_flag && report.status !== "duplicate" && (
+                <DuplicateAlert report={report} onConfirmed={onDuplicateConfirmed} />
+            )}
+
             {/* Status / IDs */}
             <div className="glass-pro rounded-2xl border border-border p-4">
                 <div className="text-[10px] text-foreground/40 uppercase tracking-widest font-bold mb-3">Status & IDs</div>

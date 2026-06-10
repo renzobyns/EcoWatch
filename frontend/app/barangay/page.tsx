@@ -183,6 +183,10 @@ function BarangayPortalInner() {
     const [reporterLoading, setReporterLoading] = useState(false);
     const [reporterError, setReporterError] = useState(false);
 
+    // Possible duplicates (Module 3): fetched when a flagged report modal opens
+    const [duplicateMatches, setDuplicateMatches] = useState<any[]>([]);
+    const [markingDuplicate, setMarkingDuplicate] = useState(false);
+
     useEffect(() => {
         // Auth Check
         const storedUser = localStorage.getItem('ecowatch_user');
@@ -505,6 +509,41 @@ function BarangayPortalInner() {
             });
         return () => { cancelled = true; };
     }, [selectedReport?.id]);
+
+    // Fetch possible duplicates when a flagged report modal opens (Module 3)
+    useEffect(() => {
+        if (!selectedReport || !selectedReport.possible_duplicate_flag || selectedReport.status === 'duplicate') {
+            setDuplicateMatches([]);
+            return;
+        }
+        let cancelled = false;
+        api(`/reports/${selectedReport.id}/possible-duplicates`)
+            .then((data: any) => {
+                if (!cancelled) setDuplicateMatches(data?.possible_duplicates ?? []);
+            })
+            .catch(() => {
+                if (!cancelled) setDuplicateMatches([]);
+            });
+        return () => { cancelled = true; };
+    }, [selectedReport?.id, selectedReport?.possible_duplicate_flag]);
+
+    const handleMarkDuplicate = async (originalId: number) => {
+        if (!selectedReport) return;
+        setMarkingDuplicate(true);
+        try {
+            await api(`/reports/${selectedReport.id}/mark-duplicate`, {
+                method: "POST",
+                body: JSON.stringify({ duplicate_of_id: originalId }),
+            });
+            toast.success("Marked as duplicate. Report removed from the active queue.");
+            setReports(prev => prev.filter(r => r.id !== selectedReport.id));
+            setSelectedReport(null);
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Failed to mark as duplicate.");
+        } finally {
+            setMarkingDuplicate(false);
+        }
+    };
 
     const fetchBrgyUsers = async () => {
         setUserLoading(true);
@@ -1544,7 +1583,12 @@ function BarangayPortalInner() {
                                                         const sla = slaInfo(report.created_at, report.status);
                                                         return (
                                                             <tr key={report.id} className="border-b border-border hover:bg-foreground/5 transition-colors">
-                                                                <td className="p-4 font-mono text-sm text-foreground font-bold">{report.tracking_id}</td>
+                                                                <td className="p-4 font-mono text-sm text-foreground font-bold">
+                                                                    {report.tracking_id}
+                                                                    {report.possible_duplicate_flag && report.status !== 'duplicate' && (
+                                                                        <span title="A nearby open report may be a duplicate" className="ml-2 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-400 align-middle">⚠ Dup?</span>
+                                                                    )}
+                                                                </td>
                                                                 <td className="p-4 text-sm text-foreground/70">
                                                                     {formatDate(report.created_at)}
                                                                 </td>
@@ -1706,6 +1750,37 @@ function BarangayPortalInner() {
                                         />
                                     </div>
                                 </div>
+
+                                {/* Possible Duplicates (Module 3) */}
+                                {selectedReport.possible_duplicate_flag && selectedReport.status !== 'duplicate' && duplicateMatches.length > 0 && (
+                                    <div className="bg-amber-500/5 p-5 rounded-2xl border border-amber-500/30">
+                                        <h3 className="text-xs font-semibold text-amber-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                            <span>⚠</span> Possible Duplicates
+                                        </h3>
+                                        <p className="text-[11px] text-foreground/50 mb-3">
+                                            Open reports near this one. If this is the same incident, confirm it as a duplicate to remove it from the queue.
+                                        </p>
+                                        <div className="space-y-2">
+                                            {duplicateMatches.map((m) => (
+                                                <div key={m.id} className="flex items-center justify-between gap-3 bg-foreground/5 rounded-xl px-3 py-2 border border-border">
+                                                    <div className="min-w-0">
+                                                        <div className="font-mono text-xs font-bold text-foreground">{m.tracking_id}</div>
+                                                        <div className="text-[10px] text-foreground/50">
+                                                            {m.barangay ?? "—"} · {Math.round(m.distance_m)} m away · {formatDate(m.created_at)}
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleMarkDuplicate(m.id)}
+                                                        disabled={markingDuplicate}
+                                                        className="flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 disabled:opacity-50 transition-colors"
+                                                    >
+                                                        {markingDuplicate ? "…" : "Confirm Duplicate"}
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Action Area */}
                                 <div className="bg-foreground/5 p-6 rounded-2xl border border-border">
