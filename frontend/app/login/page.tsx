@@ -36,16 +36,25 @@ export default function LoginPage() {
             if (res.ok && data.success) {
                 localStorage.setItem("ecowatch_user", JSON.stringify(data.user));
                 // Honor a ?redirect= target (e.g. the login-gated /report page) for citizens.
+                // Only same-origin, single-slash relative paths — reject protocol-relative
+                // ("//evil.com") and backslash ("/\evil.com") forms that escape our origin.
                 const params = new URLSearchParams(window.location.search);
                 const redirect = params.get("redirect");
+                const safeRedirect =
+                    redirect &&
+                    redirect.startsWith("/") &&
+                    !redirect.startsWith("//") &&
+                    !redirect.startsWith("/\\")
+                        ? redirect
+                        : null;
                 if (data.user.role === "barangay") {
                     window.location.href = "/barangay";
                 } else if (data.user.role === "cenro") {
                     window.location.href = "/cenro";
                 } else if (data.user.role === "cleaner") {
                     window.location.href = "/cleaner";
-                } else if (redirect && redirect.startsWith("/")) {
-                    window.location.href = redirect;
+                } else if (safeRedirect) {
+                    window.location.href = safeRedirect;
                 } else {
                     window.location.href = "/";
                 }
