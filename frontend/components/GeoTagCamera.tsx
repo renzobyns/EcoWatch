@@ -95,6 +95,8 @@ export default function GeoTagCamera({ onComplete, onCancel, maxPhotos = 5 }: Ge
     const [photos, setPhotos] = useState<GeoPhoto[]>([]);
     const [previews, setPreviews] = useState<string[]>([]);  // object URLs, 1:1 with photos
     const [capturing, setCapturing] = useState(false);
+    const [flash, setFlash] = useState(false);            // white shutter flash
+    const [previewIdx, setPreviewIdx] = useState<number | null>(null);  // full-screen preview
 
     // Resolve barangay (and SJDM membership) whenever the fix moves meaningfully.
     const resolveBarangay = useCallback(async (lat: number, lon: number) => {
@@ -251,29 +253,31 @@ export default function GeoTagCamera({ onComplete, onCancel, maxPhotos = 5 }: Ge
         []
     );
 
-    const handleShutter = useCallback(async () => {
+    const handleShutter = useCallback(() => {
         const video = videoRef.current;
         if (!video || capturing || photos.length >= maxPhotos) return;
         if (phase !== "ready" || !fix) return;
 
         setCapturing(true);
+        setFlash(true);
+        window.setTimeout(() => setFlash(false), 110);  // brief real-cam flash
         try {
-            // Grab the freshest possible fix at the moment of the snap.
-            const liveFix: Fix = await new Promise((resolve) => {
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => resolve({
-                        lat: pos.coords.latitude,
-                        lon: pos.coords.longitude,
-                        accuracy: pos.coords.accuracy,
-                    }),
-                    () => resolve(fix),
-                    { enableHighAccuracy: true, maximumAge: 0, timeout: 8000 }
-                );
-            });
-
+            // Use the latest fix from the continuous watchPosition — do NOT re-acquire
+            // GPS here. The old getCurrentPosition({maximumAge:0}) forced a fresh fix and
+            // blocked the shutter for seconds; real geo-cameras just stamp the last known
+            // high-accuracy position, so capture is now instant.
+            const liveFix = fix;
             const taken = new Date();
-            const w = video.videoWidth || 1280;
-            const h = video.videoHeight || 720;
+
+            // Cap the longest edge so JPEG encode + EXIF write stay fast on high-res
+            // phone cameras, while keeping ample detail for AI + human review.
+            const vw = video.videoWidth || 1280;
+            const vh = video.videoHeight || 720;
+            const MAX_EDGE = 1600;
+            const scale = Math.min(1, MAX_EDGE / Math.max(vw, vh));
+            const w = Math.round(vw * scale);
+            const h = Math.round(vh * scale);
+
             const canvas = document.createElement("canvas");
             canvas.width = w;
             canvas.height = h;
@@ -282,7 +286,7 @@ export default function GeoTagCamera({ onComplete, onCancel, maxPhotos = 5 }: Ge
             ctx.drawImage(video, 0, 0, w, h);
             burnStamp(ctx, w, h, liveFix, taken, barangay);
 
-            const rawDataUrl = canvas.toDataURL("image/jpeg", 0.9);
+            const rawDataUrl = canvas.toDataURL("image/jpeg", 0.85);
             const stamped = stampExif(rawDataUrl, liveFix, taken);
             const file = dataUrlToFile(stamped, `ecowatch_geocam_${Date.now()}.jpg`);
 
@@ -335,6 +339,9 @@ export default function GeoTagCamera({ onComplete, onCancel, maxPhotos = 5 }: Ge
                 muted
                 className="absolute inset-0 w-full h-full object-cover"
             />
+
+            {/* Shutter flash */}
+            {flash && <div className="absolute inset-0 z-30 bg-white/80 pointer-events-none transition-opacity" />}
 
             {/* Top bar */}
             <div className="relative z-10 flex items-center justify-between p-4 bg-gradient-to-b from-black/70 to-transparent">
@@ -416,14 +423,20 @@ export default function GeoTagCamera({ onComplete, onCancel, maxPhotos = 5 }: Ge
                 {photos.length > 0 && (
                     <div className="flex gap-2 overflow-x-auto pb-3 mb-2">
                         {photos.map((p, i) => (
-                            <div key={i} className="relative shrink-0 w-14 h-14 rounded-lg overflow-hidden border border-white/20">
+                            <div key={i} className="relative shrink-0 w-16 h-16 rounded-lg overflow-hidden border border-white/25">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={previews[i]} alt={`Capture ${i + 1}`} className="w-full h-full object-cover" />
+                                <img
+                                    src={previews[i]}
+                                    alt={`Capture ${i + 1}`}
+                                    onClick={() => setPreviewIdx(i)}
+                                    className="w-full h-full object-cover cursor-pointer"
+                                />
                                 <button
                                     onClick={() => removePhoto(i)}
                                     className="absolute top-0 right-0 w-5 h-5 bg-black/70 text-white flex items-center justify-center text-xs"
                                     aria-label="Remove"
                                 >×</button>
+                                <span className="absolute bottom-0 inset-x-0 bg-black/55 text-white text-[8px] text-center leading-none py-0.5 pointer-events-none">tap to view</span>
                             </div>
                         ))}
                     </div>
@@ -457,6 +470,39 @@ export default function GeoTagCamera({ onComplete, onCancel, maxPhotos = 5 }: Ge
                     </div>
                 </div>
             </div>
+
+            {/* Full-screen preview of a captured photo */}
+            {previewIdx !== null && previews[previewIdx] && (
+                <div className="absolute inset-0 z-40 bg-black/95 flex flex-col" onClick={() => setPreviewIdx(null)}>
+                    <div className="flex items-center justify-between p-4">
+                        <span className="text-white/80 text-sm font-semibold">Photo {previewIdx + 1} of {photos.length}</span>
+                        <button
+                            onClick={() => setPreviewIdx(null)}
+                            className="text-white/90 hover:text-white text-sm font-semibold flex items-center gap-1"
+                            aria-label="Close preview"
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                            Close
+                        </button>
+                    </div>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                        src={previews[previewIdx]}
+                        alt={`Preview ${previewIdx + 1}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex-1 min-h-0 w-full object-contain"
+                    />
+                    <div className="p-4 flex justify-center">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); const idx = previewIdx; setPreviewIdx(null); removePhoto(idx); }}
+                            className="px-5 py-2.5 rounded-full bg-red-500/90 text-white text-sm font-bold hover:bg-red-600 flex items-center gap-2"
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
