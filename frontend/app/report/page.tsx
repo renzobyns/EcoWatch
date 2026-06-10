@@ -247,6 +247,8 @@ export default function ReportPage() {
             const data = await res.json();
             if (res.ok && data.success) {
                 router.push(data.tracking_url);
+            } else if (res.status === 401) {
+                router.replace("/login?redirect=/report");
             } else {
                 setError(data.message || data.detail || "Failed to submit report.");
             }

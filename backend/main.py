@@ -1597,6 +1597,13 @@ async def submit_report(
     (real EXIF geotag, no editor/AI software tag, inside SJDM) — defense in depth, since
     the in-app camera enforces these client-side but uploads and clients can't be trusted.
     """
+    # Module 2: require a valid, active account — enforce before touching images.
+    if reporter_id is None:
+        raise HTTPException(status_code=401, detail="Please log in to submit a report.")
+    _reporter = db.query(models.User).filter(models.User.id == reporter_id).first()
+    if not _reporter or not _reporter.is_active:
+        raise HTTPException(status_code=401, detail="Your account is invalid or disabled. Please log in again.")
+
     if not (1 <= len(images) <= 5):
         raise HTTPException(status_code=422, detail="Upload between 1 and 5 photos.")
 
@@ -1846,12 +1853,13 @@ async def get_sla_breaches(db: Session = Depends(get_db)):
 async def get_report_detail(
     report_id: int,
     db: Session = Depends(get_db),
-    _user: models.User = Depends(require_role("cenro")),
+    _user: models.User = Depends(require_role("cenro", "barangay")),
 ):
-    """Hydrated detail payload for the CENRO Report Detail Drawer.
+    """Hydrated detail payload for the CENRO and Barangay Report Detail Drawer.
 
     Bundles the report, all citizen photos, all cleanup proof photos, and
     all work orders (with assigned cleaner) in one round-trip.
+    Barangay users can only access reports in their own jurisdiction.
     """
     report = (
         db.query(models.Report)
@@ -1867,6 +1875,10 @@ async def get_report_detail(
     )
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
+
+    # Jurisdiction guard: barangay users can only read their own jurisdiction's reports.
+    if _user.role == "barangay" and report.barangay != _user.barangay_assignment:
+        raise HTTPException(status_code=403, detail="Report is outside your barangay.")
 
     # Hydrate the base ReportResponse with photos[] (same shape as /track/{slug})
     response = ReportResponse.model_validate(report)

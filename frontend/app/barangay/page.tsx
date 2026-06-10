@@ -178,6 +178,11 @@ function BarangayPortalInner() {
     const [slaTooltipPos, setSlaTooltipPos] = useState({ top: 0, left: 0 });
     const slaTooltipAnchorRef = useRef<HTMLSpanElement>(null);
 
+    // Reporter detail (Module 2): fetched from /reports/{id}/detail when a report modal opens
+    const [reporterDetail, setReporterDetail] = useState<{ id: number; full_name: string; email: string; phone_number: string | null } | null>(null);
+    const [reporterLoading, setReporterLoading] = useState(false);
+    const [reporterError, setReporterError] = useState(false);
+
     useEffect(() => {
         // Auth Check
         const storedUser = localStorage.getItem('ecowatch_user');
@@ -472,6 +477,34 @@ function BarangayPortalInner() {
             setPendingFocusReportId(null);
         }
     }, [pendingFocusReportId, reports]);
+
+    // Fetch reporter identity when a report modal opens (Module 2)
+    useEffect(() => {
+        if (!selectedReport) {
+            setReporterDetail(null);
+            setReporterError(false);
+            return;
+        }
+        if (selectedReport.reporter_id == null) {
+            setReporterDetail(null);
+            return;
+        }
+        let cancelled = false;
+        setReporterDetail(null);
+        setReporterLoading(true);
+        setReporterError(false);
+        api(`/reports/${selectedReport.id}/detail`)
+            .then((data: any) => {
+                if (!cancelled) setReporterDetail(data?.reporter ?? null);
+            })
+            .catch(() => {
+                if (!cancelled) setReporterError(true);
+            })
+            .finally(() => {
+                if (!cancelled) setReporterLoading(false);
+            });
+        return () => { cancelled = true; };
+    }, [selectedReport?.id]);
 
     const fetchBrgyUsers = async () => {
         setUserLoading(true);
@@ -1614,6 +1647,35 @@ function BarangayPortalInner() {
                                         </p>
                                     </div>
                                 )}
+
+                                {/* Reporter identity (Module 2) */}
+                                <div>
+                                    <div className="text-[10px] text-foreground/40 uppercase tracking-widest font-bold mb-3">Reporter</div>
+                                    {selectedReport.reporter_id === null ? (
+                                        <div className="text-[11px] text-foreground/40 italic">Anonymous (legacy report)</div>
+                                    ) : reporterLoading && !reporterDetail ? (
+                                        <div className="text-[11px] text-foreground/40 animate-pulse">Loading reporter info…</div>
+                                    ) : reporterError && !reporterDetail ? (
+                                        <div className="text-[11px] text-foreground/40">
+                                            <span className="text-red-400">Couldn&apos;t load reporter info.</span>
+                                        </div>
+                                    ) : reporterDetail ? (
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full eco-gradient flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                                                {reporterDetail.full_name.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className="font-semibold text-foreground text-sm">{reporterDetail.full_name}</div>
+                                                <div className="text-[10px] text-foreground/50 truncate">{reporterDetail.email}</div>
+                                                {reporterDetail.phone_number && (
+                                                    <div className="text-[10px] text-foreground/50">{reporterDetail.phone_number}</div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="text-[11px] text-foreground/40">Reporter info unavailable.</div>
+                                    )}
+                                </div>
 
                                 <div className="text-xs text-foreground/40">
                                     Reported: {formatDateTime(selectedReport.created_at)}

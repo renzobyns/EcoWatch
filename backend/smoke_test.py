@@ -314,12 +314,26 @@ def s4_report_submit_pipeline(users: dict) -> Optional[dict]:
     with open(test_image, "rb") as f:
         raw = f.read()
 
+    citizen_id = users.get("citizen", {}).get("id", 1)
+
+    # Module 2 gate: a submit with no reporter_id must be rejected (401).
+    geo_image_anon = _with_geotag(raw, lat, lon)
+    ra = post(
+        "/report/submit",
+        files=[("images", ("anon.jpg", geo_image_anon, "image/jpeg"))],
+        data={"lat": lat, "lon": lon, "notes": "anonymous reject test"},
+    )
+    check(ra.status_code == 401,
+          f"anonymous submit rejected (got {ra.status_code}, want 401)",
+          ra.text[:200])
+
     # Module 1 hard gate: a photo with NO geotag must be rejected (422).
     no_geo = _without_geotag(raw)
     rg = post(
         "/report/submit",
         files=[("images", ("nogeo.jpg", no_geo, "image/jpeg"))],
-        data={"lat": lat, "lon": lon, "notes": "no-geotag reject test"},
+        data={"lat": lat, "lon": lon, "notes": "no-geotag reject test",
+              "reporter_id": citizen_id},
     )
     check(rg.status_code == 422,
           f"no-geotag photo rejected by hard gate (got {rg.status_code}, want 422)",
@@ -332,7 +346,7 @@ def s4_report_submit_pipeline(users: dict) -> Optional[dict]:
     geo_image = _with_geotag(raw, lat, lon)
     files = [("images", ("geotagged.jpg", geo_image, "image/jpeg"))]
     data = {"lat": lat, "lon": lon, "device_lat": lat, "device_lon": lon,
-            "notes": "Smoke test submission"}
+            "notes": "Smoke test submission", "reporter_id": citizen_id}
     r = post("/report/submit", files=files, data=data)
 
     if r.status_code not in (200, 201, 202):
