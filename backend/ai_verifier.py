@@ -270,9 +270,78 @@ async def verify_images_async(images_bytes: list) -> list:
         return await asyncio.to_thread(verifier.verify_images, images_bytes)
 
 
-def compute_trust_score(image_bytes: bytes, submitted_lat: float, submitted_lon: float) -> dict:
+def _haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculate distance in meters between two lat/lon coordinates."""
+    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+    c = 2 * asin(sqrt(a))
+    r = 6371000  # Radius of Earth in meters
+    return c * r
+
+
+def _read_exif_gps(exif) -> tuple:
+    """Pull decimal (lat, lon) out of a PIL EXIF object, or (None, None)."""
+    try:
+        gps_ifd = exif.get_ifd(0x8825)
+        if not gps_ifd:
+            return None, None
+        gps_lat = gps_lon = None
+        if 0x0002 in gps_ifd:
+            t = gps_ifd[0x0002]
+            gps_lat = t[0] + t[1] / 60 + t[2] / 3600
+            if 0x0001 in gps_ifd and str(gps_ifd[0x0001]).upper() == "S":
+                gps_lat = -gps_lat
+        if 0x0004 in gps_ifd:
+            t = gps_ifd[0x0004]
+            gps_lon = t[0] + t[1] / 60 + t[2] / 3600
+            if 0x0003 in gps_ifd and str(gps_ifd[0x0003]).upper() == "W":
+                gps_lon = -gps_lon
+        return gps_lat, gps_lon
+    except Exception:
+        return None, None
+
+
+def extract_gate_signals(image_bytes: bytes) -> dict:
+    """
+    Read just the signals needed for Module 1's hard gates, without scoring.
+
+    Returns: {"gps_lat", "gps_lon", "software_tag", "has_editor_tag"}.
+    Never raises — on any failure returns no GPS / no editor tag so the caller
+    can decide (a no-GPS result is itself a rejection reason at the call site).
+    """
+    out = {"gps_lat": None, "gps_lon": None, "software_tag": None, "has_editor_tag": False}
+    try:
+        from PIL import Image
+        import io as pil_io
+        img = Image.open(pil_io.BytesIO(image_bytes))
+        exif = img.getexif()
+        if 0x0131 in exif:
+            software = str(exif[0x0131])
+            out["software_tag"] = software
+            if any(editor in software.lower() for editor in _KNOWN_EDITOR_KEYWORDS):
+                out["has_editor_tag"] = True
+        out["gps_lat"], out["gps_lon"] = _read_exif_gps(exif)
+    except Exception:
+        logger.exception("extract_gate_signals failed")
+    return out
+
+
+def compute_trust_score(
+    image_bytes: bytes,
+    submitted_lat: float,
+    submitted_lon: float,
+    device_lat: float = None,
+    device_lon: float = None,
+) -> dict:
     """
     Compute a trust score for an uploaded image by analyzing EXIF metadata.
+
+    The photo's own EXIF GPS (signal A) is compared against an anchor: the live
+    device GPS (signal B, `device_lat`/`device_lon`) when supplied — the strongest
+    cross-check — otherwise the submitted report pin. This A-vs-B distance is the
+    key fraud signal for gallery uploads; for the in-app camera A and B coincide.
 
     Returns a dict with:
     - score: "high" | "medium" | "low"
@@ -282,15 +351,11 @@ def compute_trust_score(image_bytes: bytes, submitted_lat: float, submitted_lon:
     Never raises; wraps all exceptions and returns score="medium" on failure.
     """
 
-    def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-        """Calculate distance in meters between two lat/lon coordinates."""
-        lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
-        dlon = lon2 - lon1
-        dlat = lat2 - lat1
-        a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
-        c = 2 * asin(sqrt(a))
-        r = 6371000  # Radius of Earth in meters
-        return c * r
+    haversine_distance = _haversine_distance
+
+    # Anchor the GPS comparison to live device GPS (B) when we have it.
+    anchor_lat = device_lat if device_lat is not None else submitted_lat
+    anchor_lon = device_lon if device_lon is not None else submitted_lon
 
     try:
         from PIL import Image
@@ -305,9 +370,12 @@ def compute_trust_score(image_bytes: bytes, submitted_lat: float, submitted_lon:
             "has_camera_model": False,
             "datetime_original": None,
             "datetime_age_hours": None,
-            "gps_lat": None,
+            "gps_lat": None,          # A — where the photo claims it was taken (EXIF)
             "gps_lon": None,
-            "gps_distance_m": None,
+            "device_lat": device_lat,  # B — live device GPS at capture/upload
+            "device_lon": device_lon,
+            "compared_against": "device" if device_lat is not None else "pin",
+            "gps_distance_m": None,    # distance A↔anchor (B when present, else pin)
             "software_tag": None,
         }
 
@@ -388,14 +456,15 @@ def compute_trust_score(image_bytes: bytes, submitted_lat: float, submitted_lon:
                             gps_lon = -gps_lon
                         signals["gps_lon"] = gps_lon
 
-                    # Compute distance if both EXIF GPS and submitted coords present
+                    # Compute distance between the photo's EXIF GPS (A) and the anchor
+                    # (live device GPS B when present, else the submitted pin).
                     if (signals["gps_lat"] is not None and
                         signals["gps_lon"] is not None and
-                        submitted_lat is not None and
-                        submitted_lon is not None):
+                        anchor_lat is not None and
+                        anchor_lon is not None):
                         distance = haversine_distance(
                             signals["gps_lat"], signals["gps_lon"],
-                            submitted_lat, submitted_lon
+                            anchor_lat, anchor_lon
                         )
                         signals["gps_distance_m"] = distance
 
