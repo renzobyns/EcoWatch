@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, ArrowLeft, Chrome, ShieldCheck, Leaf, Map, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,6 @@ import { Input } from "@/components/ui/input";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 export default function LoginPage() {
-    const router = useRouter();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
@@ -207,7 +205,7 @@ export default function LoginPage() {
                         </Button>
 
                         <p className="text-center text-xs text-foreground/50">
-                            Don't have an account?{" "}
+                            Don&apos;t have an account?{" "}
                             <Link href="/signup" className="text-primary font-semibold hover:underline underline-offset-4">
                                 Sign up
                             </Link>

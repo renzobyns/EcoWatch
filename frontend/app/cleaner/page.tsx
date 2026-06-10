@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Briefcase, LayoutDashboard, Map, History, HelpCircle } from "lucide-react";
@@ -24,7 +24,17 @@ const CLEANER_NAV: PortalNavItem[] = [
     { key: "help", label: "Help", icon: HelpCircle },
 ];
 
+// useSearchParams() (used in CleanerPortalInner) needs a Suspense boundary so the
+// page doesn't bail out of static prerendering at build time.
 export default function CleanerPortal() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>}>
+            <CleanerPortalInner />
+        </Suspense>
+    );
+}
+
+function CleanerPortalInner() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [user, setUser] = useState<any>(null);
