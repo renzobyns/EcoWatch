@@ -5,7 +5,7 @@ import sys
 import numpy as np
 import cv2
 import io
-from math import radians, cos, sin, asin, sqrt
+from math import radians, cos, sin, asin, sqrt, isfinite
 from datetime import datetime, timezone, timedelta
 
 # Set legacy Keras before any TF import
@@ -282,7 +282,13 @@ def _haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> f
 
 
 def _read_exif_gps(exif) -> tuple:
-    """Pull decimal (lat, lon) out of a PIL EXIF object, or (None, None)."""
+    """Pull decimal (lat, lon) out of a PIL EXIF object, or (None, None).
+
+    Treats a present-but-empty GPS block as no geotag: some pipelines (Google
+    Drive/Photos, certain "GPS stamp" camera apps) leave the GPSInfo IFD in place
+    but zero out the coordinates (0/0 rationals → NaN, null refs). Those must read
+    as None so the caller rejects with "no location data", not "outside SJDM".
+    """
     try:
         gps_ifd = exif.get_ifd(0x8825)
         if not gps_ifd:
@@ -298,6 +304,11 @@ def _read_exif_gps(exif) -> tuple:
             gps_lon = t[0] + t[1] / 60 + t[2] / 3600
             if 0x0003 in gps_ifd and str(gps_ifd[0x0003]).upper() == "W":
                 gps_lon = -gps_lon
+        # Reject empty/garbage coords (NaN/inf, or impossible ranges) as no geotag.
+        if gps_lat is None or gps_lon is None or not (isfinite(gps_lat) and isfinite(gps_lon)):
+            return None, None
+        if not (-90 <= gps_lat <= 90 and -180 <= gps_lon <= 180) or (gps_lat == 0 and gps_lon == 0):
+            return None, None
         return gps_lat, gps_lon
     except Exception:
         return None, None
@@ -432,44 +443,27 @@ def compute_trust_score(
             except Exception:
                 pass  # No Exif IFD or DateTimeOriginal
 
-            # GPSInfo IFD (0x8825)
+            # GPSInfo IFD (0x8825). _read_exif_gps returns None for a present-but-empty
+            # GPS block (0/0 → NaN), so an emptied geotag scores as "missing", not as a
+            # bogus coordinate that would haversine to a huge distance.
             try:
-                gps_ifd = exif.get_ifd(0x8825)
-                if gps_ifd:
-                    # GPS Latitude (0x0002) and Longitude (0x0004)
-                    # These are tuples of (degrees, minutes, seconds)
-                    if 0x0002 in gps_ifd:
-                        lat_tuple = gps_ifd[0x0002]
-                        # Convert DMS to decimal
-                        gps_lat = lat_tuple[0] + lat_tuple[1] / 60 + lat_tuple[2] / 3600
-                        # Check latitude ref (0x0001) for N/S
-                        if 0x0001 in gps_ifd and str(gps_ifd[0x0001]).upper() == "S":
-                            gps_lat = -gps_lat
-                        signals["gps_lat"] = gps_lat
+                gps_lat, gps_lon = _read_exif_gps(exif)
+                signals["gps_lat"] = gps_lat
+                signals["gps_lon"] = gps_lon
 
-                    if 0x0004 in gps_ifd:
-                        lon_tuple = gps_ifd[0x0004]
-                        # Convert DMS to decimal
-                        gps_lon = lon_tuple[0] + lon_tuple[1] / 60 + lon_tuple[2] / 3600
-                        # Check longitude ref (0x0003) for E/W
-                        if 0x0003 in gps_ifd and str(gps_ifd[0x0003]).upper() == "W":
-                            gps_lon = -gps_lon
-                        signals["gps_lon"] = gps_lon
+                # Compute distance between the photo's EXIF GPS (A) and the anchor
+                # (live device GPS B when present, else the submitted pin).
+                if (gps_lat is not None and
+                    gps_lon is not None and
+                    anchor_lat is not None and
+                    anchor_lon is not None):
+                    distance = haversine_distance(
+                        gps_lat, gps_lon, anchor_lat, anchor_lon
+                    )
+                    signals["gps_distance_m"] = distance
 
-                    # Compute distance between the photo's EXIF GPS (A) and the anchor
-                    # (live device GPS B when present, else the submitted pin).
-                    if (signals["gps_lat"] is not None and
-                        signals["gps_lon"] is not None and
-                        anchor_lat is not None and
-                        anchor_lon is not None):
-                        distance = haversine_distance(
-                            signals["gps_lat"], signals["gps_lon"],
-                            anchor_lat, anchor_lon
-                        )
-                        signals["gps_distance_m"] = distance
-
-                        if distance > _GPS_LOW_TRUST_METERS:
-                            failing_signals.append(f"GPS mismatch >{_GPS_LOW_TRUST_METERS}m ({distance:.0f}m)")
+                    if distance > _GPS_LOW_TRUST_METERS:
+                        failing_signals.append(f"GPS mismatch >{_GPS_LOW_TRUST_METERS}m ({distance:.0f}m)")
             except Exception:
                 pass  # No GPS IFD
 
