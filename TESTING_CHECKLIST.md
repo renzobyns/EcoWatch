@@ -137,6 +137,41 @@
 
 ---
 
+## Module 1 (Post-Defense) — Geo-tag Camera & Photo Validation
+
+> Recommendations #1 (anti-fake photos) + #2 (auto-pin). Location now comes **only** from the
+> photo; there is no manual map pin. See README → "Geo-tag camera & upload testing".
+
+### M1-A — Backend hard gates (`POST /report/submit`, curl/Postman)
+- [ ] Photo with **no EXIF geotag** → `422 A photo has no location data (geotag).`
+- [ ] Photo with an **editor/AI software tag** (EXIF `Software` = Photoshop/Canva/Midjourney…) → `422 …edited or AI-generated…`
+- [ ] Geotagged photo **outside SJDM** → `422 …taken outside San Jose del Monte…`
+- [ ] Geotagged-in-SJDM photo → `202` with `report_id`, `verification_pending: true`
+- [ ] `.txt` / `.gif` still → `400 Only JPEG or PNG images are allowed.` (MIME checked before geotag)
+- [ ] `> 10 MB` still → `400 Image must be 10 MB or smaller.`
+- [ ] Optional `device_lat`/`device_lon` accepted; trust signals show A-vs-B distance
+
+### M1-B — Login gate (`/report`)
+- [ ] Visiting `/report` logged out → redirected to `/login?redirect=/report`
+- [ ] After citizen login → returned to `/report`
+- [ ] `/login?redirect=//evil.com` (open-redirect probe) → does NOT leave the site (lands on `/`)
+
+### M1-C — In-app geo-tag camera (frontend, `http://localhost:3000`)
+- [ ] DevTools → Sensors → Location set to `14.8155, 121.0252` (Muzon)
+- [ ] **Take Photo** → live viewfinder, green "Brgy. … ±Nm" chip, burned-in location/time stamp
+- [ ] Captured photo auto-pins; review screen shows a **read-only** "from your photo" card (no editable pin)
+- [ ] Set DevTools location far outside SJDM → camera shows the **"outside SJDM"** block, shutter disabled
+- [ ] Deny location permission → clear "Location access was blocked" message + Try again
+- [ ] Submit → lands on `/track/<slug>`; tracking shows a trust tier (in-app camera → HIGH)
+
+### M1-D — Gallery upload (frontend)
+- [ ] Upload a screenshot / Messenger photo (EXIF stripped) → "no location data" reject
+- [ ] Upload a photo exported from Photoshop/Canva/Snapseed → "edited or AI-generated" reject
+- [ ] Upload a geotagged photo from outside SJDM → "outside San Jose del Monte" reject
+- [ ] Upload a real geotagged-in-SJDM photo → accepted, appears on the review screen
+
+---
+
 ## Defense Day — Final Smoke Check
 
 Run these on the **live deployed URL** the morning of defense:

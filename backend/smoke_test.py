@@ -38,6 +38,49 @@ except ImportError:
 BASE = os.environ.get("ECOWATCH_API", "http://127.0.0.1:8000")
 UPLOADS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
 
+
+# ─── geotag helpers (Module 1) ───────────────────────────────────────
+# /report/submit now hard-rejects any photo without an in-SJDM EXIF geotag
+# (the in-app camera writes one; uploads must already have one). So the
+# submit-pipeline test injects a real Muzon geotag into its test image,
+# and also verifies a geotag-less photo is correctly rejected.
+
+def _dms(decimal: float) -> tuple:
+    """Decimal degrees → (deg, min, sec) floats for a Pillow GPS IFD."""
+    decimal = abs(decimal)
+    d = int(decimal)
+    m_full = (decimal - d) * 60
+    m = int(m_full)
+    s = (m_full - m) * 60
+    return (float(d), float(m), float(s))
+
+
+def _with_geotag(image_bytes: bytes, lat: float, lon: float) -> bytes:
+    """Re-encode an image as JPEG with a GPS EXIF geotag at (lat, lon)."""
+    from PIL import Image
+    import io
+    img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    exif = img.getexif()
+    exif[0x010F] = "EcoWatch"             # Make
+    exif[0x0110] = "SmokeTest GeoCam"     # Model
+    exif[0x8825] = {                       # GPS IFD
+        1: "N" if lat >= 0 else "S", 2: _dms(lat),
+        3: "E" if lon >= 0 else "W", 4: _dms(lon),
+    }
+    out = io.BytesIO()
+    img.save(out, format="JPEG", exif=exif, quality=90)
+    return out.getvalue()
+
+
+def _without_geotag(image_bytes: bytes) -> bytes:
+    """Re-encode an image as JPEG with all EXIF stripped (no geotag)."""
+    from PIL import Image
+    import io
+    img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    out = io.BytesIO()
+    img.save(out, format="JPEG", quality=90)  # no exif= → metadata dropped
+    return out.getvalue()
+
 # ─── output helpers ──────────────────────────────────────────────────
 _OK = "[ OK ]"
 _FAIL = "[FAIL]"
@@ -267,13 +310,30 @@ def s4_report_submit_pipeline(users: dict) -> Optional[dict]:
     test_image = os.path.join(UPLOADS_DIR, images[0])
     info(f"using test image: {os.path.basename(test_image)}")
 
+    lat, lon = 14.8155, 121.0252  # inside Muzon
+    with open(test_image, "rb") as f:
+        raw = f.read()
+
+    # Module 1 hard gate: a photo with NO geotag must be rejected (422).
+    no_geo = _without_geotag(raw)
+    rg = post(
+        "/report/submit",
+        files=[("images", ("nogeo.jpg", no_geo, "image/jpeg"))],
+        data={"lat": lat, "lon": lon, "notes": "no-geotag reject test"},
+    )
+    check(rg.status_code == 422,
+          f"no-geotag photo rejected by hard gate (got {rg.status_code}, want 422)",
+          rg.text[:200])
+
     # Submit a report with Muzon coords. Endpoint accepts 1-5 photos under
     # the field name 'images' (multi-photo refactor). 'notes' not 'description'.
-    lat, lon = 14.8155, 121.0252
-    with open(test_image, "rb") as f:
-        files = [("images", (os.path.basename(test_image), f.read(), "image/jpeg"))]
-        data = {"lat": lat, "lon": lon, "notes": "Smoke test submission"}
-        r = post("/report/submit", files=files, data=data)
+    # The image is geotagged to (lat, lon) so it passes the Module 1 hard gate;
+    # device_lat/lon (signal B) is sent so trust scoring runs the A-vs-B compare.
+    geo_image = _with_geotag(raw, lat, lon)
+    files = [("images", ("geotagged.jpg", geo_image, "image/jpeg"))]
+    data = {"lat": lat, "lon": lon, "device_lat": lat, "device_lon": lon,
+            "notes": "Smoke test submission"}
+    r = post("/report/submit", files=files, data=data)
 
     if r.status_code not in (200, 201, 202):
         fail("POST /report/submit", f"{r.status_code} {r.text[:300]}")
@@ -308,12 +368,15 @@ def s4_report_submit_pipeline(users: dict) -> Optional[dict]:
           f"new file(s) written to backend/uploads/ ({len(new_files)} added)",
           f"existing: {len(images)}, after: {len(files_after)}")
 
-    # Poll the tracking endpoint until verification completes
-    # (or 30s timeout — Mask R-CNN on CPU can take 10-20s)
-    info("polling /report/track/{slug} for AI verification to complete...")
+    # Poll the tracking endpoint until verification completes. Mock mode finishes
+    # in ~1s; the REAL Mask R-CNN on CPU can take 30-90s per image (graph warmup +
+    # inference). Budget is configurable via ECOWATCH_AI_TIMEOUT (seconds, default 90)
+    # so a real-model run on a modest laptop still goes green.
+    ai_timeout = int(os.environ.get("ECOWATCH_AI_TIMEOUT", "90"))
+    info(f"polling /report/track/{{slug}} for AI verification (up to {ai_timeout}s)...")
     import time
     final = None
-    for attempt in range(15):
+    for attempt in range(ai_timeout // 2):
         time.sleep(2)
         r = get(f"/report/track/{slug}")
         if r.status_code != 200:
@@ -323,8 +386,9 @@ def s4_report_submit_pipeline(users: dict) -> Optional[dict]:
             final = body
             break
     if not final:
-        fail("AI verification did not complete within 30s",
-             "Mask R-CNN may be stuck. Check uvicorn logs.")
+        fail(f"AI verification did not complete within {ai_timeout}s",
+             "Real Mask R-CNN on CPU can be slow — raise ECOWATCH_AI_TIMEOUT, or "
+             "test in mock mode (rename backend/models/mask_rcnn_garbage.h5) for a fast run.")
         return {"id": report_id, "slug": slug,
                 "tracking_id": tracking_id, "barangay": barangay}
 
