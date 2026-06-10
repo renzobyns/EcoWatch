@@ -1906,6 +1906,7 @@ async def get_report_detail(
             "ai_verified": p.ai_verified,
             "trust_score": getattr(p, "trust_score", None),
             "failing_signals": json.loads(getattr(p, "trust_signals", None) or "{}").get("failing_signals", []),
+            "signals": json.loads(getattr(p, "trust_signals", None) or "{}").get("signals", {}),
         }
         for p in report.report_photos
     ]

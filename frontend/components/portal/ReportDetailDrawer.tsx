@@ -7,6 +7,7 @@ import { TrustBadge } from "@/components/TrustBadge";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { ConfidenceTooltipBody } from "@/components/ConfidenceTooltipBody";
 import { formatRelative, formatDate } from "@/lib/date-utils";
+import { PhotoEvidenceDetail } from "@/components/PhotoEvidenceDetail";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -48,6 +49,7 @@ export interface ReportDetailPayload {
             ai_verified: boolean | null;
             trust_score: string | null;
             failing_signals: string[];
+            signals?: Record<string, unknown>;
         }>;
     };
     reporter: {
@@ -670,6 +672,10 @@ function EvidenceTab({
                                         AI confidence: <span className="font-bold text-foreground">{(p.ai_confidence * 100).toFixed(1)}%</span>
                                     </div>
                                 )}
+                                <PhotoEvidenceDetail
+                                    photo={p}
+                                    report={{ lat: report.lat, lon: report.lon, created_at: report.created_at }}
+                                />
                             </div>
                         ))}
                     </div>

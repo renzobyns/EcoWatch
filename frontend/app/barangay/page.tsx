@@ -13,6 +13,7 @@ import { PortalShell, type PortalNavItem } from "@/components/portal/PortalShell
 import { TrustBadge } from "@/components/TrustBadge";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { ConfidenceTooltipBody } from "@/components/ConfidenceTooltipBody";
+import { PhotoEvidenceDetail } from "@/components/PhotoEvidenceDetail";
 import { useUnreadNotificationCount } from "@/lib/notification-poll";
 
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
@@ -182,6 +183,8 @@ function BarangayPortalInner() {
     const [reporterDetail, setReporterDetail] = useState<{ id: number; full_name: string; email: string; phone_number: string | null } | null>(null);
     const [reporterLoading, setReporterLoading] = useState(false);
     const [reporterError, setReporterError] = useState(false);
+    // Photo evidence detail (Module 4): stored from the same /detail fetch
+    const [reportPhotos, setReportPhotos] = useState<Array<{ url: string; mask_url: string | null; ai_confidence: number | null; ai_verified: boolean | null; trust_score: string | null; failing_signals: string[]; signals?: Record<string, unknown> }>>([]);
 
     // Possible duplicates (Module 3): fetched when a flagged report modal opens
     const [duplicateMatches, setDuplicateMatches] = useState<any[]>([]);
@@ -482,24 +485,28 @@ function BarangayPortalInner() {
         }
     }, [pendingFocusReportId, reports]);
 
-    // Fetch reporter identity when a report modal opens (Module 2)
+    // Fetch reporter identity + photo evidence when a report modal opens (Modules 2 + 4)
     useEffect(() => {
         if (!selectedReport) {
             setReporterDetail(null);
             setReporterError(false);
+            setReportPhotos([]);
             return;
         }
         if (selectedReport.reporter_id == null) {
             setReporterDetail(null);
-            return;
         }
         let cancelled = false;
         setReporterDetail(null);
         setReporterLoading(true);
         setReporterError(false);
+        setReportPhotos([]);
         api(`/reports/${selectedReport.id}/detail`)
             .then((data: any) => {
-                if (!cancelled) setReporterDetail(data?.reporter ?? null);
+                if (!cancelled) {
+                    setReporterDetail(data?.reporter ?? null);
+                    setReportPhotos(data?.report?.photos ?? []);
+                }
             })
             .catch(() => {
                 if (!cancelled) setReporterError(true);
@@ -1749,6 +1756,12 @@ function BarangayPortalInner() {
                                             needs_human_review={(selectedReport as any).needs_human_review}
                                         />
                                     </div>
+                                    {reportPhotos.length > 0 && reportPhotos[0].signals && Object.keys(reportPhotos[0].signals).length > 0 && (
+                                        <PhotoEvidenceDetail
+                                            photo={reportPhotos[0]}
+                                            report={{ lat: selectedReport.lat, lon: selectedReport.lon, created_at: selectedReport.created_at }}
+                                        />
+                                    )}
                                 </div>
 
                                 {/* Possible Duplicates (Module 3) */}

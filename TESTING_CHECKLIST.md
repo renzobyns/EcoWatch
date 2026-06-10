@@ -137,6 +137,45 @@
 
 ---
 
+## Module 4 (Post-Defense) — Photo Evidence & Trust Breakdown View
+
+> Recommendation #1 (anti-fake photos). Admins can now see *why* a photo is HIGH, MEDIUM, or LOW
+> trust — GPS A-vs-B comparison, photo time/age, camera metadata, AI result, and a ✓/✗ checklist.
+> Shown only to barangay & CENRO admins; never on the citizen tracking page (anti-coaching).
+
+### M4-A — Backend (`GET /reports/{id}/detail`)
+- [ ] `GET /reports/{id}/detail` with barangay `X-User-Id` → `photos[0].signals` is a non-empty dict
+- [ ] `signals` contains `gps_lat`, `gps_lon`, `compared_against`, `software_tag`, `datetime_age_hours`
+- [ ] `GET /report/track/{slug}` (public, no auth) → `photos[0]` does **NOT** have a `signals` key
+
+### M4-B — CENRO drawer Evidence tab
+- [ ] Log in as `cenro@test.com` → open any verified/resolved report → Evidence tab
+- [ ] Each citizen photo has an **Evidence Breakdown** card below the image/mask block
+- [ ] Card shows source pill: **📷 In-app camera** or **⬆ Gallery upload** (based on `software_tag`)
+- [ ] Card shows the `TrustBadge` tier (matches the badge shown elsewhere on the report)
+- [ ] **Location** section: A (EXIF), B (device), submitted pin, and A↔B distance are all shown
+- [ ] **Time** section: photo taken timestamp, report submitted, and age in human-readable form
+- [ ] **Metadata** section: camera make/model present/missing, software tag value
+- [ ] **AI** section: confidence % and verified ✓/✗
+- [ ] **Why this tier** checklist: ✓/✗ rows match the failing signals on the TrustBadge tooltip
+
+### M4-C — Barangay modal Evidence column
+- [ ] Log in as `barangay@test.com` → open any report → Evidence Photo section
+- [ ] Same **Evidence Breakdown** card appears below the photo + TrustBadge
+- [ ] Card shows correct source, GPS A/B, time, metadata, and checklist
+- [ ] For a HIGH-trust report → all checklist rows are ✓
+- [ ] For a MEDIUM-trust report → at least one row is ✗ explaining why it's not HIGH
+
+### M4-D — Citizen tracking page (no leak)
+- [ ] Visit `/track/<slug>` → trust badge visible, but **no evidence breakdown card** anywhere
+- [ ] Network tab: `GET /report/track/{slug}` response has no `signals` key in photos array
+
+### M4-E — Legacy / pending reports
+- [ ] A report whose AI verification is still running shows `"Trust details unavailable"` in the card
+- [ ] No JS error in console when `signals` is `{}` or absent
+
+---
+
 ## Module 3 (Post-Defense) — Duplicate Detection
 
 > Recommendation #4. Many citizens report the same dumping incident; admins confirm duplicates
