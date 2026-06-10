@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
@@ -146,7 +146,17 @@ interface BarangayUser {
     last_login_at: string | null;
 }
 
+// useSearchParams() (used in CenroDashboardInner for report deep-linking) needs a
+// Suspense boundary so the page doesn't bail out of static prerendering at build time.
 export default function CenroDashboard() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>}>
+            <CenroDashboardInner />
+        </Suspense>
+    );
+}
+
+function CenroDashboardInner() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [user, setUser] = useState<any>(null);

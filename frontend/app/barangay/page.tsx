@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -77,7 +77,17 @@ interface BarangayUser {
     last_login_at: string | null;
 }
 
+// useSearchParams() (used in BarangayPortalInner for report deep-linking) needs a
+// Suspense boundary so the page doesn't bail out of static prerendering at build time.
 export default function BarangayPortal() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>}>
+            <BarangayPortalInner />
+        </Suspense>
+    );
+}
+
+function BarangayPortalInner() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [user, setUser] = useState<any>(null);

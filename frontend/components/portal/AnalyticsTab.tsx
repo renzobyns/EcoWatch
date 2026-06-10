@@ -592,7 +592,7 @@ export function AnalyticsTab({
                                                     dataKey="count"
                                                     radius={[6, 6, 0, 0]}
                                                     cursor={onDrilldown ? "pointer" : undefined}
-                                                    onClick={onDrilldown ? (payload: { bucket?: string }) => { if (payload?.bucket) onDrilldown("ai_bucket", payload.bucket); } : undefined}
+                                                    onClick={onDrilldown ? ((data: unknown) => { const bucket = (data as { bucket?: string })?.bucket; if (bucket) onDrilldown("ai_bucket", bucket); }) : undefined}
                                                 >
                                                     {aiChartData.map((entry, idx) => (
                                                         <Cell key={idx} fill={entry.isAboveThreshold ? "#10b981" : "#ef4444"} />
