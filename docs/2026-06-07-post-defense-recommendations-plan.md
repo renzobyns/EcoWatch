@@ -154,6 +154,14 @@ desktop; to test on a real phone you must serve the frontend over **HTTPS** (e.g
 
 ## Module 3 — Duplicate detection, admin-confirmed — solves #4
 
+> **Status: BUILT (2026-06-11).** `possible_duplicate_flag` + `duplicate_of_id` columns,
+> `analytics.find_nearby_reports` (100 m / 7 d), auto-flag at submit, `GET .../possible-duplicates`
+> + `POST .../mark-duplicate` (barangay/CENRO, jurisdiction-guarded, pending/verified only), DUPLICATE
+> excluded from active queues + heatmap. Frontend: ⚠ Dup? badge + confirm flow in barangay modal and
+> CENRO drawer. **Also hardened Module 2's submit auth** — identity is the `X-User-Id` session
+> (`get_current_user`), not the spoofable `reporter_id` form field. See
+> `docs/2026-06-11-module-3-duplicate-detection-plan.md`.
+
 **Model changes** (`backend/models.py`)
 - Add `duplicate_of_id = Column(Integer, ForeignKey("reports.id"), nullable=True)` + self-relationship.
 - Add `ReportStatus.DUPLICATE = "duplicate"` to the enum (`backend/models.py:8`).

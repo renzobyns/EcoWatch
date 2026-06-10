@@ -13,6 +13,7 @@ class ReportStatus(str, enum.Enum):
     IN_PROGRESS = "in_progress"
     RESOLVED = "resolved"
     FAILED_CLEANUP = "failed_cleanup"
+    DUPLICATE = "duplicate"
 
 
 class WorkOrderStatus(str, enum.Enum):
@@ -89,6 +90,12 @@ class Report(Base):
     # Trust scoring
     trust_score = Column(String, nullable=True)  # "high" | "medium" | "low"
     needs_human_review = Column(Boolean, nullable=False, default=False)
+
+    # Duplicate detection (Module 3). duplicate_of_id points to the original report
+    # an admin confirmed this one duplicates. possible_duplicate_flag is set at submit
+    # time when a nearby open report exists, so admin queues can surface a badge.
+    duplicate_of_id = Column(Integer, ForeignKey("reports.id"), nullable=True)
+    possible_duplicate_flag = Column(Boolean, nullable=False, default=False)
 
     # Work orders (one Report can have multiple work orders if a cleanup fails and is re-dispatched)
     work_orders = relationship("WorkOrder", back_populates="report", cascade="all, delete-orphan")

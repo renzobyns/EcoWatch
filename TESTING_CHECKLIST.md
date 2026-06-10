@@ -137,10 +137,49 @@
 
 ---
 
+## Module 3 (Post-Defense) — Duplicate Detection
+
+> Recommendation #4. Many citizens report the same dumping incident; admins confirm duplicates
+> to collapse them to one active cleanup. A report is auto-flagged at submit if an OPEN report
+> exists within 100 m / 7 days. Identity now comes from the **session header (X-User-Id)**, not
+> a spoofable `reporter_id` form field (security hardening of Module 2).
+
+### M3-A — Security hardening (`POST /report/submit`)
+- [ ] Submit with **no `X-User-Id` header** → `401` (identity is the session, not a form field)
+- [ ] Submit with a valid `X-User-Id` → `202`; a `reporter_id` form field is now ignored entirely
+- [ ] Confirm the citizen flow still works end-to-end in the browser (api() sends the header)
+
+### M3-B — Auto-flag at submit
+- [ ] Submit report A in Muzon, then report B at the **same coords** → B's response has `possible_duplicate_flag: true`
+- [ ] Submit a report far from any open report → `possible_duplicate_flag: false`
+- [ ] Flag is based on **open** reports only (rejected/resolved/duplicate don't count)
+
+### M3-C — Endpoints (curl/Postman)
+- [ ] `GET /reports/{B}/possible-duplicates` (X-User-Id = barangay) → lists A with `distance_m < 100`
+- [ ] `POST /reports/{B}/mark-duplicate` body `{"duplicate_of_id": A}` (barangay) → `200`, status `duplicate`
+- [ ] `POST /reports/{B}/mark-duplicate` as **citizen** → `403`
+- [ ] `mark-duplicate` on a **deployed/resolved** report → `422` (only pending/verified allowed)
+- [ ] Barangay calling either endpoint for a **non-jurisdiction** report → `403`
+
+### M3-D — Queue & heatmap exclusion
+- [ ] After mark-duplicate, report B is **absent** from `GET /reports/barangay/Muzon` and `/reports/recent`
+- [ ] `GET /spatial/heatmaps` does not include the duplicate (status whitelist excludes it)
+- [ ] `?status=duplicate` filter **does** return duplicates (explicit opt-in)
+
+### M3-E — Frontend
+- [ ] Flagged report shows a **⚠ Dup?** badge in the barangay queue row and CENRO oversight row
+- [ ] Barangay modal shows a "Possible Duplicates" panel with the nearby report + "Confirm Duplicate"
+- [ ] CENRO drawer Overview tab shows the same alert at the top
+- [ ] Clicking "Confirm Duplicate" → toast, report leaves the queue, drawer/modal closes
+
+---
+
 ## Module 2 (Post-Defense) — Login Required & Reporter Accountability
 
 > Recommendation #3 (accountability). Every submission must be tied to a verified account.
 > Reporter identity is visible to barangay and CENRO admins only — never on public routes.
+> **Note:** Module 3 hardened the submit auth — identity is the `X-User-Id` session header,
+> not the `reporter_id` form field described below.
 
 ### M2-A — Backend enforcement (`POST /report/submit`, curl/Postman)
 - [ ] Submit with **no `reporter_id`** field → `401 Please log in to submit a report.`

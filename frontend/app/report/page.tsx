@@ -7,6 +7,7 @@ import exifr from "exifr";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { GeoPhoto } from "@/components/GeoTagCamera";
+import { api, ApiError } from "@/lib/api";
 
 const GeoTagCamera = dynamic(() => import("@/components/GeoTagCamera"), { ssr: false });
 
@@ -239,22 +240,26 @@ export default function ReportPage() {
             formData.append("device_lon", deviceLon.toString());
         }
         if (notes) formData.append("notes", notes);
-        formData.append("reporter_id", reporterId.toString());
+        // Identity is sent via the X-User-Id header by the api() helper — not a
+        // spoofable form field. The backend derives reporter_id from the session.
         photos.forEach((p) => formData.append("images", p.file));
 
         try {
-            const res = await fetch(`${API_URL}/report/submit`, { method: "POST", body: formData });
-            const data = await res.json();
-            if (res.ok && data.success) {
+            const data = await api("/report/submit", { method: "POST", body: formData });
+            if (data?.tracking_url) {
                 router.push(data.tracking_url);
-            } else if (res.status === 401) {
-                router.replace("/login?redirect=/report");
             } else {
-                setError(data.message || data.detail || "Failed to submit report.");
+                setError(data?.message || "Failed to submit report.");
             }
         } catch (err) {
-            console.error("Submit error:", err);
-            setError("Network error. Could not connect to server.");
+            if (err instanceof ApiError && err.status === 401) {
+                router.replace("/login?redirect=/report");
+            } else if (err instanceof ApiError) {
+                setError(err.message || "Failed to submit report.");
+            } else {
+                console.error("Submit error:", err);
+                setError("Network error. Could not connect to server.");
+            }
         } finally {
             setIsSubmitting(false);
         }

@@ -1390,7 +1390,12 @@ function CenroDashboardInner() {
                                             const sla = slaInfo(report.created_at, report.status);
                                             return (
                                                 <tr key={report.id} className="border-b border-border hover:bg-foreground/5 transition-colors cursor-pointer" onClick={() => { setSelectedReport(report); setNewBarangay(report.barangay ?? ""); }}>
-                                                    <td className="p-4 font-mono text-sm text-foreground font-bold">{report.tracking_id}</td>
+                                                    <td className="p-4 font-mono text-sm text-foreground font-bold">
+                                                        {report.tracking_id}
+                                                        {report.possible_duplicate_flag && report.status !== 'duplicate' && (
+                                                            <span title="A nearby open report may be a duplicate" className="ml-2 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-400 align-middle">⚠ Dup?</span>
+                                                        )}
+                                                    </td>
                                                     <td className="p-4 text-sm font-bold text-emerald-300">{report.barangay}</td>
                                                     <td className="p-4">
                                                         <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
@@ -1811,6 +1816,7 @@ function CenroDashboardInner() {
                 onClose={() => setSelectedReport(null)}
                 onReassign={() => selectedReport && handleReassign(selectedReport.id)}
                 onForceClose={() => selectedReport && handleForceClose(selectedReport.id)}
+                onUpdated={() => fetchQueueData()}
             />
 
             {/* Analytics Drill-down Modal */}
