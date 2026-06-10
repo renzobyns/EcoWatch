@@ -38,6 +38,10 @@ Reference apps: GPS Map Camera, Tagofy, Solocator (live camera + burned-in locat
 
 ## Module 1 — Geo-tag capture + photo validation (frontend + backend) — solves #1 and #2
 
+> **Status: BUILT (2026-06-10).** `GeoTagCamera.tsx` + report-flow rewrite + login gate +
+> server-side hard gates are implemented. EXIF round-trip (piexifjs write → PIL read) verified.
+> Still needs a real-device HTTPS test for the live camera (see Testing caveat). Modules 2–4 pending.
+
 Two ways to add a photo, with **different trust ceilings**:
 
 - **Path A — In-app geo-tag camera (live capture).** Highest trust. Device GPS grabbed at the

@@ -23,6 +23,7 @@ from ai_verifier import (
     verifier,
     verify_images_async,
     compute_trust_score,
+    extract_gate_signals,
     _GPS_HIGH_TRUST_METERS,
 )
 import analytics
@@ -1250,8 +1251,13 @@ def _get_report_trust_reasons(photos: list) -> list:
     return []
 
 
-async def _bg_verify_submit(report_id: int) -> None:
-    """Background task: run Mask R-CNN on all evidence photos for a freshly-submitted report."""
+async def _bg_verify_submit(report_id: int, device_lat: float = None, device_lon: float = None) -> None:
+    """Background task: run Mask R-CNN on all evidence photos for a freshly-submitted report.
+
+    `device_lat`/`device_lon` are the live device GPS (signal B) captured at submit;
+    they anchor the trust scoring's A-vs-B comparison. Absent (e.g. startup re-dispatch
+    of orphan reports), scoring falls back to comparing EXIF GPS against the report pin.
+    """
     db = SessionLocal()
     try:
         report = db.query(models.Report).filter(models.Report.id == report_id).first()
@@ -1308,7 +1314,7 @@ async def _bg_verify_submit(report_id: int) -> None:
         def _run_trust_batch():
             results_trust = []
             for b, p in photo_bytes_for_trust:
-                trust = compute_trust_score(b, report.lat, report.lon)
+                trust = compute_trust_score(b, report.lat, report.lon, device_lat, device_lon)
                 results_trust.append((p, trust))
             return results_trust
 
@@ -1576,6 +1582,8 @@ async def submit_report(
     lon: float = Form(...),
     notes: Optional[str] = Form(None),
     reporter_id: Optional[int] = Form(None),
+    device_lat: Optional[float] = Form(None),
+    device_lon: Optional[float] = Form(None),
     images: List[UploadFile] = File(...),
     db: Session = Depends(get_db),
 ):
@@ -1583,15 +1591,44 @@ async def submit_report(
     Citizen report submission. Accepts 1–5 evidence photos.
     Returns 202 immediately; Mask R-CNN runs in a background task.
     Frontend polls /report/track/{slug} until `verification_pending` flips to false.
+
+    `device_lat`/`device_lon` are the live device GPS (signal B) at submit, used to
+    anchor the A-vs-B trust comparison. Every photo must pass Module 1's hard gates
+    (real EXIF geotag, no editor/AI software tag, inside SJDM) — defense in depth, since
+    the in-app camera enforces these client-side but uploads and clients can't be trusted.
     """
     if not (1 <= len(images) <= 5):
         raise HTTPException(status_code=422, detail="Upload between 1 and 5 photos.")
 
+    # Read + hard-gate every photo BEFORE saving anything. Any failure rejects the
+    # whole submission with a clear reason (the in-app camera satisfies all gates).
+    photo_bytes: list[tuple[UploadFile, bytes]] = []
+    for img in images:
+        img_bytes = await img.read()
+        gate = extract_gate_signals(img_bytes)
+        if gate["has_editor_tag"]:
+            raise HTTPException(
+                status_code=422,
+                detail=f"A photo was edited or AI-generated (tagged \"{gate['software_tag']}\"). "
+                       "Use the in-app camera to submit untouched evidence.",
+            )
+        if gate["gps_lat"] is None or gate["gps_lon"] is None:
+            raise HTTPException(
+                status_code=422,
+                detail="A photo has no location data (geotag). Use the in-app camera instead.",
+            )
+        sjdm = spatial_utils.get_barangay_from_coords(gate["gps_lat"], gate["gps_lon"])
+        if "error" in sjdm:
+            raise HTTPException(
+                status_code=422,
+                detail="A photo was taken outside San Jose del Monte, so it can't be reported here.",
+            )
+        photo_bytes.append((img, img_bytes))
+
     # Save each photo; skip bad files but proceed if at least one succeeds
     saved_urls: list[str] = []
-    for img in images:
+    for img, img_bytes in photo_bytes:
         try:
-            img_bytes = await img.read()
             url = await save_upload(img, prefix="report", contents=img_bytes)
             saved_urls.append(url)
         except HTTPException:
@@ -1628,7 +1665,7 @@ async def submit_report(
         db.add(models.ReportPhoto(report_id=new_report.id, file_path=url))
     db.commit()
 
-    background_tasks.add_task(_bg_verify_submit, new_report.id)
+    background_tasks.add_task(_bg_verify_submit, new_report.id, device_lat, device_lon)
 
     return {
         "success": True,
