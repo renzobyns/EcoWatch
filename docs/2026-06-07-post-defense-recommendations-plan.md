@@ -134,18 +134,21 @@ desktop; to test on a real phone you must serve the frontend over **HTTPS** (e.g
 
 ## Module 2 — Require login to submit (accountability) — solves #3
 
+> **Status: BUILT (2026-06-11).** Backend enforces `reporter_id` (401 before any image work);
+> `/reports/{id}/detail` opened to barangay with jurisdiction guard; barangay modal renders
+> reporter name/email/phone; citizen submit bounces to login on 401; smoke test + checklist updated.
+> Reporter PII stays out of `ReportResponse` — public map/tracking routes are PII-free.
+
 **Frontend** (`frontend/app/report/page.tsx`)
 - Gate the page: if no `ecowatch_user` in `localStorage`, redirect to `/login` (with return URL).
 - Make `reporter_id` mandatory in `handleSubmit` (it's currently best-effort/optional).
 
 **Backend** (`backend/main.py`)
-- `/report/submit` (currently `backend/main.py:1572`): make `reporter_id` **required** and validate
-  the user exists/active; reject with 401/400 otherwise.
-- **Expose reporter identity to admins:** add `reporter_name`, `reporter_phone`, `reporter_email`
-  to `ReportResponse` (`backend/main.py:284`) and populate them from the `Report.reporter`
-  relationship in the report serialization. Show these in the barangay/CENRO report drawers
-  so reports can be validated and followed up.
-- Keep the DB column `reporter_id` nullable (legacy rows) but enforce presence at the API.
+- `/report/submit`: `reporter_id` validated (exists + active) before any image processing; 401 otherwise.
+- `/reports/{id}/detail` opened to `barangay` role with jurisdiction guard (cross-barangay → 403).
+- Reporter identity exposed via the already-existing `reporter` dict in `/reports/{id}/detail`.
+- `ReportResponse` intentionally stays PII-free (public routes safe).
+- DB column `reporter_id` remains nullable (legacy rows still load).
 
 ---
 

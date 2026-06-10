@@ -137,6 +137,37 @@
 
 ---
 
+## Module 2 (Post-Defense) — Login Required & Reporter Accountability
+
+> Recommendation #3 (accountability). Every submission must be tied to a verified account.
+> Reporter identity is visible to barangay and CENRO admins only — never on public routes.
+
+### M2-A — Backend enforcement (`POST /report/submit`, curl/Postman)
+- [ ] Submit with **no `reporter_id`** field → `401 Please log in to submit a report.`
+- [ ] Submit with a **nonexistent `reporter_id`** (e.g. `999999`) → `401 Your account is invalid or disabled.`
+- [ ] Submit with a **disabled user's `reporter_id`** (disable via CENRO portal first) → `401`
+- [ ] The 401 fires **before** any image is saved (confirm no new file in `backend/uploads/`)
+- [ ] Submit with a valid active `reporter_id` + geotagged SJDM photo → `202` (Module 1 gate still works)
+
+### M2-B — Reporter identity in admin drawers
+- [ ] Log in as `cenro@test.com` → open any report → Overview tab shows reporter name/email/phone
+- [ ] Log in as `barangay@test.com` (Muzon) → open a Muzon report → modal shows reporter name/email/phone
+- [ ] Barangay modal shows **"Anonymous (legacy report)"** for old rows with no `reporter_id`
+
+### M2-C — Jurisdiction guard (barangay can't read other barangays' reporter PII)
+- [ ] As `barangay@test.com`, call `GET /reports/{non-muzon-id}/detail` with `X-User-Id` header → `403 Report is outside your barangay.`
+- [ ] As `cenro@test.com`, same call → `200` (CENRO can read any)
+
+### M2-D — No public PII leak
+- [ ] `GET /track/{slug}` response contains `reporter_id` (int or null) but **no** `full_name`, `email`, or `phone_number`
+- [ ] `GET /reports/recent` response items contain no reporter PII
+- [ ] `GET /reports/barangay/Muzon` response items contain no reporter PII
+
+### M2-E — Citizen submit stale-session handling
+- [ ] With a session where the user was subsequently disabled, hitting Submit → redirect to `/login?redirect=/report` (not stuck on an error screen)
+
+---
+
 ## Module 1 (Post-Defense) — Geo-tag Camera & Photo Validation
 
 > Recommendations #1 (anti-fake photos) + #2 (auto-pin). Location now comes **only** from the

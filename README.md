@@ -446,7 +446,7 @@ Full route list lives in [`backend/main.py`](backend/main.py). Highlights:
 - `GET/POST /users/export`, `/users/import`
 
 **Reports**
-- `POST /report/submit` (multipart)
+- `POST /report/submit` (multipart) — **requires `reporter_id`** (logged-in user)
 - `GET /report/track/{slug}` — public
 - `GET /reports/recent` — supports `status`, `search`, `limit`, `offset`, `date_from`
 - `GET /reports/barangay/{name}` — same filters, barangay-scoped
@@ -569,7 +569,8 @@ curl -X POST http://localhost:8000/report/submit \
   -F "lon=121.0252" \
   -F "device_lat=14.8155" \
   -F "device_lon=121.0252" \
-  -F "notes=Pile of trash near canal"
+  -F "notes=Pile of trash near canal" \
+  -F "reporter_id=1"
 ```
 
 Expected `202 Accepted` JSON (AI runs **async** in a background task, so status is `pending`

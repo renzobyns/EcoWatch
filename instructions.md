@@ -460,7 +460,7 @@ Shareable status page for any report. Accessible via tracking ID or URL slug.
 | `GET` | `/health` | Public | Server health status |
 | `POST` | `/report/validate-location` | Public | Validates if GPS coords are within SJDM, returns barangay name |
 | `GET` | `/spatial/barangays` | Public | Returns full GeoJSON of SJDM barangay boundaries for map rendering |
-| `POST` | `/report/submit` | Public | Full report submission: image upload → AI verify → Ray-Cast → save to DB |
+| `POST` | `/report/submit` | Requires `reporter_id` (logged-in user) | Full report submission: image upload → AI verify → Ray-Cast → save to DB |
 | `GET` | `/reports/recent` | Public | Fetch all non-rejected reports for map display |
 | `GET` | `/spatial/heatmaps` | Public | Runs DBSCAN on active reports, returns hotspot clusters |
 
