@@ -144,7 +144,11 @@ export default function ReportPage() {
         } catch {
             gps = undefined;
         }
-        if (!gps || gps.latitude == null || gps.longitude == null) {
+        // Treat a present-but-empty geotag (NaN/0,0 — common after Google Drive/Photos
+        // or "GPS stamp" apps) as no location data.
+        if (!gps || gps.latitude == null || gps.longitude == null ||
+            !Number.isFinite(gps.latitude) || !Number.isFinite(gps.longitude) ||
+            (gps.latitude === 0 && gps.longitude === 0)) {
             return "This photo has no location data. Please use the in-app camera instead.";
         }
 
