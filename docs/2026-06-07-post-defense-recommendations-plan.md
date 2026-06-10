@@ -186,6 +186,11 @@ desktop; to test on a real phone you must serve the frontend over **HTTPS** (e.g
 
 ## Module 4 — Photo evidence & trust breakdown view (admin) — transparency for #1
 
+> **Status: BUILT (2026-06-11).** `PhotoEvidenceDetail.tsx` renders GPS A/B, time, metadata, AI, and
+> ✓/✗ checklist. Wired into CENRO drawer Evidence tab and barangay modal. Backend exposes `signals`
+> per photo on `/reports/{id}/detail` only (not on public `/track`). Smoke test s11 asserts signals
+> present on admin endpoint, absent on citizen track endpoint.
+
 A detail view in the **barangay and CENRO** report drawers that explains *why* a photo got its
 HIGH/MEDIUM/LOW tier — so reviewers aren't trusting a coloured badge blindly. Most data already
 exists (`ReportPhoto.trust_signals`, `trust_score`, `ai_confidence`); this module surfaces it as a

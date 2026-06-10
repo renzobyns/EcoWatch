@@ -676,6 +676,62 @@ def s10_duplicate_detection(users: dict) -> None:
 
 
 # ─── main ────────────────────────────────────────────────────────────
+def s11_photo_evidence_signals(users: dict, report: Optional[dict]) -> None:
+    section("11. MODULE 4 — PHOTO EVIDENCE SIGNALS (admin /detail only)")
+    if not report or not report.get("id") or not report.get("slug"):
+        fail("evidence signals test SKIPPED (no AI-completed report from s4)")
+        return
+
+    report_id = report["id"]
+    slug = report["slug"]
+    barangay_id = users.get("barangay", {}).get("id")
+    cenro_id = users.get("cenro", {}).get("id")
+
+    if not barangay_id or not cenro_id:
+        fail("evidence signals test SKIPPED (missing barangay/cenro users)")
+        return
+
+    # Admin /detail endpoint must expose signals per photo
+    r = get(f"/reports/{report_id}/detail", user_id=barangay_id)
+    if not check(r.status_code == 200,
+                 f"GET /reports/{report_id}/detail (barangay) -> 200",
+                 r.text[:200]):
+        return
+
+    body = r.json()
+    photos = body.get("report", {}).get("photos", [])
+    check(len(photos) > 0,
+          f"detail payload has at least 1 photo (got {len(photos)})")
+
+    if photos:
+        p = photos[0]
+        signals = p.get("signals")
+        check(isinstance(signals, dict) and len(signals) > 0,
+              "photos[0].signals is a non-empty dict (admin endpoint)")
+
+        if isinstance(signals, dict) and signals:
+            for key in ("gps_lat", "compared_against", "software_tag"):
+                check(key in signals,
+                      f"signals.{key} present in detail payload",
+                      f"keys found: {list(signals.keys())[:8]}")
+
+    # Public /track endpoint must NOT expose signals (citizen anti-coaching)
+    rt = get(f"/report/track/{slug}")
+    check(rt.status_code == 200,
+          f"GET /report/track/{slug} -> 200",
+          rt.text[:200])
+
+    if rt.status_code == 200:
+        track_body = rt.json()
+        track_photos = track_body.get("photos", [])
+        if track_photos:
+            check("signals" not in track_photos[0],
+                  "photos[0] on /track has NO signals key (citizen view is clean)",
+                  f"keys: {list(track_photos[0].keys())}")
+        else:
+            info("no photos array on /track (legacy route) — signals leak check skipped")
+
+
 def main() -> int:
     print(f"EcoWatch Smoke Test  ({BASE})")
     print()
@@ -703,6 +759,7 @@ def main() -> int:
     s8_work_order_lifecycle(users)
     s9_ai_verifier_mode()
     s10_duplicate_detection(users)
+    s11_photo_evidence_signals(users, report)
 
     # ─── summary ──────────────────────────────────────────────────
     section("SUMMARY")
