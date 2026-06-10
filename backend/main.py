@@ -1605,6 +1605,7 @@ async def submit_report(
     photo_bytes: list[tuple[UploadFile, bytes]] = []
     for img in images:
         img_bytes = await img.read()
+        validate_image(img, img_bytes)  # MIME + size first → precise 400s (X8)
         gate = extract_gate_signals(img_bytes)
         if gate["has_editor_tag"]:
             raise HTTPException(

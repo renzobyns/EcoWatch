@@ -43,6 +43,7 @@ EcoWatch is a geospatial reporting and environmental monitoring system for **San
 | Layer | Choice |
 |---|---|
 | Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS v4, Lucide |
+| Geo-tag camera | `getUserMedia` + `navigator.geolocation`; EXIF write via `piexifjs`, read via `exifr` (both auto-installed by `npm install`) |
 | Maps | Leaflet + React-Leaflet, custom barangay polygons (GeoJSON) |
 | Charts | Recharts |
 | Toasts | Sonner |
@@ -147,6 +148,12 @@ npm run dev                       # → http://localhost:3000
 
 That's it — the app should now work end-to-end at `http://localhost:3000` with the seeded accounts (`citizen@test.com` / `barangay@test.com` / `cenro@test.com`, all `password123`).
 
+> **Two Module 1 gotchas when testing the report flow:** (1) `/report` now **requires login**
+> (log in as `citizen@test.com` first), and (2) the photo step uses a **live geo-tag camera**
+> that needs a *secure context* and an in-SJDM GPS fix — open the app at `http://localhost:3000`
+> (not a bare IP), and on desktop fake your location to an SJDM coordinate in DevTools. Full
+> walk-through: [Geo-tag camera & upload testing](#-geo-tag-camera--upload-testing-module-1).
+
 > The AI model weights (`backend/models/mask_rcnn_garbage.h5`) are gitignored. Without them the backend falls back to a mock that returns ~80% positive — fine for UI work. See [AI Model Details](#-ai-model-details) to get the real weights.
 
 #### Optional — `frontend/.env.local`
@@ -194,17 +201,23 @@ cd backend
 python smoke_test.py
 ```
 
-Runs 41 individual checks across 9 sections — health, auth (all 4 quick-demo + per-barangay accounts), ray-casting, DBSCAN clustering, full report submission pipeline (image upload + Mask R-CNN inference + spatial routing + tracking), RBAC, cross-portal visibility, work-order lifecycle, and Mask R-CNN mode detection (real vs mock).
+Runs ~40 individual checks across 9 sections — health, auth (all 4 quick-demo + per-barangay accounts), ray-casting, DBSCAN clustering, full report submission pipeline (image upload + Mask R-CNN inference + spatial routing + tracking), RBAC, cross-portal visibility, work-order lifecycle, and Mask R-CNN mode detection (real vs mock). The submit section also verifies **Module 1's geotag hard gate** — it injects a Muzon geotag so the report passes, and confirms a geotag-less photo is rejected with `422`.
 
 Expected output ends with:
 
 ```
 SUMMARY
-  Passed: 41
+  Passed: 40
   Failed: 0
 
 All workflows verified. The setup is good to go.
 ```
+
+> **Real-model timing:** the AI-verification check waits up to **90s** (configurable via
+> `ECOWATCH_AI_TIMEOUT`). On a modest CPU the real Mask R-CNN can be slower than that — if
+> that single check is the only red line, your setup is fine. For a fast, fully-green run,
+> test in **mock mode** (temporarily rename `backend/models/mask_rcnn_garbage.h5`); mock
+> verification returns in ~1s.
 
 Anything red? Each FAIL line gives you the endpoint, status code, and response body — no guessing where to look.
 
@@ -514,46 +527,78 @@ RBAC quick-checks:
 
 ### 3. Submit a report end-to-end (curl)
 
-```bash
-curl -X POST http://localhost:8000/report/submit \
-  -F "photo=@./test.jpg" \
-  -F "lat=14.8136" \
-  -F "lon=121.0450" \
-  -F "description=Pile of trash near canal"
+> **Module 1 changed this endpoint.** The photo field is **`images`** (1–5 files, not
+> `photo`), notes use **`notes`** (not `description`), and **every photo must carry an
+> in-SJDM EXIF geotag** or the server hard-rejects it with `422`. There are also two new
+> optional fields, `device_lat`/`device_lon` (the live device GPS = "signal B", used for the
+> trust A-vs-B comparison). A plain `test.jpg` with no geotag will now be **rejected** — this
+> is expected, and is why the smoke test injects a geotag (see [below](#1-backend-smoke-tests-script-based)).
+
+First make a geotagged-in-SJDM test image (Pillow is already in the venv):
+
+```powershell
+cd backend; .\venv_tf\Scripts\Activate.ps1
+python -c "from PIL import Image; im=Image.new('RGB',(640,480),(110,110,110)); ex=im.getexif(); ex[0x8825]={1:'N',2:(14.0,48.0,55.8),3:'E',4:(121.0,1.0,30.7)}; im.save('geotagged_muzon.jpg',exif=ex)"
 ```
 
-Expected `202 Accepted` JSON:
+Then submit it:
+
+```bash
+curl -X POST http://localhost:8000/report/submit \
+  -F "images=@./geotagged_muzon.jpg" \
+  -F "lat=14.8155" \
+  -F "lon=121.0252" \
+  -F "device_lat=14.8155" \
+  -F "device_lon=121.0252" \
+  -F "notes=Pile of trash near canal"
+```
+
+Expected `202 Accepted` JSON (AI runs **async** in a background task, so status is `pending`
+until it finishes — poll the tracking endpoint):
+
 ```json
 {
+  "success": true,
+  "message": "Report received. AI verification is running in the background.",
   "report_id": 17,
   "tracking_id": "EW-0017",
-  "tracking_slug": "a1b2c3d4",
-  "barangay": "Muzon",
-  "ai_verified": true,
-  "ai_confidence": 0.87,
-  "status": "verified"
+  "tracking_url": "/track/a1b2c3d4",
+  "barangay_assigned": "Muzon",
+  "status": "pending",
+  "verification_pending": true
 }
 ```
 
-Then verify the public tracking page loads: `GET /report/track/a1b2c3d4`.
+Sanity-check the rejection too — submitting `test.jpg` (no geotag) should return
+`422 "A photo has no location data (geotag)."` Then verify the public tracking page polls to
+completion: `GET /report/track/a1b2c3d4`.
 
 ### 4. Image upload validation (X8)
+
+Checks run in order: **MIME → size → geotag → editor/AI tag → SJDM geofence**.
 
 | Upload | Expected |
 |---|---|
 | `.txt` file | `400 Only JPEG or PNG images are allowed.` |
 | `.gif` (`image/gif`) | `400 Only JPEG or PNG images are allowed.` |
 | Image > 10 MB | `400 Image must be 10 MB or smaller.` |
-| Valid `.jpg` ≤ 10 MB | `200/202` with `report_id` |
+| Valid `.jpg`, **no EXIF geotag** | `422 A photo has no location data (geotag).` *(Module 1)* |
+| Valid `.jpg`, **editor/AI software tag** (Photoshop, Canva, Midjourney…) | `422 …edited or AI-generated…` *(Module 1)* |
+| Valid `.jpg`, geotag **outside SJDM** | `422 …taken outside San Jose del Monte…` *(Module 1)* |
+| Valid `.jpg` ≤ 10 MB, **in-SJDM geotag** | `202` with `report_id` |
 
 ### 5. Frontend manual tests
 
 Start the dev server (`npm run dev`) and walk the goldens:
 
-**Citizen flow**
+**Citizen flow** *(updated — Module 1 geo-tag camera; see [Geo-tag camera & upload testing](#-geo-tag-camera--upload-testing-module-1))*
 - [ ] Landing page renders; map shows barangay polygons
 - [ ] Click **Share QR Code** → modal opens, image renders, "Save Image" downloads
-- [ ] `/report` requests geolocation, accepts photo, posts to backend, redirects to `/track/<slug>`
+- [ ] Visiting `/report` **logged out** redirects to `/login?redirect=/report`
+- [ ] Logged in as `citizen@test.com`, `/report` shows a **Take Photo / Upload** chooser (no manual map pin)
+- [ ] **Take Photo** opens the live geo-tag camera, burns a location/time stamp, auto-pins from the photo's GPS
+- [ ] **Upload** a photo with no geotag → rejected; an edited/AI photo → rejected; a photo outside SJDM → rejected
+- [ ] Review screen shows a **read-only** "from your photo" location card, then submit → redirects to `/track/<slug>`
 - [ ] `/track/<slug>` shows status, AI mask overlay, timeline
 
 **Barangay portal (`barangay@test.com`)**
@@ -581,6 +626,43 @@ Start the dev server (`npm run dev`) and walk the goldens:
 - [ ] Login as a cleaner → only their WorkOrders visible
 - [ ] Start → Complete with after photo → AI re-verifies → status updates
 - [ ] Notifications panel shows unread count
+
+### 📸 Geo-tag camera & upload testing (Module 1)
+
+Module 1 replaced the old "drop a map pin" step. **Location now comes only from the
+photo** — the live camera reads GPS at the shutter, and gallery uploads must already
+carry an EXIF geotag. This adds two hard requirements that trip people up when testing:
+
+**1. Secure context (required for camera + GPS).** Browsers only expose the camera and
+`navigator.geolocation` on a *secure context*:
+- **Desktop:** open the app at `http://localhost:3000` (NOT `http://127.0.0.1:3000` or a
+  LAN IP — `localhost` is treated as secure, a bare IP is not).
+- **Phone / another device:** you must serve the frontend over **HTTPS**. Quickest is a
+  tunnel: `npx localtunnel --port 3000` (or `cloudflared tunnel --url http://localhost:3000`),
+  then open the `https://…` URL on the phone. Over plain `http://<laptop-ip>:3000` the
+  camera button will silently do nothing.
+
+**2. The GPS must be inside SJDM.** The camera and uploads are geofenced to San Jose del
+Monte. On a desktop your real location is almost certainly *outside* SJDM, so the camera
+shows "outside SJDM." Override it in **Chrome/Edge DevTools → ⋮ → More tools → Sensors →
+Location → Other…** and enter an in-SJDM coordinate, e.g. **`14.8155, 121.0252`** (Muzon)
+or `14.8197, 121.0478` (Dulong Bayan). Keep that tab open while testing.
+
+**Checklist**
+- [ ] Logged out, `/report` redirects to login (Module 2 accountability is partially wired here)
+- [ ] With a faked in-SJDM location, **Take Photo** shows a green "Brgy. … ±Nm" chip and a
+      burned-in stamp; **Done → Submit** lands on `/track/<slug>` with a trust tier
+- [ ] **Upload** a screenshot / Messenger photo (EXIF stripped) → *"no location data"* reject
+- [ ] **Upload** a photo exported from Photoshop/Canva/Snapseed → *"edited or AI-generated"* reject
+- [ ] **Upload** a geotagged photo taken outside SJDM → *"outside San Jose del Monte"* reject
+- [ ] The **upload-accept** path needs a real photo whose own EXIF GPS is inside SJDM — easiest
+      is one taken on a phone physically in SJDM (the DevTools override does **not** change a
+      file's EXIF). To craft one for a quick test, see the snippet under
+      [Submit a report end-to-end](#3-submit-a-report-end-to-end-curl).
+
+> **Why uploads can feel strict:** any photo whose EXIF was stripped (Facebook/Messenger,
+> screenshots) or that carries an editor/AI tag is rejected by design — that's the anti-fake
+> -photo recommendation. Those users are expected to re-take with the in-app camera.
 
 ### 6. Database inspection
 
