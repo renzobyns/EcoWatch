@@ -156,6 +156,20 @@ That's it — the app should now work end-to-end at `http://localhost:3000` with
 
 > The AI model weights (`backend/models/mask_rcnn_garbage.h5`) are gitignored. Without them the backend falls back to a mock that returns ~80% positive — fine for UI work. See [AI Model Details](#-ai-model-details) to get the real weights.
 
+#### Running it again (after the first-time setup)
+
+The venv, `node_modules`, and DB already exist, so subsequent runs are just **two commands in two terminals**:
+
+```powershell
+# Terminal 1 — backend
+cd backend; .\venv_tf\Scripts\Activate.ps1; uvicorn main:app --reload
+
+# Terminal 2 — frontend
+cd frontend; npm run dev
+```
+
+Start the **backend first**, then the frontend. Re-run `python seed_test_data.py` only if you want to wipe and reset the demo data (it clears existing rows first).
+
 #### Optional — `frontend/.env.local`
 
 You **do not need this file for a basic local run.** The frontend has built-in fallbacks. Create it only if you want one of these specific things:
@@ -369,6 +383,11 @@ All passwords are `password123`. Total seeded: 4 quick-demo + 118 per-barangay =
         └─────────────────────┘
 ```
 
+> **Module 1 update:** `/report` requires login, and the **location is derived from the
+> photo's geotag** (live geo-tag camera or a geotagged upload) — there is no manual map pin.
+> At submit the server **hard-gates** every photo (must have an in-SJDM EXIF geotag, no
+> editor/AI software tag) *before* persisting; the Mask R-CNN check then runs asynchronously.
+
 **Status flow:**
 ```
 pending → verified | rejected
@@ -480,15 +499,15 @@ Interactive docs: <http://localhost:8000/docs>.
 
 The granular per-sprint checklist is in [`TESTING_CHECKLIST.md`](TESTING_CHECKLIST.md). The sections below show the practical test recipes.
 
-### 1. Backend smoke tests (script-based)
+### 1. Backend test scripts
 
 ```powershell
 cd backend
 .\venv_tf\Scripts\Activate.ps1
 
-python seed_test_data.py        # idempotent — re-seeds demo data
-python test_auth.py             # auth endpoint sanity
-python test_analytics.py        # DBSCAN clustering correctness
+python seed_test_data.py        # idempotent — (re)creates demo accounts + reports
+python smoke_test.py            # full end-to-end suite (needs the server running — see "Verify Your Setup Works" above)
+python test_report_detail.py    # report-detail endpoint checks
 ```
 
 There is **no pytest suite** — use `py_compile` for syntax checks on touched files:
@@ -596,7 +615,7 @@ Start the dev server (`npm run dev`) and walk the goldens:
 - [ ] Click **Share QR Code** → modal opens, image renders, "Save Image" downloads
 - [ ] Visiting `/report` **logged out** redirects to `/login?redirect=/report`
 - [ ] Logged in as `citizen@test.com`, `/report` shows a **Take Photo / Upload** chooser (no manual map pin)
-- [ ] **Take Photo** opens the live geo-tag camera, burns a location/time stamp, auto-pins from the photo's GPS
+- [ ] **Take Photo** opens the live geo-tag camera, burns a location/time stamp, auto-pins from the photo's GPS; shutter fires instantly with a flash, and tapping a thumbnail opens a full-screen preview (Close / Delete)
 - [ ] **Upload** a photo with no geotag → rejected; an edited/AI photo → rejected; a photo outside SJDM → rejected
 - [ ] Review screen shows a **read-only** "from your photo" location card, then submit → redirects to `/track/<slug>`
 - [ ] `/track/<slug>` shows status, AI mask overlay, timeline
