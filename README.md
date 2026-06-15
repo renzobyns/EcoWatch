@@ -121,7 +121,7 @@ EcoWatch/
 > **Step 0 — Install these first** (one-time, skip if you already have them):
 > - **[Git](https://git-scm.com/download/win)** — to clone the repo (`git --version` to check)
 > - **[Node.js 20+](https://nodejs.org/)** — comes with `npm` (`node -v` to check)
-> - **[Python 3.12](https://www.python.org/downloads/release/python-3120/)** — required for TensorFlow 2.16.1 (`py -3.12 --version` to check)
+> - **[Python 3.12.8](https://www.python.org/downloads/release/python-3128/)** — required for TensorFlow 2.16.1 (`py -3.12 --version` to check). **DO NOT install Python 3.13 or newer**, as TensorFlow 2.16.1 does not support it yet.
 >
 > If you don't know what Git or npm is, install the three above before continuing. They're all free.
 
@@ -244,7 +244,7 @@ With both servers running, walk through the checkboxes in [`VERIFY_SETUP.md`](VE
 ### Prerequisites (detailed)
 
 - **Node.js 20+**
-- **Python 3.12** (required for TensorFlow 2.16.1 compatibility)
+- **[Python 3.12.8](https://www.python.org/downloads/release/python-3128/)** — **WARNING:** Do NOT install Python 3.13 or newer. TensorFlow 2.16.1 requires Python 3.12.x.
 - **Git**
 
 ### 1. Clone
