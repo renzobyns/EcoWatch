@@ -1,0 +1,15 @@
+venv/
+venv_tf/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.db
+*.db.bak-*
+*.log
+uploads/
+.env
+.env.local
+.git/
+.gitignore
