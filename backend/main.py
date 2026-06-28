@@ -168,8 +168,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Serve uploaded images as static files
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+# Serve uploaded images (local file check, fall back to Supabase Storage redirect)
+from fastapi.responses import FileResponse, RedirectResponse
+
+@app.get("/uploads/{filename}")
+async def serve_upload(filename: str):
+    local_path = os.path.join(UPLOAD_DIR, filename)
+    if os.path.exists(local_path):
+        return FileResponse(local_path)
+    
+    # Fallback: Redirect to Supabase Storage if configured
+    supabase_url = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
+    if supabase_url:
+        supabase_url = supabase_url.rstrip("/")
+        bucket_name = "report-photos"
+        public_url = f"{supabase_url}/storage/v1/object/public/{bucket_name}/{filename}"
+        return RedirectResponse(public_url)
+        
+    raise HTTPException(status_code=404, detail="File not found")
 
 
 # ─────────────────────────────────────────────────────────
@@ -502,10 +518,9 @@ async def save_upload(
         try:
             response = requests.post(upload_url, headers=headers, data=contents, timeout=15)
             if response.status_code == 200:
-                # Successfully uploaded! Return the public URL
-                public_url = f"{supabase_url}/storage/v1/object/public/{bucket_name}/{filename}"
+                # Successfully uploaded! Return the relative path so frontend doesn't break
                 logger.info(f"Uploaded photo {filename} successfully to Supabase Storage.")
-                return public_url
+                return f"/uploads/{filename}"
             else:
                 logger.error(f"Supabase Storage upload failed (status {response.status_code}): {response.text}. Falling back to local disk.")
         except Exception as e:
@@ -1229,9 +1244,8 @@ def _save_mask_bytes(mask_bytes: bytes) -> Optional[str]:
         try:
             response = requests.post(upload_url, headers=headers, data=mask_bytes, timeout=15)
             if response.status_code == 200:
-                public_url = f"{supabase_url}/storage/v1/object/public/{bucket_name}/{mask_filename}"
                 logger.info(f"Uploaded AI mask {mask_filename} successfully to Supabase Storage.")
-                return public_url
+                return f"/uploads/{mask_filename}"
             else:
                 logger.error(f"Supabase Storage upload for AI mask failed (status {response.status_code}): {response.text}. Falling back to local disk.")
         except Exception as e:
