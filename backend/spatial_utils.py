@@ -3,7 +3,7 @@ from shapely.geometry import shape, Point
 import os
 
 # Path to the SJDM GeoJSON data
-DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "sjdm_barangays.geojson")
+DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "sjdm_barangays.geojson")
 
 def get_barangay_from_coords(lat: float, lon: float):
     """
