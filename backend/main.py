@@ -474,7 +474,7 @@ async def save_upload(
     prefix: str = "report",
     contents: Optional[bytes] = None,
 ) -> str:
-    """Save an uploaded file to disk and return the relative URL path.
+    """Save an uploaded file to Supabase Storage (if configured) or local disk.
 
     If `contents` is provided, reuse it (avoids double-reading large files).
     Otherwise read from the UploadFile. Always validates MIME + size.
@@ -485,8 +485,34 @@ async def save_upload(
 
     ext = os.path.splitext(image.filename or "")[1] or ".jpg"
     filename = f"{prefix}_{uuid.uuid4().hex[:8]}{ext}"
-    filepath = os.path.join(UPLOAD_DIR, filename)
+    content_type = image.content_type or "image/jpeg"
 
+    # Try uploading to Supabase first if keys are configured in environment variables
+    supabase_url = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
+    supabase_key = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+    if supabase_url and supabase_key:
+        import requests
+        supabase_url = supabase_url.rstrip("/")
+        bucket_name = "report-photos"
+        upload_url = f"{supabase_url}/storage/v1/object/{bucket_name}/{filename}"
+        headers = {
+            "Authorization": f"Bearer {supabase_key}",
+            "Content-Type": content_type
+        }
+        try:
+            response = requests.post(upload_url, headers=headers, data=contents, timeout=15)
+            if response.status_code == 200:
+                # Successfully uploaded! Return the public URL
+                public_url = f"{supabase_url}/storage/v1/object/public/{bucket_name}/{filename}"
+                logger.info(f"Uploaded photo {filename} successfully to Supabase Storage.")
+                return public_url
+            else:
+                logger.error(f"Supabase Storage upload failed (status {response.status_code}): {response.text}. Falling back to local disk.")
+        except Exception as e:
+            logger.exception("Supabase Storage upload failed with exception. Falling back to local disk.")
+
+    # Fallback to local disk
+    filepath = os.path.join(UPLOAD_DIR, filename)
     with open(filepath, "wb") as f:
         f.write(contents)
 
@@ -1183,10 +1209,35 @@ def _disk_path_for_upload_url(upload_url: str) -> str:
 
 
 def _save_mask_bytes(mask_bytes: bytes) -> Optional[str]:
-    """Persist a generated AI mask image to disk and return its /uploads URL."""
+    """Persist a generated AI mask image to Supabase Storage (if configured) or local disk."""
     if not mask_bytes:
         return None
     mask_filename = f"mask_{uuid.uuid4().hex[:8]}.jpg"
+
+    # Try uploading to Supabase first if keys are configured in environment variables
+    supabase_url = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
+    supabase_key = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+    if supabase_url and supabase_key:
+        import requests
+        supabase_url = supabase_url.rstrip("/")
+        bucket_name = "report-photos"
+        upload_url = f"{supabase_url}/storage/v1/object/{bucket_name}/{mask_filename}"
+        headers = {
+            "Authorization": f"Bearer {supabase_key}",
+            "Content-Type": "image/jpeg"
+        }
+        try:
+            response = requests.post(upload_url, headers=headers, data=mask_bytes, timeout=15)
+            if response.status_code == 200:
+                public_url = f"{supabase_url}/storage/v1/object/public/{bucket_name}/{mask_filename}"
+                logger.info(f"Uploaded AI mask {mask_filename} successfully to Supabase Storage.")
+                return public_url
+            else:
+                logger.error(f"Supabase Storage upload for AI mask failed (status {response.status_code}): {response.text}. Falling back to local disk.")
+        except Exception as e:
+            logger.exception("Supabase Storage upload for AI mask failed with exception. Falling back to local disk.")
+
+    # Fallback to local disk
     with open(os.path.join(UPLOAD_DIR, mask_filename), "wb") as f:
         f.write(mask_bytes)
     return f"/uploads/{mask_filename}"

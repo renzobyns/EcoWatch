@@ -51,14 +51,21 @@ class AIVerifier:
         self.session = None
         self.is_loaded = False
 
-        if os.path.exists(MODEL_PATH):
+        # Attempt to download model from Hugging Face if missing
+        try:
+            from download_model import download_mask_rcnn_model
+            download_mask_rcnn_model()
+        except Exception:
+            logger.exception("Failed to run model downloader. Checking local model path...")
+
+        if os.path.exists(MODEL_PATH) and os.path.getsize(MODEL_PATH) > 100 * 1024 * 1024:
             try:
                 self._load_model()
             except Exception:
                 logger.exception("Failed to load Mask R-CNN model. Falling back to mock mode.")
         else:
-            logger.warning("Model not found at: %s", MODEL_PATH)
-            logger.warning("Running in mock mode. Download mask_rcnn_garbage.h5 from Google Drive.")
+            logger.warning("Model not found or invalid at: %s", MODEL_PATH)
+            logger.warning("Running in mock mode.")
 
     def _load_model(self):
         """Load the Mask R-CNN model with trained weights."""
