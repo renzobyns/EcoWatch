@@ -14,3 +14,8 @@ scikit-image
 h5py
 opencv-python-headless
 numpy<2.0.0
+
+# Deployment & Database
+huggingface_hub
+psycopg2-binary
+requests
