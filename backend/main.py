@@ -407,8 +407,10 @@ def generate_tracking_slug() -> str:
     return uuid.uuid4().hex[:8]
 
 def hash_password(password: str) -> str:
-    """Hash a password using bcrypt."""
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=8)).decode("utf-8")
+    """Hash a password using bcrypt. Adjusts rounds dynamically based on host performance."""
+    db_url = os.getenv("DATABASE_URL")
+    rounds = 10 if (db_url and "supabase" in db_url) else 12
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=rounds)).decode("utf-8")
 
 def verify_password(password: str, hashed: str) -> bool:
     """Verify a password against its bcrypt hash."""
