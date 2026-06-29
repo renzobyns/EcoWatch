@@ -408,7 +408,7 @@ def generate_tracking_slug() -> str:
 
 def hash_password(password: str) -> str:
     """Hash a password using bcrypt."""
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=8)).decode("utf-8")
 
 def verify_password(password: str, hashed: str) -> bool:
     """Verify a password against its bcrypt hash."""
@@ -502,6 +502,33 @@ async def save_upload(
     ext = os.path.splitext(image.filename or "")[1] or ".jpg"
     filename = f"{prefix}_{uuid.uuid4().hex[:8]}{ext}"
     content_type = image.content_type or "image/jpeg"
+
+    # Compress and resize image to keep uploads fast, saving massive bandwidth and database loading times
+    from io import BytesIO
+    from PIL import Image
+    try:
+        img = Image.open(BytesIO(contents))
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+        # Scale down if width or height is larger than 1200px
+        max_dim = 1200
+        w, h = img.size
+        if w > max_dim or h > max_dim:
+            if w > h:
+                new_w, new_h = max_dim, int(h * (max_dim / w))
+            else:
+                new_w, new_h = int(w * (max_dim / h)), max_dim
+            img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+        
+        # Save as JPEG with 75% quality optimization
+        out_buf = BytesIO()
+        img.save(out_buf, format="JPEG", quality=75, optimize=True)
+        contents = out_buf.getvalue()
+        # Force filename and content type to JPEG
+        filename = f"{prefix}_{uuid.uuid4().hex[:8]}.jpg"
+        content_type = "image/jpeg"
+    except Exception as e:
+        logger.error(f"Image compression failed: {e}. Defaulting to original file bytes.")
 
     # Try uploading to Supabase first if keys are configured in environment variables
     supabase_url = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
