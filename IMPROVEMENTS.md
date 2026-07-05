@@ -6,7 +6,7 @@ Five real-world hardening improvements identified during defense-prep review. It
 
 ## 1. Multiple photos per report and cleanup
 
-**Status:** planned
+**Status:** completed
 
 **Problem:** one photo can hide or exaggerate the scene. Real reviewers (barangay, CENRO) want multiple angles before judging. Same for cleanup proof — before / during / after.
 
@@ -20,7 +20,7 @@ Five real-world hardening improvements identified during defense-prep review. It
 
 ## 2. Async verification queue + per-report batching
 
-**Status:** in progress
+**Status:** completed
 
 **Problem:** [ai_verifier.py:49](backend/ai_verifier.py#L49) sets `IMAGES_PER_GPU = 1` and [main.py:1110](backend/main.py#L1110) calls `verifier.verify_image()` synchronously inside the request handler. On CPU hosting, inference is 3–15 seconds per image. Ten concurrent submissions = the 10th user waits ~30s–2min. Multi-photo per report makes it worse.
 
@@ -52,7 +52,7 @@ Five real-world hardening improvements identified during defense-prep review. It
 
 ## 4. Photo trust score (EXIF / authenticity layer)
 
-**Status:** planned (after #2)
+**Status:** completed
 
 **Problem:** advisor question — "what if the picture is edited or AI-generated?" Mask R-CNN is instance segmentation; it can't tell. We need a defensive layer.
 

@@ -10,14 +10,14 @@
 | Layer | Service | Cost | Why |
 |---|---|---|---|
 | Frontend | **Vercel Hobby** | Free | Made by Next.js team; zero-config |
-| Backend | **Railway Hobby** | $5/mo | 8GB RAM handles TensorFlow + Mask R-CNN |
-| Database | **Supabase** (Free → Pro for defense) | $0 → $25/mo | PostGIS included; critical for geospatial queries |
+| Backend | **Hugging Face Spaces** | Free | Docker space running CPU container |
+| Database | **Supabase** (Free) | $0 | PostGIS included; critical for geospatial queries |
 | File Storage | **Supabase Storage** | Bundled | One vendor; S3-compatible |
 | ML Model Hosting | **Hugging Face Hub** | Free | Designed for model weights; pulled on startup |
 | Auth | **FastAPI bcrypt (existing)** | Free | Already built with role-based logic | 
-| Domain | **Namecheap `.com`** | ~$10/yr | Professional touch for defense |
+| Domain | **Vercel domain** | Free | Custom deployment subdomain |
 
-**Total monthly cost:** $5/mo (now) → ~$30 during defense week → back to $5/mo after.
+**Total monthly cost:** $0 (runs completely on free tiers).
 
 ---
 
@@ -33,18 +33,17 @@
   - 100GB bandwidth/month — way more than a capstone needs
 - **Alternatives considered:** Netlify (slower for Next.js), Cloudflare Pages (newer SSR support, less polished)
 
-### ⚙️ Backend — Railway Hobby ($5/mo)
+### ⚙️ Backend — Hugging Face Spaces (Docker Space) (Free)
 
 - **Stack:** Python 3.12, FastAPI, SQLAlchemy, TensorFlow 2.16.1, Mask R-CNN
-- **Why Railway:**
-  - **8GB RAM** on Hobby tier — needed for TensorFlow + Mask R-CNN inference
-  - No sleep/cold-start on paid tier (Render free tier sleeps; Render Starter is only 512MB, too small for TF)
-  - Docker-friendly; deploys from GitHub
-  - Persistent volumes for cached model weights
+- **Why Hugging Face Spaces:**
+  - Provides a free container-based environment with CPU/GPU options.
+  - Programmatic model download bypasses Git LFS file limits.
 - **Alternatives considered:**
-  - Render Standard ($25/mo) — 5x the price for same RAM
-  - Fly.io (~$5) — steeper learning curve, less time before defense
-  - Hugging Face Spaces (Free) — possible split-architecture wildcard (see "Future Optimizations")
+  - *Railway Hobby ($5/mo):* Originally planned for standard container hosting, but migrated to Hugging Face Spaces to save hosting costs.
+  - *Heroku:* Too expensive ($5-7/mo and very slow container builds).
+  - *Render:* Free tier sleeps and restarts take 50+ seconds — unusable for a live demo.
+  - *AWS ECS:* Too complex for a 10-day sprint setup.
 
 ### 🗄️ Database — Supabase (Free now, Pro for defense)
 
@@ -76,7 +75,7 @@
   - Version control for models — if we retrain, we tag a new version
   - Simple Python integration: `huggingface_hub.hf_hub_download()`
 - **Deploy flow:**
-  1. On backend startup, check if model exists in Railway's persistent volume
+  1. On backend startup, check if model exists in persistent volume
   2. If not, download from Hugging Face Hub
   3. Load into TensorFlow once; reuse across requests
 - **Why not Git LFS:** Costs $5/mo for 50GB; HF is free and purpose-built.
@@ -99,12 +98,12 @@
 
 ### Week 1 — May 11–17 (Setup)
 - [ ] Create Vercel project; connect to GitHub repo
-- [ ] Create Railway project; deploy backend from `/backend`
+- [ ] Create Hugging Face Space; deploy backend from `/backend`
 - [ ] Provision Supabase project; enable PostGIS extension
 - [ ] Migrate SQLite schema → Supabase Postgres (run Alembic or manual SQL)
 - [ ] Upload `mask_rcnn_garbage.h5` to Hugging Face Hub
 - [ ] Update backend to download model from HF on startup
-- [ ] Configure CORS between Vercel ↔ Railway
+- [ ] Configure CORS between Vercel ↔ HF Spaces
 
 ### Week 2 — May 18–24 (Polish + Test)
 - [ ] Buy domain (e.g., `ecowatchsjdm.com`)
@@ -115,13 +114,13 @@
 - [ ] Load-test the Mask R-CNN endpoint (warm-up before defense)
 
 ### Defense Week — May 25–26
-- [ ] **May 25 evening:** Smoke test all flows; restart Railway service to ensure fresh state
-- [ ] **May 26 morning:** Final ping to Supabase; confirm Railway is awake; check Vercel deployment is latest
+- [ ] **May 25 evening:** Smoke test all flows; restart Space to ensure fresh state
+- [ ] **May 26 morning:** Final ping to Supabase; confirm HF Space is awake; check Vercel deployment is latest
 - [ ] Backup plan: have a local laptop running the stack as fallback
 
 ### Post-Defense — May 27 onward
 - [ ] Downgrade Supabase back to Free (saves $25/mo)
-- [ ] Keep Railway Hobby running (or pause to save $5/mo)
+- [ ] Keep HF Space running
 - [ ] Archive a Docker Compose snapshot for future portfolio demos
 
 ---
@@ -130,11 +129,11 @@
 
 | Period | Monthly | One-Time |
 |---|---|---|
-| Setup (May 11–19) | $5 (Railway) | $10 (domain, optional) |
-| Defense window (May 20–26) | $5 + $25 (Supabase Pro) = $30 | — |
-| Post-defense | $5 or $0 (if Railway paused) | — |
+| Setup (May 11–19) | $0 | $10 (domain, optional) |
+| Defense window (May 20–26) | $25 (Supabase Pro) | — |
+| Post-defense | $0 | — |
 
-**Worst case for full capstone:** ~**$40 total**. Cheaper than a textbook.
+**Worst case for full capstone:** ~**$35 total**. Cheaper than a textbook.
 
 ---
 
@@ -148,7 +147,7 @@
                               │ HTTPS / API calls
                               ▼
                  ┌─────────────────────────┐
-                 │   Railway (Backend)     │
+                 │ Hugging Face (Backend)  │
                  │   FastAPI + TF/Mask     │
                  │   R-CNN + Shapely       │
                  └──────┬────────────┬─────┘
