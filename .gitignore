@@ -66,3 +66,4 @@ backend/logs/
 # and IS tracked in git. Do not add it back to this ignore list — ai_verifier.py
 # imports from it and the app cannot load real model weights without it.
 .vercel
+.git_hf/
