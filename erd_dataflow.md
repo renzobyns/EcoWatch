@@ -11,9 +11,12 @@ erDiagram
         string email UK "Unique, NOT NULL"
         string password_hash "NOT NULL (bcrypt)"
         string full_name "NOT NULL"
-        string role "citizen | barangay | cenro"
-        string barangay_assignment "Nullable (barangay role only)"
-        datetime created_at "Default: utcnow"
+        string role "citizen | barangay | cleaner | cenro"
+        string barangay_assignment "Nullable"
+        string phone_number "Nullable"
+        boolean is_active "Default: true"
+        datetime created_at
+        datetime last_login_at "Nullable"
     }
 
     REPORTS {
@@ -21,17 +24,89 @@ erDiagram
         float lat "NOT NULL"
         float lon "NOT NULL"
         string barangay "Nullable, Indexed (Ray-Cast computed)"
-        int reporter_id FK "Nullable (null if anonymous)"
-        string image_url "Nullable (local file path)"
-        string cleanup_image_url "Nullable (cleanup photo path)"
-        float ai_confidence "Nullable (0.0 to 1.0)"
+        int reporter_id FK "Nullable"
+        string image_url "Nullable"
+        string ai_mask_url "Nullable"
+        string cleanup_image_url "Nullable"
+        float ai_confidence "Nullable"
         string status "Default: pending"
-        text notes "Nullable (citizen notes)"
-        string tracking_id UK "Unique (e.g. EW-0042)"
-        string tracking_url UK "Unique (e.g. /track/abc123)"
-        datetime created_at "Default: utcnow"
+        text notes "Nullable"
+        text deployment_notes "Nullable"
+        boolean verification_pending "Default: false"
+        string verification_kind "Nullable"
+        string tracking_id UK "Unique"
+        string tracking_url UK "Unique"
+        datetime created_at
         datetime deployed_at "Nullable"
         datetime resolved_at "Nullable"
+        string trust_score "Nullable"
+        boolean needs_human_review "Default: false"
+        int duplicate_of_id FK "Nullable"
+        boolean possible_duplicate_flag "Default: false"
+    }
+
+    WORK_ORDERS {
+        int id PK "Auto-increment"
+        int report_id FK "NOT NULL"
+        int assigned_cleaner_id FK "NOT NULL"
+        string priority "Default: medium"
+        datetime sla_deadline "NOT NULL"
+        string status "Default: assigned"
+        text notes "Nullable"
+        datetime created_at
+        datetime started_at "Nullable"
+        datetime completed_at "Nullable"
+    }
+
+    SYSTEM_CONFIG {
+        string key PK
+        string value "NOT NULL"
+        datetime updated_at
+        int updated_by FK "Nullable"
+    }
+
+    AUDIT_LOGS {
+        int id PK "Auto-increment"
+        int user_id FK "Nullable"
+        string action "NOT NULL"
+        string target_type "Default: report"
+        int target_id "Nullable"
+        text details "Nullable (JSON)"
+        datetime created_at
+    }
+
+    NOTIFICATIONS {
+        int id PK "Auto-increment"
+        int user_id FK "NOT NULL"
+        string kind "NOT NULL"
+        string title "NOT NULL"
+        text body "NOT NULL"
+        int work_order_id FK "Nullable"
+        int report_id FK "Nullable"
+        boolean is_read "Default: false"
+        datetime created_at
+    }
+
+    REPORT_PHOTOS {
+        int id PK "Auto-increment"
+        int report_id FK "NOT NULL"
+        string file_path "NOT NULL"
+        float ai_confidence "Nullable"
+        boolean ai_verified "Nullable"
+        string ai_mask_path "Nullable"
+        datetime uploaded_at
+        string trust_score "Nullable"
+        text trust_signals "Nullable (JSON)"
+    }
+
+    CLEANUP_PHOTOS {
+        int id PK "Auto-increment"
+        int report_id FK "NOT NULL"
+        int work_order_id FK "Nullable"
+        string file_path "NOT NULL"
+        float ai_confidence "Nullable"
+        boolean ai_verified "Nullable"
+        datetime uploaded_at
     }
 
     BARANGAY_BOUNDARIES {
@@ -40,7 +115,18 @@ erDiagram
         geometry polygon "GeoJSON MultiPolygon"
     }
 
-    USERS ||--o{ REPORTS : "submits (optional)"
+    USERS ||--o{ REPORTS : "submits"
+    USERS ||--o{ WORK_ORDERS : "assigned to"
+    USERS ||--o{ AUDIT_LOGS : "performs action"
+    USERS ||--o{ NOTIFICATIONS : "receives"
+    SYSTEM_CONFIG ||--o| USERS : "updated by"
+    REPORTS ||--o{ WORK_ORDERS : "has"
+    REPORTS ||--o{ REPORT_PHOTOS : "contains"
+    REPORTS ||--o{ CLEANUP_PHOTOS : "contains"
+    REPORTS ||--o{ NOTIFICATIONS : "referenced in"
+    REPORTS }o--|| REPORTS : "duplicate of"
+    WORK_ORDERS ||--o{ CLEANUP_PHOTOS : "verifies"
+    WORK_ORDERS ||--o{ NOTIFICATIONS : "referenced in"
     BARANGAY_BOUNDARIES ||--o{ REPORTS : "assigned via Ray-Casting"
     USERS }o--|| BARANGAY_BOUNDARIES : "manages (barangay role)"
 ```
@@ -49,17 +135,30 @@ erDiagram
 
 | Relationship | Type | Description |
 |:-------------|:-----|:------------|
-| `USERS → REPORTS` | One-to-Many (optional) | A user can submit many reports. Anonymous reports have `reporter_id = NULL`. |
-| `BARANGAY_BOUNDARIES → REPORTS` | One-to-Many | Each report is assigned to one barangay via Ray-Casting algorithm. |
-| `USERS → BARANGAY_BOUNDARIES` | Many-to-One (optional) | A barangay admin is assigned to manage one specific barangay via `barangay_assignment`. |
+| `USERS → REPORTS` | One-to-Many (optional) | A citizen user can submit multiple reports. Anonymous reports have `reporter_id = NULL`. |
+| `USERS → WORK_ORDERS` | One-to-Many (optional) | A cleaner user is assigned to work orders to execute cleanups. |
+| `USERS → AUDIT_LOGS` | One-to-Many (optional) | An admin/CENRO user generates audit logs when executing administrative overrides. |
+| `USERS → NOTIFICATIONS` | One-to-Many | System notifications routed to specific users (cleaners, barangay, or CENRO). |
+| `REPORTS → WORK_ORDERS` | One-to-Many | A report can have one or more work orders (multiple if a cleanup fails verification and needs a redo). |
+| `REPORTS → REPORT_PHOTOS` | One-to-Many | A report contains 1 to 5 evidence photos uploaded by the reporter. |
+| `REPORTS → CLEANUP_PHOTOS` | One-to-Many | A report contains cleanup verification photos uploaded by cleaners or barangay admins. |
+| `REPORTS → REPORTS` | Self-referencing (0..1) | A duplicate report points to the original validated report via `duplicate_of_id`. |
+| `BARANGAY_BOUNDARIES → REPORTS` | One-to-Many | Each report is mapped to one barangay boundary via Ray-Casting spatial lookup on submission. |
+| `USERS → BARANGAY_BOUNDARIES` | Many-to-One (optional) | A barangay admin/cleaner is assigned to a specific barangay boundary jurisdiction. |
 
 ### Entity Summary
 
-| Entity | Storage | Record Count |
-|:-------|:--------|:-------------|
-| `USERS` | SQLite (`ecowatch.db`) | Grows with signups |
-| `REPORTS` | SQLite (`ecowatch.db`) | Grows with submissions |
-| `BARANGAY_BOUNDARIES` | GeoJSON file (`data/sjdm_barangays.geojson`) | Fixed — 59 barangays in SJDM |
+| Entity | Storage | Record Count / Growth |
+|:-------|:--------|:----------------------|
+| `USERS` | SQLite / PostgreSQL | Grows with user registration (residents, cleaners, barangay, CENRO) |
+| `REPORTS` | SQLite / PostgreSQL | Grows with citizen reporting |
+| `WORK_ORDERS` | SQLite / PostgreSQL | Grows with dispatching cleanups |
+| `SYSTEM_CONFIG` | SQLite / PostgreSQL | Configuration rows (SLA policy settings) |
+| `AUDIT_LOGS` | SQLite / PostgreSQL | Grows with admin overrides and user edits |
+| `NOTIFICATIONS` | SQLite / PostgreSQL | Grows with system alerts and updates |
+| `REPORT_PHOTOS` | SQLite / PostgreSQL | Grows with citizen reports (supports multi-photo evidence) |
+| `CLEANUP_PHOTOS` | SQLite / PostgreSQL | Grows with cleanup completion proofs |
+| `BARANGAY_BOUNDARIES` | GeoJSON file | Fixed — 59 barangays in SJDM |
 
 ---
 

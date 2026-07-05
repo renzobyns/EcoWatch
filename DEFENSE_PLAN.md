@@ -5,10 +5,10 @@
 The EcoWatch SJDM capstone defense is on **May 25–26, 2026**. As of today (May 16), the core happy path works end-to-end: citizens submit reports, Mask R-CNN verifies them, ray-casting assigns the correct barangay, and barangay/CENRO portals can manage the lifecycle. However, both portals feel "kulang" (insufficient) for a real CENRO product — they lack the accountability, filtering, exports, and admin tooling a municipal LGU would actually need. Backend endpoints also have **no role-based access control** (anyone who knows the URL can `/deploy`, `/reassign`, or `/force-close`), which would be an obvious gap during defense Q&A.
 
 **Budget**: ~30 working hours across 9 days (3–4 hrs/day, school + other classes ongoing).
-**Demo target**: Live deployed URL (Vercel + Railway + Supabase) as primary, **fully offline-capable local laptop as backup** (OLFU QC Wi-Fi is mid-to-weak — true offline is the only safe fallback).
+**Demo target**: Live deployed URL (Vercel + Hugging Face Spaces + Supabase) as primary, **fully offline-capable local laptop as backup** (OLFU QC Wi-Fi is mid-to-weak — true offline is the only safe fallback).
 **Strategy**: Add 4–5 high-impact features per portal + polish the rest + deploy with buffer + **bake offline-mode into the same codebase** (one repo, two run modes via env vars).
 
-This plan extends and aligns with **[techstack.md](techstack.md)** — it does not replace it. The Vercel + Railway + Supabase + Hugging Face stack stays as-is. The additions here are: feature scope for both portals, RBAC + audit log, file-by-file learning, and a proper **offline-resilience section** (techstack.md line 190 mentions "local fallback laptop" in one sentence; §7 below makes it real).
+This plan extends and aligns with **[techstack.md](techstack.md)** — it does not replace it. The Vercel + Hugging Face Spaces + Supabase + Hugging Face Hub stack was chosen for the final deployment. The additions here are: feature scope for both portals, RBAC + audit log, file-by-file learning, and a proper **offline-resilience section** (techstack.md line 190 mentions "local fallback laptop" in one sentence; §7 below makes it real).
 
 ---
 

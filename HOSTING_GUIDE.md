@@ -39,7 +39,7 @@ To bypass Hugging Face's Git LFS push limits (which reject files >10 MB), the co
 
 ### Environment Secrets Configured in Hugging Face Space:
 These are set up under **Settings** -> **Variables and secrets** on the Hugging Face page:
-1. `DATABASE_URL` = `postgresql://postgres.cndsqjgildhumsquyypd:1FoTmDvPKvhUkI1Y@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres` (IPv4 session pooler)
+1. `DATABASE_URL` = `postgresql://postgres.[ProjectID]:[YourPassword]@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres` (IPv4 session pooler)
 2. `NEXT_PUBLIC_SUPABASE_URL` = `https://cndsqjgildhumsquyypd.supabase.co`
 3. `NEXT_PUBLIC_SUPABASE_ANON_KEY` = *[Your Supabase anon key]*
 4. `HF_MODEL_REPO` = `renzobyns/ecowatch-mrcnn`

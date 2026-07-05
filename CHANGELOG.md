@@ -2,6 +2,17 @@
 
 All notable changes to the EcoWatch SJDM project will be documented in this file.
 
+## [Phase 8: Post-Defense Improvements & Hardening] - 2026-06-01 → 2026-07-05
+
+> A post-defense hardening and optimization cycle focused on enhancing verification reliability, preventing fraud, and expanding data visualization.
+
+### Added
+- **Strict Geotag Verification (Module 1)**: Replaced manual coordinate selection with image-based metadata extraction using `exifr`. Reports are automatically geotagged using the photograph's embedded EXIF GPS data.
+- **Resident Authentication Gates (Module 2)**: Secured the report submission flow behind user login to prevent spam and associate reports with real citizen accounts.
+- **Geospatial Duplicate Detection (Module 3)**: Implemented DBSCAN-based proximity checks in the backend (`analytics.py`) to automatically identify and link duplicate reports submitted for the same dump site.
+- **EXIF Audit & Evidence Gallery (Module 4)**: Added interactive galleries for multiple evidence photos in the Barangay and CENRO portals, showing side-by-side comparisons of raw photos and AI mask overlays.
+- **Secure Configuration**: Cleaned up the codebase to redact exposed database credentials in documentation files (like `HOSTING_GUIDE.md`).
+
 ## [Phase 7: Defense Sprint] - 2026-05-16 → 2026-05-26
 
 > The 10-day sprint that turned the working happy path into a defense-ready, role-aware product. See [`DEFENSE_PLAN.md`](DEFENSE_PLAN.md) for the day-by-day plan.
