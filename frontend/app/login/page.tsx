@@ -69,8 +69,8 @@ export default function LoginPage() {
 
     return (
         <div className="h-[calc(100vh-5rem)] bg-background flex overflow-hidden">
-            {/* Left Side: Marketing/Testimonial (Desktop Only) — stays dark in both themes */}
-            <div className="dark hidden lg:flex w-1/2 relative overflow-hidden bg-[#051105] text-white border-r border-white/5 p-8 xl:p-12 flex-col justify-between">
+            {/* Left Side: Marketing/Testimonial (Desktop Only) — adapts to theme */}
+            <div className="hidden lg:flex w-1/2 relative overflow-hidden bg-emerald-50 dark:bg-[#051105] text-foreground border-r border-border p-8 xl:p-12 flex-col justify-between">
                 {/* Background Decor */}
                 <div className="absolute top-[-10%] right-[-10%] w-96 h-96 bg-primary/20 rounded-full blur-[120px]"></div>
                 
@@ -79,15 +79,15 @@ export default function LoginPage() {
                     <div className="w-8 h-8 eco-gradient rounded-lg flex items-center justify-center shadow-lg shadow-primary/20">
                         <Leaf className="text-white" size={18} />
                     </div>
-                    <span className="text-lg font-semibold text-white tracking-tight">EcoWatch <span className="text-primary">SJDM</span></span>
+                    <span className="text-lg font-semibold tracking-tight">EcoWatch <span className="text-primary">SJDM</span></span>
                 </div>
 
                 {/* Feature Highlight - Internal Scroll if needed */}
                 <div className="relative z-10 max-w-md my-auto py-8 overflow-y-auto scrollbar-hide">
-                    <h1 className="text-2xl xl:text-3xl font-bold text-white leading-tight mb-3">
+                    <h1 className="text-2xl xl:text-3xl font-bold leading-tight mb-3">
                         Advanced Spatial Intelligence for a <span className="text-primary">Cleaner City.</span>
                     </h1>
-                    <p className="text-sm text-white/60 leading-relaxed mb-7">
+                    <p className="text-sm text-foreground/70 leading-relaxed mb-7">
                         The official EcoWatch portal for San Jose del Monte officials and citizens. Powered by spatial data and AI verification.
                     </p>
 
@@ -97,13 +97,13 @@ export default function LoginPage() {
                             { icon: Map, title: "Spatial Routing", desc: "Intelligent report assignment via Ray-Casting." },
                             { icon: ShieldCheck, title: "Public Tracking", desc: "Real-time transparency for every citizen report." }
                         ].map((feature, i) => (
-                            <div key={i} className="glass p-3.5 rounded-xl border border-white/5 flex items-center gap-3 hover:bg-white/5 transition-all">
+                            <div key={i} className="glass p-3.5 rounded-xl border border-border/50 flex items-center gap-3 hover:bg-foreground/5 transition-all">
                                 <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
                                     <feature.icon size={18} />
                                 </div>
                                 <div>
-                                    <h3 className="text-[11px] font-semibold text-white uppercase tracking-wider">{feature.title}</h3>
-                                    <p className="text-[10px] text-white/40 mt-0.5">{feature.desc}</p>
+                                    <h3 className="text-[11px] font-semibold uppercase tracking-wider">{feature.title}</h3>
+                                    <p className="text-[10px] text-foreground/50 mt-0.5">{feature.desc}</p>
                                 </div>
                             </div>
                         ))}
@@ -111,7 +111,7 @@ export default function LoginPage() {
                 </div>
 
                 {/* Footer Links */}
-                <div className="relative z-10 flex gap-6 text-[9px] font-bold uppercase tracking-widest text-white/30 mt-4">
+                <div className="relative z-10 flex gap-6 text-[9px] font-bold uppercase tracking-widest text-foreground/40 mt-4">
                     <a href="#" className="hover:text-primary transition-colors">Privacy</a>
                     <a href="#" className="hover:text-primary transition-colors">Terms</a>
                     <span>© 2024 EcoWatch SJDM</span>
