@@ -173,28 +173,72 @@ export default function LandingPage() {
                             </div>
                         ) : (
                             filteredReports.map((report) => (
-                                <div key={report.id} className="p-3.5 rounded-xl bg-foreground/5 border border-border hover:bg-foreground/10 transition-colors cursor-pointer group">
-                                    <div className="flex items-start justify-between mb-1.5">
-                                        <div className="flex items-center gap-2">
-                                            <div className={`w-1.5 h-1.5 rounded-full ${
-                                                report.status === 'resolved' ? 'bg-green-500' :
-                                                report.status === 'assigned' ? 'bg-yellow-500' :
-                                                report.status === 'in_progress' ? 'bg-blue-500' :
-                                                report.status === 'verified' ? 'bg-orange-500' :
-                                                'bg-red-500'
-                                            }`} />
-                                            <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider">{report.status}</span>
+                                <Link href={report.tracking_url || "#"} key={report.id} className="block group">
+                                    <div className="relative p-3.5 rounded-xl bg-foreground/5 border border-border hover:bg-foreground/10 hover:border-foreground/20 hover:shadow-lg hover:shadow-foreground/5 transition-all duration-300 overflow-hidden">
+                                        
+                                        {/* Subtle gradient background based on status (optional) */}
+                                        <div className={`absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-500 bg-gradient-to-br ${
+                                            report.status === 'resolved' ? 'from-green-500 to-transparent' :
+                                            report.status === 'assigned' ? 'from-yellow-500 to-transparent' :
+                                            report.status === 'in_progress' ? 'from-blue-500 to-transparent' :
+                                            report.status === 'verified' ? 'from-orange-500 to-transparent' :
+                                            'from-red-500 to-transparent'
+                                        }`} />
+
+                                        <div className="relative flex gap-3 z-10">
+                                            {/* Thumbnail Image (if available) */}
+                                            {report.image_url ? (
+                                                <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0 border border-foreground/10 relative shadow-inner">
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                    <img src={report.image_url.startsWith('http') ? report.image_url : `${API_URL}${report.image_url}`} alt="Report thumbnail" className="w-full h-full object-cover filter contrast-125 saturate-50 group-hover:saturate-100 transition-all duration-500" />
+                                                    <div className="absolute inset-0 shadow-[inset_0_0_10px_rgba(0,0,0,0.2)] pointer-events-none" />
+                                                </div>
+                                            ) : (
+                                                <div className="w-16 h-16 rounded-lg bg-foreground/5 border border-foreground/10 shrink-0 flex items-center justify-center text-foreground/30">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                                                </div>
+                                            )}
+
+                                            <div className="flex-1 min-w-0 flex flex-col justify-between">
+                                                <div className="flex items-start justify-between mb-1">
+                                                    <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${
+                                                        report.status === 'resolved' ? 'bg-green-500/10 border-green-500/20 text-green-500' :
+                                                        report.status === 'assigned' ? 'bg-yellow-500/10 border-yellow-500/20 text-yellow-500' :
+                                                        report.status === 'in_progress' ? 'bg-blue-500/10 border-blue-500/20 text-blue-500' :
+                                                        report.status === 'verified' ? 'bg-orange-500/10 border-orange-500/20 text-orange-500' :
+                                                        'bg-red-500/10 border-red-500/20 text-red-500'
+                                                    }`}>
+                                                        <div className={`w-1.5 h-1.5 rounded-full shadow-[0_0_5px_currentColor] ${
+                                                            report.status === 'resolved' ? 'bg-green-500' :
+                                                            report.status === 'assigned' ? 'bg-yellow-500' :
+                                                            report.status === 'in_progress' ? 'bg-blue-500' :
+                                                            report.status === 'verified' ? 'bg-orange-500' :
+                                                            'bg-red-500'
+                                                        }`} />
+                                                        <span className="text-[9px] font-bold uppercase tracking-wider">{report.status}</span>
+                                                    </div>
+                                                    <span className="text-[10px] text-foreground/40 font-medium whitespace-nowrap ml-2">
+                                                        {formatRelative(report.created_at)}
+                                                    </span>
+                                                </div>
+                                                
+                                                <div>
+                                                    <h4 className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">{report.barangay || "Unknown Location"}</h4>
+                                                </div>
+                                                
+                                                <div className="flex items-center justify-between mt-1.5">
+                                                    <div className="text-[9px] text-foreground/40 font-mono flex items-center gap-1">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                                                        {report.lat.toFixed(4)}, {report.lon.toFixed(4)}
+                                                    </div>
+                                                    <span className="text-[10px] font-semibold text-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center gap-1">
+                                                        View <span className="text-lg leading-none translate-y-[-1px]">→</span>
+                                                    </span>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <span className="text-[10px] text-foreground/40 font-medium">
-                                            {formatRelative(report.created_at)}
-                                        </span>
                                     </div>
-                                    <h4 className="text-sm font-semibold text-foreground mb-1 group-hover:text-primary transition-colors">{report.barangay}</h4>
-                                    {report.notes && <p className="text-xs text-foreground/60 line-clamp-2 mb-2.5">{report.notes}</p>}
-                                    <Link href={report.tracking_url || "#"} className="text-xs font-medium text-primary hover:text-primary-dark underline-offset-2 hover:underline">
-                                        View Details →
-                                    </Link>
-                                </div>
+                                </Link>
                             ))
                         )}
                     </div>
