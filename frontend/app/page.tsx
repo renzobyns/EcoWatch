@@ -10,7 +10,7 @@ import SJDMLoader from "@/components/SJDMLoader";
 // Dynamically import MapComponent to prevent SSR issues with Leaflet
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { 
     ssr: false,
-    loading: () => <SJDMLoader />
+    loading: () => null
 });
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -22,6 +22,7 @@ export default function LandingPage() {
     const [isSidebarOpen, setSidebarOpen] = useState(false);
     const [isQRModalOpen, setQRModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [isMapReady, setIsMapReady] = useState(false);
 
     useEffect(() => {
         // Fetch reports
@@ -63,9 +64,16 @@ export default function LandingPage() {
                     heatmaps={heatmaps}
                     focusedBarangay={focusedBarangay}
                     onBarangayClick={setFocusedBarangay}
-                    loading={isLoading}
+                    onMapReady={() => setIsMapReady(true)}
                 />
             </div>
+
+            {/* Persistent Map Loader Overlay */}
+            {(isLoading || !isMapReady) && (
+                <div className="absolute inset-0 z-[2000] w-full h-full">
+                    <SJDMLoader />
+                </div>
+            )}
 
             {/* Floating Action Buttons (Middle Left) */}
             <div className="absolute top-1/2 -translate-y-1/2 left-6 z-[1000] flex flex-col gap-3">

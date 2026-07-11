@@ -93,6 +93,7 @@ interface MapProps {
     pinColorBy?: "status" | "priority";  // default "priority" for workOrders, "status" for reports
     onPinClick?: (item: any) => void;    // called with the clicked WO or report
     loading?: boolean;                   // manually control the loading state (e.g. for demo/testing)
+    onMapReady?: () => void;             // notify parent that map geo data has loaded
 }
 
 export default function SJDMMap({
@@ -105,6 +106,7 @@ export default function SJDMMap({
     pinColorBy,
     onPinClick,
     loading: externalLoading,
+    onMapReady,
 }: MapProps) {
     const { theme } = useTheme();
     const [geoData, setGeoData] = useState<any>(null);
@@ -132,6 +134,7 @@ export default function SJDMMap({
                 }
             } finally {
                 setInternalLoading(false);
+                if (onMapReady) onMapReady();
             }
         };
 
@@ -174,11 +177,7 @@ export default function SJDMMap({
     const mapBg = theme === "dark" ? "#09090b" : "#e8efe9";
 
     if (loading) {
-        return (
-            <div style={{ height }} className="w-full relative">
-                <SJDMLoader />
-            </div>
-        );
+        return null;
     }
 
     return (
