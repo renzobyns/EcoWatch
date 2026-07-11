@@ -129,13 +129,16 @@ export default function ReportPage() {
         }
 
         // Editor / AI software tag → reject
+        let allMeta: Record<string, unknown> | null = null;
         try {
-            const meta = await exifr.parse(file, ["Software", "Make", "Model"]);
-            const software = String(meta?.Software ?? "").toLowerCase();
+            allMeta = await exifr.parse(file);
+            console.debug("[EcoWatch EXIF Debug] Full metadata:", allMeta);
+            const software = String(allMeta?.Software ?? "").toLowerCase();
             if (software && EDITOR_KEYWORDS.some((k) => software.includes(k))) {
-                return "This photo was edited or AI-generated (tagged \"" + meta.Software + "\"). Please use the in-app camera instead.";
+                return "This photo was edited or AI-generated (tagged \"" + allMeta?.Software + "\"). Please use the in-app camera instead.";
             }
-        } catch {
+        } catch (exifErr) {
+            console.debug("[EcoWatch EXIF Debug] exifr.parse() threw:", exifErr);
             // No readable metadata → treated as no-geotag below.
         }
 
@@ -143,7 +146,9 @@ export default function ReportPage() {
         let gps: { latitude?: number; longitude?: number } | undefined;
         try {
             gps = await exifr.gps(file);
-        } catch {
+            console.debug("[EcoWatch EXIF Debug] exifr.gps() returned:", gps);
+        } catch (gpsErr) {
+            console.debug("[EcoWatch EXIF Debug] exifr.gps() threw:", gpsErr);
             gps = undefined;
         }
         // Treat a present-but-empty geotag (NaN/0,0 — common after Google Drive/Photos
@@ -151,6 +156,7 @@ export default function ReportPage() {
         if (!gps || gps.latitude == null || gps.longitude == null ||
             !Number.isFinite(gps.latitude) || !Number.isFinite(gps.longitude) ||
             (gps.latitude === 0 && gps.longitude === 0)) {
+            console.debug("[EcoWatch EXIF Debug] REJECTED — gps object:", gps, "| file name:", file.name, "| file type:", file.type, "| file size:", file.size);
             return "This photo has no location data. Please use the in-app camera instead.";
         }
 
