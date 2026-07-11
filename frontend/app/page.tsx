@@ -100,6 +100,7 @@ export default function LandingPage() {
                         <div className="text-sm font-semibold">QR Code</div>
                     </div>
                 </button>
+            </div>
 
             {/* Toggle Sidebar Button (Desktop & Mobile) */}
             <button
