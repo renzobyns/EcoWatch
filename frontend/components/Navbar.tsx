@@ -11,6 +11,7 @@ const PORTAL_PREFIXES = ['/barangay', '/cenro', '/cleaner', '/profile'];
 export default function Navbar() {
     const pathname = usePathname();
     const [menuOpen, setMenuOpen] = useState(false);
+    const [profileOpen, setProfileOpen] = useState(false);
     const [user, setUser] = useState<{ name: string; initial: string; role: string } | null>(null);
 
     useEffect(() => {
@@ -37,10 +38,10 @@ export default function Navbar() {
     }
 
     return (
-        <nav className="fixed top-2 sm:top-4 inset-x-2 sm:inset-x-4 max-w-7xl mx-auto z-50">
-            <div className="glass bg-background/70 backdrop-blur-xl border border-border/50 shadow-2xl rounded-2xl px-4 sm:px-6 lg:px-8">
+        <nav className="fixed top-2 sm:top-4 inset-x-2 sm:inset-x-4 max-w-7xl mx-auto z-50 flex items-start justify-between gap-3 sm:gap-4 pointer-events-none">
+            {/* Left Pill (Main Nav) */}
+            <div className={`glass bg-background/70 backdrop-blur-xl border border-border/50 shadow-2xl rounded-2xl px-4 sm:px-6 lg:px-8 pointer-events-auto transition-all duration-300 ${user ? 'flex-1' : 'w-full'}`}>
                 <div className="flex justify-between h-14 items-center">
-
                     {/* Logo */}
                     <Link href="/" className="flex items-center gap-2 group">
                         <div className="w-8 h-8 rounded-md overflow-hidden shadow-md shadow-primary/20 bg-white flex items-center justify-center p-0.5 group-hover:scale-110 transition-transform duration-300">
@@ -71,23 +72,7 @@ export default function Navbar() {
 
                         <ThemeToggle />
 
-                        {user ? (
-                            <div className="flex items-center gap-3">
-                                <div className="text-right hidden lg:block">
-                                    <div className="text-sm font-semibold text-foreground leading-tight">{user.name}</div>
-                                    <div className="text-[10px] text-foreground/50 uppercase tracking-widest">{user.role}</div>
-                                </div>
-                                <button
-                                    onClick={() => {
-                                        localStorage.removeItem('ecowatch_user');
-                                        window.location.href = '/';
-                                    }}
-                                    className="text-sm font-medium text-red-400 hover:text-red-300 transition-colors"
-                                >
-                                    Sign Out
-                                </button>
-                            </div>
-                        ) : (
+                        {!user && (
                             <Button asChild variant="outline" size="sm">
                                 <Link href="/login">Log In</Link>
                             </Button>
@@ -108,56 +93,80 @@ export default function Navbar() {
                         </button>
                     </div>
                 </div>
+
+                {/* Mobile Dropdown Menu (Left Pill) */}
+                <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${menuOpen ? 'max-h-96 opacity-100 mb-4' : 'max-h-0 opacity-0'}`}>
+                    <div className="border-t border-border pt-2 pb-2 space-y-1">
+                        {publicLinks.map((link) => (
+                            <Link
+                                key={link.href}
+                                href={link.href}
+                                onClick={() => setMenuOpen(false)}
+                                className="block px-4 py-2.5 rounded-lg text-foreground/80 hover:bg-foreground/5 hover:text-primary transition-colors text-sm font-medium"
+                            >
+                                {link.label}
+                            </Link>
+                        ))}
+                        {user && user.role === 'barangay' && (
+                            <Link href="/barangay" onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-emerald-500 hover:bg-foreground/5 transition-colors text-sm font-medium">
+                                Barangay Portal
+                            </Link>
+                        )}
+                        {user && user.role === 'cenro' && (
+                            <Link href="/cenro" onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-emerald-500 hover:bg-foreground/5 transition-colors text-sm font-medium">
+                                CENRO Dashboard
+                            </Link>
+                        )}
+                        {user && user.role === 'cleaner' && (
+                            <Link href="/cleaner" onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-emerald-500 hover:bg-foreground/5 transition-colors text-sm font-medium">
+                                My Jobs
+                            </Link>
+                        )}
+                        {!user && (
+                            <div className="pt-2 border-t border-border mt-2">
+                                <Button asChild className="w-full">
+                                    <Link href="/login" onClick={() => setMenuOpen(false)}>Log In</Link>
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
 
-            {/* Mobile Dropdown Menu */}
-            <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${menuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
-                <div className="glass border-t border-border bg-background/95 backdrop-blur-2xl shadow-2xl shadow-black/20 px-4 py-4 space-y-1">
-                    {publicLinks.map((link) => (
-                        <Link
-                            key={link.href}
-                            href={link.href}
-                            onClick={() => setMenuOpen(false)}
-                            className="block px-4 py-2.5 rounded-lg text-foreground/80 hover:bg-foreground/5 hover:text-primary transition-colors text-sm font-medium"
-                        >
-                            {link.label}
-                        </Link>
-                    ))}
-                    {user && user.role === 'barangay' && (
-                        <Link href="/barangay" onClick={() => setMenuOpen(false)} className="block px-4 py-3 rounded-xl text-emerald-500 hover:bg-foreground/5 transition-colors text-sm font-medium">
-                            Barangay Portal
-                        </Link>
-                    )}
-                    {user && user.role === 'cenro' && (
-                        <Link href="/cenro" onClick={() => setMenuOpen(false)} className="block px-4 py-3 rounded-xl text-emerald-500 hover:bg-foreground/5 transition-colors text-sm font-medium">
-                            CENRO Dashboard
-                        </Link>
-                    )}
-                    {user && user.role === 'cleaner' && (
-                        <Link href="/cleaner" onClick={() => setMenuOpen(false)} className="block px-4 py-3 rounded-xl text-emerald-500 hover:bg-foreground/5 transition-colors text-sm font-medium">
-                            My Jobs
-                        </Link>
-                    )}
-                    <div className="pt-2 border-t border-border mt-2">
-                        {user ? (
+            {/* Right Pill (User Profile) */}
+            {user && (
+                <div className="relative pointer-events-auto">
+                    <button 
+                        onClick={() => setProfileOpen(!profileOpen)}
+                        className="glass bg-background/70 backdrop-blur-xl border border-border/50 shadow-2xl rounded-2xl h-14 px-3 sm:px-4 flex items-center justify-center gap-2 hover:bg-background/90 transition-colors cursor-pointer"
+                    >
+                        <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-sm shadow-inner">
+                            {user.initial}
+                        </div>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-300 text-foreground/50 ${profileOpen ? 'rotate-180' : ''}`}><path d="m6 9 6 6 6-6"/></svg>
+                    </button>
+
+                    {/* Profile Dropdown */}
+                    <div className={`absolute right-0 top-16 w-56 glass bg-background/95 backdrop-blur-2xl border border-border/50 shadow-2xl rounded-2xl overflow-hidden transition-all duration-300 origin-top-right ${profileOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0 pointer-events-none'}`}>
+                        <div className="p-4 border-b border-border/50">
+                            <div className="font-semibold text-sm text-foreground truncate">{user.name}</div>
+                            <div className="text-[10px] font-medium text-foreground/50 uppercase tracking-widest mt-0.5 truncate">{user.role}</div>
+                        </div>
+                        <div className="p-2">
                             <button
                                 onClick={() => {
                                     localStorage.removeItem('ecowatch_user');
                                     window.location.href = '/';
                                 }}
-                                className="w-full text-left flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-red-500/10 text-red-400 transition-colors"
+                                className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-500/10 text-red-400 transition-colors cursor-pointer"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                                 <div className="text-sm font-medium">Sign Out</div>
                             </button>
-                        ) : (
-                            <Button asChild className="w-full">
-                                <Link href="/login" onClick={() => setMenuOpen(false)}>Log In</Link>
-                            </Button>
-                        )}
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
         </nav>
     );
 }
