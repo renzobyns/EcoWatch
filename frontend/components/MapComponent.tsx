@@ -175,7 +175,7 @@ export default function SJDMMap({
 
     if (loading) {
         return (
-            <div style={{ height }} className="w-full bg-background flex flex-col items-center justify-center">
+            <div style={{ height }} className="w-full relative">
                 <SJDMLoader />
             </div>
         );

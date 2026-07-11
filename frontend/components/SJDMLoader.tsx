@@ -6,57 +6,102 @@ const SJDM_PATH = "M 259.10 725.48 L 246.52 727.31 L 239.50 723.76 L 235.64 730.
 
 export default function SJDMLoader() {
   return (
-    <div className="relative flex flex-col items-center justify-center w-72 h-72">
-      {/* Subtle outer pulsing ring */}
-      <div className="absolute inset-0 rounded-full border border-primary/10 bg-primary/5 animate-ping opacity-20" style={{ animationDuration: '3s' }} />
-      
-      {/* Radar Sweep Background */}
-      <div 
-        className="absolute inset-2 rounded-full animate-spin opacity-40" 
-        style={{ 
-          background: 'conic-gradient(from 0deg, transparent 0 320deg, rgba(34,197,94,0.3) 360deg)',
-          animationDuration: '2s' 
-        }}
-      />
-      
-      {/* SJDM SVG Trace */}
-      <svg
-        viewBox="0 0 1000 1000"
-        className="w-full h-full relative z-10 drop-shadow-[0_0_15px_rgba(34,197,94,0.5)]"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        {/* Faint base outline */}
-        <path
-          d={SJDM_PATH}
-          fill="rgba(34, 197, 94, 0.05)"
-          stroke="rgba(34, 197, 94, 0.2)"
-          strokeWidth="8"
-        />
-        {/* Glowing animated trace */}
-        <path
-          d={SJDM_PATH}
-          fill="none"
-          stroke="#22c55e"
-          strokeWidth="12"
-          className="animate-[sjdm-trace_4s_linear_infinite]"
-          style={{
-            strokeDasharray: '600 5400',
-            strokeLinecap: 'round'
+    <div 
+      className="relative flex flex-col items-center justify-center w-full h-full bg-background overflow-hidden"
+      style={{
+        backgroundImage: `
+          linear-gradient(rgba(34, 197, 94, 0.02) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(34, 197, 94, 0.02) 1px, transparent 1px)
+        `,
+        backgroundSize: '40px 40px',
+        backgroundPosition: 'center center'
+      }}
+    >
+      {/* HUD Corner Accents */}
+      <div className="absolute top-8 left-8 text-[10px] font-mono text-primary/40 flex flex-col gap-1 select-none pointer-events-none">
+        <div>SYS: ECOWATCH_MAP_INIT</div>
+        <div>LAT: 14.8200° N</div>
+        <div>LNG: 121.0500° E</div>
+      </div>
+      <div className="absolute top-8 right-8 text-[10px] font-mono text-primary/40 flex flex-col items-end gap-1 select-none pointer-events-none">
+        <div>ZOOM: 12.0 / REGIONAL</div>
+        <div>EPSG: 4326 (WGS84)</div>
+      </div>
+      <div className="absolute bottom-8 left-8 text-[10px] font-mono text-primary/40 select-none pointer-events-none">
+        STATUS: SCANNING ENVIRONMENT...
+      </div>
+      <div className="absolute bottom-8 right-8 text-[10px] font-mono text-primary/40 select-none pointer-events-none">
+        SECURE FEED // SJDM, BULACAN
+      </div>
+
+      {/* Main Loader Container */}
+      <div className="relative flex flex-col items-center justify-center w-80 h-80">
+        
+        {/* Radiating Sonar Pings */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="absolute w-24 h-24 rounded-full border border-primary/20 bg-primary/2 animate-[sonar_4s_linear_infinite]" style={{ animationDelay: '0s' }} />
+          <div className="absolute w-24 h-24 rounded-full border border-primary/20 bg-primary/2 animate-[sonar_4s_linear_infinite]" style={{ animationDelay: '1.33s' }} />
+          <div className="absolute w-24 h-24 rounded-full border border-primary/20 bg-primary/2 animate-[sonar_4s_linear_infinite]" style={{ animationDelay: '2.66s' }} />
+        </div>
+
+        {/* Faint Radar Sweeper Overlay */}
+        <div 
+          className="absolute inset-4 rounded-full animate-spin opacity-30" 
+          style={{ 
+            background: 'conic-gradient(from 0deg, transparent 0 300deg, rgba(34,197,94,0.4) 360deg)',
+            animationDuration: '3s' 
           }}
         />
-      </svg>
+        
+        {/* SJDM SVG Trace */}
+        <svg
+          viewBox="0 0 1000 1000"
+          className="w-full h-full relative z-10 drop-shadow-[0_0_20px_rgba(34,197,94,0.4)]"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          {/* Faint base outline */}
+          <path
+            d={SJDM_PATH}
+            fill="rgba(34, 197, 94, 0.03)"
+            stroke="rgba(34, 197, 94, 0.15)"
+            strokeWidth="8"
+          />
+          {/* Glowing animated trace */}
+          <path
+            d={SJDM_PATH}
+            fill="none"
+            stroke="#22c55e"
+            strokeWidth="12"
+            className="animate-[sjdm-trace_5s_linear_infinite]"
+            style={{
+              strokeDasharray: '600 5400',
+              strokeLinecap: 'round'
+            }}
+          />
+        </svg>
+        
+        {/* Loading Text */}
+        <div className="absolute -bottom-8 whitespace-nowrap text-primary font-mono text-xs tracking-[0.25em] animate-pulse">
+          INITIALIZING MAP ENGINE
+        </div>
+      </div>
       
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes sjdm-trace {
           0% { stroke-dashoffset: 6000; }
           100% { stroke-dashoffset: 0; }
         }
+        @keyframes sonar {
+          0% {
+            transform: scale(0.8);
+            opacity: 0.8;
+          }
+          100% {
+            transform: scale(6.0);
+            opacity: 0;
+          }
+        }
       `}} />
-      
-      {/* Loading Text */}
-      <div className="absolute -bottom-8 whitespace-nowrap text-primary font-mono text-sm tracking-widest animate-pulse">
-        INITIALIZING MAP ENGINE...
-      </div>
     </div>
   );
 }
