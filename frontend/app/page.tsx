@@ -25,6 +25,7 @@ export default function LandingPage() {
     const [isSidebarOpen, setSidebarOpen] = useState(false);
     const [isQRModalOpen, setQRModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [forceLoading, setForceLoading] = useState(false);
 
     useEffect(() => {
         // Fetch reports
@@ -66,6 +67,7 @@ export default function LandingPage() {
                     heatmaps={heatmaps}
                     focusedBarangay={focusedBarangay}
                     onBarangayClick={setFocusedBarangay}
+                    loading={forceLoading || isLoading}
                 />
             </div>
 
@@ -97,6 +99,22 @@ export default function LandingPage() {
                     <div className="text-left hidden sm:block">
                         <div className="text-[10px] text-white/70 font-bold uppercase tracking-[0.18em]">Share</div>
                         <div className="text-sm font-semibold">QR Code</div>
+                    </div>
+                </button>
+
+                {/* Temporary Test Loader Button */}
+                <button
+                    onClick={() => setForceLoading(!forceLoading)}
+                    className="glass px-3.5 py-2.5 rounded-xl flex items-center gap-2.5 text-foreground transition-all shadow-xl hover:bg-foreground/10 group border border-blue-500/20"
+                >
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 ${forceLoading ? 'bg-blue-500/20 text-blue-500' : 'bg-foreground/10 text-foreground'}`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                        </svg>
+                    </div>
+                    <div className="text-left hidden sm:block">
+                        <div className="text-[10px] text-blue-500 font-bold uppercase tracking-[0.18em]">Loader</div>
+                        <div className="text-sm font-semibold uppercase text-foreground/90">{forceLoading ? "Stop" : "Test"}</div>
                     </div>
                 </button>
             </div>
