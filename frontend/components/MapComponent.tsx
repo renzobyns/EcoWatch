@@ -7,6 +7,7 @@ import L from "leaflet";
 import Link from "next/link";
 import { useTheme } from "@/components/ThemeProvider";
 import { formatDate } from "@/lib/date-utils";
+import SJDMLoader from "@/components/SJDMLoader";
 
 // Fix for default leaflet icons
 const fixLeafletIcons = () => {
@@ -91,6 +92,7 @@ interface MapProps {
     workOrders?: any[];                  // when provided, render WO pins instead of report pins
     pinColorBy?: "status" | "priority";  // default "priority" for workOrders, "status" for reports
     onPinClick?: (item: any) => void;    // called with the clicked WO or report
+    loading?: boolean;                   // manually control the loading state (e.g. for demo/testing)
 }
 
 export default function SJDMMap({
@@ -102,11 +104,14 @@ export default function SJDMMap({
     workOrders,
     pinColorBy,
     onPinClick,
+    loading: externalLoading,
 }: MapProps) {
     const { theme } = useTheme();
     const [geoData, setGeoData] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
+    const [internalLoading, setInternalLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    const loading = externalLoading !== undefined ? externalLoading : internalLoading;
 
     useEffect(() => {
         fixLeafletIcons();
@@ -126,7 +131,7 @@ export default function SJDMMap({
                     setError("Backend unavailable — map overlay disabled.");
                 }
             } finally {
-                setLoading(false);
+                setInternalLoading(false);
             }
         };
 
@@ -171,8 +176,7 @@ export default function SJDMMap({
     if (loading) {
         return (
             <div style={{ height }} className="w-full bg-background flex flex-col items-center justify-center">
-                <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-4"></div>
-                <p className="text-primary font-bold animate-pulse uppercase tracking-widest text-sm">Initializing Map Engine...</p>
+                <SJDMLoader />
             </div>
         );
     }
