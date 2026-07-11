@@ -133,6 +133,11 @@ def _pct_delta(current, prior):
 
 
 def _summarize_window(reports, wo_compliance_records, start, end):
+    """
+    Computes key performance indicators (KPIs) for a given time window.
+    Calculates submission counts, resolution rates, average time to resolve, 
+    and SLA compliance based on completed work orders.
+    """
     in_window = [r for r in reports if r.created_at and start <= r.created_at < end]
     submitted = sum(1 for r in in_window if r.status != "rejected")
 
@@ -164,6 +169,10 @@ def _summarize_window(reports, wo_compliance_records, start, end):
 
 
 def _build_trend(reports, start, end, granularity):
+    """
+    Builds a time-series dataset of reports grouped by day, week, or month.
+    Aggregates submissions, resolutions, rejections, and average AI confidence.
+    """
     buckets = defaultdict(lambda: {"submitted": 0, "resolved": 0, "rejected": 0, "conf_sum": 0.0, "conf_n": 0})
 
     cursor = start
@@ -209,6 +218,10 @@ def _build_trend(reports, start, end, granularity):
 
 
 def _build_barangay_leaderboard(reports, start, end, prior_start):
+    """
+    Ranks barangays based on total reports and resolution metrics.
+    Compares the current window with the prior window to determine upward/downward trends.
+    """
     current = defaultdict(lambda: {"total": 0, "resolved": 0, "active": 0, "pending": 0, "resolve_secs": 0.0, "resolve_n": 0})
     prior = defaultdict(int)
 
@@ -261,6 +274,11 @@ def _build_barangay_leaderboard(reports, start, end, prior_start):
 
 
 def _build_funnel(reports, start, end):
+    """
+    Constructs a pipeline/funnel view of the report lifecycle: 
+    Submitted -> Verified -> Assigned -> Resolved.
+    Also tracks side branches like 'rejected' or 'failed_cleanup'.
+    """
     counts = {"pending": 0, "verified": 0, "assigned": 0, "in_progress": 0, "resolved": 0, "rejected": 0, "failed_cleanup": 0}
     for r in reports:
         if not r.created_at or not (start <= r.created_at < end):

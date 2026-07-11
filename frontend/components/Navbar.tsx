@@ -37,9 +37,9 @@ export default function Navbar() {
     }
 
     return (
-        <nav className="fixed top-0 w-full z-50 glass border-b border-primary/20 backdrop-blur-md">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between h-16 items-center">
+        <nav className="fixed top-2 sm:top-4 inset-x-2 sm:inset-x-4 max-w-7xl mx-auto z-50">
+            <div className="glass bg-background/70 backdrop-blur-xl border border-border/50 shadow-2xl rounded-2xl px-4 sm:px-6 lg:px-8">
+                <div className="flex justify-between h-14 items-center">
 
                     {/* Logo */}
                     <Link href="/" className="flex items-center gap-2 group">
