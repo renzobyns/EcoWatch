@@ -24,10 +24,11 @@ export default function LandingPage() {
     const [focusedBarangay, setFocusedBarangay] = useState<string | null>(null);
     const [isSidebarOpen, setSidebarOpen] = useState(false);
     const [isQRModalOpen, setQRModalOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         // Fetch reports
-        fetch(`${API_URL}/reports/recent`)
+        const fetchReports = fetch(`${API_URL}/reports/recent`)
             .then(res => res.json())
             .then(data => {
                 if (Array.isArray(data)) setReports(data);
@@ -35,13 +36,17 @@ export default function LandingPage() {
             .catch(err => console.error("Failed to load reports", err));
 
         // Fetch heatmaps
-        fetch(`${API_URL}/spatial/heatmaps`)
+        const fetchHeatmaps = fetch(`${API_URL}/spatial/heatmaps`)
             .then(res => res.json())
             .then(data => {
                 if (data && Array.isArray(data.hotspots)) setHeatmaps(data.hotspots);
             })
             .catch(err => console.error("Failed to load heatmaps", err));
             
+        Promise.all([fetchReports, fetchHeatmaps]).finally(() => {
+            setIsLoading(false);
+        });
+
         // Open sidebar slightly delayed for effect
         const timer = setTimeout(() => setSidebarOpen(true), 1000);
         return () => clearTimeout(timer);
@@ -52,7 +57,7 @@ export default function LandingPage() {
         : reports;
 
     return (
-        <div className="relative w-full h-screen overflow-hidden bg-background">
+        <div className="relative w-full h-screen -mt-20 overflow-hidden bg-background">
             {/* Full Screen Map */}
             <div className="absolute inset-0 z-0">
                 <MapComponent
@@ -101,7 +106,7 @@ export default function LandingPage() {
             <button
                 onClick={() => setSidebarOpen(!isSidebarOpen)}
                 aria-label={isSidebarOpen ? "Close live feed" : "Open live feed"}
-                className={`absolute top-24 z-40 glass p-3 rounded-full text-foreground shadow-xl transition-all duration-500 ease-in-out cursor-pointer ${isSidebarOpen ? 'right-[24rem] md:right-[25rem]' : 'right-4'}`}
+                className={`absolute top-28 z-40 glass p-3 rounded-full text-foreground shadow-xl transition-all duration-500 ease-in-out cursor-pointer ${isSidebarOpen ? 'right-[24rem] md:right-[26rem]' : 'right-4'}`}
             >
                 <svg 
                     xmlns="http://www.w3.org/2000/svg" 
@@ -120,8 +125,8 @@ export default function LandingPage() {
             </button>
 
             {/* Collapsible Side Panel (Live Feed) */}
-            <div className={`absolute top-16 right-0 h-[calc(100vh-4rem)] w-full md:w-96 z-30 transition-transform duration-500 ease-in-out ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-                <div className="h-full glass border-l border-border flex flex-col shadow-2xl">
+            <div className={`absolute top-22 bottom-4 right-0 md:right-4 h-[calc(100vh-6.5rem)] w-full md:w-96 z-30 transition-all duration-500 ease-in-out ${isSidebarOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}`}>
+                <div className="h-full glass border border-border/50 rounded-2xl flex flex-col shadow-2xl">
                     <div className="px-5 py-4 border-b border-border flex items-center justify-between shrink-0">
                         <div>
                             <h2 className="text-sm font-semibold text-foreground flex items-center gap-2 tracking-wider">
@@ -141,7 +146,23 @@ export default function LandingPage() {
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide">
-                        {filteredReports.length === 0 ? (
+                        {isLoading ? (
+                            Array.from({ length: 5 }).map((_, i) => (
+                                <div key={`skeleton-${i}`} className="p-3.5 rounded-xl bg-foreground/5 border border-border animate-pulse">
+                                    <div className="flex items-start justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-foreground/20"></div>
+                                            <div className="h-3 w-16 bg-foreground/10 rounded"></div>
+                                        </div>
+                                        <div className="h-2 w-12 bg-foreground/10 rounded"></div>
+                                    </div>
+                                    <div className="h-4 w-3/4 bg-foreground/10 rounded mb-2"></div>
+                                    <div className="h-3 w-full bg-foreground/5 rounded mb-1"></div>
+                                    <div className="h-3 w-5/6 bg-foreground/5 rounded mb-3"></div>
+                                    <div className="h-3 w-20 bg-foreground/10 rounded"></div>
+                                </div>
+                            ))
+                        ) : filteredReports.length === 0 ? (
                             <div className="text-center py-10 opacity-50">
                                 <p className="text-sm">No reports found.</p>
                             </div>

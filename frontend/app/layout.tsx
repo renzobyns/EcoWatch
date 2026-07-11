@@ -35,7 +35,7 @@ export default function RootLayout({
       <body className="antialiased min-h-screen">
         <ThemeProvider>
           <Navbar />
-          <main className="pt-16">
+          <main className="pt-20">
             {children}
           </main>
           <Toaster richColors position="top-right" theme="system" />
