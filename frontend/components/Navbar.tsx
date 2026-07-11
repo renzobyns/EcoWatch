@@ -82,10 +82,12 @@ export default function Navbar() {
                             </Button>
                         )}
                         
-                        {/* Theme Toggle for mobile placed after Report Issue if not logged in, or handled by the left pill layout */}
-                        <div className="sm:hidden block">
-                             <ThemeToggle />
-                        </div>
+                        {/* Theme Toggle for mobile placed after Report Issue if not logged in */}
+                        {!user && (
+                            <div className="sm:hidden block">
+                                 <ThemeToggle />
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -132,6 +134,14 @@ export default function Navbar() {
                             {user.role !== 'citizen' && (
                                 <div className="h-px bg-border/50 my-2 mx-2"></div>
                             )}
+
+                            <div className="sm:hidden flex items-center justify-between px-3 py-1 rounded-xl">
+                                <div className="flex items-center gap-3">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-foreground"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+                                    <div className="text-sm font-medium text-foreground">Theme</div>
+                                </div>
+                                <ThemeToggle />
+                            </div>
 
                             <button
                                 onClick={() => {
