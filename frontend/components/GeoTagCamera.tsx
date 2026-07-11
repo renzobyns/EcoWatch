@@ -104,6 +104,12 @@ export default function GeoTagCamera({ onComplete, onBack, onTriggerUpload, maxP
     const [torchSupported, setTorchSupported] = useState(false);
     const [torchOn, setTorchOn] = useState(false);
 
+    const [isAndroid, setIsAndroid] = useState(false);
+
+    useEffect(() => {
+        setIsAndroid(/Android/i.test(navigator.userAgent));
+    }, []);
+
     // Resolve barangay (and SJDM membership) whenever the fix moves meaningfully.
     const resolveBarangay = useCallback(async (lat: number, lon: number) => {
         const reqId = ++barangayReqRef.current;
@@ -494,18 +500,28 @@ export default function GeoTagCamera({ onComplete, onBack, onTriggerUpload, maxP
                                         : "To take a photo, tap the 🔒 icon in your browser's address bar and allow camera access, or upload one instead."}
                                 </p>
                                 <div className="flex flex-col gap-3">
-                                    <div className="relative group/upload">
+                                    {isAndroid ? (
+                                        <div className="relative group/upload">
+                                            <button
+                                                disabled
+                                                className="w-full py-3.5 rounded-xl bg-white/10 text-white/40 font-bold text-sm cursor-not-allowed flex items-center justify-center gap-2"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                                                Upload from Gallery
+                                            </button>
+                                            <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-white text-black text-[10px] font-semibold rounded-lg shadow-lg opacity-0 group-hover/upload:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                                                🚧 Not available on Android yet
+                                            </div>
+                                        </div>
+                                    ) : (
                                         <button
-                                            disabled
-                                            className="w-full py-3.5 rounded-xl bg-white/10 text-white/40 font-bold text-sm cursor-not-allowed flex items-center justify-center gap-2"
+                                            onClick={onTriggerUpload}
+                                            className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
                                             Upload from Gallery
                                         </button>
-                                        <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-white text-black text-[10px] font-semibold rounded-lg shadow-lg opacity-0 group-hover/upload:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-                                            🚧 Not yet available
-                                        </div>
-                                    </div>
+                                    )}
                                     <button onClick={cancel} className="py-3 text-white/70 hover:text-white text-sm font-semibold transition-colors">
                                         Back to home
                                     </button>
@@ -550,18 +566,28 @@ export default function GeoTagCamera({ onComplete, onBack, onTriggerUpload, maxP
 
                 <div className="flex items-center justify-between">
                     <div className="w-20 text-left">
-                        <div className="relative group/cam-upload">
+                        {isAndroid ? (
+                            <div className="relative group/cam-upload">
+                                <button
+                                    disabled
+                                    className="w-12 h-12 rounded-xl bg-black/40 border border-white/10 text-white/30 flex items-center justify-center cursor-not-allowed"
+                                    aria-label="Upload from gallery (coming soon on Android)"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                                </button>
+                                <div className="absolute -top-9 left-1/2 -translate-x-1/2 px-2.5 py-1.5 bg-white text-black text-[10px] font-semibold rounded-lg shadow-lg opacity-0 group-hover/cam-upload:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                                    🚧 Coming soon
+                                </div>
+                            </div>
+                        ) : (
                             <button
-                                disabled
-                                className="w-12 h-12 rounded-xl bg-black/40 border border-white/10 text-white/30 flex items-center justify-center cursor-not-allowed"
-                                aria-label="Upload from gallery (coming soon)"
+                                onClick={onTriggerUpload}
+                                className="w-12 h-12 rounded-xl bg-black/40 border border-white/20 text-white flex items-center justify-center hover:bg-black/60 transition-colors"
+                                aria-label="Upload from gallery"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
                             </button>
-                            <div className="absolute -top-9 left-1/2 -translate-x-1/2 px-2.5 py-1.5 bg-white text-black text-[10px] font-semibold rounded-lg shadow-lg opacity-0 group-hover/cam-upload:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-                                🚧 Coming soon
-                            </div>
-                        </div>
+                        )}
                     </div>
 
                     <button
