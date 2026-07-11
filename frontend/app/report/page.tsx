@@ -305,7 +305,7 @@ export default function ReportPage() {
 
                 <div className="flex flex-col gap-2.5">
                     <label className="w-full">
-                        <input type="file" accept=".jpg,.jpeg,.png" multiple className="hidden" onChange={(e) => {
+                        <input type="file" accept="*/*" multiple className="hidden" onChange={(e) => {
                             setShowUploadWarning(false);
                             if (showCamera) setShowCamera(false); 
                             handleUploadChange(e);
