@@ -117,7 +117,7 @@ export default function GeoTagCamera({ onComplete, onBack, onTriggerUpload, maxP
             if (res.ok) {
                 const data = await res.json();
                 setBarangay(data.barangay ?? null);
-                setPhase((p) => (p === "starting" ? p : "ready"));
+                setPhase((p) => (p === "denied" || p === "no-camera" ? p : "ready"));
             } else {
                 setBarangay(null);
                 setPhase("outside");
@@ -197,7 +197,7 @@ export default function GeoTagCamera({ onComplete, onBack, onTriggerUpload, maxP
             return;
         }
 
-        setPhase((p) => (p === "starting" || p === "denied" || p === "no-camera" ? p : "locating"));
+        setPhase((p) => (p === "denied" || p === "no-camera" ? p : "locating"));
 
         watchIdRef.current = navigator.geolocation.watchPosition(
             (pos) => {
@@ -215,7 +215,7 @@ export default function GeoTagCamera({ onComplete, onBack, onTriggerUpload, maxP
                     if (moved) resolveBarangay(next.lat, next.lon);
                     return next;
                 });
-                setPhase((p) => (p === "locating" ? "ready" : p));
+                setPhase((p) => (p === "locating" || p === "starting" ? "ready" : p));
             },
             () => {
                 if (cancelled) return;
