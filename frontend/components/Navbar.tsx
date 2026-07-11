@@ -58,7 +58,7 @@ export default function Navbar() {
                             <img src="/logo.png" alt="EcoWatch" className="w-full h-full object-contain" />
                         </div>
                         <span className="text-lg font-semibold tracking-tight text-gradient">
-                            EcoWatch <span className="text-foreground/50 text-xs font-medium">SJDM</span>
+                            EcoWatch <span className="text-foreground/50 text-xs font-medium hidden sm:inline">SJDM</span>
                         </span>
                     </Link>
 
