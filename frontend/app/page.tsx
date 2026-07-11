@@ -5,15 +5,12 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import QRCodeModal from "@/components/QRCodeModal";
 import { formatRelative } from "@/lib/date-utils";
+import SJDMLoader from "@/components/SJDMLoader";
 
 // Dynamically import MapComponent to prevent SSR issues with Leaflet
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { 
     ssr: false,
-    loading: () => (
-        <div className="w-full h-screen bg-background flex items-center justify-center">
-            <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-        </div>
-    )
+    loading: () => <SJDMLoader />
 });
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
