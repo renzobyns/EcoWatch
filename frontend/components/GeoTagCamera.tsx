@@ -22,7 +22,8 @@ export interface GeoPhoto {
 
 interface GeoTagCameraProps {
     onComplete: (photos: GeoPhoto[]) => void;
-    onCancel: () => void;
+    onBack: () => void;
+    onTriggerUpload: () => void;
     maxPhotos?: number;
 }
 
@@ -31,7 +32,8 @@ type Phase =
     | "ready"           // camera + a usable fix → can shoot
     | "locating"        // camera up, still waiting for first GPS fix
     | "outside"         // current fix is outside SJDM → cannot shoot here
-    | "denied";         // camera or location permission refused
+    | "denied"          // camera or location permission refused
+    | "no-camera";      // device has no camera available (desktop)
 
 interface Fix {
     lat: number;
@@ -82,7 +84,7 @@ function dataUrlToFile(dataUrl: string, filename: string): File {
     return new File([bytes], filename, { type: mime });
 }
 
-export default function GeoTagCamera({ onComplete, onCancel, maxPhotos = 5 }: GeoTagCameraProps) {
+export default function GeoTagCamera({ onComplete, onBack, onTriggerUpload, maxPhotos = 5 }: GeoTagCameraProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const watchIdRef = useRef<number | null>(null);
@@ -97,6 +99,10 @@ export default function GeoTagCamera({ onComplete, onCancel, maxPhotos = 5 }: Ge
     const [capturing, setCapturing] = useState(false);
     const [flash, setFlash] = useState(false);            // white shutter flash
     const [previewIdx, setPreviewIdx] = useState<number | null>(null);  // full-screen preview
+
+    const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
+    const [torchSupported, setTorchSupported] = useState(false);
+    const [torchOn, setTorchOn] = useState(false);
 
     // Resolve barangay (and SJDM membership) whenever the fix moves meaningfully.
     const resolveBarangay = useCallback(async (lat: number, lon: number) => {
@@ -122,77 +128,107 @@ export default function GeoTagCamera({ onComplete, onCancel, maxPhotos = 5 }: Ge
         }
     }, []);
 
-    // Start camera + geolocation watch on mount.
+    // 1) Camera Initialization
     useEffect(() => {
         let cancelled = false;
 
-        async function start() {
-            // 1) Camera
+        async function startCamera() {
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach((t) => t.stop());
+            }
+
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: { ideal: "environment" } },
+                    video: { facingMode: { ideal: facingMode } },
                     audio: false,
                 });
+                
                 if (cancelled) {
                     stream.getTracks().forEach((t) => t.stop());
                     return;
                 }
+                
                 streamRef.current = stream;
+                
+                // Check for flash (torch) support on this camera track
+                const track = stream.getVideoTracks()[0];
+                if (track) {
+                    const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+                    const hasTorch = !!capabilities.torch;
+                    setTorchSupported(hasTorch);
+                    if (!hasTorch && torchOn) {
+                        setTorchOn(false); // Reset if flipping to a camera without flash
+                    }
+                }
+
                 if (videoRef.current) {
                     videoRef.current.srcObject = stream;
                     await videoRef.current.play().catch(() => {});
                 }
-            } catch {
+            } catch (err: unknown) {
                 if (!cancelled) {
-                    setErrorMsg("Camera access was blocked. Allow camera to take a geo-tagged photo.");
-                    setPhase("denied");
+                    const error = err as DOMException;
+                    if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+                        setPhase("no-camera");
+                    } else {
+                        setErrorMsg("Camera access was blocked. Allow camera to take a geo-tagged photo.");
+                        setPhase("denied");
+                    }
                 }
-                return;
             }
-
-            // 2) Geolocation
-            if (!("geolocation" in navigator)) {
-                if (!cancelled) {
-                    setErrorMsg("This device has no location services.");
-                    setPhase("denied");
-                }
-                return;
-            }
-            if (!cancelled) setPhase("locating");
-
-            watchIdRef.current = navigator.geolocation.watchPosition(
-                (pos) => {
-                    if (cancelled) return;
-                    const next: Fix = {
-                        lat: pos.coords.latitude,
-                        lon: pos.coords.longitude,
-                        accuracy: pos.coords.accuracy,
-                    };
-                    setFix((prev) => {
-                        const moved =
-                            !prev ||
-                            Math.abs(prev.lat - next.lat) > 0.0002 ||
-                            Math.abs(prev.lon - next.lon) > 0.0002;
-                        if (moved) resolveBarangay(next.lat, next.lon);
-                        return next;
-                    });
-                    setPhase((p) => (p === "locating" ? "ready" : p));
-                },
-                () => {
-                    if (cancelled) return;
-                    setErrorMsg("Location access was blocked. Allow location so the photo can be geo-tagged.");
-                    setPhase("denied");
-                },
-                { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 }
-            );
         }
 
-        start();
+        startCamera();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [facingMode]); // Re-run when switching front/back camera
+
+    // 2) Geolocation Initialization
+    useEffect(() => {
+        let cancelled = false;
+
+        if (!("geolocation" in navigator)) {
+            if (!cancelled) {
+                setErrorMsg("This device has no location services.");
+                setPhase("denied");
+            }
+            return;
+        }
+
+        setPhase((p) => (p === "starting" || p === "denied" || p === "no-camera" ? p : "locating"));
+
+        watchIdRef.current = navigator.geolocation.watchPosition(
+            (pos) => {
+                if (cancelled) return;
+                const next: Fix = {
+                    lat: pos.coords.latitude,
+                    lon: pos.coords.longitude,
+                    accuracy: pos.coords.accuracy,
+                };
+                setFix((prev) => {
+                    const moved =
+                        !prev ||
+                        Math.abs(prev.lat - next.lat) > 0.0002 ||
+                        Math.abs(prev.lon - next.lon) > 0.0002;
+                    if (moved) resolveBarangay(next.lat, next.lon);
+                    return next;
+                });
+                setPhase((p) => (p === "locating" ? "ready" : p));
+            },
+            () => {
+                if (cancelled) return;
+                setErrorMsg("Location access was blocked. Allow location so the photo can be geo-tagged.");
+                // Don't override "no-camera" phase if it already errored on camera
+                setPhase(prev => prev === "no-camera" ? "no-camera" : "denied");
+            },
+            { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 }
+        );
 
         return () => {
             cancelled = true;
             if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
-            if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
         };
     }, [resolveBarangay]);
 
@@ -205,6 +241,24 @@ export default function GeoTagCamera({ onComplete, onCancel, maxPhotos = 5 }: Ge
     const stopAndCleanup = useCallback(() => {
         if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
         if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
+    }, []);
+
+    const toggleTorch = useCallback(async () => {
+        if (!streamRef.current) return;
+        const track = streamRef.current.getVideoTracks()[0];
+        if (track && track.getCapabilities?.().torch) {
+            try {
+                const nextTorch = !torchOn;
+                await track.applyConstraints({ advanced: [{ torch: nextTorch }] });
+                setTorchOn(nextTorch);
+            } catch (e) {
+                console.warn("Failed to toggle torch", e);
+            }
+        }
+    }, [torchOn]);
+
+    const flipCamera = useCallback(() => {
+        setFacingMode(prev => prev === "environment" ? "user" : "environment");
     }, []);
 
     const burnStamp = useCallback(
@@ -283,7 +337,19 @@ export default function GeoTagCamera({ onComplete, onCancel, maxPhotos = 5 }: Ge
             canvas.height = h;
             const ctx = canvas.getContext("2d");
             if (!ctx) throw new Error("Canvas unavailable");
+            
+            // Flip the canvas horizontally if we are using the front camera (mirror effect)
+            if (facingMode === "user") {
+                ctx.translate(w, 0);
+                ctx.scale(-1, 1);
+            }
             ctx.drawImage(video, 0, 0, w, h);
+            
+            // Reset transform for drawing text correctly
+            if (facingMode === "user") {
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+            }
+
             burnStamp(ctx, w, h, liveFix, taken, barangay);
 
             const rawDataUrl = canvas.toDataURL("image/jpeg", 0.85);
@@ -307,7 +373,7 @@ export default function GeoTagCamera({ onComplete, onCancel, maxPhotos = 5 }: Ge
         } finally {
             setCapturing(false);
         }
-    }, [capturing, photos.length, maxPhotos, phase, fix, barangay, burnStamp]);
+    }, [capturing, photos.length, maxPhotos, phase, fix, barangay, burnStamp, facingMode]);
 
     const removePhoto = (idx: number) => {
         setPreviews((prev) => {
@@ -325,7 +391,7 @@ export default function GeoTagCamera({ onComplete, onCancel, maxPhotos = 5 }: Ge
 
     const cancel = () => {
         stopAndCleanup();
-        onCancel();
+        onBack();
     };
 
     const canShoot = phase === "ready" && !!fix && photos.length < maxPhotos && !capturing;
@@ -337,7 +403,7 @@ export default function GeoTagCamera({ onComplete, onCancel, maxPhotos = 5 }: Ge
                 ref={videoRef}
                 playsInline
                 muted
-                className="absolute inset-0 w-full h-full object-cover"
+                className={`absolute inset-0 w-full h-full object-cover ${facingMode === "user" ? "scale-x-[-1]" : ""}`}
             />
 
             {/* Shutter flash */}
@@ -345,28 +411,49 @@ export default function GeoTagCamera({ onComplete, onCancel, maxPhotos = 5 }: Ge
 
             {/* Top bar */}
             <div className="relative z-10 flex items-center justify-between p-4 bg-gradient-to-b from-black/70 to-transparent">
-                <button
-                    onClick={cancel}
-                    className="text-white/90 hover:text-white flex items-center gap-2 text-sm font-semibold"
-                    aria-label="Cancel"
-                >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-                    Cancel
-                </button>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-sm border border-white/10">
-                    <span className={`w-2 h-2 rounded-full ${fix ? (phase === "outside" ? "bg-red-400" : "bg-emerald-400 animate-pulse") : "bg-amber-400 animate-pulse"}`} />
-                    <span className="text-[11px] font-semibold text-white/90 tracking-wide">
-                        {phase === "outside"
-                            ? "Outside SJDM"
-                            : fix
-                                ? `${barangay ? `Brgy. ${barangay}` : "Locating area"} • ±${Math.round(fix.accuracy)}m`
-                                : "Getting location…"}
-                    </span>
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={cancel}
+                        className="text-white hover:text-primary transition-colors flex items-center gap-1.5 text-sm font-semibold bg-black/30 backdrop-blur-sm px-3 py-1.5 rounded-full"
+                        aria-label="Back"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                        Back
+                    </button>
+                    {torchSupported && (
+                        <button
+                            onClick={toggleTorch}
+                            className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${torchOn ? "bg-amber-400 text-black" : "bg-black/30 text-white backdrop-blur-sm hover:bg-black/50"}`}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                        </button>
+                    )}
+                </div>
+
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-sm border border-white/10">
+                        <span className={`w-2 h-2 rounded-full ${fix ? (phase === "outside" ? "bg-red-400" : "bg-emerald-400 animate-pulse") : "bg-amber-400 animate-pulse"}`} />
+                        <span className="text-[11px] font-semibold text-white/90 tracking-wide hidden sm:inline">
+                            {phase === "outside"
+                                ? "Outside SJDM"
+                                : fix
+                                    ? (barangay ? `Brgy. ${barangay}` : "Locating area") + ` • ±${Math.round(fix.accuracy)}m`
+                                    : "Getting location…"}
+                        </span>
+                    </div>
+                    
+                    <button
+                        onClick={flipCamera}
+                        className="w-9 h-9 rounded-full bg-black/30 text-white backdrop-blur-sm flex items-center justify-center hover:bg-black/50 transition-colors"
+                        aria-label="Flip camera"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                    </button>
                 </div>
             </div>
 
             {/* Center status / permission states */}
-            {(phase === "starting" || phase === "locating" || phase === "denied" || phase === "outside") && (
+            {(phase === "starting" || phase === "locating" || phase === "denied" || phase === "outside" || phase === "no-camera") && (
                 <div className="absolute inset-0 z-10 flex items-center justify-center p-6 pointer-events-none">
                     <div className="pointer-events-auto max-w-sm w-full text-center rounded-2xl bg-black/70 backdrop-blur-md border border-white/10 p-6">
                         {phase === "starting" && (
@@ -393,16 +480,30 @@ export default function GeoTagCamera({ onComplete, onCancel, maxPhotos = 5 }: Ge
                                 <button onClick={cancel} className="mt-4 text-xs font-semibold text-emerald-400 hover:text-emerald-300">Go back</button>
                             </>
                         )}
-                        {phase === "denied" && (
+                        {(phase === "denied" || phase === "no-camera") && (
                             <>
                                 <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-500/20 flex items-center justify-center text-red-400">
                                     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
                                 </div>
-                                <p className="text-sm font-semibold text-white">{errorMsg || "Permission denied"}</p>
-                                <p className="text-xs text-white/60 mt-1">Enable camera & location in your browser, then try again.</p>
-                                <div className="flex gap-2 mt-4 justify-center">
-                                    <button onClick={() => window.location.reload()} className="px-4 py-2 rounded-lg bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600">Try again</button>
-                                    <button onClick={cancel} className="px-4 py-2 rounded-lg bg-white/10 text-white text-xs font-semibold hover:bg-white/20">Cancel</button>
+                                <p className="text-lg font-bold text-white mb-2">
+                                    {phase === "no-camera" ? "No camera detected" : "Camera access blocked"}
+                                </p>
+                                <p className="text-sm text-white/70 mb-6">
+                                    {phase === "no-camera" 
+                                        ? "This device doesn't have a camera available. Please upload a photo instead." 
+                                        : "To take a photo, tap the 🔒 icon in your browser's address bar and allow camera access, or upload one instead."}
+                                </p>
+                                <div className="flex flex-col gap-3">
+                                    <button
+                                        onClick={onTriggerUpload}
+                                        className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                                        Upload from Gallery
+                                    </button>
+                                    <button onClick={cancel} className="py-3 text-white/70 hover:text-white text-sm font-semibold transition-colors">
+                                        Back to home
+                                    </button>
                                 </div>
                             </>
                         )}
@@ -411,7 +512,7 @@ export default function GeoTagCamera({ onComplete, onCancel, maxPhotos = 5 }: Ge
             )}
 
             {/* Inline transient error (capture failure) */}
-            {errorMsg && phase !== "denied" && phase !== "outside" && (
+            {errorMsg && phase !== "denied" && phase !== "outside" && phase !== "no-camera" && (
                 <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 max-w-xs w-[90%]">
                     <div className="rounded-lg bg-red-500/90 text-white text-xs font-medium px-3 py-2 text-center">{errorMsg}</div>
                 </div>
@@ -444,7 +545,13 @@ export default function GeoTagCamera({ onComplete, onCancel, maxPhotos = 5 }: Ge
 
                 <div className="flex items-center justify-between">
                     <div className="w-20 text-left">
-                        <span className="text-[11px] font-semibold text-white/70">{photos.length}/{maxPhotos}</span>
+                        <button
+                            onClick={onTriggerUpload}
+                            className="w-12 h-12 rounded-xl bg-black/40 border border-white/20 text-white flex items-center justify-center hover:bg-black/60 transition-colors"
+                            aria-label="Upload from gallery"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                        </button>
                     </div>
 
                     <button

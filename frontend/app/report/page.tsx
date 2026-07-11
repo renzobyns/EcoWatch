@@ -46,7 +46,8 @@ export default function ReportPage() {
 
     // Flow: "source" (chooser) → "review"; camera overlay toggled separately.
     const [step, setStep] = useState<"source" | "review">("source");
-    const [showCamera, setShowCamera] = useState(false);
+    const [showCamera, setShowCamera] = useState(true);
+    const [showUploadWarning, setShowUploadWarning] = useState(false);
 
     const [photos, setPhotos] = useState<ReportPhoto[]>([]);
     const [deviceLat, setDeviceLat] = useState<number | null>(null);
@@ -274,13 +275,59 @@ export default function ReportPage() {
         );
     }
 
+    const uploadWarningModal = showUploadWarning && (
+        <div className="fixed inset-0 z-[1300] bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
+            <div className="bg-background max-w-sm w-full rounded-2xl p-6 border border-border shadow-2xl animate-in zoom-in-95 duration-200">
+                <div className="w-12 h-12 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center mb-4 mx-auto">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </div>
+                <h3 className="text-xl font-bold text-center mb-2 text-foreground">Before you upload</h3>
+                <p className="text-sm text-foreground/70 text-center mb-4 leading-relaxed">
+                    Photos from Messenger, Facebook, or WhatsApp will be rejected because they don&apos;t have location data.
+                </p>
+                
+                <div className="bg-primary/5 p-3.5 rounded-xl border border-primary/20 mb-6 text-left">
+                    <div className="flex items-center gap-2 mb-2">
+                        <svg className="text-primary" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        <span className="text-xs font-bold text-primary tracking-wide">HOW TO GET A GEOTAGGED PHOTO</span>
+                    </div>
+                    <ul className="text-[13px] text-foreground/80 space-y-2 pl-5 list-disc marker:text-primary/50">
+                        <li>Turn on <b>Location tags</b> in your phone&apos;s Camera settings.</li>
+                        <li>Or use a GPS Camera app like <a href="https://play.google.com/store/apps/details?id=com.gpsmapcamera.geotagginglocationonphoto" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-semibold">GPS Map Camera</a>.</li>
+                    </ul>
+                </div>
+
+                <div className="flex flex-col gap-2.5">
+                    <label className="w-full">
+                        <input type="file" accept="image/jpeg,image/png" multiple className="hidden" onChange={(e) => {
+                            setShowUploadWarning(false);
+                            if (showCamera) setShowCamera(false); 
+                            handleUploadChange(e);
+                        }} disabled={validating} />
+                        <div className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm text-center cursor-pointer shadow-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+                            I understand, select photo
+                        </div>
+                    </label>
+                    <button onClick={() => setShowUploadWarning(false)} className="w-full py-3 text-foreground/60 hover:text-foreground text-sm font-semibold transition-colors">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+
     if (showCamera) {
         return (
-            <GeoTagCamera
-                onComplete={handleCameraComplete}
-                onCancel={() => setShowCamera(false)}
-                maxPhotos={MAX_PHOTOS}
-            />
+            <>
+                <GeoTagCamera
+                    onComplete={handleCameraComplete}
+                    onBack={() => router.push("/")}
+                    onTriggerUpload={() => setShowUploadWarning(true)}
+                    maxPhotos={MAX_PHOTOS}
+                />
+                {uploadWarningModal}
+            </>
         );
     }
 
@@ -335,8 +382,11 @@ export default function ReportPage() {
                                 <svg className="text-foreground/30 group-hover:text-primary transition-colors" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
                             </button>
 
-                            <label className={`w-full glass rounded-xl border border-border hover:border-primary/40 transition-all p-4 flex items-center gap-4 group ${validating ? "opacity-60 pointer-events-none" : "cursor-pointer"}`}>
-                                <input type="file" accept="image/jpeg,image/png" multiple className="hidden" onChange={handleUploadChange} disabled={validating} />
+                            <button
+                                onClick={() => setShowUploadWarning(true)}
+                                disabled={validating}
+                                className={`w-full glass rounded-xl border border-border hover:border-primary/40 transition-all p-4 flex items-center gap-4 group ${validating ? "opacity-60 pointer-events-none" : "cursor-pointer"}`}
+                            >
                                 <div className="w-12 h-12 rounded-xl bg-foreground/5 flex items-center justify-center text-foreground/50 group-hover:text-primary shrink-0">
                                     {validating
                                         ? <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
@@ -346,7 +396,7 @@ export default function ReportPage() {
                                     <p className="text-base font-bold text-foreground">Upload from Gallery</p>
                                     <p className="text-xs text-foreground/60">{validating ? "Checking the photo's location…" : "Must already have a location (geotag) inside SJDM."}</p>
                                 </div>
-                            </label>
+                            </button>
                         </div>
 
                         <div className="mt-6 p-3 rounded-lg bg-foreground/5 border border-border flex items-start gap-2.5">
@@ -445,6 +495,7 @@ export default function ReportPage() {
                     </div>
                 )}
             </div>
+            {uploadWarningModal}
         </div>
     );
 }
