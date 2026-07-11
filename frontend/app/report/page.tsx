@@ -388,21 +388,26 @@ export default function ReportPage() {
                                 <svg className="text-foreground/30 group-hover:text-primary transition-colors" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
                             </button>
 
-                            <button
-                                onClick={() => setShowUploadWarning(true)}
-                                disabled={validating}
-                                className={`w-full glass rounded-xl border border-border hover:border-primary/40 transition-all p-4 flex items-center gap-4 group ${validating ? "opacity-60 pointer-events-none" : "cursor-pointer"}`}
-                            >
-                                <div className="w-12 h-12 rounded-xl bg-foreground/5 flex items-center justify-center text-foreground/50 group-hover:text-primary shrink-0">
-                                    {validating
-                                        ? <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                                        : <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>}
+                            <div className="relative group/upload">
+                                <button
+                                    disabled
+                                    className="w-full glass rounded-xl border border-border opacity-50 cursor-not-allowed p-4 flex items-center gap-4"
+                                >
+                                    <div className="w-12 h-12 rounded-xl bg-foreground/5 flex items-center justify-center text-foreground/30 shrink-0">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+                                    </div>
+                                    <div className="text-left flex-1">
+                                        <p className="text-base font-bold text-foreground/40">Upload from Gallery</p>
+                                        <p className="text-xs text-foreground/30">Coming soon — use the camera for now.</p>
+                                    </div>
+                                    <svg className="text-foreground/15" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
+                                </button>
+                                {/* Tooltip on hover */}
+                                <div className="absolute -top-12 left-1/2 -translate-x-1/2 px-3 py-2 bg-foreground text-background text-xs font-semibold rounded-lg shadow-lg opacity-0 group-hover/upload:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                                    🚧 This feature is not yet available
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent border-t-foreground" />
                                 </div>
-                                <div className="text-left flex-1">
-                                    <p className="text-base font-bold text-foreground">Upload from Gallery</p>
-                                    <p className="text-xs text-foreground/60">{validating ? "Checking the photo's location…" : "Must already have a location (geotag) inside SJDM."}</p>
-                                </div>
-                            </button>
+                            </div>
                         </div>
 
                         <div className="mt-6 p-3 rounded-lg bg-foreground/5 border border-border flex items-start gap-2.5">
