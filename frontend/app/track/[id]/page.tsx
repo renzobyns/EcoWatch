@@ -286,17 +286,20 @@ export default function TrackReportPage() {
                                                         }
                                                     `}</style>
                                                     
-                                                    {/* Sweeping Laser Line */}
-                                                    <div className="absolute left-0 right-0 h-[2px] bg-primary shadow-[0_0_20px_5px_#10b981] animate-[scanline_2.5s_linear_infinite]" />
-                                                    
-                                                    {/* Simulated RPN Bounding Boxes */}
-                                                    <div className="absolute top-[25%] left-[20%] w-[45%] h-[40%] border-2 border-primary/50 bg-primary/10 rounded-sm animate-[draw-box_1.5s_ease-in-out_infinite]" />
-                                                    <div className="absolute top-[55%] left-[55%] w-[30%] h-[30%] border-2 border-primary/50 bg-primary/10 rounded-sm animate-[draw-box_1.8s_ease-in-out_infinite_0.4s]" />
-                                                    <div className="absolute top-[15%] left-[65%] w-[20%] h-[25%] border-2 border-primary/50 bg-primary/10 rounded-sm animate-[draw-box_2.1s_ease-in-out_infinite_0.8s]" />
+                                                    {/* Dark overlay goes FIRST so elements below are drawn ON TOP of it */}
+                                                    <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
 
-                                                    {/* Progress Overlay */}
-                                                    <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] flex items-center justify-center flex-col gap-3">
-                                                        <div className="bg-black/90 px-6 py-5 rounded-2xl border border-primary/30 flex flex-col items-center gap-3 backdrop-blur-xl shadow-[0_0_30px_rgba(16,185,129,0.15)]">
+                                                    {/* Sweeping Laser Line (Z-index 10) */}
+                                                    <div className="absolute left-0 right-0 h-[2px] bg-primary shadow-[0_0_20px_5px_#10b981] animate-[scanline_2.5s_linear_infinite] z-10" />
+                                                    
+                                                    {/* Simulated RPN Bounding Boxes (Z-index 10) - Brighter borders */}
+                                                    <div className="absolute top-[25%] left-[20%] w-[45%] h-[40%] border-2 border-primary bg-primary/10 rounded-sm animate-[draw-box_1.5s_ease-in-out_infinite] z-10" />
+                                                    <div className="absolute top-[55%] left-[55%] w-[30%] h-[30%] border-2 border-primary bg-primary/10 rounded-sm animate-[draw-box_1.8s_ease-in-out_infinite_0.4s] z-10" />
+                                                    <div className="absolute top-[15%] left-[65%] w-[20%] h-[25%] border-2 border-primary bg-primary/10 rounded-sm animate-[draw-box_2.1s_ease-in-out_infinite_0.8s] z-10" />
+
+                                                    {/* Progress Overlay Box (Centered on top) */}
+                                                    <div className="absolute inset-0 flex items-center justify-center flex-col gap-3 z-20">
+                                                        <div className="bg-black/90 px-6 py-5 rounded-2xl border border-primary/30 flex flex-col items-center gap-3 backdrop-blur-xl shadow-[0_0_30px_rgba(16,185,129,0.3)]">
                                                             <div className="relative w-14 h-14 flex items-center justify-center">
                                                                 <svg className="animate-spin w-full h-full text-primary" viewBox="0 0 24 24">
                                                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" fill="none" />
