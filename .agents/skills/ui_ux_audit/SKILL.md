@@ -16,13 +16,24 @@ When the user calls this skill on a specific page or component, follow these ste
 ## 2. Loader Verification
 - Ensure the right loader paradigm is used:
   - If loading data structure (lists, tables, feeds), ensure **Skeletal UI** (`animate-pulse`) is used. Add `loading.tsx` to the route if applicable.
+  - **CRITICAL**: A Skeletal UI must NOT just be an empty box or layout container. It MUST contain internal placeholder elements (e.g., pulsing lines for text, pulsing circles for avatars/charts) to accurately mimic the structure of the incoming data.
   - If handling an action (saving, logging in), ensure a **Spinner** or disabling of the button is used.
 
 ## 3. Responsiveness Check
-- **Mobile First**: Audit the Tailwind classes. Ensure `sm:`, `md:`, and `lg:` prefixes are used gracefully.
-- Ensure no fixed widths break on small screens (use `w-full max-w-sm` instead of `w-96`, or hide unnecessary sidebars on mobile).
+- Verify that the layout does not break or overflow horizontally on `sm` and `md` breakpoint screens.
+- Use `flex-col` or `grid-cols-1` on mobile, scaling up to `flex-row` or multi-column grids on desktop.
 
-## 4. Execution & The 3x Test
+## 4. Professional Aesthetic (Shadcn / Vercel Look)
+When building or auditing UI, STRICTLY avoid the "AI-generated sci-fi" look. Follow these modern, minimalist principles:
+- **Card Containers:** Use flat, solid backgrounds (`bg-card`, `bg-background`) with subtle borders (`border border-border`) and minimal shadows (`shadow-sm`). AVOID heavy `glass` or `backdrop-blur` classes unless strictly required for a specific z-index overlay. **CRITICAL:** Always explicitly pair `border` with `border-border`, otherwise Tailwind defaults to a highly visible bright gray/white line.
+- **Border Radii:** Stick to `rounded-lg` or `rounded-xl`. NEVER use extreme rounding like `rounded-2xl` or `rounded-[2rem]` for dashboard cards.
+- **Typography:**
+  - Headers/Labels: Use sentence case or title case. E.g., `text-sm font-medium text-muted-foreground`. AVOID `uppercase tracking-widest text-[10px]`.
+  - Metrics: Primary numbers must be `text-2xl font-bold text-foreground` (or `text-3xl`). Do not color the entire number with vibrant neon colors (`text-emerald-500`).
+- **Spacing:** Use Shadcn's card standard: a header `div` with `p-6 pb-2` and a content `div` with `p-6 pt-0`. If using tighter spaces, use `p-4 pb-2` and `p-4 pt-0`. Avoid massive empty padding.
+- **Accents:** Use vibrant colors sparingly. Restrict them to small badges, icons, or trend indicators. Never apply heavy glowing drop-shadows (`shadow-[0_0_15px_...]`) to text or icons.
+
+## 5. Execution & The 3x Test
 - Apply the changes using the file editing tools.
 - **Test 1**: Run `npm run lint` and `npm run build` in the frontend directory. Fix any TypeScript/Build errors.
 - **Test 2**: Run backend test scripts if you touched any API data structures.

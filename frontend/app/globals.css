@@ -10,7 +10,7 @@
   --card-foreground: #052e16;
   --muted-bg: rgba(5, 46, 22, 0.06);
   --muted-fg: rgba(5, 46, 22, 0.6);
-  --border: rgba(5, 46, 22, 0.14);
+  --border: rgba(5, 46, 22, 0.08);
   --glass-bg: rgba(255, 255, 255, 0.75);
   --glass-border: rgba(5, 46, 22, 0.12);
   --glass-pro-bg: rgba(255, 255, 255, 0.85);
@@ -31,7 +31,7 @@
   --card-foreground: #ecfdf5;
   --muted-bg: rgba(255, 255, 255, 0.05);
   --muted-fg: rgba(236, 253, 245, 0.6);
-  --border: rgba(255, 255, 255, 0.1);
+  --border: rgba(255, 255, 255, 0.04);
   --glass-bg: rgba(255, 255, 255, 0.03);
   --glass-border: rgba(255, 255, 255, 0.1);
   --glass-pro-bg: rgba(255, 255, 255, 0.02);

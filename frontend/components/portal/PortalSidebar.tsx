@@ -25,8 +25,8 @@ export function PortalSidebar({
     return (
         <aside
             className={`${
-                collapsed ? "w-16" : "w-60"
-            } shrink-0 flex flex-col border-r border-border glass-pro transition-[width] duration-300`}
+                collapsed ? "w-14" : "w-56"
+            } shrink-0 flex flex-col border-r border-border bg-background transition-[width] duration-300`}
         >
             {/* Brand */}
             <div

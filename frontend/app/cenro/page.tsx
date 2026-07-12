@@ -1111,48 +1111,63 @@ function CenroDashboardInner() {
                     <div className="flex-1 flex flex-col gap-6 min-h-0 pb-8">
 
                         {/* Top Stats Bar + Export */}
-                        <div className="flex flex-col md:flex-row items-start gap-4 shrink-0 animate-slide-up stagger-1 w-full">
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 flex-1 w-full">
-                                <div className="glass-pro p-4 md:p-5 rounded-2xl bento-card">
-                                    <div className="text-[10px] md:text-[11px] text-foreground/50 uppercase tracking-widest font-semibold mb-1.5">Total Reports</div>
-                                    <div className="text-2xl md:text-3xl font-bold text-emerald-400 tracking-tight">{stats.total}</div>
+                        <div className="flex flex-col md:flex-row items-start gap-3 shrink-0 animate-slide-up stagger-1 w-full">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 flex-1 w-full">
+                                <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm">
+                                    <div className="flex flex-row items-center justify-between p-4 pb-2">
+                                        <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Total Reports</h3>
+                                    </div>
+                                    <div className="p-4 pt-0">
+                                        <div className="text-xl md:text-2xl font-bold">{stats.total}</div>
+                                    </div>
                                 </div>
-                                <div className="glass-pro p-4 md:p-5 rounded-2xl bento-card">
-                                    <div className="text-[10px] md:text-[11px] text-foreground/50 uppercase tracking-widest font-semibold mb-1.5">Active/Pending</div>
-                                    <div className="text-2xl md:text-3xl font-bold text-red-400 tracking-tight">{pending}</div>
+                                <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm">
+                                    <div className="flex flex-row items-center justify-between p-4 pb-2">
+                                        <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Active/Pending</h3>
+                                    </div>
+                                    <div className="p-4 pt-0 flex items-baseline gap-2">
+                                        <div className="text-xl md:text-2xl font-bold">{pending}</div>
+                                        {pending > 0 && <span className="text-[10px] text-red-500 font-medium">needs action</span>}
+                                    </div>
                                 </div>
-                                <div className="glass-pro p-4 md:p-5 rounded-2xl bento-card">
-                                    <div className="text-[10px] md:text-[11px] text-foreground/50 uppercase tracking-widest font-semibold mb-1.5">Active Cleanups</div>
-                                    <div className="text-2xl md:text-3xl font-bold text-yellow-400 tracking-tight">{stats.active}</div>
+                                <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm">
+                                    <div className="flex flex-row items-center justify-between p-4 pb-2">
+                                        <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Active Cleanups</h3>
+                                    </div>
+                                    <div className="p-4 pt-0">
+                                        <div className="text-xl md:text-2xl font-bold">{stats.active}</div>
+                                    </div>
                                 </div>
-                                <div className="glass-pro p-4 md:p-5 rounded-2xl bento-card">
-                                    <div className="text-[10px] md:text-[11px] text-foreground/50 uppercase tracking-widest font-semibold mb-1.5">Success Rate</div>
-                                    <div className="text-2xl md:text-3xl font-bold text-green-400 tracking-tight">{successRate}%</div>
+                                <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm">
+                                    <div className="flex flex-row items-center justify-between p-4 pb-2">
+                                        <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Success Rate</h3>
+                                    </div>
+                                    <div className="p-4 pt-0">
+                                        <div className="text-xl md:text-2xl font-bold">{successRate}%</div>
+                                    </div>
                                 </div>
                             </div>
                             <button
                                 onClick={handleExportAnalytics}
-                                className="flex items-center justify-center gap-2 px-4 py-3 md:px-3 md:py-2 w-full md:w-auto rounded-lg bg-primary/20 border border-primary/30 text-primary text-xs font-bold uppercase tracking-widest hover:bg-primary/30 transition-colors shrink-0 md:self-stretch"
+                                className="flex items-center justify-center gap-2 px-3 py-2.5 md:py-2 md:h-20 w-full md:w-32 rounded-lg bg-card border border-border text-foreground text-xs font-medium shadow-sm hover:bg-accent hover:text-accent-foreground transition-colors shrink-0 md:self-stretch"
                                 title="Export analytics summary as CSV"
                             >
                                 <Download size={14} />
-                                Export Analytics CSV
+                                Export CSV
                             </button>
                         </div>
 
                         {/* Merged SLA bar */}
-                        <div className="glass-pro px-5 py-4 rounded-2xl border border-border shrink-0 flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-5 animate-slide-up stagger-2 overflow-hidden relative">
-                            <div className="absolute top-0 right-0 w-48 h-48 bg-red-500/5 rounded-full blur-[60px] pointer-events-none" />
-
+                        <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm px-4 py-3 shrink-0 flex flex-col md:flex-row items-start md:items-center gap-4 animate-slide-up stagger-2 overflow-hidden">
                             {/* Breach icon */}
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 relative z-10 ${slaBreaches.length > 0 ? 'bg-red-500/20 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'bg-green-500/20 text-green-400'}`}>
-                                <AlertTriangle size={20} />
+                            <div className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 ${slaBreaches.length > 0 ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-500'}`}>
+                                <AlertTriangle size={16} />
                             </div>
 
                             {/* Breach info */}
-                            <div className="min-w-0 relative z-10">
-                                <div className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest mb-0.5">SLA Breaches</div>
-                                <div className={`text-xl font-bold leading-none mb-1.5 ${slaBreaches.length > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                            <div className="min-w-0 flex-1 md:flex-none">
+                                <div className="text-[11px] font-medium text-muted-foreground mb-0.5">SLA Breaches</div>
+                                <div className="text-lg font-bold leading-none mb-1 text-foreground">
                                     {slaBreaches.length}
                                 </div>
                                 {slaBreaches.length > 0 ? (
@@ -1160,14 +1175,14 @@ function CenroDashboardInner() {
                                         {slaBreaches.slice(0, 3).map((r) => {
                                             const sla = slaInfo(r.created_at, r.status);
                                             return (
-                                                <span key={r.id} className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/10 text-red-400">
+                                                <span key={r.id} className="px-1.5 py-0.5 rounded-sm text-[10px] font-medium bg-red-500/10 text-red-500 border border-red-500/20">
                                                     {r.tracking_id}{sla ? ` ${sla.days}d` : ''}
                                                 </span>
                                             );
                                         })}
                                     </div>
                                 ) : (
-                                    <p className="text-[10px] text-foreground/40 italic">All on schedule</p>
+                                    <p className="text-[11px] text-muted-foreground">All on schedule</p>
                                 )}
                             </div>
 
@@ -1181,27 +1196,27 @@ function CenroDashboardInner() {
                                         setOversightBarangay("");
                                         setActiveTab('oversight');
                                     }}
-                                    className="text-xs font-bold text-primary hover:text-emerald-300 underline underline-offset-4 shrink-0 relative z-10"
+                                    className="text-xs font-medium text-primary hover:underline shrink-0"
                                 >
                                     View Queue →
                                 </button>
                             )}
 
                             {/* Divider */}
-                            <div className="hidden md:block w-px self-stretch bg-border shrink-0 mx-1 relative z-10" />
-                            <div className="md:hidden h-px w-full bg-border shrink-0 my-1 relative z-10" />
+                            <div className="hidden md:block w-px self-stretch bg-border shrink-0 mx-2" />
+                            <div className="md:hidden h-px w-full bg-border shrink-0 my-1" />
 
                             {/* Policy info */}
-                            <div className="min-w-0 relative z-10">
-                                <div className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest mb-2">SLA Policy</div>
-                                <div className="flex gap-2 mb-1.5">
-                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-500/10 text-green-400">Low {slaPolicy.low}d</span>
-                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-500/10 text-yellow-400">Med {slaPolicy.medium}d</span>
-                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/10 text-red-400">High {slaPolicy.high}d</span>
+                            <div className="min-w-0">
+                                <div className="text-[11px] font-medium text-muted-foreground mb-1.5">SLA Policy</div>
+                                <div className="flex gap-1.5 mb-1">
+                                    <span className="px-1.5 py-0.5 rounded-sm text-[10px] font-medium bg-green-500/10 text-green-500 border border-green-500/20">Low {slaPolicy.low}d</span>
+                                    <span className="px-1.5 py-0.5 rounded-sm text-[10px] font-medium bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20">Med {slaPolicy.medium}d</span>
+                                    <span className="px-1.5 py-0.5 rounded-sm text-[10px] font-medium bg-red-500/10 text-red-500 border border-red-500/20">High {slaPolicy.high}d</span>
                                 </div>
                                 <button
                                     onClick={() => setShowSlaModal(true)}
-                                    className="text-[10px] font-bold text-primary hover:text-emerald-300"
+                                    className="text-[11px] font-medium text-primary hover:underline"
                                 >
                                     Edit Policy →
                                 </button>
@@ -1209,56 +1224,62 @@ function CenroDashboardInner() {
                         </div>
 
                         {/* Main Grid — Map hero + 2×2 panels */}
-                        <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-6 min-h-0">
+                        <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-3 min-h-0">
 
                             {/* Left: Map hero */}
-                            <div className="glass rounded-2xl border border-border overflow-hidden relative min-h-[300px] animate-slide-up stagger-3">
-                                <div className="absolute top-4 left-4 z-[1000] glass px-3 py-1.5 rounded-full text-[10px] font-bold text-foreground uppercase tracking-widest border border-foreground/20 pointer-events-none">Live City Map</div>
+                            <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm overflow-hidden relative min-h-[300px] animate-slide-up stagger-3">
+                                <div className="absolute top-3 left-3 z-[1000] bg-background/80 backdrop-blur-md px-2 py-1 rounded text-[11px] font-medium text-foreground border border-border pointer-events-none shadow-sm">Live City Map</div>
                                 <MapComponent height="100%" reports={reports} heatmaps={heatmaps} focusedBarangay={null} onBarangayClick={() => {}} />
                             </div>
 
                             {/* Right: 2×2 panel grid */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-rows-2 gap-6 min-h-0 animate-slide-up stagger-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-rows-2 gap-3 min-h-0 animate-slide-up stagger-4">
 
                                 {/* Top-left: Status Breakdown */}
-                                <div className="glass-pro p-6 rounded-[2rem] flex flex-col min-h-0 bento-card">
-                                    <h3 className="text-[11px] font-bold text-foreground/40 uppercase tracking-widest mb-4 shrink-0">Status Breakdown</h3>
-                                    <div className="flex-1 relative min-h-[130px]">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <PieChart>
-                                                <Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={8} dataKey="value">
-                                                    {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />)}
-                                                </Pie>
-                                                <Tooltip
-                                                    contentStyle={{ backgroundColor: 'rgba(10, 15, 10, 0.9)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px' }}
-                                                    itemStyle={{ color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
-                                                />
-                                            </PieChart>
-                                        </ResponsiveContainer>
+                                <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm flex flex-col min-h-0">
+                                    <div className="p-4 pb-2 shrink-0">
+                                        <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Status Breakdown</h3>
                                     </div>
-                                    <div className="flex flex-wrap justify-center gap-3 mt-3 shrink-0">
-                                        {pieData.map(d => (
-                                            <div key={d.name} className="flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-widest text-foreground/60">
-                                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }}></div>
-                                                {d.name}
-                                            </div>
-                                        ))}
+                                    <div className="p-4 pt-0 flex-1 flex flex-col min-h-0">
+                                        <div className="flex-1 relative min-h-[100px]">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <PieChart>
+                                                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={30} outerRadius={50} paddingAngle={2} dataKey="value" stroke="none">
+                                                        {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                                                    </Pie>
+                                                    <Tooltip
+                                                        contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '4px 8px' }}
+                                                        itemStyle={{ color: 'var(--foreground)', fontSize: '11px', fontWeight: '500' }}
+                                                    />
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                        <div className="flex flex-wrap justify-center gap-2 mt-2 shrink-0">
+                                            {pieData.map(d => (
+                                                <div key={d.name} className="flex items-center gap-1 text-[10px] font-medium text-foreground/80">
+                                                    <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: d.color }}></div>
+                                                    {d.name}
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
 
                                 {/* Top-right: Barangay Rankings */}
-                                <div className="glass-pro p-6 rounded-[2rem] flex flex-col min-h-0 bento-card">
-                                    <h3 className="text-[11px] font-bold text-foreground/40 uppercase tracking-widest mb-4 shrink-0">Barangay Rankings</h3>
-                                    <div className="flex-1 overflow-y-auto pr-1 space-y-3 scrollbar-hide">
+                                <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm flex flex-col min-h-0">
+                                    <div className="p-4 pb-2 shrink-0">
+                                        <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Barangay Rankings</h3>
+                                    </div>
+                                    <div className="p-4 pt-0 flex-1 overflow-y-auto pr-1 space-y-1.5 scrollbar-hide">
                                         {barangayStats.map((b, i) => (
-                                            <div key={b.name} className="flex items-center justify-between p-3 rounded-xl bg-foreground/[0.03] border border-border hover:bg-foreground/[0.08] transition-colors group">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-7 h-7 rounded-lg bg-foreground/5 flex items-center justify-center text-xs font-semibold text-foreground/30 group-hover:text-primary transition-colors">{i + 1}</div>
-                                                    <div className="text-sm font-bold text-foreground/90 truncate">{b.name}</div>
+                                            <div key={b.name} className="flex items-center justify-between py-1.5 group">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-5 h-5 rounded bg-muted flex items-center justify-center text-[10px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">{i + 1}</div>
+                                                    <div className="text-[13px] font-medium text-foreground truncate max-w-[80px]">{b.name}</div>
                                                 </div>
-                                                <div className="text-right shrink-0 ml-2">
-                                                    <div className="text-sm font-semibold text-emerald-400">{b.rate.toFixed(0)}%</div>
-                                                    <div className="text-[10px] text-foreground/30 uppercase tracking-widest font-bold">{b.resolved} reports</div>
+                                                <div className="text-right shrink-0">
+                                                    <div className="text-[13px] font-medium text-foreground">{b.rate.toFixed(0)}%</div>
+                                                    <div className="text-[9px] text-muted-foreground">{b.resolved} res.</div>
                                                 </div>
                                             </div>
                                         ))}
@@ -1266,36 +1287,40 @@ function CenroDashboardInner() {
                                 </div>
 
                                 {/* Bottom-left: City-Wide Trend */}
-                                <div className="glass-pro p-6 rounded-[2rem] flex flex-col min-h-0 bento-card">
-                                    <h3 className="text-[11px] font-bold text-foreground/40 uppercase tracking-widest mb-4 shrink-0">City-Wide Trend</h3>
-                                    <div className="flex-1 relative min-h-[100px]">
+                                <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm flex flex-col min-h-0">
+                                    <div className="p-4 pb-2 shrink-0">
+                                        <h3 className="text-xs font-medium text-muted-foreground tracking-tight">City-Wide Trend</h3>
+                                    </div>
+                                    <div className="p-4 pt-0 flex-1 relative min-h-[80px]">
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <LineChart data={lineData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                                                <XAxis dataKey="date" stroke="rgba(255,255,255,0.2)" fontSize={10} tickMargin={12} axisLine={false} tickLine={false} />
-                                                <Tooltip contentStyle={{ backgroundColor: 'rgba(10, 15, 10, 0.9)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px' }} />
-                                                <Line type="monotone" dataKey="count" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#0a0f0a' }} activeDot={{ r: 6, fill: '#34d399' }} />
+                                            <LineChart data={lineData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                                                <XAxis dataKey="date" stroke="var(--muted-foreground)" fontSize={9} tickMargin={8} axisLine={false} tickLine={false} />
+                                                <Tooltip contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '4px 8px' }} />
+                                                <Line type="monotone" dataKey="count" stroke="#10b981" strokeWidth={1.5} dot={{ r: 2.5, fill: '#10b981', strokeWidth: 1.5, stroke: 'var(--background)' }} activeDot={{ r: 4, fill: '#34d399' }} />
                                             </LineChart>
                                         </ResponsiveContainer>
                                     </div>
                                 </div>
 
                                 {/* Bottom-right: Live City Feed */}
-                                <div className="glass-pro p-6 rounded-[2rem] flex flex-col min-h-0 bento-card">
-                                    <h3 className="text-[11px] font-bold text-foreground/40 uppercase tracking-widest mb-4 shrink-0">Live City Feed</h3>
-                                    <div className="flex-1 overflow-y-auto pr-1 space-y-4 scrollbar-hide">
+                                <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm flex flex-col min-h-0">
+                                    <div className="p-4 pb-2 shrink-0">
+                                        <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Live Feed</h3>
+                                    </div>
+                                    <div className="p-4 pt-0 flex-1 overflow-y-auto pr-1 space-y-3 scrollbar-hide">
                                         {recentFeed.map(r => (
-                                            <div key={r.id} className="relative pl-5 border-l border-border">
-                                                <div className="absolute w-2 h-2 rounded-full bg-emerald-500 -left-[4px] top-1.5 shadow-[0_0_10px_rgba(16,185,129,0.8)]"></div>
-                                                <div className="text-[12px] font-semibold text-foreground mb-0.5 tracking-tight">Report {r.tracking_id}</div>
-                                                <div className="text-[10px] text-foreground/40 mb-2 font-medium uppercase tracking-wider">{r.barangay} • {formatRelative(r.created_at)}</div>
-                                                <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-widest ${
-                                                    r.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
-                                                    r.status === 'assigned' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                    r.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
-                                                    r.status === 'verified' ? 'bg-orange-500/20 text-orange-400' :
-                                                    r.status === 'failed_cleanup' ? 'bg-red-900/30 text-red-400' :
-                                                    r.status === 'rejected' ? 'bg-foreground/5 text-foreground/40' :
-                                                    'bg-red-500/20 text-red-400'
+                                            <div key={r.id} className="relative pl-3 border-l-2 border-border">
+                                                <div className="absolute w-1.5 h-1.5 rounded-full bg-emerald-500 -left-[4px] top-1.5"></div>
+                                                <div className="text-[11px] font-medium text-foreground mb-0.5">Report {r.tracking_id}</div>
+                                                <div className="text-[9px] text-muted-foreground mb-1">{r.barangay} • {formatRelative(r.created_at)}</div>
+                                                <span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-medium border ${
+                                                    r.status === 'resolved' ? 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20' :
+                                                    r.status === 'assigned' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20' :
+                                                    r.status === 'in_progress' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' :
+                                                    r.status === 'verified' ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20' :
+                                                    r.status === 'failed_cleanup' ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20' :
+                                                    r.status === 'rejected' ? 'bg-muted text-muted-foreground border-border' :
+                                                    'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
                                                 }`}>{r.status}</span>
                                             </div>
                                         ))}
