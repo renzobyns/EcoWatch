@@ -19,6 +19,8 @@ export default function TrackReportPage() {
     const [error, setError] = useState<string | null>(null);
     const [showAiMask, setShowAiMask] = useState(false);
     const [selectedPhotoIdx, setSelectedPhotoIdx] = useState(0);
+    const [mapExpanded, setMapExpanded] = useState(false);
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
 
     function selectPhoto(idx: number) {
         setSelectedPhotoIdx(idx);
@@ -59,11 +61,37 @@ export default function TrackReportPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-white p-1 shadow-[0_0_30px_rgba(16,185,129,0.3)] animate-pulse">
-                    <img src="/logo.png" alt="Loading..." className="w-full h-full object-contain" />
+            <div className="min-h-screen bg-background pt-4 pb-8 px-4 flex flex-col items-center">
+                <div className="w-full max-w-2xl">
+                    <div className="flex items-center justify-between mb-6 opacity-50">
+                        <div className="w-24 h-4 bg-foreground/10 rounded animate-pulse" />
+                        <div className="w-32 h-6 bg-foreground/10 rounded animate-pulse" />
+                    </div>
+                    <div className="w-full glass rounded-2xl border border-border shadow-2xl overflow-hidden flex flex-col gap-6 p-6">
+                        <div className="w-full h-24 bg-foreground/5 animate-pulse rounded-xl" />
+                        <div className="w-full h-16 bg-foreground/5 animate-pulse rounded-xl" />
+                        <div className="grid md:grid-cols-2 gap-8">
+                            <div className="flex flex-col gap-4">
+                                <div className="w-32 h-4 bg-foreground/10 rounded animate-pulse" />
+                                <div className="w-full aspect-square bg-foreground/5 animate-pulse rounded-2xl" />
+                            </div>
+                            <div className="flex flex-col gap-6">
+                                <div className="space-y-2">
+                                    <div className="w-24 h-3 bg-foreground/10 rounded animate-pulse" />
+                                    <div className="w-48 h-6 bg-foreground/5 animate-pulse rounded" />
+                                </div>
+                                <div className="space-y-2">
+                                    <div className="w-24 h-3 bg-foreground/10 rounded animate-pulse" />
+                                    <div className="w-36 h-6 bg-foreground/5 animate-pulse rounded" />
+                                </div>
+                                <div className="space-y-2">
+                                    <div className="w-24 h-3 bg-foreground/10 rounded animate-pulse" />
+                                    <div className="w-full h-16 bg-foreground/5 animate-pulse rounded-xl" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div className="text-emerald-500 font-bold tracking-widest uppercase text-sm animate-pulse">Locating Report...</div>
             </div>
         );
     }
@@ -93,7 +121,7 @@ export default function TrackReportPage() {
     if (isFailed) currentStepIndex = 3; // in_progress step, but failed resolving
 
     return (
-        <div className="min-h-screen bg-background pt-20 pb-12 px-4 flex flex-col items-center">
+        <div className="min-h-screen bg-background pt-4 pb-8 px-4 flex flex-col items-center">
             <div className="w-full max-w-2xl">
 
                 {/* Header */}
@@ -194,12 +222,16 @@ export default function TrackReportPage() {
                                                 </button>
                                             )}
                                         </div>
-                                        <div className="w-full aspect-square rounded-2xl overflow-hidden bg-black/50 border border-border relative">
+                                        <div 
+                                            className="w-full aspect-square rounded-2xl overflow-hidden bg-black/50 border border-border relative cursor-pointer group/evidence"
+                                            onClick={() => activeImageUrl && setPreviewImage(`${API_URL}${showAiMask && activeMaskUrl ? activeMaskUrl : activeImageUrl}`)}
+                                            title="Click to zoom"
+                                        >
                                             {activeImageUrl ? (
                                                 <img
                                                     src={`${API_URL}${showAiMask && activeMaskUrl ? activeMaskUrl : activeImageUrl}`}
                                                     alt="Report Evidence"
-                                                    className="w-full h-full object-cover transition-opacity duration-300"
+                                                    className="w-full h-full object-cover transition-transform duration-300 group-hover/evidence:scale-105"
                                                 />
                                             ) : (
                                                 <div className="absolute inset-0 flex items-center justify-center text-foreground/30">No Image</div>
@@ -247,8 +279,16 @@ export default function TrackReportPage() {
                             {report.cleanup_image_url && (
                                 <div className="mt-4">
                                     <h3 className="text-sm font-bold text-foreground/50 uppercase tracking-widest mb-2">Cleanup Verification</h3>
-                                    <div className="w-full h-32 rounded-xl overflow-hidden border border-border relative">
-                                        <img src={`${API_URL}${report.cleanup_image_url}`} alt="Cleanup" className="w-full h-full object-cover" />
+                                    <div 
+                                        className="w-full h-32 rounded-xl overflow-hidden border border-border relative cursor-pointer group/cleanup"
+                                        onClick={() => setPreviewImage(`${API_URL}${report.cleanup_image_url}`)}
+                                        title="Click to zoom"
+                                    >
+                                        <img 
+                                            src={`${API_URL}${report.cleanup_image_url}`} 
+                                            alt="Cleanup" 
+                                            className="w-full h-full object-cover transition-transform duration-300 group-hover/cleanup:scale-105" 
+                                        />
                                     </div>
                                 </div>
                             )}
@@ -278,9 +318,20 @@ export default function TrackReportPage() {
 
                             <div>
                                 <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-widest mb-2">Location Map</h3>
-                                <div className="w-full h-32 rounded-xl overflow-hidden border border-border bg-black relative">
+                                <div className={`relative bg-black transition-all duration-300 rounded-xl overflow-hidden border border-border ${mapExpanded ? "h-64" : "h-32"}`}>
                                     <MiniMap lat={report.lat} lon={report.lon} />
                                     <div className="absolute inset-0 bg-black/20 pointer-events-none shadow-inner rounded-xl" />
+                                    <button 
+                                        onClick={() => setMapExpanded(!mapExpanded)} 
+                                        className="absolute bottom-2 right-2 p-1.5 rounded-md bg-black/60 text-white hover:bg-black/80 transition-colors z-10 pointer-events-auto shadow-md"
+                                        title={mapExpanded ? "Minimize map" : "Maximize map"}
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            {mapExpanded 
+                                                ? <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" /> 
+                                                : <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />}
+                                        </svg>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -288,6 +339,25 @@ export default function TrackReportPage() {
                 </div>
 
             </div>
+
+            {previewImage && (
+                <div className="fixed inset-0 z-[1400] bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setPreviewImage(null)}>
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); setPreviewImage(null); }}
+                        className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
+                        title="Close preview"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img 
+                        src={previewImage} 
+                        alt="Evidence Preview" 
+                        className="max-w-full max-h-[85vh] rounded-lg object-contain shadow-2xl animate-in zoom-in-95 duration-300"
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                </div>
+            )}
         </div>
     );
 }
