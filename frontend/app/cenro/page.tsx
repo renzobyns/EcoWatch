@@ -1334,49 +1334,55 @@ function CenroDashboardInner() {
 
                 {activeTab === 'overview' && (
                     /* OVERVIEW TAB (Map + Stats) */
-                    <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
+                    <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0">
                         {/* Left: Stats Column */}
-                        <div className="flex-1 lg:max-w-xs flex flex-col gap-4">
-                            <div className="glass p-6 rounded-2xl border border-border shadow-2xl">
-                                <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-emerald-400 mb-4">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                        <div className="flex-1 lg:max-w-xs flex flex-col gap-3">
+                            <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm flex flex-col">
+                                <div className="p-4 pb-2 flex items-center justify-between">
+                                    <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Total Reports</h3>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground/60"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                                 </div>
-                                <div className="text-xs font-bold text-foreground/50 uppercase tracking-widest mb-1">Total Reports</div>
-                                <div className="text-3xl font-bold text-foreground">{stats.total}</div>
+                                <div className="p-4 pt-0">
+                                    <div className="text-2xl font-bold">{stats.total}</div>
+                                </div>
                             </div>
 
-                            <div className="glass p-6 rounded-2xl border border-border shadow-2xl">
-                                <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 mb-4">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm flex flex-col">
+                                <div className="p-4 pb-2 flex items-center justify-between">
+                                    <h3 className="text-xs font-medium text-muted-foreground tracking-tight">City Success Rate</h3>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground/60"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                                 </div>
-                                <div className="text-xs font-bold text-foreground/50 uppercase tracking-widest mb-1">City Success Rate</div>
-                                <div className="text-3xl font-bold text-green-400">{successRate}%</div>
-                                <p className="text-xs text-foreground/40 mt-2">{stats.resolved} resolved out of {stats.total}</p>
+                                <div className="p-4 pt-0">
+                                    <div className="text-2xl font-bold">{successRate}%</div>
+                                    <p className="text-[10px] text-muted-foreground mt-0.5">{stats.resolved} resolved out of {stats.total}</p>
+                                </div>
                             </div>
 
-                            <div className="glass p-6 rounded-2xl border border-border shadow-2xl">
-                                <div className="text-xs font-bold text-foreground/50 uppercase tracking-widest mb-4">Active Hotspots</div>
-                                {heatmaps.length === 0 ? (
-                                    <p className="text-sm text-foreground/40 italic">No significant hotspots detected.</p>
-                                ) : (
-                                    <div className="space-y-3">
-                                        {heatmaps.map((h, i) => (
-                                            <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-foreground/5 border border-border">
+                            <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm flex flex-col flex-1 min-h-[200px]">
+                                <div className="p-4 pb-2 shrink-0">
+                                    <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Active Hotspots</h3>
+                                </div>
+                                <div className="p-4 pt-0 flex-1 overflow-y-auto space-y-1.5 scrollbar-hide">
+                                    {heatmaps.length === 0 ? (
+                                        <p className="text-[11px] text-muted-foreground italic">No significant hotspots detected.</p>
+                                    ) : (
+                                        heatmaps.map((h, i) => (
+                                            <div key={i} className="flex items-center justify-between py-1.5 group border-b border-border last:border-0">
                                                 <div>
-                                                    <div className="text-sm font-bold text-foreground">Cluster {h.cluster_id}</div>
-                                                    <div className="text-[10px] text-red-400 uppercase tracking-wider">{h.intensity} Intensity</div>
+                                                    <div className="text-[13px] font-medium text-foreground">Cluster {h.cluster_id}</div>
+                                                    <div className="text-[9px] text-red-500 font-medium">{h.intensity} Intensity</div>
                                                 </div>
-                                                <div className="text-lg font-semibold text-foreground/80">{h.report_count}</div>
+                                                <div className="text-sm font-bold text-foreground">{h.report_count}</div>
                                             </div>
-                                        ))}
-                                    </div>
-                                )}
+                                        ))
+                                    )}
+                                </div>
                             </div>
                         </div>
 
                         {/* Right: Map */}
-                        <div className="flex-[3] glass rounded-2xl border border-border overflow-hidden shadow-2xl relative min-h-[400px]">
-                            <div className="absolute top-4 left-4 z-[1000] glass px-4 py-2 rounded-full text-xs font-bold text-foreground border border-foreground/20 shadow-lg pointer-events-none flex items-center gap-2">
+                        <div className="flex-[3] rounded-lg border border-border bg-card shadow-sm overflow-hidden relative min-h-[400px]">
+                            <div className="absolute top-3 left-3 z-[1000] bg-background/80 backdrop-blur-md px-2 py-1 rounded text-[11px] font-medium text-foreground border border-border pointer-events-none shadow-sm flex items-center gap-1.5">
                                 <span className="relative flex h-2 w-2">
                                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
