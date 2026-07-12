@@ -1418,13 +1418,13 @@ function CenroDashboardInner() {
                                     value={oversightSearch}
                                     onChange={(e) => setOversightSearch(e.target.value)}
                                     placeholder="Search tracking ID or notes…"
-                                    className="w-full pl-9 pr-3 h-9 rounded-md bg-transparent border border-input text-foreground text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
+                                    className="w-full pl-9 pr-3 h-9 rounded-md bg-transparent border border-border text-foreground text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
                                 />
                             </div>
                             <select
                                 value={oversightStatus}
                                 onChange={(e) => setOversightStatus(e.target.value)}
-                                className="px-3 h-9 rounded-md bg-transparent border border-input text-foreground text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
+                                className="px-3 h-9 rounded-md bg-transparent border border-border text-foreground text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
                             >
                                 {STATUS_OPTIONS.map((s) => (
                                     <option key={s || "all"} value={s}>{s ? s : "All statuses"}</option>
@@ -1433,7 +1433,7 @@ function CenroDashboardInner() {
                             <select
                                 value={oversightBarangay}
                                 onChange={(e) => setOversightBarangay(e.target.value)}
-                                className="px-3 h-9 rounded-md bg-transparent border border-input text-foreground text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
+                                className="px-3 h-9 rounded-md bg-transparent border border-border text-foreground text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
                             >
                                 <option value="">All barangays</option>
                                 {BARANGAYS.map((b) => (
