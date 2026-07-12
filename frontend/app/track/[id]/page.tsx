@@ -220,7 +220,7 @@ export default function TrackReportPage() {
                                 return (
                                     <>
                                         <div 
-                                            className="w-full aspect-square rounded-2xl overflow-hidden bg-black/50 border border-border relative cursor-pointer group/evidence"
+                                            className="w-full aspect-square rounded-lg overflow-hidden bg-black/50 border border-border relative cursor-pointer group/evidence"
                                             onClick={() => activeImageUrl && setPreviewImage(`${API_URL}${showAiMask && activeMaskUrl ? activeMaskUrl : activeImageUrl}`)}
                                             title="Click to zoom"
                                         >
@@ -243,7 +243,7 @@ export default function TrackReportPage() {
                                                 <div className="absolute inset-0 flex items-center justify-center text-foreground/30">No Image</div>
                                             )}
                                             {activeConfidence && (
-                                                <div className="absolute bottom-3 right-3 glass px-3 py-1.5 rounded-lg border border-primary/30 flex items-center gap-2 backdrop-blur-md">
+                                                <div className="absolute bottom-3 right-3 glass px-3 py-1.5 rounded-md border border-primary/30 flex items-center gap-2 backdrop-blur-md">
                                                     <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
                                                     <span className="text-xs font-bold text-foreground">AI Confidence: {(activeConfidence * 100).toFixed(0)}%</span>
                                                 </div>
@@ -260,7 +260,7 @@ export default function TrackReportPage() {
                                                         <button
                                                             key={i}
                                                             onClick={() => selectPhoto(i)}
-                                                            className={`relative shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all focus:outline-none ${i === selectedPhotoIdx ? 'border-primary shadow-[0_0_10px_rgba(16,185,129,0.4)]' : 'border-border hover:border-primary/50'}`}
+                                                            className={`relative shrink-0 w-20 h-20 rounded-md overflow-hidden border-2 transition-all focus:outline-none ${i === selectedPhotoIdx ? 'border-primary shadow-[0_0_10px_rgba(16,185,129,0.4)]' : 'border-border hover:border-primary/50'}`}
                                                         >
                                                             <img
                                                                 src={`${API_URL}${photo.url}`}
@@ -289,7 +289,7 @@ export default function TrackReportPage() {
                                         <h3 className="text-xs font-semibold">Cleanup Verification</h3>
                                     </div>
                                     <div 
-                                        className="w-full h-32 rounded-xl overflow-hidden border border-border relative cursor-pointer group/cleanup"
+                                        className="w-full h-32 rounded-lg overflow-hidden border border-border relative cursor-pointer group/cleanup"
                                         onClick={() => setPreviewImage(`${API_URL}${report.cleanup_image_url}`)}
                                         title="Click to zoom"
                                     >
@@ -303,7 +303,7 @@ export default function TrackReportPage() {
                             )}
                         </div>
 
-                        <div className="space-y-6">
+                        <div className="space-y-6 flex flex-col h-full">
                             <div className="flex items-start gap-3">
                                 <div className="mt-0.5 p-2 rounded-lg bg-foreground/5 text-foreground/50 border border-foreground/10">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -340,9 +340,9 @@ export default function TrackReportPage() {
                                 </div>
                             )}
 
-                            <div>
+                            <div className="flex-1 flex flex-col pt-2 min-h-[192px]">
                                 <div 
-                                    className="relative bg-black rounded-xl overflow-hidden border border-border h-48 group/map cursor-pointer shadow-sm"
+                                    className="relative bg-black rounded-lg overflow-hidden border border-border h-full group/map cursor-pointer shadow-sm flex-1"
                                     onClick={() => setMapModalOpen(true)}
                                 >
                                     <MiniMap lat={report.lat} lon={report.lon} />
