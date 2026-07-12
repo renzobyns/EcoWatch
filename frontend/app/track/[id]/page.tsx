@@ -31,6 +31,7 @@ export default function TrackReportPage() {
     const [selectedPhotoIdx, setSelectedPhotoIdx] = useState(0);
     const [mapExpanded, setMapExpanded] = useState(false);
     const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const [activeMobileLabel, setActiveMobileLabel] = useState<number | null>(null);
 
     function selectPhoto(idx: number) {
         setSelectedPhotoIdx(idx);
@@ -172,7 +173,7 @@ export default function TrackReportPage() {
                                 <div className="absolute top-1/2 left-0 w-full h-1 bg-foreground/10 -translate-y-1/2 rounded-full" />
                                 {/* Fill Line */}
                                 <div 
-                                    className={`absolute top-1/2 left-0 h-1 -translate-y-1/2 rounded-full transition-all duration-1000 ${STATUS_COLORS[report.status]?.bg || 'bg-foreground/20'}`}
+                                    className={`absolute top-1/2 left-0 h-1 -translate-y-1/2 rounded-full transition-all duration-1000 ${isFailed ? 'bg-red-500' : 'eco-gradient'}`}
                                     style={{ width: `${Math.max(0, (currentStepIndex / 4) * 100)}%` }}
                                 />
                                 
@@ -182,10 +183,15 @@ export default function TrackReportPage() {
                                         const isActive = idx <= currentStepIndex;
                                         const isCurrent = idx === currentStepIndex;
                                         const isErrorStep = isFailed && idx === 4; // Red cross on resolved if failed
-                                        const colorTheme = STATUS_COLORS[report.status] || STATUS_COLORS.pending;
+                                        const stepKey = STATUS_STEPS[idx];
+                                        const colorTheme = STATUS_COLORS[stepKey] || STATUS_COLORS.pending;
 
                                         return (
-                                            <div key={stepLabel} className="flex flex-col items-center">
+                                            <div 
+                                                key={stepLabel} 
+                                                className="flex flex-col items-center cursor-pointer sm:cursor-default"
+                                                onClick={() => setActiveMobileLabel(activeMobileLabel === idx ? null : idx)}
+                                            >
                                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors z-10 
                                                     ${isActive && !isErrorStep ? `${colorTheme.bg} text-white ${colorTheme.glow}` : 
                                                       isErrorStep ? 'bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 
@@ -193,7 +199,7 @@ export default function TrackReportPage() {
                                                 >
                                                     {isActive && !isErrorStep ? "✓" : isErrorStep ? "✕" : idx + 1}
                                                 </div>
-                                                <span className={`mt-3 text-[10px] font-bold uppercase tracking-widest hidden sm:block ${isActive ? 'text-foreground' : 'text-foreground/40'}`}>
+                                                <span className={`mt-3 text-[10px] font-bold uppercase tracking-widest ${activeMobileLabel === idx ? 'block' : 'hidden sm:block'} ${isActive ? 'text-foreground' : 'text-foreground/40'}`}>
                                                     {stepLabel}
                                                 </span>
                                             </div>
