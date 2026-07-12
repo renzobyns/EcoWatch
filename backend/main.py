@@ -1392,12 +1392,7 @@ async def _bg_verify_submit(report_id: int, device_lat: float = None, device_lon
             db.commit()
             return
 
-        import time
-        start_time = time.time()
         results = await verify_images_async([b for b, _ in pairs])
-        elapsed = time.time() - start_time
-        if elapsed < 4.5:
-            await asyncio.sleep(4.5 - elapsed)
 
         # ANY-wins: if any photo passes the threshold, the report is verified
         any_verified = any(r.get("verified") for r in results)
