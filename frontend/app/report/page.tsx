@@ -13,7 +13,7 @@ const GeoTagCamera = dynamic(() => import("@/components/GeoTagCamera"), { ssr: f
 
 const MiniMap = dynamic(() => import("@/components/MiniMap"), {
     ssr: false,
-    loading: () => <div className="w-full h-full bg-foreground/5 animate-pulse flex items-center justify-center"><p className="text-xs font-bold text-primary">Loading Map...</p></div>
+    loading: () => <div className="w-full h-full bg-foreground/5 animate-pulse flex items-center justify-center"><p className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest">Map Loading...</p></div>
 });
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -58,6 +58,9 @@ export default function ReportPage() {
     const [validating, setValidating] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isAndroid, setIsAndroid] = useState(false);
+
+    const [mapExpanded, setMapExpanded] = useState(false);
+    const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
     useEffect(() => {
         setIsAndroid(/Android/i.test(navigator.userAgent));
@@ -280,8 +283,20 @@ export default function ReportPage() {
     // ── Render ─────────────────────────────────────────────────
     if (!authChecked) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
-                <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+            <div className="min-h-screen bg-background pt-20 pb-12 px-4 flex flex-col items-center">
+                <div className="w-full max-w-lg mb-6 flex items-center justify-between opacity-50">
+                    <div className="w-16 h-4 bg-foreground/10 rounded animate-pulse" />
+                    <div className="flex gap-2"><div className="w-3 h-3 rounded-full bg-foreground/10 animate-pulse" /><div className="w-8 h-0.5 bg-foreground/10" /><div className="w-3 h-3 rounded-full bg-foreground/10 animate-pulse" /></div>
+                </div>
+                <div className="w-full max-w-lg glass p-6 md:p-7 rounded-2xl border border-border shadow-2xl flex flex-col gap-5">
+                    <div className="w-11 h-11 rounded-xl bg-foreground/5 animate-pulse" />
+                    <div>
+                        <div className="w-48 h-6 rounded-md bg-foreground/10 animate-pulse mb-2" />
+                        <div className="w-full h-4 rounded-md bg-foreground/5 animate-pulse" />
+                    </div>
+                    <div className="w-full h-20 rounded-xl bg-foreground/5 animate-pulse mt-2" />
+                    <div className="w-full h-20 rounded-xl bg-foreground/5 animate-pulse" />
+                </div>
             </div>
         );
     }
@@ -457,16 +472,22 @@ export default function ReportPage() {
                             {photos.map((p, i) => (
                                 <div key={p.previewUrl} className="relative shrink-0 w-24 h-24 rounded-xl overflow-hidden border border-border group">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={p.previewUrl} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
-                                    <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-black/60 text-[9px] font-bold text-white uppercase tracking-wide">
+                                    <img 
+                                        src={p.previewUrl} 
+                                        alt={`Photo ${i + 1}`} 
+                                        className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
+                                        onClick={() => setPreviewIndex(i)} 
+                                    />
+                                    <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-black/60 text-[9px] font-bold text-white uppercase tracking-wide pointer-events-none">
                                         {p.source === "camera" ? "📷 Live" : "⬆ Upload"}
                                     </div>
                                     <button
                                         type="button"
                                         onClick={() => removePhoto(i)}
-                                        className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold"
+                                        className="absolute top-1 right-1 w-6 h-6 bg-black/60 text-white rounded-full flex items-center justify-center hover:bg-red-500 transition-colors z-10 shadow-sm"
+                                        title="Remove photo"
                                     >
-                                        Remove
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                     </button>
                                 </div>
                             ))}
@@ -492,9 +513,20 @@ export default function ReportPage() {
                                     </div>
                                     <span className="text-[9px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-1 rounded">Auto-pinned</span>
                                 </div>
-                                <div className="h-28 relative bg-black/50">
+                                <div className={`relative bg-black/50 transition-all duration-300 ${mapExpanded ? 'h-64' : 'h-28'}`}>
                                     <MiniMap lat={lat} lon={lon} />
                                     <div className="absolute inset-0 bg-black/10 pointer-events-none" />
+                                    <button 
+                                        onClick={() => setMapExpanded(!mapExpanded)} 
+                                        className="absolute bottom-2 right-2 p-1.5 rounded-md bg-black/60 text-white hover:bg-black/80 transition-colors z-10 pointer-events-auto shadow-md"
+                                        title={mapExpanded ? "Minimize map" : "Maximize map"}
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            {mapExpanded 
+                                                ? <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" /> 
+                                                : <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />}
+                                        </svg>
+                                    </button>
                                 </div>
                             </div>
                         )}
@@ -504,14 +536,15 @@ export default function ReportPage() {
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
                             placeholder="e.g. It's behind the old church, next to the bridge..."
-                            className="h-24 mb-5"
+                            className="h-24 mb-6 rounded-xl resize-none glass bg-background/50 border-border shadow-inner focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:border-primary/50 transition-all"
                         />
 
                         <div className="flex gap-3">
-                            <Button onClick={() => setStep("source")} disabled={isSubmitting} variant="outline" size="lg" className="flex-1">
-                                Back
+                            <Button onClick={() => setStep("source")} disabled={isSubmitting} variant="outline" size="lg" className="flex-1 rounded-xl flex items-center justify-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                                Retake
                             </Button>
-                            <Button onClick={handleSubmit} disabled={isSubmitting || photos.length === 0} size="lg" className="flex-[2]">
+                            <Button onClick={handleSubmit} disabled={isSubmitting || photos.length === 0} size="lg" className="flex-[2] rounded-xl flex items-center justify-center gap-2">
                                 {isSubmitting ? (
                                     <>
                                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -529,6 +562,25 @@ export default function ReportPage() {
                 )}
             </div>
             {uploadWarningModal}
+
+            {previewIndex !== null && (
+                <div className="fixed inset-0 z-[1400] bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setPreviewIndex(null)}>
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); setPreviewIndex(null); }}
+                        className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
+                        title="Close preview"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img 
+                        src={photos[previewIndex].previewUrl} 
+                        alt="Preview" 
+                        className="max-w-full max-h-[85vh] rounded-lg object-contain shadow-2xl animate-in zoom-in-95 duration-300"
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                </div>
+            )}
         </div>
     );
 }
