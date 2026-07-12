@@ -283,7 +283,7 @@ export default function ReportPage() {
     // ── Render ─────────────────────────────────────────────────
     if (!authChecked) {
         return (
-            <div className="min-h-screen bg-background pt-20 pb-12 px-4 flex flex-col items-center">
+            <div className="min-h-screen bg-background pt-4 pb-8 px-4 flex flex-col items-center">
                 <div className="w-full max-w-lg mb-6 flex items-center justify-between opacity-50">
                     <div className="w-16 h-4 bg-foreground/10 rounded animate-pulse" />
                     <div className="flex gap-2"><div className="w-3 h-3 rounded-full bg-foreground/10 animate-pulse" /><div className="w-8 h-0.5 bg-foreground/10" /><div className="w-3 h-3 rounded-full bg-foreground/10 animate-pulse" /></div>
@@ -358,7 +358,7 @@ export default function ReportPage() {
     }
 
     return (
-        <div className="min-h-screen bg-background pt-20 pb-12 px-4 flex flex-col items-center">
+        <div className="min-h-screen bg-background pt-4 pb-8 px-4 flex flex-col items-center">
             <div className="w-full max-w-lg mb-6 flex items-center justify-between">
                 <button
                     onClick={() => step === "review" ? setStep("source") : router.push("/")}
