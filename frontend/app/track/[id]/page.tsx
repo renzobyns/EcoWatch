@@ -37,7 +37,10 @@ export default function TrackReportPage() {
 
     // Simulate Mask R-CNN scanning progress
     useEffect(() => {
-        if (report?.verification_pending) {
+        if (!report) return;
+
+        if (report.verification_pending) {
+            setScanProgress(0); // Start from 0%
             const interval = setInterval(() => {
                 setScanProgress(p => p < 99 ? p + Math.floor(Math.random() * 8) + 1 : 99);
             }, 300);
@@ -45,7 +48,7 @@ export default function TrackReportPage() {
         } else {
             setScanProgress(100);
         }
-    }, [report?.verification_pending]);
+    }, [report?.verification_pending, report === null]);
 
     // Auto-show mask when scan finishes successfully
     useEffect(() => {
