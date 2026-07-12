@@ -219,14 +219,13 @@ export default function TrackReportPage() {
                                 const activeConfidence = activePhoto?.ai_confidence ?? report.ai_confidence;
                                 return (
                                     <>
-                                        <div className="flex items-center justify-between mb-4">
-                                            <h3 className="text-sm font-bold text-foreground/50 uppercase tracking-widest">Evidence Photo</h3>
+                                        <div className="flex justify-end mb-3">
                                             {activeMaskUrl && (
                                                 <button
                                                     onClick={() => setShowAiMask(!showAiMask)}
-                                                    className={`px-3 py-1 text-xs font-bold rounded-full transition-all flex items-center gap-2 ${showAiMask ? 'bg-primary text-white shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-foreground/10 text-foreground/70 hover:bg-foreground/20'}`}
+                                                    className={`px-3 py-1 text-[11px] font-bold rounded-full transition-all flex items-center gap-2 ${showAiMask ? 'bg-primary text-white shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-foreground/10 text-foreground/60 hover:bg-foreground/20'}`}
                                                 >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                                                     {showAiMask ? "Hide AI Mask" : "View AI Mask"}
                                                 </button>
                                             )}
@@ -255,8 +254,8 @@ export default function TrackReportPage() {
 
                                         {photos && photos.length > 1 && (
                                             <div className="mt-3">
-                                                <p className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-2">
-                                                    All Evidence Photos ({photos.length})
+                                                <p className="text-xs font-medium text-foreground/40 mb-2">
+                                                    {photos.length} Photos Attached
                                                 </p>
                                                 <div className="flex gap-2 overflow-x-auto pb-1">
                                                     {photos.map((photo: any, i: number) => (
@@ -287,7 +286,10 @@ export default function TrackReportPage() {
                             {/* Cleanup Photo (if resolved or failed) */}
                             {report.cleanup_image_url && (
                                 <div className="mt-4">
-                                    <h3 className="text-sm font-bold text-foreground/50 uppercase tracking-widest mb-2">Cleanup Verification</h3>
+                                    <div className="flex items-center gap-2 mb-2 text-foreground/50">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+                                        <h3 className="text-xs font-semibold">Cleanup Verification</h3>
+                                    </div>
                                     <div 
                                         className="w-full h-32 rounded-xl overflow-hidden border border-border relative cursor-pointer group/cleanup"
                                         onClick={() => setPreviewImage(`${API_URL}${report.cleanup_image_url}`)}
@@ -304,29 +306,47 @@ export default function TrackReportPage() {
                         </div>
 
                         <div className="space-y-6">
-                            <div>
-                                <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-widest mb-1">Assigned Barangay</h3>
-                                <p className="text-lg font-semibold text-foreground">{report.barangay || "Locating..."}</p>
+                            <div className="flex items-start gap-3">
+                                <div className="mt-0.5 p-2 rounded-lg bg-foreground/5 text-foreground/50 border border-foreground/10">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                                </div>
+                                <div>
+                                    <p className="text-[11px] font-medium text-foreground/40 uppercase tracking-wider mb-0.5">Assigned Barangay</p>
+                                    <p className="text-base font-semibold text-foreground">{report.barangay || "Locating..."}</p>
+                                </div>
                             </div>
 
-                            <div>
-                                <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-widest mb-1">Date Reported</h3>
-                                <p className="text-base font-medium text-foreground/90">
-                                    {new Date(report.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
-                                </p>
+                            <div className="flex items-start gap-3">
+                                <div className="mt-0.5 p-2 rounded-lg bg-foreground/5 text-foreground/50 border border-foreground/10">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                </div>
+                                <div>
+                                    <p className="text-[11px] font-medium text-foreground/40 uppercase tracking-wider mb-0.5">Date Reported</p>
+                                    <p className="text-sm font-medium text-foreground/90">
+                                        {new Date(report.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                                    </p>
+                                </div>
                             </div>
 
                             {report.notes && (
-                                <div>
-                                    <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-widest mb-1">Citizen Notes</h3>
-                                    <p className="text-sm text-foreground/80 bg-foreground/5 p-4 rounded-xl border border-border italic">
-                                        "{report.notes}"
-                                    </p>
+                                <div className="flex items-start gap-3">
+                                    <div className="mt-0.5 p-2 rounded-lg bg-foreground/5 text-foreground/50 border border-foreground/10">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-[11px] font-medium text-foreground/40 uppercase tracking-wider mb-1">Citizen Notes</p>
+                                        <p className="text-sm text-foreground/80 leading-relaxed italic bg-foreground/5 p-3 rounded-lg border border-border">
+                                            "{report.notes}"
+                                        </p>
+                                    </div>
                                 </div>
                             )}
 
                             <div>
-                                <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-widest mb-2">Location Map</h3>
+                                <div className="flex items-center gap-2 mb-3 text-foreground/50">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/></svg>
+                                    <h3 className="text-xs font-semibold">Location Map</h3>
+                                </div>
                                 <div className={`relative bg-black transition-all duration-300 rounded-xl overflow-hidden border border-border ${mapExpanded ? "h-64" : "h-32"}`}>
                                     <MiniMap lat={report.lat} lon={report.lon} />
                                     <div className="absolute inset-0 bg-black/20 pointer-events-none shadow-inner rounded-xl" />
