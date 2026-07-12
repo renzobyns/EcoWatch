@@ -2184,68 +2184,68 @@ function CenroDashboardInner() {
             {/* SLA Policy Edit Modal */}
             {showSlaModal && (
                 <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                    <div className="glass max-w-md w-full rounded-2xl border border-emerald-500/30 overflow-hidden">
-                        <div className="bg-emerald-900/40 border-b border-emerald-500/30 px-6 py-4 flex items-center justify-between">
-                            <h2 className="text-base font-semibold text-foreground">Edit SLA Policy</h2>
-                            <button onClick={() => setShowSlaModal(false)} className="p-2 text-foreground/50 hover:text-foreground bg-foreground/5 hover:bg-foreground/10 rounded-full">
+                    <div className="bg-card max-w-md w-full rounded-lg border border-border shadow-lg overflow-hidden">
+                        <div className="px-6 py-4 flex items-center justify-between border-b border-border">
+                            <h2 className="text-base font-semibold tracking-tight text-foreground">Edit SLA Policy</h2>
+                            <button onClick={() => setShowSlaModal(false)} className="text-muted-foreground hover:text-foreground transition-colors">
                                 <X size={18} />
                             </button>
                         </div>
                         <div className="p-6 space-y-4">
-                            <p className="text-xs text-foreground/50">Set cleanup SLA thresholds by priority level (in days).</p>
+                            <p className="text-sm text-muted-foreground">Set cleanup SLA thresholds by priority level (in days).</p>
                             <div>
-                                <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1 block">Low Priority (days)</label>
+                                <label className="text-sm font-medium text-muted-foreground mb-1 block">Low Priority (days)</label>
                                 <input
                                     type="number"
                                     min="1"
                                     value={slaDraftLow}
                                     onChange={(e) => setSlaDraftLow(parseInt(e.target.value) || 1)}
-                                    className="w-full px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:outline-none focus:border-primary"
+                                    className="w-full px-3 py-2 rounded-md bg-background border border-border text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                                 />
                             </div>
                             <div>
-                                <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1 block">Medium Priority (days)</label>
+                                <label className="text-sm font-medium text-muted-foreground mb-1 block">Medium Priority (days)</label>
                                 <input
                                     type="number"
                                     min="1"
                                     value={slaDraftMed}
                                     onChange={(e) => setSlaDraftMed(parseInt(e.target.value) || 1)}
-                                    className="w-full px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:outline-none focus:border-primary"
+                                    className="w-full px-3 py-2 rounded-md bg-background border border-border text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                                 />
                             </div>
                             <div>
-                                <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1 block">High Priority (days)</label>
+                                <label className="text-sm font-medium text-muted-foreground mb-1 block">High Priority (days)</label>
                                 <input
                                     type="number"
                                     min="1"
                                     value={slaDraftHigh}
                                     onChange={(e) => setSlaDraftHigh(parseInt(e.target.value) || 1)}
-                                    className="w-full px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:outline-none focus:border-primary"
+                                    className="w-full px-3 py-2 rounded-md bg-background border border-border text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                                 />
                             </div>
                             <div>
-                                <label className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-1 block">Compliance Target (%)</label>
+                                <label className="text-sm font-medium text-muted-foreground mb-1 block">Compliance Target (%)</label>
                                 <input
                                     type="number"
                                     min="0"
                                     max="100"
                                     value={slaDraftTarget}
                                     onChange={(e) => setSlaDraftTarget(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
-                                    className="w-full px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:outline-none focus:border-primary"
+                                    className="w-full px-3 py-2 rounded-md bg-background border border-border text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                                 />
-                                <p className="text-[10px] text-foreground/40 mt-1">City-wide on-time completion target.</p>
+                                <p className="text-xs text-muted-foreground mt-1">City-wide on-time completion target.</p>
                             </div>
-                            <div className="flex gap-3">
+                            <div className="flex gap-3 pt-2">
                                 <button
                                     onClick={() => setShowSlaModal(false)}
-                                    className="flex-1 px-4 py-2 glass border border-border text-foreground text-sm font-bold rounded-lg hover:bg-foreground/10 transition-colors"
+                                    className="flex-1 px-4 h-9 bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm font-medium rounded-md transition-colors"
                                     disabled={slaModalLoading}
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     onClick={handleUpdateSlaPolicy}
-                                    className="flex-1 px-4 py-2 bg-primary text-primary-foreground text-sm font-bold rounded-lg hover:bg-primary/80 transition-colors disabled:opacity-50"
+                                    className="flex-1 px-4 h-9 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium rounded-md shadow-sm transition-colors disabled:opacity-50"
                                     disabled={slaModalLoading}
                                 >
                                     {slaModalLoading ? "Saving..." : "Save"}
