@@ -71,12 +71,12 @@ export function PortalSidebar({
                                 type="button"
                                 onClick={() => onNavChange(item.key)}
                                 title={collapsed ? item.label : undefined}
-                                className={`w-full flex items-center gap-3 rounded-lg text-sm font-medium transition-colors border-l-2 ${
+                                className={`w-full flex items-center gap-3 rounded-lg text-sm font-medium transition-colors ${
                                     collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5"
                                 } ${
                                     isActive
-                                        ? "bg-primary/15 text-primary border-primary"
-                                        : "text-foreground/70 hover:bg-foreground/5 hover:text-foreground border-transparent"
+                                        ? "bg-primary/15 text-primary"
+                                        : "text-foreground/70 hover:bg-foreground/5 hover:text-foreground"
                                 }`}
                             >
                                 <Icon className="size-5 shrink-0" />
