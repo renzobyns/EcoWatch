@@ -44,8 +44,8 @@ type HistoryEntry = {
     user_email: string | null;
     user_full_name: string | null;
     created_at: string;
-    old_policy: any;
-    new_policy: any;
+    old_policy: Record<string, number> | null;
+    new_policy: Record<string, number> | null;
 };
 
 type LastModified = {
@@ -117,7 +117,7 @@ function complianceColor(rate: number, target: number): string {
     return "text-red-300";
 }
 
-function describePolicyDiff(oldPolicy: any, newPolicy: any): string {
+function describePolicyDiff(oldPolicy: Record<string, number> | null, newPolicy: Record<string, number> | null): string {
     if (!newPolicy || typeof newPolicy !== "object") return "Policy updated";
     const labels: Record<string, string> = {
         low: "Low",
@@ -161,17 +161,17 @@ export function SlaManagementTab({
                     <button
                         onClick={onRefresh}
                         disabled={loading}
-                        className="px-4 py-2 glass border border-border text-foreground/70 text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-foreground/10 transition-colors disabled:opacity-50 flex items-center gap-2"
+                        className="px-4 h-9 bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm font-medium tracking-tight rounded-md transition-colors disabled:opacity-50 flex items-center gap-2"
                     >
-                        <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+                        <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
                         Refresh
                     </button>
                     <button
                         onClick={onExport}
                         disabled={exporting}
-                        className="px-5 py-2 bg-emerald-500 text-emerald-950 text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-emerald-400 transition-colors shadow-[0_0_20px_rgba(16,185,129,0.3)] disabled:opacity-50 flex items-center gap-2"
+                        className="px-4 h-9 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium tracking-tight rounded-md transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
                     >
-                        <FileDown size={14} />
+                        <FileDown size={16} />
                         {exporting ? "Exporting…" : "Generate Report"}
                     </button>
                 </div>
@@ -208,18 +208,17 @@ export function SlaManagementTab({
             {/* Row 2 - Active Breaches (left) + At-Risk Queue (right) */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 shrink-0 animate-slide-up stagger-2">
                 {/* Active Breaches */}
-                <div className="lg:col-span-2 glass-pro p-6 rounded-[2.5rem] border border-border bento-card relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/5 rounded-full blur-[80px] pointer-events-none" />
+                <div className="lg:col-span-2 bg-card p-6 rounded-lg border border-border shadow-sm">
                     <div className="flex items-center justify-between mb-5 relative z-10 flex-wrap gap-3">
                         <div className="flex items-center gap-3">
                             <AlertTriangle size={20} className="text-red-400" />
                             <h2 className="text-base font-bold text-foreground">Active Breaches</h2>
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-300 uppercase tracking-widest">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-red-500/20 text-red-600 dark:text-red-400 tracking-tight">
                                 {breached.length} {breached.length === 1 ? "WO" : "WOs"}
                             </span>
                         </div>
                         {breached.length > 0 && (
-                            <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-red-500/20 text-red-300 border border-red-500/30 uppercase tracking-widest">
+                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/30 tracking-tight">
                                 Immediate Action Required
                             </span>
                         )}
@@ -236,31 +235,31 @@ export function SlaManagementTab({
                         ) : (
                             <table className="w-full text-left text-sm">
                                 <thead>
-                                    <tr className="border-b border-border text-[10px] text-foreground/40 uppercase tracking-widest">
-                                        <th className="py-3 pr-4">Report ID</th>
-                                        <th className="py-3 pr-4">Barangay</th>
-                                        <th className="py-3 pr-4">Priority</th>
-                                        <th className="py-3 pr-4">Overdue</th>
-                                        <th className="py-3 pr-4">Cleaner</th>
-                                        <th className="py-3">Status</th>
+                                    <tr className="border-b border-border bg-muted/50 text-xs text-muted-foreground font-medium tracking-tight">
+                                        <th className="py-3 px-4 rounded-tl-lg">Report ID</th>
+                                        <th className="py-3 px-4">Barangay</th>
+                                        <th className="py-3 px-4">Priority</th>
+                                        <th className="py-3 px-4">Overdue</th>
+                                        <th className="py-3 px-4">Cleaner</th>
+                                        <th className="py-3 px-4 rounded-tr-lg">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {breached.slice(0, 8).map((wo) => (
-                                        <tr key={wo.id} className="border-b border-border/50 hover:bg-foreground/5">
-                                            <td className="py-3 pr-4 font-mono text-xs text-foreground">{wo.report_tracking_id || `WO-${wo.id}`}</td>
-                                            <td className="py-3 pr-4 text-foreground/80">{wo.report_barangay || "—"}</td>
-                                            <td className="py-3 pr-4">
-                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${PRIORITY_PILL[wo.priority] || "bg-foreground/10 text-foreground/60 border-border"}`}>
+                                        <tr key={wo.id} className="border-b border-border/50 hover:bg-muted/50">
+                                            <td className="py-3 px-4 font-mono text-xs text-foreground">{wo.report_tracking_id || `WO-${wo.id}`}</td>
+                                            <td className="py-3 px-4 text-foreground/80">{wo.report_barangay || "—"}</td>
+                                            <td className="py-3 px-4">
+                                                <span className={`px-2 py-0.5 rounded text-[10px] font-semibold tracking-tight border ${PRIORITY_PILL[wo.priority] || "bg-muted text-muted-foreground border-border"}`}>
                                                     {wo.priority}
                                                 </span>
                                             </td>
-                                            <td className="py-3 pr-4 text-red-400 font-bold text-xs">
+                                            <td className="py-3 px-4 text-red-600 dark:text-red-400 font-medium text-sm">
                                                 {formatOverdue(wo.overdue_hours || 0, wo.overdue_days || 0)}
                                             </td>
-                                            <td className="py-3 pr-4 text-foreground/80 text-xs">{wo.assigned_cleaner_name || "Unassigned"}</td>
-                                            <td className="py-3">
-                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${WO_STATUS_PILL[wo.status] || "bg-foreground/10 text-foreground/60"}`}>
+                                            <td className="py-3 px-4 text-foreground/80 text-xs">{wo.assigned_cleaner_name || "Unassigned"}</td>
+                                            <td className="py-3 px-4">
+                                                <span className={`px-2 py-0.5 rounded text-[10px] font-semibold tracking-tight ${WO_STATUS_PILL[wo.status] || "bg-muted text-muted-foreground"}`}>
                                                     BREACHED
                                                 </span>
                                             </td>
@@ -276,14 +275,13 @@ export function SlaManagementTab({
                 </div>
 
                 {/* At-Risk Queue */}
-                <div className="lg:col-span-1 glass-pro p-6 rounded-[2.5rem] border border-border bento-card relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-yellow-500/5 rounded-full blur-[80px] pointer-events-none" />
+                <div className="lg:col-span-1 bg-card p-6 rounded-lg border border-border shadow-sm">
                     <div className="flex items-center justify-between mb-5 relative z-10">
                         <div className="flex items-center gap-2">
                             <Clock size={18} className="text-yellow-400" />
                             <h2 className="text-base font-bold text-foreground">At-Risk Queue (24h)</h2>
                         </div>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-500/20 text-yellow-300 uppercase tracking-widest">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-tight bg-yellow-500/20 text-yellow-600 dark:text-yellow-400">
                             {atRisk.length} {atRisk.length === 1 ? "WO" : "WOs"}
                         </span>
                     </div>
@@ -304,7 +302,7 @@ export function SlaManagementTab({
                                         <div className="font-mono text-xs font-bold text-foreground truncate">{wo.report_tracking_id || `WO-${wo.id}`}</div>
                                         <div className="text-[11px] text-foreground/50 truncate mt-0.5">{wo.report_barangay || "—"}</div>
                                     </div>
-                                    <span className={`px-2 py-1 rounded-md text-[10px] font-bold border whitespace-nowrap ${remainingPillColor(wo.remaining_seconds || 0)}`}>
+                                    <span className={`px-2 py-1 rounded-md text-[10px] font-semibold tracking-tight border whitespace-nowrap ${remainingPillColor(wo.remaining_seconds || 0)}`}>
                                         Breach in {formatRemaining(wo.remaining_seconds || 0)}
                                     </span>
                                 </div>
@@ -320,8 +318,7 @@ export function SlaManagementTab({
             {/* Row 3 - History (left) + Policy Config + Top Performing (right) */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 shrink-0 animate-slide-up stagger-3">
                 {/* SLA Policy History (timeline) */}
-                <div className="lg:col-span-2 glass-pro p-6 rounded-[2.5rem] border border-border bento-card relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-[80px] pointer-events-none" />
+                <div className="lg:col-span-2 bg-card p-6 rounded-lg border border-border shadow-sm">
                     <div className="flex items-center gap-2 mb-5 relative z-10">
                         <History size={18} className="text-emerald-400" />
                         <h2 className="text-base font-bold text-foreground">SLA Policy History</h2>
@@ -368,8 +365,7 @@ export function SlaManagementTab({
                 {/* Right column: SLA Policy Config + Top Performing */}
                 <div className="lg:col-span-1 flex flex-col gap-6">
                     {/* SLA Policy Config */}
-                    <div className="glass-pro p-6 rounded-[2.5rem] border border-border bento-card relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-[80px] pointer-events-none" />
+                    <div className="bg-card p-6 rounded-lg border border-border shadow-sm">
                         <div className="flex items-center justify-between mb-4 relative z-10">
                             <div className="flex items-center gap-2">
                                 <Settings2 size={18} className="text-emerald-400" />
@@ -386,8 +382,8 @@ export function SlaManagementTab({
 
                             <div className="pt-1">
                                 <div className="flex items-center justify-between mb-1.5">
-                                    <span className="text-[10px] text-foreground/50 uppercase tracking-widest font-bold">Compliance Threshold</span>
-                                    <span className="text-[11px] text-emerald-300 font-bold">{slaPolicy.compliance_target}% Target</span>
+                                    <span className="text-xs font-medium text-muted-foreground">Compliance Threshold</span>
+                                    <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{slaPolicy.compliance_target}% Target</span>
                                 </div>
                                 <div className="h-2 rounded-full bg-foreground/10 overflow-hidden">
                                     <div
@@ -408,17 +404,16 @@ export function SlaManagementTab({
 
                             <button
                                 onClick={onEditPolicy}
-                                className="w-full px-4 py-2.5 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold uppercase tracking-widest hover:bg-emerald-500/30 rounded-xl transition-colors flex items-center justify-center gap-2"
+                                className="w-full px-4 h-9 bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm font-medium tracking-tight rounded-md transition-colors flex items-center justify-center gap-2"
                             >
-                                <Settings2 size={14} />
+                                <Settings2 size={16} />
                                 Edit SLA Policy
                             </button>
                         </div>
                     </div>
 
                     {/* Top Performing Barangays */}
-                    <div className="glass-pro p-6 rounded-[2.5rem] border border-border bento-card relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-[80px] pointer-events-none" />
+                    <div className="bg-card p-6 rounded-lg border border-border shadow-sm">
                         <div className="flex items-center gap-2 mb-4 relative z-10">
                             <Award size={18} className="text-emerald-400" />
                             <h2 className="text-base font-bold text-foreground">Top Performing Barangays</h2>
@@ -452,13 +447,12 @@ export function SlaManagementTab({
             </div>
 
             {/* Row 4 - Full Per-Barangay Performance Table */}
-            <div className="glass-pro p-6 rounded-[2.5rem] border border-border bento-card relative overflow-hidden shrink-0 animate-slide-up stagger-4">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-[80px] pointer-events-none" />
+            <div className="bg-card p-6 rounded-lg border border-border shadow-sm shrink-0 animate-slide-up stagger-4">
                 <div className="flex items-center justify-between mb-5 relative z-10 flex-wrap gap-3">
                     <div className="flex items-center gap-2">
                         <TrendingUp size={18} className="text-emerald-400" />
                         <h2 className="text-base font-bold text-foreground">Per-Barangay SLA Performance</h2>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-foreground/10 text-foreground/60 uppercase tracking-widest">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-tight bg-muted text-muted-foreground">
                             sorted worst → best
                         </span>
                     </div>
@@ -475,30 +469,30 @@ export function SlaManagementTab({
                     ) : (
                         <table className="w-full text-left text-sm">
                             <thead>
-                                <tr className="border-b border-border text-[10px] text-foreground/40 uppercase tracking-widest">
-                                    <th className="py-3 pr-4">Barangay</th>
-                                    <th className="py-3 pr-4 text-right">Total WOs</th>
-                                    <th className="py-3 pr-4 text-right">Completed</th>
-                                    <th className="py-3 pr-4 text-right">On-Time</th>
-                                    <th className="py-3 pr-4 text-right">Compliance</th>
-                                    <th className="py-3 pr-4 text-right">Avg Days</th>
-                                    <th className="py-3 text-right">Active Breaches</th>
+                                <tr className="border-b border-border bg-muted/50 text-xs text-muted-foreground font-medium tracking-tight">
+                                    <th className="py-3 px-4 rounded-tl-lg">Barangay</th>
+                                    <th className="py-3 px-4 text-right">Total WOs</th>
+                                    <th className="py-3 px-4 text-right">Completed</th>
+                                    <th className="py-3 px-4 text-right">On-Time</th>
+                                    <th className="py-3 px-4 text-right">Compliance</th>
+                                    <th className="py-3 px-4 text-right">Avg Days</th>
+                                    <th className="py-3 px-4 text-right rounded-tr-lg">Active Breaches</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {byBarangay.map((b) => (
-                                    <tr key={b.barangay} className="border-b border-border/50 hover:bg-foreground/5">
-                                        <td className="py-3 pr-4 font-semibold text-foreground">{b.barangay}</td>
-                                        <td className="py-3 pr-4 text-right text-foreground/70">{b.total_wos}</td>
-                                        <td className="py-3 pr-4 text-right text-foreground/70">{b.total_completed}</td>
-                                        <td className="py-3 pr-4 text-right text-foreground/70">{b.on_time}</td>
-                                        <td className={`py-3 pr-4 text-right font-bold ${complianceColor(b.compliance_rate, slaPolicy.compliance_target)}`}>
+                                    <tr key={b.barangay} className="border-b border-border/50 hover:bg-muted/50">
+                                        <td className="py-3 px-4 font-semibold text-foreground">{b.barangay}</td>
+                                        <td className="py-3 px-4 text-right text-foreground/70">{b.total_wos}</td>
+                                        <td className="py-3 px-4 text-right text-foreground/70">{b.total_completed}</td>
+                                        <td className="py-3 px-4 text-right text-foreground/70">{b.on_time}</td>
+                                        <td className={`py-3 px-4 text-right font-bold ${complianceColor(b.compliance_rate, slaPolicy.compliance_target)}`}>
                                             {b.compliance_rate}%
                                         </td>
-                                        <td className="py-3 pr-4 text-right text-foreground/70">{b.avg_resolution_days}d</td>
-                                        <td className="py-3 text-right">
+                                        <td className="py-3 px-4 text-right text-foreground/70">{b.avg_resolution_days}d</td>
+                                        <td className="py-3 px-4 text-right">
                                             {b.active_breaches > 0 ? (
-                                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-300 uppercase tracking-widest">
+                                                <span className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-tight bg-red-500/20 text-red-600 dark:text-red-400">
                                                     {b.active_breaches}
                                                 </span>
                                             ) : (
@@ -520,24 +514,18 @@ export function SlaManagementTab({
 
 function KpiCard({ label, value, icon, tone }: { label: string; value: string; icon: React.ReactNode; tone: "red" | "yellow" | "emerald" | "blue" }) {
     const toneClasses = {
-        red: "bg-red-500/20 text-red-400 shadow-[0_0_20px_rgba(239,68,68,0.2)]",
-        yellow: "bg-yellow-500/20 text-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.2)]",
-        emerald: "bg-emerald-500/20 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)]",
-        blue: "bg-blue-500/20 text-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.2)]",
-    } as const;
-    const valueColor = {
-        red: "text-red-400",
-        yellow: "text-yellow-400",
-        emerald: "text-emerald-300",
-        blue: "text-blue-300",
+        red: "bg-red-500/20 text-red-600 dark:text-red-400",
+        yellow: "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400",
+        emerald: "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400",
+        blue: "bg-blue-500/20 text-blue-600 dark:text-blue-400",
     } as const;
     return (
-        <div className="glass-pro p-5 rounded-2xl bento-card flex items-center justify-between gap-4">
+        <div className="bg-card border border-border shadow-sm p-5 rounded-lg flex items-center justify-between gap-4">
             <div className="min-w-0">
-                <div className="text-[11px] text-foreground/50 uppercase tracking-widest font-bold mb-1.5 truncate">{label}</div>
-                <div className={`text-3xl font-bold tracking-tight ${valueColor[tone]}`}>{value}</div>
+                <div className="text-sm font-medium text-muted-foreground mb-1 truncate">{label}</div>
+                <div className="text-2xl font-bold tracking-tight text-foreground">{value}</div>
             </div>
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${toneClasses[tone]}`}>
+            <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 ${toneClasses[tone]}`}>
                 {icon}
             </div>
         </div>
@@ -546,24 +534,27 @@ function KpiCard({ label, value, icon, tone }: { label: string; value: string; i
 
 function PolicyTile({ label, value, unit, tone }: { label: string; value: number; unit: string; tone: "blue" | "yellow" | "red" }) {
     const tones = {
-        blue: { bg: "bg-blue-500/10", border: "border-blue-500/20", text: "text-blue-300" },
-        yellow: { bg: "bg-yellow-500/10", border: "border-yellow-500/20", text: "text-yellow-300" },
-        red: { bg: "bg-red-500/10", border: "border-red-500/20", text: "text-red-300" },
+        blue: "bg-blue-500/10 border-blue-500/20",
+        yellow: "bg-yellow-500/10 border-yellow-500/20",
+        red: "bg-red-500/10 border-red-500/20",
     } as const;
-    const t = tones[tone];
     return (
-        <div className={`p-3 rounded-xl border ${t.bg} ${t.border} text-center`}>
-            <div className="text-[9px] uppercase tracking-widest font-bold text-foreground/50 mb-1">{label}</div>
-            <div className={`text-xl font-bold ${t.text}`}>{value}{unit}</div>
+        <div className={`p-3 rounded-lg border ${tones[tone]} text-center`}>
+            <div className="text-xs font-medium text-muted-foreground mb-1">{label}</div>
+            <div className="text-xl font-bold text-foreground">{value}{unit}</div>
         </div>
     );
 }
 
 function SkeletonRows({ count = 4 }: { count?: number }) {
     return (
-        <div className="space-y-2">
+        <div className="space-y-3">
             {Array.from({ length: count }).map((_, i) => (
-                <div key={i} className="h-10 bg-foreground/5 rounded animate-pulse" />
+                <div key={i} className="flex items-center gap-4 py-2 border-b border-border/50 animate-pulse">
+                    <div className="h-4 bg-muted rounded w-24 shrink-0" />
+                    <div className="h-4 bg-muted rounded w-1/3" />
+                    <div className="h-4 bg-muted rounded w-16 ml-auto" />
+                </div>
             ))}
         </div>
     );
@@ -571,9 +562,15 @@ function SkeletonRows({ count = 4 }: { count?: number }) {
 
 function SkeletonCards({ count = 3 }: { count?: number }) {
     return (
-        <div className="space-y-2.5">
+        <div className="space-y-3">
             {Array.from({ length: count }).map((_, i) => (
-                <div key={i} className="h-14 bg-foreground/5 rounded-xl animate-pulse" />
+                <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-border animate-pulse">
+                    <div className="w-10 h-10 bg-muted rounded-md shrink-0" />
+                    <div className="flex-1 space-y-2">
+                        <div className="h-3 bg-muted rounded w-1/3" />
+                        <div className="h-2 bg-muted rounded w-1/2" />
+                    </div>
+                </div>
             ))}
         </div>
     );
@@ -581,10 +578,10 @@ function SkeletonCards({ count = 3 }: { count?: number }) {
 
 function EmptyState({ icon, title, subtitle, small }: { icon: React.ReactNode; title: string; subtitle: string; small?: boolean }) {
     return (
-        <div className={`flex flex-col items-center justify-center text-center ${small ? "py-6" : "py-10"} gap-2`}>
-            {icon}
-            <p className="text-sm font-bold text-foreground/70">{title}</p>
-            <p className="text-xs text-foreground/40 max-w-xs">{subtitle}</p>
+        <div className={`flex flex-col items-center justify-center text-center ${small ? "py-8" : "py-12"} gap-2 border border-dashed border-border rounded-lg bg-card`}>
+            <div className="text-muted-foreground/50 mb-1">{icon}</div>
+            <p className="text-sm font-medium text-foreground/80">{title}</p>
+            <p className="text-xs text-muted-foreground max-w-xs">{subtitle}</p>
         </div>
     );
 }
