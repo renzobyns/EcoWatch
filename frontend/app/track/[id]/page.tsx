@@ -32,6 +32,19 @@ export default function TrackReportPage() {
     const [mapModalOpen, setMapModalOpen] = useState(false);
     const [previewImage, setPreviewImage] = useState<string | null>(null);
     const [activeMobileLabel, setActiveMobileLabel] = useState<number | null>(null);
+    const [scanProgress, setScanProgress] = useState(0);
+
+    // Simulate Mask R-CNN scanning progress
+    useEffect(() => {
+        if (report?.verification_pending) {
+            const interval = setInterval(() => {
+                setScanProgress(p => p < 99 ? p + Math.floor(Math.random() * 8) + 1 : 99);
+            }, 300);
+            return () => clearInterval(interval);
+        } else {
+            setScanProgress(100);
+        }
+    }, [report?.verification_pending]);
 
     function selectPhoto(idx: number) {
         setSelectedPhotoIdx(idx);
@@ -242,7 +255,53 @@ export default function TrackReportPage() {
                                             ) : (
                                                 <div className="absolute inset-0 flex items-center justify-center text-foreground/30">No Image</div>
                                             )}
-                                            {activeConfidence && (
+                                            {report?.verification_pending && (
+                                                <div className="absolute inset-0 z-20 pointer-events-none overflow-hidden rounded-lg">
+                                                    <style>{`
+                                                        @keyframes scanline {
+                                                            0% { top: 0%; opacity: 0; }
+                                                            10% { opacity: 1; }
+                                                            90% { opacity: 1; }
+                                                            100% { top: 100%; opacity: 0; }
+                                                        }
+                                                        @keyframes draw-box {
+                                                            0%, 100% { opacity: 0; transform: scale(0.95); }
+                                                            50% { opacity: 1; transform: scale(1); }
+                                                        }
+                                                    `}</style>
+                                                    
+                                                    {/* Sweeping Laser Line */}
+                                                    <div className="absolute left-0 right-0 h-[2px] bg-primary shadow-[0_0_20px_5px_#10b981] animate-[scanline_2.5s_linear_infinite]" />
+                                                    
+                                                    {/* Simulated RPN Bounding Boxes */}
+                                                    <div className="absolute top-[25%] left-[20%] w-[45%] h-[40%] border-2 border-primary/50 bg-primary/10 rounded-sm animate-[draw-box_1.5s_ease-in-out_infinite]" />
+                                                    <div className="absolute top-[55%] left-[55%] w-[30%] h-[30%] border-2 border-primary/50 bg-primary/10 rounded-sm animate-[draw-box_1.8s_ease-in-out_infinite_0.4s]" />
+                                                    <div className="absolute top-[15%] left-[65%] w-[20%] h-[25%] border-2 border-primary/50 bg-primary/10 rounded-sm animate-[draw-box_2.1s_ease-in-out_infinite_0.8s]" />
+
+                                                    {/* Progress Overlay */}
+                                                    <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] flex items-center justify-center flex-col gap-3">
+                                                        <div className="bg-black/90 px-6 py-5 rounded-2xl border border-primary/30 flex flex-col items-center gap-3 backdrop-blur-xl shadow-[0_0_30px_rgba(16,185,129,0.15)]">
+                                                            <div className="relative w-14 h-14 flex items-center justify-center">
+                                                                <svg className="animate-spin w-full h-full text-primary" viewBox="0 0 24 24">
+                                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" fill="none" />
+                                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                                                </svg>
+                                                                <span className="absolute text-xs font-bold text-white">{scanProgress}%</span>
+                                                            </div>
+                                                            <div className="flex flex-col items-center">
+                                                                <span className="text-[13px] font-bold text-white tracking-widest uppercase mb-1 drop-shadow-md">Mask R-CNN Scanning</span>
+                                                                <span className="text-[10px] font-mono text-primary uppercase opacity-80">
+                                                                    {scanProgress < 30 ? "Extracting features..." : 
+                                                                     scanProgress < 60 ? "Proposing regions..." : 
+                                                                     scanProgress < 90 ? "Generating masks..." : "Finalizing output..."}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {!report?.verification_pending && activeConfidence && (
                                                 <div className="absolute bottom-3 right-3 glass px-3 py-1.5 rounded-md border border-primary/30 flex items-center gap-2 backdrop-blur-md">
                                                     <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
                                                     <span className="text-xs font-bold text-foreground">AI Confidence: {(activeConfidence * 100).toFixed(0)}%</span>
