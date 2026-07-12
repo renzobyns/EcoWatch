@@ -139,9 +139,16 @@ function titleCase(s: string): string {
 
 function TabLoading() {
     return (
-        <div className="space-y-2 pt-1">
-            {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-14 glass rounded-xl animate-pulse" />
+        <div className="flex flex-col gap-3 pt-1">
+            {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="bg-card rounded-lg border border-border shadow-sm p-3 animate-pulse flex gap-3">
+                    <div className="w-12 h-12 rounded-md bg-muted shrink-0" />
+                    <div className="flex-1 space-y-2 py-1">
+                        <div className="h-4 bg-muted rounded w-1/3" />
+                        <div className="h-3 bg-muted rounded w-1/2" />
+                        <div className="h-3 bg-muted rounded w-5/6 mt-2" />
+                    </div>
+                </div>
             ))}
         </div>
     );
@@ -149,11 +156,11 @@ function TabLoading() {
 
 function TabError({ message, onRetry }: { message: string; onRetry: () => void }) {
     return (
-        <div className="flex flex-col items-center gap-3 py-10 text-center">
-            <p className="text-sm text-red-400">{message}</p>
+        <div className="flex flex-col items-center justify-center gap-3 py-12 text-center bg-card rounded-lg border border-border border-dashed shadow-sm">
+            <p className="text-sm font-medium text-destructive">{message}</p>
             <button
                 onClick={onRetry}
-                className="px-4 py-2 glass border border-border rounded-lg text-xs font-bold uppercase tracking-widest text-foreground/60 hover:text-foreground transition-colors"
+                className="px-4 py-2 h-9 bg-secondary hover:bg-secondary/80 rounded-md text-sm font-medium tracking-tight text-secondary-foreground transition-colors"
             >
                 Retry
             </button>
@@ -163,8 +170,9 @@ function TabError({ message, onRetry }: { message: string; onRetry: () => void }
 
 function TabEmpty({ message }: { message: string }) {
     return (
-        <div className="py-12 text-center text-foreground/40">
-            <p className="text-sm">{message}</p>
+        <div className="py-12 text-center text-muted-foreground flex flex-col items-center gap-2">
+            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-xl mb-1">📋</div>
+            <p className="text-sm font-medium">{message}</p>
         </div>
     );
 }
@@ -260,7 +268,7 @@ export function ReportDetailDrawer({
 
             {/* Drawer panel */}
             <div
-                className={`fixed inset-y-0 right-0 z-[2001] w-full max-w-[480px] flex flex-col glass border-l border-border shadow-2xl transition-transform duration-300 ease-out ${
+                className={`fixed inset-y-0 right-0 z-[2001] w-full max-w-[480px] flex flex-col bg-background border-l border-border shadow-2xl transition-transform duration-300 ease-out ${
                     open ? "translate-x-0" : "translate-x-full"
                 }`}
             >
@@ -271,7 +279,7 @@ export function ReportDetailDrawer({
                             <h2 className="text-lg font-bold text-foreground leading-tight">
                                 Report {report.tracking_id ?? `#${report.id}`}
                             </h2>
-                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-widest ${statusPillClass}`}>
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-tight ${statusPillClass}`}>
                                 {report.status.replace("_", " ")}
                             </span>
                         </div>
@@ -288,15 +296,15 @@ export function ReportDetailDrawer({
                 </div>
 
                 {/* Tab strip */}
-                <div className="flex gap-0.5 px-4 pt-3 border-b border-border shrink-0 overflow-x-auto scrollbar-hide">
+                <div className="flex gap-4 px-6 border-b border-border shrink-0 overflow-x-auto scrollbar-hide">
                     {TABS.map(t => (
                         <button
                             key={t.key}
                             onClick={() => setActiveTab(t.key)}
-                            className={`flex items-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest whitespace-nowrap transition-colors rounded-t-lg border ${
+                            className={`flex items-center gap-2 py-3 text-xs font-medium transition-colors border-b-2 whitespace-nowrap ${
                                 activeTab === t.key
-                                    ? "bg-primary/15 border-primary/30 border-b-transparent text-primary"
-                                    : "text-foreground/40 hover:text-foreground hover:bg-foreground/5 border-transparent"
+                                    ? "border-primary text-foreground"
+                                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                             }`}
                         >
                             {t.icon}
@@ -350,14 +358,14 @@ export function ReportDetailDrawer({
                         <select
                             value={newBarangay}
                             onChange={(e) => setNewBarangay(e.target.value)}
-                            className="flex-1 bg-foreground/5 border border-border rounded-xl px-3 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary"
+                            className="flex-1 bg-transparent border border-input rounded-md px-3 h-9 text-sm text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
                         >
                             {barangays.map(b => <option key={b} value={b}>{b}</option>)}
                         </select>
                         <button
                             onClick={onReassign}
                             disabled={actionLoading || newBarangay === report.barangay}
-                            className="px-4 py-2.5 bg-primary hover:bg-emerald-400 text-white text-xs font-bold uppercase tracking-widest rounded-xl shadow-lg disabled:opacity-50 transition-colors whitespace-nowrap"
+                            className="px-4 h-9 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium tracking-tight rounded-md shadow-sm disabled:opacity-50 transition-colors whitespace-nowrap"
                         >
                             Update Route
                         </button>
@@ -365,7 +373,7 @@ export function ReportDetailDrawer({
                     <button
                         onClick={onForceClose}
                         disabled={actionLoading || report.status === "resolved"}
-                        className="w-full py-2.5 bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-widest rounded-xl shadow-lg disabled:opacity-50 transition-colors"
+                        className="w-full h-9 bg-destructive hover:bg-destructive/90 text-destructive-foreground text-sm font-medium tracking-tight rounded-md shadow-sm disabled:opacity-50 transition-colors"
                     >
                         Force Close Ticket
                     </button>
@@ -458,30 +466,30 @@ function OverviewTab({ report, detail, loading, error, onRetry, onDuplicateConfi
             )}
 
             {/* Status / IDs */}
-            <div className="glass-pro rounded-2xl border border-border p-4">
-                <div className="text-[10px] text-foreground/40 uppercase tracking-widest font-bold mb-3">Status & IDs</div>
+            <div className="bg-card rounded-lg border border-border shadow-sm p-4">
+                <div className="text-sm font-semibold tracking-tight text-foreground mb-3">Status & IDs</div>
                 <div className="grid grid-cols-2 gap-3 text-xs">
                     <div>
-                        <div className="text-[9px] text-foreground/40 uppercase tracking-widest">Tracking ID</div>
+                        <div className="text-xs font-medium tracking-tight text-muted-foreground">Tracking ID</div>
                         <div className="font-mono font-bold text-foreground">{report.tracking_id ?? `#${report.id}`}</div>
                     </div>
                     <div>
-                        <div className="text-[9px] text-foreground/40 uppercase tracking-widest">Barangay</div>
-                        <div className="font-bold text-emerald-300">{report.barangay ?? "Unassigned"}</div>
+                        <div className="text-xs font-medium tracking-tight text-muted-foreground">Barangay</div>
+                        <div className="font-medium text-foreground">{report.barangay ?? "Unassigned"}</div>
                     </div>
                     <div>
-                        <div className="text-[9px] text-foreground/40 uppercase tracking-widest">Reported</div>
+                        <div className="text-xs font-medium tracking-tight text-muted-foreground">Reported</div>
                         <div className="text-foreground/80">{formatDate(report.created_at)}</div>
                     </div>
                     {report.deployed_at && (
                         <div>
-                            <div className="text-[9px] text-foreground/40 uppercase tracking-widest">Deployed</div>
+                            <div className="text-xs font-medium tracking-tight text-muted-foreground">Deployed</div>
                             <div className="text-foreground/80">{formatDate(report.deployed_at)}</div>
                         </div>
                     )}
                     {report.resolved_at && (
                         <div>
-                            <div className="text-[9px] text-foreground/40 uppercase tracking-widest">Resolved</div>
+                            <div className="text-xs font-medium tracking-tight text-muted-foreground">Resolved</div>
                             <div className="text-foreground/80">{formatDate(report.resolved_at)}</div>
                         </div>
                     )}
@@ -489,8 +497,8 @@ function OverviewTab({ report, detail, loading, error, onRetry, onDuplicateConfi
             </div>
 
             {/* Reporter */}
-            <div className="glass-pro rounded-2xl border border-border p-4">
-                <div className="text-[10px] text-foreground/40 uppercase tracking-widest font-bold mb-3">Reporter</div>
+            <div className="bg-card rounded-lg border border-border shadow-sm p-4">
+                <div className="text-sm font-semibold tracking-tight text-foreground mb-3">Reporter</div>
                 {report.reporter_id === null ? (
                     <div className="flex items-center gap-3 text-foreground/50">
                         <div className="w-10 h-10 rounded-full bg-foreground/5 border border-border flex items-center justify-center shrink-0">
@@ -528,8 +536,8 @@ function OverviewTab({ report, detail, loading, error, onRetry, onDuplicateConfi
             </div>
 
             {/* Location */}
-            <div className="glass-pro rounded-2xl border border-border p-4">
-                <div className="text-[10px] text-foreground/40 uppercase tracking-widest font-bold mb-3">Location</div>
+            <div className="bg-card rounded-lg border border-border shadow-sm p-4">
+                <div className="text-sm font-semibold tracking-tight text-foreground mb-3">Location</div>
                 <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 text-sm text-foreground/80">
@@ -549,8 +557,8 @@ function OverviewTab({ report, detail, loading, error, onRetry, onDuplicateConfi
             </div>
 
             {/* AI Verification */}
-            <div className="glass-pro rounded-2xl border border-border p-4">
-                <div className="text-[10px] text-foreground/40 uppercase tracking-widest font-bold mb-3">AI Verification</div>
+            <div className="bg-card rounded-lg border border-border shadow-sm p-4">
+                <div className="text-sm font-semibold tracking-tight text-foreground mb-3">AI Verification</div>
                 <TrustBadge
                     trust_score={report.trust_score as "high" | "medium" | "low" | null}
                     trust_reasons={report.trust_reasons}
@@ -572,17 +580,17 @@ function OverviewTab({ report, detail, loading, error, onRetry, onDuplicateConfi
 
             {/* Notes */}
             {(report.notes || report.deployment_notes) && (
-                <div className="glass-pro rounded-2xl border border-border p-4 space-y-3">
-                    <div className="text-[10px] text-foreground/40 uppercase tracking-widest font-bold">Notes</div>
+                <div className="bg-card rounded-lg border border-border shadow-sm p-4 space-y-3">
+                    <div className="text-sm font-semibold tracking-tight text-foreground">Notes</div>
                     {report.notes && (
                         <div>
-                            <div className="text-[9px] text-foreground/40 uppercase tracking-widest mb-1">Citizen</div>
+                            <div className="text-xs font-medium tracking-tight text-muted-foreground mb-1">Citizen</div>
                             <p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">{report.notes}</p>
                         </div>
                     )}
                     {report.deployment_notes && (
                         <div>
-                            <div className="text-[9px] text-foreground/40 uppercase tracking-widest mb-1">Deployment</div>
+                            <div className="text-xs font-medium tracking-tight text-muted-foreground mb-1">Deployment</div>
                             <p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">{report.deployment_notes}</p>
                         </div>
                     )}
@@ -644,10 +652,10 @@ function EvidenceTab({
         <div className="flex flex-col gap-5">
             {citizenPhotos.length > 0 && (
                 <div>
-                    <div className="text-[10px] text-foreground/40 uppercase tracking-widest font-bold mb-2">Citizen Evidence</div>
+                    <div className="text-sm font-semibold tracking-tight text-foreground mb-2">Citizen Evidence</div>
                     <div className="flex flex-col gap-4">
                         {citizenPhotos.map((p, i) => (
-                            <div key={i} className="glass-pro rounded-xl border border-border p-3">
+                            <div key={i} className="bg-card rounded-lg border border-border shadow-sm p-3">
                                 <div className="grid grid-cols-2 gap-2">
                                     <button
                                         onClick={() => setLightbox(`${API_URL}${p.url}`)}
@@ -684,10 +692,10 @@ function EvidenceTab({
 
             {cleanupPhotos.length > 0 && (
                 <div>
-                    <div className="text-[10px] text-foreground/40 uppercase tracking-widest font-bold mb-2">Cleanup Proof</div>
+                    <div className="text-sm font-semibold tracking-tight text-foreground mb-2">Cleanup Proof</div>
                     <div className="flex flex-col gap-2">
                         {cleanupPhotos.map((cp) => (
-                            <div key={cp.id} className="glass-pro rounded-xl border border-border p-3 flex gap-3">
+                            <div key={cp.id} className="bg-card rounded-lg border border-border shadow-sm p-3 flex gap-3">
                                 <button
                                     onClick={() => setLightbox(`${API_URL}${cp.url}`)}
                                     className="w-20 h-20 rounded-lg overflow-hidden bg-foreground/5 border border-border shrink-0 hover:border-primary/40 transition-colors"
@@ -743,13 +751,13 @@ function WorkOrdersTab({ detail, loading, error, onRetry }: {
     return (
         <div className="flex flex-col gap-2">
             {workOrders.map((wo) => (
-                <div key={wo.id} className="glass-pro rounded-xl border border-border p-3">
+                <div key={wo.id} className="bg-card rounded-lg border border-border shadow-sm p-3">
                     <div className="flex items-center justify-between gap-2 mb-2">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest border ${WO_PRIORITY_PILL[wo.priority] ?? WO_PRIORITY_PILL.medium}`}>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-semibold tracking-tight border ${WO_PRIORITY_PILL[wo.priority] ?? WO_PRIORITY_PILL.medium}`}>
                                 {wo.priority}
                             </span>
-                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest border ${WO_STATUS_PILL[wo.status] ?? WO_STATUS_PILL.assigned}`}>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-semibold tracking-tight border ${WO_STATUS_PILL[wo.status] ?? WO_STATUS_PILL.assigned}`}>
                                 {wo.status.replace("_", " ")}
                             </span>
                         </div>
@@ -767,18 +775,18 @@ function WorkOrdersTab({ detail, loading, error, onRetry }: {
 
                     <div className="grid grid-cols-3 gap-2 mt-2 text-[10px]">
                         <div>
-                            <div className="text-foreground/40 uppercase tracking-widest">SLA due</div>
+                            <div className="text-xs font-medium tracking-tight text-muted-foreground">SLA due</div>
                             <div className="text-foreground/80">{formatDate(wo.sla_deadline)}</div>
                         </div>
                         {wo.started_at && (
                             <div>
-                                <div className="text-foreground/40 uppercase tracking-widest">Started</div>
+                                <div className="text-xs font-medium tracking-tight text-muted-foreground">Started</div>
                                 <div className="text-foreground/80">{formatRelative(wo.started_at)}</div>
                             </div>
                         )}
                         {wo.completed_at && (
                             <div>
-                                <div className="text-foreground/40 uppercase tracking-widest">Completed</div>
+                                <div className="text-xs font-medium tracking-tight text-muted-foreground">Completed</div>
                                 <div className="text-foreground/80">{formatRelative(wo.completed_at)}</div>
                             </div>
                         )}
@@ -810,24 +818,24 @@ function TimelineTab({ entries, loading, error, onRetry }: {
             {entries.map((e) => {
                 const detailKeys = Object.keys(e.details ?? {});
                 return (
-                    <div key={e.id} className="glass-pro rounded-xl border border-border p-3">
+                    <div key={e.id} className="bg-card rounded-lg border border-border shadow-sm p-3">
                         <div className="flex items-center justify-between gap-2 mb-1">
-                            <span className="text-xs font-bold text-foreground uppercase tracking-widest">
+                            <span className="text-sm font-semibold tracking-tight text-foreground">
                                 {titleCase(e.action)}
                             </span>
-                            <span className="text-[10px] text-foreground/40 shrink-0">
+                            <span className="text-xs text-muted-foreground shrink-0">
                                 {formatRelative(e.created_at)}
                             </span>
                         </div>
-                        <div className="text-[11px] text-foreground/60">
-                            By <span className="font-semibold text-foreground/80">{e.user_email ?? "System"}</span>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                            By <span className="font-medium text-foreground">{e.user_email ?? "System"}</span>
                         </div>
                         {detailKeys.length > 0 && (
                             <div className="mt-2 grid grid-cols-1 gap-0.5">
                                 {detailKeys.map((k) => (
                                     <div key={k} className="text-[10px] text-foreground/60">
-                                        <span className="text-foreground/40 uppercase tracking-widest mr-1">{k.replace(/_/g, " ")}:</span>
-                                        <span className="text-foreground/80 break-all">{String(e.details[k])}</span>
+                                        <span className="text-muted-foreground font-medium mr-2">{k.replace(/_/g, " ")}:</span>
+                                        <span className="text-foreground font-medium break-all">{String(e.details[k])}</span>
                                     </div>
                                 ))}
                             </div>
