@@ -219,22 +219,20 @@ export default function TrackReportPage() {
                                 const activeConfidence = activePhoto?.ai_confidence ?? report.ai_confidence;
                                 return (
                                     <>
-                                        <div className="flex justify-end mb-3">
-                                            {activeMaskUrl && (
-                                                <button
-                                                    onClick={() => setShowAiMask(!showAiMask)}
-                                                    className={`px-3 py-1 text-[11px] font-bold rounded-full transition-all flex items-center gap-2 ${showAiMask ? 'bg-primary text-white shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-foreground/10 text-foreground/60 hover:bg-foreground/20'}`}
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-                                                    {showAiMask ? "Hide AI Mask" : "View AI Mask"}
-                                                </button>
-                                            )}
-                                        </div>
                                         <div 
                                             className="w-full aspect-square rounded-2xl overflow-hidden bg-black/50 border border-border relative cursor-pointer group/evidence"
                                             onClick={() => activeImageUrl && setPreviewImage(`${API_URL}${showAiMask && activeMaskUrl ? activeMaskUrl : activeImageUrl}`)}
                                             title="Click to zoom"
                                         >
+                                            {activeMaskUrl && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); setShowAiMask(!showAiMask); }}
+                                                    className={`absolute top-3 right-3 z-10 px-3 py-1.5 text-[11px] font-bold rounded-full transition-all backdrop-blur-md border flex items-center gap-2 ${showAiMask ? 'bg-primary/90 text-white border-primary shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-black/40 text-white/90 border-white/10 hover:bg-black/60'}`}
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                                    {showAiMask ? "Hide AI Mask" : "View AI Mask"}
+                                                </button>
+                                            )}
                                             {activeImageUrl ? (
                                                 <img
                                                     src={`${API_URL}${showAiMask && activeMaskUrl ? activeMaskUrl : activeImageUrl}`}
