@@ -24,6 +24,9 @@ import { ConfidenceTooltipBody } from "@/components/ConfidenceTooltipBody";
 import { BARANGAYS } from "@/lib/barangays";
 import { TrustBadge } from "@/components/TrustBadge";
 import { useUnreadNotificationCount } from "@/lib/notification-poll";
+import { DateRangePicker } from "@/components/ui/DateRangePicker";
+import { DateRange } from "react-day-picker";
+import { format as formatDF } from "date-fns";
 
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -220,8 +223,7 @@ function CenroDashboardInner() {
     const [oversightSearch, setOversightSearch] = useState("");
     const debouncedOversightSearch = useDebounce(oversightSearch, 300);
     const [oversightStatus, setOversightStatus] = useState("");
-    const [oversightDateFrom, setOversightDateFrom] = useState("");
-    const [oversightDateTo, setOversightDateTo] = useState("");
+    const [oversightDateRange, setOversightDateRange] = useState<DateRange | undefined>();
     const [oversightBarangay, setOversightBarangay] = useState("");
 
     // C1 — Audit Log tab
@@ -341,8 +343,8 @@ function CenroDashboardInner() {
         const params = new URLSearchParams();
         if (debouncedOversightSearch.trim()) params.set("search", debouncedOversightSearch.trim());
         if (oversightStatus) params.set("status", oversightStatus);
-        if (oversightDateFrom) params.set("date_from", `${oversightDateFrom}T00:00:00`);
-        if (oversightDateTo) params.set("date_to", `${oversightDateTo}T23:59:59`);
+        if (oversightDateRange?.from) params.set("date_from", `${formatDF(oversightDateRange.from, "yyyy-MM-dd")}T00:00:00`);
+        if (oversightDateRange?.to) params.set("date_to", `${formatDF(oversightDateRange.to, "yyyy-MM-dd")}T23:59:59`);
         params.set("limit", "200");
         return `?${params.toString()}`;
     };
@@ -363,7 +365,7 @@ function CenroDashboardInner() {
         if (activeTab !== 'oversight' || !user) return;
         fetchQueueData();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeTab, debouncedOversightSearch, oversightStatus, oversightDateFrom, oversightDateTo, user]);
+    }, [activeTab, debouncedOversightSearch, oversightStatus, oversightDateRange, user]);
 
     // Fetch SLA policy on mount and when command_center tab active
     useEffect(() => {
@@ -1191,8 +1193,7 @@ function CenroDashboardInner() {
                                     onClick={() => {
                                         setOversightStatus("");
                                         setOversightSearch("");
-                                        setOversightDateFrom("");
-                                        setOversightDateTo("");
+                                        setOversightDateRange(undefined);
                                         setOversightBarangay("");
                                         setActiveTab('oversight');
                                     }}
@@ -1402,28 +1403,28 @@ function CenroDashboardInner() {
 
                 {activeTab === 'oversight' && (
                     /* OVERSIGHT QUEUE TAB */
-                    <div className="flex-1 glass rounded-2xl border border-border flex flex-col min-h-0 shadow-2xl">
-                        <div className="p-6 border-b border-border shrink-0">
-                            <h2 className="text-lg font-semibold text-foreground">Global Report Queue</h2>
-                            <p className="text-sm text-foreground/50">Manage overrides and cross-barangay assignments.</p>
+                    <div className="flex-1 rounded-lg border border-border bg-card flex flex-col min-h-0 shadow-sm">
+                        <div className="p-5 border-b border-border shrink-0">
+                            <h2 className="text-lg font-semibold text-foreground tracking-tight">Global Report Queue</h2>
+                            <p className="text-sm text-muted-foreground mt-1">Manage overrides and cross-barangay assignments.</p>
                         </div>
 
                         {/* C4 — Filter Bar */}
                         <div className="flex flex-col lg:flex-row gap-3 p-4 border-b border-border shrink-0">
                             <div className="relative flex-1 min-w-[200px]">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={16} />
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
                                 <input
                                     type="text"
                                     value={oversightSearch}
                                     onChange={(e) => setOversightSearch(e.target.value)}
                                     placeholder="Search tracking ID or notes…"
-                                    className="w-full pl-9 pr-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm placeholder:text-foreground/40 focus:border-primary focus:outline-none"
+                                    className="w-full pl-9 pr-3 h-9 rounded-md bg-transparent border border-input text-foreground text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
                                 />
                             </div>
                             <select
                                 value={oversightStatus}
                                 onChange={(e) => setOversightStatus(e.target.value)}
-                                className="px-2 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-xs focus:border-primary focus:outline-none"
+                                className="px-3 h-9 rounded-md bg-transparent border border-input text-foreground text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
                             >
                                 {STATUS_OPTIONS.map((s) => (
                                     <option key={s || "all"} value={s}>{s ? s : "All statuses"}</option>
@@ -1432,37 +1433,23 @@ function CenroDashboardInner() {
                             <select
                                 value={oversightBarangay}
                                 onChange={(e) => setOversightBarangay(e.target.value)}
-                                className="px-2 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-xs focus:border-primary focus:outline-none"
+                                className="px-3 h-9 rounded-md bg-transparent border border-input text-foreground text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
                             >
                                 <option value="">All barangays</option>
                                 {BARANGAYS.map((b) => (
                                     <option key={b} value={b}>{b}</option>
                                 ))}
                             </select>
-                            <div className="flex items-center gap-2">
-                                <label className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest">From</label>
-                                <input
-                                    type="date"
-                                    value={oversightDateFrom}
-                                    onChange={(e) => setOversightDateFrom(e.target.value)}
-                                    className="px-2 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-xs focus:border-primary focus:outline-none"
-                                />
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <label className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest">To</label>
-                                <input
-                                    type="date"
-                                    value={oversightDateTo}
-                                    onChange={(e) => setOversightDateTo(e.target.value)}
-                                    className="px-2 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-xs focus:border-primary focus:outline-none"
-                                />
-                            </div>
+                            <DateRangePicker 
+                                date={oversightDateRange} 
+                                onDateChange={setOversightDateRange} 
+                            />
                         </div>
 
                         <div className="flex-1 overflow-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="border-b border-border text-xs text-foreground/40 uppercase tracking-widest bg-black/20 sticky top-0 z-10">
+                                    <tr className="border-b border-border text-xs text-muted-foreground font-medium tracking-tight bg-foreground/[0.02] sticky top-0 z-10">
                                         <th className="p-4">Tracking ID</th>
                                         <th className="p-4">Barangay</th>
                                         <th className="p-4">Status</th>
@@ -1496,13 +1483,13 @@ function CenroDashboardInner() {
                                             const sla = slaInfo(report.created_at, report.status);
                                             return (
                                                 <tr key={report.id} className="border-b border-border hover:bg-foreground/5 transition-colors cursor-pointer" onClick={() => { setSelectedReport(report); setNewBarangay(report.barangay ?? ""); }}>
-                                                    <td className="p-4 font-mono text-sm text-foreground font-bold">
+                                                    <td className="p-4 font-mono text-sm text-foreground font-medium">
                                                         {report.tracking_id}
                                                         {report.possible_duplicate_flag && report.status !== 'duplicate' && (
-                                                            <span title="A nearby open report may be a duplicate" className="ml-2 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-400 align-middle">⚠ Dup?</span>
+                                                            <span title="A nearby open report may be a duplicate" className="ml-2 px-1.5 py-0.5 rounded text-[9px] font-semibold tracking-tight bg-amber-500/20 text-amber-500 align-middle">⚠ DUP?</span>
                                                         )}
                                                     </td>
-                                                    <td className="p-4 text-sm font-bold text-emerald-300">{report.barangay}</td>
+                                                    <td className="p-4 text-sm font-medium text-foreground">{report.barangay}</td>
                                                     <td className="p-4">
                                                         <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
                                                             report.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
@@ -1562,7 +1549,7 @@ function CenroDashboardInner() {
                         <div className="flex-1 overflow-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="border-b border-border text-xs text-foreground/40 uppercase tracking-widest bg-black/20 sticky top-0 z-10">
+                                    <tr className="border-b border-border text-xs text-muted-foreground font-medium tracking-tight bg-foreground/[0.02] sticky top-0 z-10">
                                         <th className="p-4">Timestamp</th>
                                         <th className="p-4">User</th>
                                         <th className="p-4">Action</th>
@@ -1787,7 +1774,7 @@ function CenroDashboardInner() {
                             <div className="flex-1 overflow-auto">
                                 <table className="w-full text-left border-collapse">
                                     <thead>
-                                        <tr className="border-b border-border text-xs text-foreground/40 uppercase tracking-widest bg-black/20 sticky top-0 z-10">
+                                        <tr className="border-b border-border text-xs text-muted-foreground font-medium tracking-tight bg-foreground/[0.02] sticky top-0 z-10">
                                             <th className="p-4 pl-5 w-10"></th>
                                             <th className="p-4">Full Name</th>
                                             <th className="p-4">Email Address</th>
