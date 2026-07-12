@@ -196,7 +196,7 @@ export default function TrackReportPage() {
 
                     {/* Progress Bar (Only show if not rejected) */}
                     {!isRejected && (
-                        <div className="p-8 border-b border-border bg-black/20">
+                        <div className="p-8 border-b border-border dark:bg-black/20 bg-foreground/[0.02]">
                             <div className="relative">
                                 {/* Track Line */}
                                 <div className="absolute top-1/2 left-0 w-full h-1 bg-foreground/10 -translate-y-1/2 rounded-full" />
@@ -222,7 +222,7 @@ export default function TrackReportPage() {
                                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors z-10 
                                                     ${isActive && !isErrorStep ? 'bg-primary text-white shadow-[0_0_15px_rgba(34,197,94,0.5)]' : 
                                                       isErrorStep ? 'bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 
-                                                      'bg-[#1a1a1a] border-2 border-foreground/20 text-foreground/30'}`}
+                                                      'dark:bg-[#1a1a1a] bg-background border-2 border-foreground/20 text-foreground/30'}`}
                                                 >
                                                     {isActive && !isErrorStep ? "✓" : isErrorStep ? "✕" : idx + 1}
                                                 </div>
