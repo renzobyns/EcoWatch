@@ -245,7 +245,8 @@ class AIVerifier:
         import random
         import time
 
-        time.sleep(0.5)
+        # Delay mock inference by 5 seconds so the frontend scanning animation has time to play
+        time.sleep(5.0)
         is_waste = random.random() > 0.2
         confidence = round(random.uniform(0.70, 0.99), 2) if is_waste else round(random.uniform(0.10, 0.45), 2)
 

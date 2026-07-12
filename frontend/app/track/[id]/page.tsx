@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -33,6 +33,7 @@ export default function TrackReportPage() {
     const [previewImage, setPreviewImage] = useState<string | null>(null);
     const [activeMobileLabel, setActiveMobileLabel] = useState<number | null>(null);
     const [scanProgress, setScanProgress] = useState(0);
+    const wasPending = useRef<boolean | null>(null);
 
     // Simulate Mask R-CNN scanning progress
     useEffect(() => {
@@ -45,6 +46,18 @@ export default function TrackReportPage() {
             setScanProgress(100);
         }
     }, [report?.verification_pending]);
+
+    // Auto-show mask when scan finishes successfully
+    useEffect(() => {
+        if (report) {
+            if (wasPending.current === true && report.verification_pending === false) {
+                if (report.status === "verified") {
+                    setShowAiMask(true);
+                }
+            }
+            wasPending.current = report.verification_pending;
+        }
+    }, [report]);
 
     function selectPhoto(idx: number) {
         setSelectedPhotoIdx(idx);
