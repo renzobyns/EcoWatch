@@ -25,11 +25,13 @@ When the user calls this skill on a specific page or component, follow these ste
 
 ## 4. Professional Aesthetic (Shadcn / Vercel Look)
 When building or auditing UI, STRICTLY avoid the "AI-generated sci-fi" look. Follow these modern, minimalist principles:
-- **Card Containers:** Use flat, solid backgrounds (`bg-card`, `bg-background`) with subtle borders (`border border-border`) and minimal shadows (`shadow-sm`). AVOID heavy `glass` or `backdrop-blur` classes unless strictly required for a specific z-index overlay. **CRITICAL:** Always explicitly pair `border` with `border-border`, otherwise Tailwind defaults to a highly visible bright gray/white line.
+- **Card Containers:** Use flat, solid backgrounds (`bg-card`, `bg-background`) with subtle borders (`border border-border`) and minimal shadows (`shadow-sm`). AVOID heavy `glass` or `backdrop-blur` classes unless strictly required for a specific z-index overlay. **CRITICAL:** Always explicitly pair `border` with `border-border` (and use `border-border` instead of `border-input` for inputs to avoid bright white outlines), otherwise Tailwind defaults to a highly visible bright gray/white line.
 - **Border Radii:** Stick to `rounded-lg` or `rounded-xl`. NEVER use extreme rounding like `rounded-2xl` or `rounded-[2rem]` for dashboard cards.
 - **Typography:**
   - Headers/Labels: Use sentence case or title case. E.g., `text-sm font-medium text-muted-foreground`. AVOID `uppercase tracking-widest text-[10px]`.
   - Metrics: Primary numbers must be `text-2xl font-bold text-foreground` (or `text-3xl`). Do not color the entire number with vibrant neon colors (`text-emerald-500`).
+- **Icons & Empty States:** NEVER use emojis (e.g., 📋 or ❌) for UI elements or empty states, as they look cheap and AI-generated. ALWAYS use outline icons from `lucide-react` (e.g., `<ClipboardList />`, `<X />`) to maintain a professional, native application feel.
+- **Buttons & Interactions:** Always ensure buttons have visible `hover:` backgrounds and foregrounds. For destructive or forcing actions, ensure they have a bold, distinct color (e.g., `bg-red-600 hover:bg-red-700 text-white`). For disabled buttons, you MUST explicitly include `disabled:cursor-not-allowed` so the user knows the button is inactive.
 - **Spacing:** Use Shadcn's card standard: a header `div` with `p-6 pb-2` and a content `div` with `p-6 pt-0`. If using tighter spaces, use `p-4 pb-2` and `p-4 pt-0`. Avoid massive empty padding.
 - **Accents:** Use vibrant colors sparingly. Restrict them to small badges, icons, or trend indicators. Never apply heavy glowing drop-shadows (`shadow-[0_0_15px_...]`) to text or icons.
 

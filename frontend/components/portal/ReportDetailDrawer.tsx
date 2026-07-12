@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, FileText, Camera, Shield, Clock, MapPin, User, Mail, Phone, ExternalLink } from "lucide-react";
+import { X, FileText, Camera, Shield, Clock, MapPin, User, Mail, Phone, ExternalLink, ClipboardList } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { TrustBadge } from "@/components/TrustBadge";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
@@ -171,7 +171,9 @@ function TabError({ message, onRetry }: { message: string; onRetry: () => void }
 function TabEmpty({ message }: { message: string }) {
     return (
         <div className="py-12 text-center text-muted-foreground flex flex-col items-center gap-2">
-            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-xl mb-1">📋</div>
+            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-1">
+                <ClipboardList className="w-6 h-6 text-muted-foreground/70" />
+            </div>
             <p className="text-sm font-medium">{message}</p>
         </div>
     );
@@ -358,14 +360,14 @@ export function ReportDetailDrawer({
                         <select
                             value={newBarangay}
                             onChange={(e) => setNewBarangay(e.target.value)}
-                            className="flex-1 bg-transparent border border-input rounded-md px-3 h-9 text-sm text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                            className="flex-1 bg-transparent border border-border rounded-md px-3 h-9 text-sm text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
                         >
                             {barangays.map(b => <option key={b} value={b}>{b}</option>)}
                         </select>
                         <button
                             onClick={onReassign}
                             disabled={actionLoading || newBarangay === report.barangay}
-                            className="px-4 h-9 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium tracking-tight rounded-md shadow-sm disabled:opacity-50 transition-colors whitespace-nowrap"
+                            className="px-4 h-9 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium tracking-tight rounded-md shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
                         >
                             Update Route
                         </button>
@@ -373,7 +375,7 @@ export function ReportDetailDrawer({
                     <button
                         onClick={onForceClose}
                         disabled={actionLoading || report.status === "resolved"}
-                        className="w-full h-9 bg-destructive hover:bg-destructive/90 text-destructive-foreground text-sm font-medium tracking-tight rounded-md shadow-sm disabled:opacity-50 transition-colors"
+                        className="w-full h-9 bg-red-600 hover:bg-red-700 text-white text-sm font-medium tracking-tight rounded-md shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                         Force Close Ticket
                     </button>
