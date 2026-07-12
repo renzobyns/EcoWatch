@@ -927,12 +927,76 @@ function CenroDashboardInner() {
 
     if (loading || !user) {
         return (
-            <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-white p-1 shadow-[0_0_30px_rgba(16,185,129,0.3)] animate-pulse">
-                    <img src="/logo.png" alt="Loading..." className="w-full h-full object-contain" />
+            <PortalShell
+                brand={{ name: "EcoWatch", suffix: "CJSDM" }}
+                role="CENRO"
+                nav={CENRO_NAV}
+                activeKey={activeTab}
+                onNavChange={() => {}}
+                notificationCount={0}
+            >
+                <div className="max-w-[1600px] mx-auto h-full flex flex-col gap-6 p-1">
+                    {/* Top Stats Bar Skeleton */}
+                    <div className="flex flex-col md:flex-row items-start gap-4 shrink-0 w-full">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 flex-1 w-full">
+                            {Array.from({ length: 4 }).map((_, i) => (
+                                <div key={i} className="glass-pro p-4 md:p-5 rounded-2xl h-24 bg-foreground/[0.02] flex flex-col justify-center">
+                                    <div className="h-2 w-16 bg-foreground/10 rounded mb-3 animate-pulse"></div>
+                                    <div className="h-6 w-12 bg-foreground/10 rounded animate-pulse"></div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="w-full md:w-48 h-[46px] rounded-lg bg-foreground/5 animate-pulse shrink-0"></div>
+                    </div>
+
+                    {/* SLA Bar Skeleton */}
+                    <div className="glass-pro h-[74px] rounded-2xl border border-border shrink-0 bg-foreground/[0.02] flex items-center px-5 gap-5">
+                        <div className="w-10 h-10 rounded-xl bg-foreground/10 animate-pulse shrink-0"></div>
+                        <div className="flex flex-col gap-2">
+                            <div className="h-2 w-20 bg-foreground/10 rounded animate-pulse"></div>
+                            <div className="h-4 w-8 bg-foreground/10 rounded animate-pulse"></div>
+                        </div>
+                        <div className="hidden md:block w-px self-stretch bg-border shrink-0 mx-1" />
+                        <div className="hidden md:flex flex-col gap-2">
+                            <div className="h-2 w-20 bg-foreground/10 rounded animate-pulse"></div>
+                            <div className="flex gap-2">
+                                <div className="h-4 w-12 rounded bg-foreground/10 animate-pulse"></div>
+                                <div className="h-4 w-12 rounded bg-foreground/10 animate-pulse"></div>
+                                <div className="h-4 w-12 rounded bg-foreground/10 animate-pulse"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Main Grid Skeleton */}
+                    <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-6 min-h-0">
+                        {/* Map Skeleton */}
+                        <div className="glass rounded-2xl border border-border bg-foreground/[0.02] min-h-[300px] relative overflow-hidden">
+                            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-foreground/20 via-transparent to-transparent animate-pulse"></div>
+                            <div className="absolute top-4 left-4 h-6 w-32 bg-foreground/10 rounded-full animate-pulse"></div>
+                        </div>
+                        
+                        {/* 2x2 Grid Skeleton */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-rows-2 gap-6 min-h-0">
+                            {Array.from({ length: 4 }).map((_, i) => (
+                                <div key={i} className="glass-pro p-6 rounded-[2rem] bg-foreground/[0.02] flex flex-col">
+                                    <div className="h-3 w-24 bg-foreground/10 rounded mb-6 animate-pulse shrink-0"></div>
+                                    <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+                                        {Array.from({ length: 3 }).map((_, j) => (
+                                            <div key={j} className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-foreground/10 animate-pulse shrink-0"></div>
+                                                <div className="flex-1 flex flex-col gap-2">
+                                                    <div className="h-2 bg-foreground/10 rounded animate-pulse w-3/4"></div>
+                                                    <div className="h-2 bg-foreground/10 rounded animate-pulse w-1/2"></div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
-                <div className="text-emerald-500 font-bold tracking-widest uppercase text-sm animate-pulse">Initializing Hub...</div>
-            </div>
+            </PortalShell>
         );
     }
 
@@ -1047,28 +1111,28 @@ function CenroDashboardInner() {
                     <div className="flex-1 flex flex-col gap-6 min-h-0 pb-8">
 
                         {/* Top Stats Bar + Export */}
-                        <div className="flex items-start gap-4 shrink-0 animate-slide-up stagger-1">
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 flex-1">
-                                <div className="glass-pro p-5 rounded-2xl bento-card">
-                                    <div className="text-[11px] text-foreground/50 uppercase tracking-widest font-semibold mb-1.5">Total Reports</div>
-                                    <div className="text-3xl font-bold text-emerald-400 tracking-tight">{stats.total}</div>
+                        <div className="flex flex-col md:flex-row items-start gap-4 shrink-0 animate-slide-up stagger-1 w-full">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 flex-1 w-full">
+                                <div className="glass-pro p-4 md:p-5 rounded-2xl bento-card">
+                                    <div className="text-[10px] md:text-[11px] text-foreground/50 uppercase tracking-widest font-semibold mb-1.5">Total Reports</div>
+                                    <div className="text-2xl md:text-3xl font-bold text-emerald-400 tracking-tight">{stats.total}</div>
                                 </div>
-                                <div className="glass-pro p-5 rounded-2xl bento-card">
-                                    <div className="text-[11px] text-foreground/50 uppercase tracking-widest font-semibold mb-1.5">Active/Pending</div>
-                                    <div className="text-3xl font-bold text-red-400 tracking-tight">{pending}</div>
+                                <div className="glass-pro p-4 md:p-5 rounded-2xl bento-card">
+                                    <div className="text-[10px] md:text-[11px] text-foreground/50 uppercase tracking-widest font-semibold mb-1.5">Active/Pending</div>
+                                    <div className="text-2xl md:text-3xl font-bold text-red-400 tracking-tight">{pending}</div>
                                 </div>
-                                <div className="glass-pro p-5 rounded-2xl bento-card">
-                                    <div className="text-[11px] text-foreground/50 uppercase tracking-widest font-semibold mb-1.5">Active Cleanups</div>
-                                    <div className="text-3xl font-bold text-yellow-400 tracking-tight">{stats.active}</div>
+                                <div className="glass-pro p-4 md:p-5 rounded-2xl bento-card">
+                                    <div className="text-[10px] md:text-[11px] text-foreground/50 uppercase tracking-widest font-semibold mb-1.5">Active Cleanups</div>
+                                    <div className="text-2xl md:text-3xl font-bold text-yellow-400 tracking-tight">{stats.active}</div>
                                 </div>
-                                <div className="glass-pro p-5 rounded-2xl bento-card">
-                                    <div className="text-[11px] text-foreground/50 uppercase tracking-widest font-semibold mb-1.5">Success Rate</div>
-                                    <div className="text-3xl font-bold text-green-400 tracking-tight">{successRate}%</div>
+                                <div className="glass-pro p-4 md:p-5 rounded-2xl bento-card">
+                                    <div className="text-[10px] md:text-[11px] text-foreground/50 uppercase tracking-widest font-semibold mb-1.5">Success Rate</div>
+                                    <div className="text-2xl md:text-3xl font-bold text-green-400 tracking-tight">{successRate}%</div>
                                 </div>
                             </div>
                             <button
                                 onClick={handleExportAnalytics}
-                                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/20 border border-primary/30 text-primary text-xs font-bold uppercase tracking-widest hover:bg-primary/30 transition-colors shrink-0 self-stretch"
+                                className="flex items-center justify-center gap-2 px-4 py-3 md:px-3 md:py-2 w-full md:w-auto rounded-lg bg-primary/20 border border-primary/30 text-primary text-xs font-bold uppercase tracking-widest hover:bg-primary/30 transition-colors shrink-0 md:self-stretch"
                                 title="Export analytics summary as CSV"
                             >
                                 <Download size={14} />
@@ -1077,7 +1141,7 @@ function CenroDashboardInner() {
                         </div>
 
                         {/* Merged SLA bar */}
-                        <div className="glass-pro px-5 py-4 rounded-2xl border border-border shrink-0 flex items-center gap-5 animate-slide-up stagger-2 overflow-hidden relative">
+                        <div className="glass-pro px-5 py-4 rounded-2xl border border-border shrink-0 flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-5 animate-slide-up stagger-2 overflow-hidden relative">
                             <div className="absolute top-0 right-0 w-48 h-48 bg-red-500/5 rounded-full blur-[60px] pointer-events-none" />
 
                             {/* Breach icon */}
@@ -1124,7 +1188,8 @@ function CenroDashboardInner() {
                             )}
 
                             {/* Divider */}
-                            <div className="w-px self-stretch bg-border shrink-0 mx-1 relative z-10" />
+                            <div className="hidden md:block w-px self-stretch bg-border shrink-0 mx-1 relative z-10" />
+                            <div className="md:hidden h-px w-full bg-border shrink-0 my-1 relative z-10" />
 
                             {/* Policy info */}
                             <div className="min-w-0 relative z-10">
@@ -1153,7 +1218,7 @@ function CenroDashboardInner() {
                             </div>
 
                             {/* Right: 2×2 panel grid */}
-                            <div className="grid grid-cols-2 grid-rows-2 gap-6 min-h-0 animate-slide-up stagger-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-rows-2 gap-6 min-h-0 animate-slide-up stagger-4">
 
                                 {/* Top-left: Status Breakdown */}
                                 <div className="glass-pro p-6 rounded-[2rem] flex flex-col min-h-0 bento-card">
@@ -1384,7 +1449,17 @@ function CenroDashboardInner() {
                                             </tr>
                                         ))
                                     ) : displayedQueueReports.length === 0 ? (
-                                        <tr><td colSpan={5} className="p-12 text-center text-foreground/50 font-bold">No reports match the current filters.</td></tr>
+                                        <tr>
+                                            <td colSpan={5} className="p-12 text-center">
+                                                <div className="flex flex-col items-center justify-center gap-3">
+                                                    <div className="w-12 h-12 rounded-full bg-foreground/5 flex items-center justify-center text-foreground/30">
+                                                        <FileText size={24} />
+                                                    </div>
+                                                    <div className="text-foreground/50 font-bold">No reports match the current filters</div>
+                                                    <div className="text-xs text-foreground/30">Try adjusting your search or status filter.</div>
+                                                </div>
+                                            </td>
+                                        </tr>
                                     ) : (
                                         displayedQueueReports.map(report => {
                                             const sla = slaInfo(report.created_at, report.status);
