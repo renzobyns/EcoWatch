@@ -29,7 +29,7 @@ export default function TrackReportPage() {
     const [error, setError] = useState<string | null>(null);
     const [showAiMask, setShowAiMask] = useState(false);
     const [selectedPhotoIdx, setSelectedPhotoIdx] = useState(0);
-    const [mapExpanded, setMapExpanded] = useState(false);
+    const [mapModalOpen, setMapModalOpen] = useState(false);
     const [previewImage, setPreviewImage] = useState<string | null>(null);
     const [activeMobileLabel, setActiveMobileLabel] = useState<number | null>(null);
 
@@ -341,23 +341,21 @@ export default function TrackReportPage() {
                             )}
 
                             <div>
-                                <div className="flex items-center gap-2 mb-3 text-foreground/50">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/></svg>
-                                    <h3 className="text-xs font-semibold">Location Map</h3>
-                                </div>
-                                <div className={`relative bg-black transition-all duration-300 rounded-xl overflow-hidden border border-border ${mapExpanded ? "h-64" : "h-32"}`}>
+                                <div 
+                                    className="relative bg-black rounded-xl overflow-hidden border border-border h-48 group/map cursor-pointer shadow-sm"
+                                    onClick={() => setMapModalOpen(true)}
+                                >
                                     <MiniMap lat={report.lat} lon={report.lon} />
-                                    <div className="absolute inset-0 bg-black/20 pointer-events-none shadow-inner rounded-xl" />
+                                    <div className="absolute inset-0 bg-black/10 group-hover/map:bg-black/20 transition-colors pointer-events-none shadow-inner" />
                                     <button 
-                                        onClick={() => setMapExpanded(!mapExpanded)} 
-                                        className="absolute bottom-2 right-2 p-1.5 rounded-md bg-black/60 text-white hover:bg-black/80 transition-colors z-10 pointer-events-auto shadow-md"
-                                        title={mapExpanded ? "Minimize map" : "Maximize map"}
+                                        onClick={(e) => { e.stopPropagation(); setMapModalOpen(true); }}
+                                        className="absolute bottom-3 right-3 p-2 rounded-lg bg-black/60 text-white backdrop-blur-md border border-white/10 hover:bg-black/80 transition-colors z-10 shadow-lg flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
+                                        title="View Full Map"
                                     >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                            {mapExpanded 
-                                                ? <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" /> 
-                                                : <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />}
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
                                         </svg>
+                                        Expand Map
                                     </button>
                                 </div>
                             </div>
@@ -367,22 +365,40 @@ export default function TrackReportPage() {
 
             </div>
 
+            {/* Image Preview Modal */}
             {previewImage && (
-                <div className="fixed inset-0 z-[1400] bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setPreviewImage(null)}>
+                <div 
+                    className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm cursor-zoom-out"
+                    onClick={() => setPreviewImage(null)}
+                >
                     <button 
-                        onClick={(e) => { e.stopPropagation(); setPreviewImage(null); }}
-                        className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
-                        title="Close preview"
+                        onClick={() => setPreviewImage(null)}
+                        className="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors cursor-pointer z-[101]"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg>
                     </button>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img 
                         src={previewImage} 
-                        alt="Evidence Preview" 
-                        className="max-w-full max-h-[85vh] rounded-lg object-contain shadow-2xl animate-in zoom-in-95 duration-300"
-                        onClick={(e) => e.stopPropagation()}
+                        alt="Preview" 
+                        className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" 
                     />
+                </div>
+            )}
+
+            {/* Map Fullscreen Modal */}
+            {mapModalOpen && (
+                <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4 md:p-12 backdrop-blur-sm">
+                    <div className="w-full h-full relative rounded-2xl overflow-hidden border border-white/20 shadow-2xl bg-black">
+                        <button 
+                            onClick={() => setMapModalOpen(false)}
+                            className="absolute top-4 right-4 p-2.5 bg-black/60 hover:bg-black/80 text-white backdrop-blur-md border border-white/20 rounded-full transition-colors cursor-pointer z-[101] shadow-xl"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg>
+                        </button>
+                        <div className="w-full h-full">
+                            <MiniMap lat={report.lat} lon={report.lon} />
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
