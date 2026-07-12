@@ -10,6 +10,16 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 const STATUS_STEPS = ["pending", "verified", "assigned", "in_progress", "resolved"];
 
+const STATUS_COLORS: Record<string, { text: string, bg: string, bgLight: string, glow: string }> = {
+    pending: { text: 'text-amber-500', bg: 'bg-amber-500', bgLight: 'bg-amber-500/10', glow: 'shadow-[0_0_15px_rgba(245,158,11,0.5)]' },
+    verified: { text: 'text-primary', bg: 'bg-primary', bgLight: 'bg-primary/10', glow: 'shadow-[0_0_15px_rgba(16,185,129,0.5)]' },
+    assigned: { text: 'text-blue-500', bg: 'bg-blue-500', bgLight: 'bg-blue-500/10', glow: 'shadow-[0_0_15px_rgba(59,130,246,0.5)]' },
+    in_progress: { text: 'text-purple-500', bg: 'bg-purple-500', bgLight: 'bg-purple-500/10', glow: 'shadow-[0_0_15px_rgba(168,85,247,0.5)]' },
+    resolved: { text: 'text-green-500', bg: 'bg-green-500', bgLight: 'bg-green-500/10', glow: 'shadow-[0_0_15px_rgba(34,197,94,0.5)]' },
+    rejected: { text: 'text-red-500', bg: 'bg-red-500', bgLight: 'bg-red-500/10', glow: 'shadow-[0_0_15px_rgba(239,68,68,0.5)]' },
+    failed_cleanup: { text: 'text-red-500', bg: 'bg-red-500', bgLight: 'bg-red-500/10', glow: 'shadow-[0_0_15px_rgba(239,68,68,0.5)]' },
+};
+
 export default function TrackReportPage() {
     const params = useParams();
     const trackingId = params.id as string;
@@ -139,14 +149,8 @@ export default function TrackReportPage() {
                 {/* Main Card */}
                 <div className="glass rounded-2xl border border-border shadow-2xl overflow-hidden mb-8">
                     {/* Status Banner */}
-                    <div className={`p-6 text-center border-b border-border ${
-                        report.status === 'resolved' ? 'bg-green-500/10' :
-                        isRejected || isFailed ? 'bg-red-500/10' : 'bg-primary/10'
-                    }`}>
-                        <h2 className={`text-xl font-semibold uppercase tracking-widest ${
-                            report.status === 'resolved' ? 'text-green-500' :
-                            isRejected || isFailed ? 'text-red-500' : 'text-primary'
-                        }`}>
+                    <div className={`p-6 text-center border-b border-border ${STATUS_COLORS[report.status]?.bgLight || 'bg-foreground/10'}`}>
+                        <h2 className={`text-xl font-semibold uppercase tracking-widest ${STATUS_COLORS[report.status]?.text || 'text-foreground'}`}>
                             {isFailed ? "Cleanup Failed" : report.status}
                         </h2>
                         <p className="text-sm text-foreground/60 mt-2 font-medium">
@@ -168,7 +172,7 @@ export default function TrackReportPage() {
                                 <div className="absolute top-1/2 left-0 w-full h-1 bg-foreground/10 -translate-y-1/2 rounded-full" />
                                 {/* Fill Line */}
                                 <div 
-                                    className={`absolute top-1/2 left-0 h-1 -translate-y-1/2 rounded-full transition-all duration-1000 ${isFailed ? 'bg-red-500' : 'eco-gradient'}`}
+                                    className={`absolute top-1/2 left-0 h-1 -translate-y-1/2 rounded-full transition-all duration-1000 ${STATUS_COLORS[report.status]?.bg || 'bg-foreground/20'}`}
                                     style={{ width: `${Math.max(0, (currentStepIndex / 4) * 100)}%` }}
                                 />
                                 
@@ -178,17 +182,18 @@ export default function TrackReportPage() {
                                         const isActive = idx <= currentStepIndex;
                                         const isCurrent = idx === currentStepIndex;
                                         const isErrorStep = isFailed && idx === 4; // Red cross on resolved if failed
+                                        const colorTheme = STATUS_COLORS[report.status] || STATUS_COLORS.pending;
 
                                         return (
                                             <div key={stepLabel} className="flex flex-col items-center">
                                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors z-10 
-                                                    ${isActive && !isErrorStep ? 'bg-primary text-white shadow-[0_0_15px_rgba(34,197,94,0.5)]' : 
+                                                    ${isActive && !isErrorStep ? `${colorTheme.bg} text-white ${colorTheme.glow}` : 
                                                       isErrorStep ? 'bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 
                                                       'bg-[#1a1a1a] border-2 border-foreground/20 text-foreground/30'}`}
                                                 >
                                                     {isActive && !isErrorStep ? "✓" : isErrorStep ? "✕" : idx + 1}
                                                 </div>
-                                                <span className={`mt-3 text-[10px] font-bold uppercase tracking-widest ${isActive ? 'text-foreground' : 'text-foreground/40'}`}>
+                                                <span className={`mt-3 text-[10px] font-bold uppercase tracking-widest hidden sm:block ${isActive ? 'text-foreground' : 'text-foreground/40'}`}>
                                                     {stepLabel}
                                                 </span>
                                             </div>
