@@ -345,7 +345,7 @@ export default function TrackReportPage() {
                                     className="relative bg-black rounded-lg overflow-hidden border border-border h-full group/map cursor-pointer shadow-sm flex-1"
                                     onClick={() => setMapModalOpen(true)}
                                 >
-                                    <MiniMap lat={report.lat} lon={report.lon} />
+                                    <MiniMap lat={report.lat} lon={report.lon} barangay={report.barangay} />
                                     <div className="absolute inset-0 bg-black/10 group-hover/map:bg-black/20 transition-colors pointer-events-none shadow-inner" />
                                     <button 
                                         onClick={(e) => { e.stopPropagation(); setMapModalOpen(true); }}
@@ -396,7 +396,7 @@ export default function TrackReportPage() {
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg>
                         </button>
                         <div className="w-full h-full">
-                            <MiniMap lat={report.lat} lon={report.lon} />
+                            <MiniMap lat={report.lat} lon={report.lon} barangay={report.barangay} />
                         </div>
                     </div>
                 </div>
