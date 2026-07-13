@@ -777,8 +777,8 @@ function CenroDashboardInner() {
                                         <div className="flex items-baseline gap-2">
                                             <span className="text-3xl font-extrabold text-foreground tracking-tight leading-none">{pending}</span>
                                             {pending > 0 && (
-                                                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-red-500/10 text-red-400 border border-red-500/15 flex items-center gap-1.5 self-center animate-pulse">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-destructive/10 text-destructive border border-destructive/20 flex items-center gap-1.5 self-center animate-pulse">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
                                                     needs action
                                                 </span>
                                             )}
@@ -793,7 +793,7 @@ function CenroDashboardInner() {
                                         <div className="text-sm font-medium text-muted-foreground mb-1.5 truncate">Active Cleanups</div>
                                         <div className="text-3xl font-extrabold text-foreground tracking-tight leading-none">{stats.active}</div>
                                     </div>
-                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-primary/10 text-primary">
                                         <Activity size={22} />
                                     </div>
                                 </div>
@@ -802,22 +802,22 @@ function CenroDashboardInner() {
                                         <div className="text-sm font-medium text-muted-foreground mb-1.5 truncate">Success Rate</div>
                                         <div className="text-3xl font-extrabold text-foreground tracking-tight leading-none">{successRate}%</div>
                                     </div>
-                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-primary/10 text-primary">
                                         <CheckCircle2 size={22} />
                                     </div>
                                 </div>
                             </div>
 
                             {/* Merged SLA bar */}
-                            <div className="rounded-xl border border-border bg-gradient-to-r from-red-500/[0.02] via-card to-card backdrop-blur-md px-5 py-4 shrink-0 flex flex-col md:flex-row items-start md:items-center gap-6 animate-slide-up stagger-2 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
+                            <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center gap-6 animate-slide-up stagger-2 overflow-hidden">
                                 {/* Breach icon */}
-                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all ${slaBreaches.length > 0 ? 'bg-red-500/15 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.2)] animate-pulse' : 'bg-emerald-500/15 text-emerald-400'}`}>
+                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all ${slaBreaches.length > 0 ? 'bg-destructive/10 text-destructive' : 'bg-muted/50 text-muted-foreground'}`}>
                                     <AlertTriangle size={18} />
                                 </div>
 
                                 {/* Breach info */}
                                 <div className="min-w-0 flex-1 md:flex-none flex flex-col gap-1.5">
-                                    <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">SLA Breaches</div>
+                                    <div className="text-xs font-semibold text-muted-foreground">SLA Breaches</div>
                                     <div className="flex items-baseline gap-3">
                                         <span className="text-2xl font-extrabold text-foreground tracking-tight leading-none">
                                             {slaBreaches.length}
@@ -827,7 +827,7 @@ function CenroDashboardInner() {
                                                 {slaBreaches.slice(0, 3).map((r) => {
                                                     const sla = slaInfo(r.created_at, r.status);
                                                     return (
-                                                        <span key={r.id} className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-red-500/10 text-red-400 border border-red-500/15">
+                                                        <span key={r.id} className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-destructive/10 text-destructive border border-destructive/20">
                                                             {r.tracking_id}{sla ? ` ${sla.days}d` : ''}
                                                         </span>
                                                     );
@@ -860,12 +860,12 @@ function CenroDashboardInner() {
 
                                 {/* Policy info */}
                                 <div className="min-w-0 flex flex-col gap-1.5">
-                                    <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">SLA Policy</div>
+                                    <div className="text-xs font-semibold text-muted-foreground">SLA Policy</div>
                                     <div className="flex items-center gap-3">
                                         <div className="flex gap-1.5">
-                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/5 text-emerald-400 border border-emerald-500/15">Low {slaPolicy.low}d</span>
-                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-yellow-500/5 text-yellow-400 border border-yellow-500/15">Med {slaPolicy.medium}d</span>
-                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-500/5 text-red-400 border border-red-500/15">High {slaPolicy.high}d</span>
+                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 border border-emerald-500/15">Low {slaPolicy.low}d</span>
+                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-yellow-500/5 text-yellow-600 dark:text-yellow-400 border border-yellow-500/15">Med {slaPolicy.medium}d</span>
+                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-destructive/5 text-destructive border border-destructive/15">High {slaPolicy.high}d</span>
                                         </div>
                                         <button
                                             onClick={() => setShowSlaModal(true)}
