@@ -797,32 +797,34 @@ function CenroDashboardInner() {
                             </div>
 
                             {/* Merged SLA bar */}
-                            <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm px-4 py-3 shrink-0 flex flex-col md:flex-row items-start md:items-center gap-4 animate-slide-up stagger-2 overflow-hidden">
+                            <div className="rounded-xl border border-border bg-gradient-to-r from-red-500/[0.02] via-card to-card backdrop-blur-md px-5 py-4 shrink-0 flex flex-col md:flex-row items-start md:items-center gap-6 animate-slide-up stagger-2 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
                                 {/* Breach icon */}
-                                <div className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 ${slaBreaches.length > 0 ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-500'}`}>
-                                    <AlertTriangle size={16} />
+                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all ${slaBreaches.length > 0 ? 'bg-red-500/15 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.2)] animate-pulse' : 'bg-emerald-500/15 text-emerald-400'}`}>
+                                    <AlertTriangle size={18} />
                                 </div>
 
                                 {/* Breach info */}
-                                <div className="min-w-0 flex-1 md:flex-none">
-                                    <div className="text-[11px] font-medium text-muted-foreground mb-0.5">SLA Breaches</div>
-                                    <div className="text-lg font-bold leading-none mb-1 text-foreground">
-                                        {slaBreaches.length}
+                                <div className="min-w-0 flex-1 md:flex-none flex flex-col gap-1.5">
+                                    <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">SLA Breaches</div>
+                                    <div className="flex items-baseline gap-3">
+                                        <span className="text-2xl font-extrabold text-foreground tracking-tight leading-none">
+                                            {slaBreaches.length}
+                                        </span>
+                                        {slaBreaches.length > 0 ? (
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {slaBreaches.slice(0, 3).map((r) => {
+                                                    const sla = slaInfo(r.created_at, r.status);
+                                                    return (
+                                                        <span key={r.id} className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-red-500/10 text-red-400 border border-red-500/15">
+                                                            {r.tracking_id}{sla ? ` ${sla.days}d` : ''}
+                                                        </span>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">All on schedule</span>
+                                        )}
                                     </div>
-                                    {slaBreaches.length > 0 ? (
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {slaBreaches.slice(0, 3).map((r) => {
-                                                const sla = slaInfo(r.created_at, r.status);
-                                                return (
-                                                    <span key={r.id} className="px-1.5 py-0.5 rounded-sm text-[10px] font-medium bg-red-500/10 text-red-500 border border-red-500/20">
-                                                        {r.tracking_id}{sla ? ` ${sla.days}d` : ''}
-                                                    </span>
-                                                );
-                                            })}
-                                        </div>
-                                    ) : (
-                                        <p className="text-[11px] text-muted-foreground">All on schedule</p>
-                                    )}
                                 </div>
 
                                 {slaBreaches.length > 0 && (
@@ -834,30 +836,32 @@ function CenroDashboardInner() {
                                             setOversightBarangay("");
                                             setActiveTab('oversight');
                                         }}
-                                        className="text-xs font-medium text-primary hover:underline shrink-0"
+                                        className="px-3 py-1 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-semibold hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-1 shrink-0 ml-auto md:ml-0 shadow-sm"
                                     >
                                         View Queue →
                                     </button>
                                 )}
 
                                 {/* Divider */}
-                                <div className="hidden md:block w-px self-stretch bg-border shrink-0 mx-2" />
-                                <div className="md:hidden h-px w-full bg-border shrink-0 my-1" />
+                                <div className="hidden md:block w-px self-stretch bg-border/80 shrink-0 mx-2" />
+                                <div className="md:hidden h-px w-full bg-border/80 shrink-0 my-1" />
 
                                 {/* Policy info */}
-                                <div className="min-w-0">
-                                    <div className="text-[11px] font-medium text-muted-foreground mb-1.5">SLA Policy</div>
-                                    <div className="flex gap-1.5 mb-1">
-                                        <span className="px-1.5 py-0.5 rounded-sm text-[10px] font-medium bg-green-500/10 text-green-500 border border-green-500/20">Low {slaPolicy.low}d</span>
-                                        <span className="px-1.5 py-0.5 rounded-sm text-[10px] font-medium bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20">Med {slaPolicy.medium}d</span>
-                                        <span className="px-1.5 py-0.5 rounded-sm text-[10px] font-medium bg-red-500/10 text-red-500 border border-red-500/20">High {slaPolicy.high}d</span>
+                                <div className="min-w-0 flex flex-col gap-1.5">
+                                    <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">SLA Policy</div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex gap-1.5">
+                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/5 text-emerald-400 border border-emerald-500/15">Low {slaPolicy.low}d</span>
+                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-yellow-500/5 text-yellow-400 border border-yellow-500/15">Med {slaPolicy.medium}d</span>
+                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-500/5 text-red-400 border border-red-500/15">High {slaPolicy.high}d</span>
+                                        </div>
+                                        <button
+                                            onClick={() => setShowSlaModal(true)}
+                                            className="px-2.5 py-1 bg-secondary hover:bg-secondary/80 text-foreground/80 hover:text-foreground border border-border rounded-lg text-xs font-medium transition-all"
+                                        >
+                                            Edit Policy
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={() => setShowSlaModal(true)}
-                                        className="text-[11px] font-medium text-primary hover:underline"
-                                    >
-                                        Edit Policy →
-                                    </button>
                                 </div>
                             </div>
 
