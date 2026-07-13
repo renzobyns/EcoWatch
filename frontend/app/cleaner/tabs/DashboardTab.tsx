@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { Briefcase, Loader2, CheckCircle2, Target, AlertTriangle, ArrowRight, Activity } from "lucide-react";
+import { Briefcase, Loader2, CheckCircle2, Target, AlertTriangle, ArrowRight, Activity, Inbox } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { slaDeadlineLabel, slaDeadlineColor, SLA_PILL_CLASSES } from "@/lib/sla";
 import { formatDate } from "@/lib/date-utils";
@@ -86,7 +86,7 @@ export function DashboardTab({ user, workOrders, onOpenWO, onJump, loading = fal
                         </p>
                     )}
                 </div>
-                <p className="text-xs text-foreground/50 font-bold uppercase tracking-widest">{today}</p>
+                <p className="text-sm font-medium text-muted-foreground">{today}</p>
             </div>
 
             {/* KPI cards */}
@@ -95,49 +95,49 @@ export function DashboardTab({ user, workOrders, onOpenWO, onJump, loading = fal
                     icon={Briefcase}
                     label="Assigned"
                     value={stats?.total_assigned ?? "—"}
-                    accent="text-emerald-400"
                     loading={loading}
                 />
                 <KpiCard
                     icon={Loader2}
                     label="In Progress"
                     value={stats?.in_progress ?? "—"}
-                    accent="text-yellow-400"
                     loading={loading}
                 />
                 <KpiCard
                     icon={CheckCircle2}
                     label="Completed"
                     value={stats?.completed ?? "—"}
-                    accent="text-green-400"
                     loading={loading}
                 />
                 <KpiCard
                     icon={Target}
                     label="SLA Compliance"
                     value={stats != null ? `${stats.sla_compliance}%` : "—"}
-                    accent="text-blue-400"
                     loading={loading}
                 />
             </div>
 
             {loadError && (
-                <div className="glass rounded-2xl border border-yellow-500/30 bg-yellow-500/5 p-4 text-xs text-yellow-400 font-bold">
+                <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-4 text-xs font-semibold text-yellow-600 dark:text-yellow-400">
                     Couldn't load latest stats. Pull to refresh in a moment.
                 </div>
             )}
 
             {/* Priority alerts + Map preview */}
             <div className="grid lg:grid-cols-2 gap-4">
-                <div className="glass rounded-2xl border border-border shadow-2xl p-5">
-                    <h3 className="text-[11px] uppercase tracking-[0.2em] font-bold text-foreground/50 mb-4 flex items-center gap-2">
-                        <AlertTriangle className="size-3.5" />
+                <div className="bg-card rounded-xl border border-border shadow-sm p-5 flex flex-col">
+                    <h3 className="text-sm font-semibold text-muted-foreground mb-4 flex items-center gap-2">
+                        <AlertTriangle className="size-4" />
                         Priority Alerts
                     </h3>
                     {alerts.length === 0 ? (
-                        <p className="text-sm text-foreground/50 text-center py-6">
-                            Nothing urgent. You're on track.
-                        </p>
+                        <div className="flex flex-col items-center justify-center py-8 text-center flex-1">
+                            <div className="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-3">
+                                <CheckCircle2 className="size-5" />
+                            </div>
+                            <p className="text-sm text-foreground/70 font-medium">Nothing urgent.</p>
+                            <p className="text-xs text-muted-foreground mt-1">You're completely on track.</p>
+                        </div>
                     ) : (
                         <ul className="space-y-2">
                             {alerts.map((wo) => {
@@ -169,21 +169,21 @@ export function DashboardTab({ user, workOrders, onOpenWO, onJump, loading = fal
                     <button
                         type="button"
                         onClick={() => onJump("jobs")}
-                        className="mt-4 text-[11px] uppercase tracking-widest font-bold text-primary hover:text-primary/80 inline-flex items-center gap-1"
+                        className="mt-4 text-xs font-semibold text-primary hover:text-primary/80 inline-flex items-center gap-1"
                     >
                         View all jobs <ArrowRight className="size-3" />
                     </button>
                 </div>
 
-                <div className="glass rounded-2xl border border-border shadow-2xl overflow-hidden flex flex-col">
+                <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
                     <div className="p-5 pb-3 flex items-center justify-between">
-                        <h3 className="text-[11px] uppercase tracking-[0.2em] font-bold text-foreground/50">
+                        <h3 className="text-sm font-semibold text-muted-foreground">
                             Map Preview
                         </h3>
                         <button
                             type="button"
                             onClick={() => onJump("map_view")}
-                            className="text-[11px] uppercase tracking-widest font-bold text-primary hover:text-primary/80 inline-flex items-center gap-1"
+                            className="text-xs font-semibold text-primary hover:text-primary/80 inline-flex items-center gap-1"
                         >
                             Open <ArrowRight className="size-3" />
                         </button>
@@ -203,13 +203,18 @@ export function DashboardTab({ user, workOrders, onOpenWO, onJump, loading = fal
             </div>
 
             {/* Recent activity */}
-            <div className="glass rounded-2xl border border-border shadow-2xl p-5">
-                <h3 className="text-[11px] uppercase tracking-[0.2em] font-bold text-foreground/50 mb-4 flex items-center gap-2">
-                    <Activity className="size-3.5" />
+            <div className="bg-card rounded-xl border border-border shadow-sm p-5">
+                <h3 className="text-sm font-semibold text-muted-foreground mb-4 flex items-center gap-2">
+                    <Activity className="size-4" />
                     Recent Activity
                 </h3>
                 {activity.length === 0 ? (
-                    <p className="text-sm text-foreground/50 text-center py-4">No activity yet.</p>
+                    <div className="flex flex-col items-center justify-center py-6 text-center">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-3">
+                            <Inbox className="size-5" />
+                        </div>
+                        <p className="text-sm text-muted-foreground">No activity yet.</p>
+                    </div>
                 ) : (
                     <ul className="divide-y divide-border">
                         {activity.slice(0, 5).map((a) => (
@@ -220,7 +225,7 @@ export function DashboardTab({ user, workOrders, onOpenWO, onJump, loading = fal
                                         <span className="text-foreground/60"> — {a.status.replaceAll("_", " ")}</span>
                                     </p>
                                 </div>
-                                <span className="text-[10px] uppercase tracking-widest text-foreground/40 font-semibold shrink-0">
+                                <span className="text-xs text-muted-foreground font-medium shrink-0">
                                     {formatDate(a.created_at)}
                                 </span>
                             </li>
@@ -236,33 +241,35 @@ function KpiCard({
     icon: Icon,
     label,
     value,
-    accent,
     loading = false,
 }: {
     icon: any;
     label: string;
     value: number | string;
-    accent: string;
     loading?: boolean;
 }) {
     if (loading) {
         return (
-            <div className="glass rounded-2xl border border-border shadow-2xl p-4 animate-pulse">
+            <div className="bg-card rounded-xl border border-border shadow-sm p-5 animate-pulse">
                 <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-muted rounded shrink-0" />
+                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                        <div className="w-4 h-4 bg-muted-foreground/20 rounded" />
+                    </div>
                     <div className="h-3 bg-muted rounded w-16" />
                 </div>
-                <div className="h-8 bg-muted rounded w-12 mt-3" />
+                <div className="h-8 bg-muted rounded w-12 mt-4" />
             </div>
         );
     }
     return (
-        <div className="glass rounded-2xl border border-border shadow-2xl p-4">
-            <div className={`flex items-center gap-2 ${accent}`}>
-                <Icon className="size-4" />
-                <span className="text-[10px] uppercase tracking-widest font-bold">{label}</span>
+        <div className="bg-card rounded-xl border border-border shadow-sm p-5">
+            <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <Icon className="size-4" />
+                </div>
+                <span className="text-sm font-medium text-muted-foreground">{label}</span>
             </div>
-            <p className="text-3xl font-bold text-foreground mt-2 tracking-tight">{value}</p>
+            <p className="text-3xl font-bold text-foreground mt-3 tracking-tight">{value}</p>
         </div>
     );
 }
