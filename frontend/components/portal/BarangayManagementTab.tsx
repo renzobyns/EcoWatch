@@ -108,7 +108,7 @@ export function BarangayManagementTab({
                     <button
                         onClick={onRefresh}
                         disabled={loading}
-                        className="px-4 py-2 glass border border-border text-foreground/70 text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-foreground/10 transition-colors disabled:opacity-50 flex items-center gap-2"
+                        className="px-4 py-2 bg-muted/50 border border-border text-foreground text-sm font-medium rounded-lg hover:bg-muted transition-colors disabled:opacity-50 flex items-center gap-2"
                     >
                         <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
                         Refresh
@@ -116,7 +116,7 @@ export function BarangayManagementTab({
                     <button
                         onClick={onExport}
                         disabled={exporting}
-                        className="px-5 py-2 bg-emerald-500 text-emerald-950 text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-emerald-400 transition-colors shadow-[0_0_20px_rgba(16,185,129,0.3)] disabled:opacity-50 flex items-center gap-2"
+                        className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm"
                     >
                         <FileDown size={14} />
                         {exporting ? "Exporting…" : "Export CSV"}
@@ -161,7 +161,7 @@ export function BarangayManagementTab({
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                         placeholder="Search barangays, admins..."
-                        className="w-full pl-9 pr-3 py-2 glass border border-border rounded-lg text-sm text-foreground placeholder:text-foreground/40 focus:outline-none focus:border-primary/50"
+                        className="w-full pl-9 pr-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                     />
                 </div>
 
@@ -171,10 +171,10 @@ export function BarangayManagementTab({
                         <button
                             key={f}
                             onClick={() => setFilter(f)}
-                            className={`px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest transition-colors border ${
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
                                 filter === f
-                                    ? "bg-primary/20 border-primary/50 text-primary"
-                                    : "glass border-border text-foreground/50 hover:text-foreground hover:border-foreground/30"
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-muted/50 border-border text-muted-foreground hover:text-foreground hover:bg-muted"
                             }`}
                         >
                             {f === "all" ? "All" : f === "no_admin" ? "No Admin" : f === "sla_breached" ? "SLA Breached" : "Critical"}
@@ -189,7 +189,7 @@ export function BarangayManagementTab({
                 <select
                     value={sort}
                     onChange={e => setSort(e.target.value as typeof sort)}
-                    className="px-3 py-2 glass border border-border rounded-lg text-xs text-foreground/70 focus:outline-none focus:border-primary/50 bg-transparent"
+                    className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                 >
                     <option value="name">Sort: A → Z</option>
                     <option value="resolution_rate_asc">Sort: Worst Rate First</option>
@@ -198,18 +198,18 @@ export function BarangayManagementTab({
                 </select>
 
                 {/* View toggle */}
-                <div className="flex glass border border-border rounded-lg overflow-hidden">
+                <div className="flex bg-muted/50 border border-border rounded-lg overflow-hidden">
                     <button
                         onClick={() => setViewMode("card")}
                         title="Card view"
-                        className={`px-3 py-2 transition-colors ${viewMode === "card" ? "bg-primary/20 text-primary" : "text-foreground/40 hover:text-foreground"}`}
+                        className={`px-3 py-2 transition-colors ${viewMode === "card" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                     >
                         <LayoutGrid size={15} />
                     </button>
                     <button
                         onClick={() => setViewMode("table")}
                         title="Table view"
-                        className={`px-3 py-2 transition-colors ${viewMode === "table" ? "bg-primary/20 text-primary" : "text-foreground/40 hover:text-foreground"}`}
+                        className={`px-3 py-2 transition-colors ${viewMode === "table" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                     >
                         <List size={15} />
                     </button>
@@ -218,7 +218,7 @@ export function BarangayManagementTab({
                 {/* Assign New Admin */}
                 <button
                     onClick={() => onAssignAdmin("")}
-                    className="px-4 py-2 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+                    className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 shadow-sm"
                 >
                     <Plus size={14} />
                     Assign New Admin
@@ -227,14 +227,14 @@ export function BarangayManagementTab({
 
             {/* Error state */}
             {error && (
-                <div className="glass-pro p-4 rounded-2xl border border-red-500/30 bg-red-500/10 flex items-center justify-between gap-4 shrink-0">
-                    <div className="flex items-center gap-3 text-red-400">
+                <div className="p-4 rounded-lg border border-destructive/50 bg-destructive/10 flex items-center justify-between gap-4 shrink-0">
+                    <div className="flex items-center gap-3 text-destructive">
                         <AlertTriangle size={18} />
                         <span className="text-sm font-semibold">{error}</span>
                     </div>
                     <button
                         onClick={onRefresh}
-                        className="px-3 py-1.5 text-xs font-bold uppercase tracking-widest bg-red-500/20 border border-red-500/30 text-red-300 rounded-lg hover:bg-red-500/30 transition-colors"
+                        className="px-4 py-2 text-sm font-medium bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"
                     >
                         Retry
                     </button>
@@ -246,7 +246,7 @@ export function BarangayManagementTab({
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-slide-up">
                     {loading ? (
                         Array.from({ length: 8 }).map((_, i) => (
-                            <div key={i} className="h-52 glass-pro rounded-2xl border border-border animate-pulse" />
+                            <div key={i} className="h-52 bg-card rounded-lg border border-border animate-pulse" />
                         ))
                     ) : paginated.length === 0 ? (
                         <div className="col-span-full py-16 text-center text-foreground/40">
@@ -268,27 +268,27 @@ export function BarangayManagementTab({
 
             {/* Table View */}
             {viewMode === "table" && (
-                <div className="glass-pro rounded-[2.5rem] border border-border bento-card overflow-hidden animate-slide-up">
+                <div className="bg-card rounded-lg border border-border shadow-sm overflow-hidden animate-slide-up">
                     <div className="overflow-x-auto">
                         {loading ? (
                             <div className="p-6"><SkeletonRows count={8} /></div>
                         ) : paginated.length === 0 ? (
                             <EmptyState
-                                icon={<Building2 size={32} className="text-foreground/30" />}
+                                icon={<Building2 size={32} className="text-muted-foreground" />}
                                 title="No barangays match these filters"
                                 subtitle="Try adjusting your search or filter."
                             />
                         ) : (
-                            <table className="w-full text-sm">
+                            <table className="w-full text-sm text-left">
                                 <thead>
-                                    <tr className="border-b border-border">
-                                        <th className="py-4 px-6 text-left text-[10px] text-foreground/40 uppercase tracking-widest font-bold">Barangay</th>
-                                        <th className="py-4 px-4 text-left text-[10px] text-foreground/40 uppercase tracking-widest font-bold">Assigned Admin</th>
-                                        <th className="py-4 px-4 text-right text-[10px] text-foreground/40 uppercase tracking-widest font-bold">Reports</th>
-                                        <th className="py-4 px-4 text-right text-[10px] text-foreground/40 uppercase tracking-widest font-bold">Pending</th>
-                                        <th className="py-4 px-4 text-right text-[10px] text-foreground/40 uppercase tracking-widest font-bold">Resolved</th>
-                                        <th className="py-4 px-4 text-center text-[10px] text-foreground/40 uppercase tracking-widest font-bold">SLA Breaches</th>
-                                        <th className="py-4 px-4 text-center text-[10px] text-foreground/40 uppercase tracking-widest font-bold">Status</th>
+                                    <tr className="border-b border-border bg-muted/50">
+                                        <th className="py-4 px-6 text-xs font-medium text-muted-foreground">Barangay</th>
+                                        <th className="py-4 px-4 text-xs font-medium text-muted-foreground">Assigned Admin</th>
+                                        <th className="py-4 px-4 text-xs font-medium text-muted-foreground text-right">Reports</th>
+                                        <th className="py-4 px-4 text-xs font-medium text-muted-foreground text-right">Pending</th>
+                                        <th className="py-4 px-4 text-xs font-medium text-muted-foreground text-right">Resolved</th>
+                                        <th className="py-4 px-4 text-xs font-medium text-muted-foreground text-center">SLA Breaches</th>
+                                        <th className="py-4 px-4 text-xs font-medium text-muted-foreground text-center">Status</th>
                                         <th className="py-4 px-4 w-10" />
                                     </tr>
                                 </thead>
@@ -297,49 +297,49 @@ export function BarangayManagementTab({
                                         <tr
                                             key={row.barangay}
                                             onClick={() => onSelectBarangay(row)}
-                                            className="border-b border-border/40 hover:bg-foreground/5 cursor-pointer transition-colors"
+                                            className="border-b border-border hover:bg-muted/50 cursor-pointer transition-colors"
                                         >
                                             <td className="py-4 px-6">
                                                 <div className="font-semibold text-foreground">{row.barangay}</div>
-                                                <div className="text-[10px] text-foreground/40 uppercase tracking-widest mt-0.5">San Jose del Monte</div>
+                                                <div className="text-xs text-muted-foreground mt-0.5">San Jose del Monte</div>
                                             </td>
                                             <td className="py-4 px-4">
                                                 <div className="flex items-center gap-2.5">
-                                                    <div className="w-7 h-7 rounded-full bg-foreground/10 border border-border flex items-center justify-center text-[10px] font-bold text-foreground/60 shrink-0">
+                                                    <div className="w-8 h-8 rounded-full bg-muted border border-border flex items-center justify-center text-xs font-semibold text-muted-foreground shrink-0">
                                                         {row.admin ? row.admin.full_name.charAt(0).toUpperCase() : "?"}
                                                     </div>
-                                                    <span className={row.admin ? "text-sm text-foreground" : "text-sm text-foreground/40 italic"}>
+                                                    <span className={row.admin ? "text-sm text-foreground font-medium" : "text-sm text-muted-foreground italic"}>
                                                         {row.admin ? row.admin.full_name : "Unassigned"}
                                                     </span>
                                                 </div>
                                             </td>
-                                            <td className="py-4 px-4 text-right text-foreground/70">{row.total_reports}</td>
-                                            <td className="py-4 px-4 text-right text-yellow-400 font-semibold">{row.pending}</td>
-                                            <td className="py-4 px-4 text-right text-emerald-400 font-semibold">{row.resolved}</td>
+                                            <td className="py-4 px-4 text-right text-muted-foreground">{row.total_reports}</td>
+                                            <td className="py-4 px-4 text-right text-yellow-600 dark:text-yellow-400 font-semibold">{row.pending}</td>
+                                            <td className="py-4 px-4 text-right text-emerald-600 dark:text-emerald-400 font-semibold">{row.resolved}</td>
                                             <td className="py-4 px-4 text-center">
                                                 {row.active_breaches > 0 ? (
-                                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-300 border border-red-500/30 uppercase tracking-widest">
+                                                    <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-destructive/10 text-destructive border border-destructive/20">
                                                         {row.active_breaches} Active
                                                     </span>
                                                 ) : (
-                                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-foreground/10 text-foreground/30 border border-border uppercase tracking-widest">
+                                                    <span className="px-2.5 py-1 rounded-md text-xs font-medium bg-muted text-muted-foreground">
                                                         None
                                                     </span>
                                                 )}
                                             </td>
                                             <td className="py-4 px-4">
                                                 <div className="flex items-center justify-center gap-1.5">
-                                                    <div className={`w-1.5 h-1.5 rounded-full ${
-                                                        row.status === "healthy" ? "bg-emerald-400" :
-                                                        row.status === "at_risk" ? "bg-yellow-400" :
-                                                        row.status === "breached" ? "bg-red-400" :
-                                                        "bg-orange-400"
+                                                    <div className={`w-2 h-2 rounded-full ${
+                                                        row.status === "healthy" ? "bg-emerald-500" :
+                                                        row.status === "at_risk" ? "bg-yellow-500" :
+                                                        row.status === "breached" ? "bg-destructive" :
+                                                        "bg-orange-500"
                                                     }`} />
-                                                    <span className={`text-xs font-semibold ${
-                                                        row.status === "healthy" ? "text-emerald-300" :
-                                                        row.status === "at_risk" ? "text-yellow-300" :
-                                                        row.status === "breached" ? "text-red-300" :
-                                                        "text-orange-300"
+                                                    <span className={`text-sm font-medium ${
+                                                        row.status === "healthy" ? "text-emerald-600 dark:text-emerald-400" :
+                                                        row.status === "at_risk" ? "text-yellow-600 dark:text-yellow-400" :
+                                                        row.status === "breached" ? "text-destructive" :
+                                                        "text-orange-600 dark:text-orange-400"
                                                     }`}>
                                                         {row.status === "healthy" ? "Healthy" :
                                                          row.status === "at_risk" ? "At Risk" :
@@ -368,14 +368,14 @@ export function BarangayManagementTab({
             {/* Pagination */}
             {filtered.length > 0 && (
                 <div className="flex items-center justify-between shrink-0 pt-2">
-                    <span className="text-xs text-foreground/40">
+                    <span className="text-sm text-muted-foreground">
                         Showing {Math.min((page - 1) * pageSize + 1, filtered.length)}–{Math.min(page * pageSize, filtered.length)} of {filtered.length} barangay{filtered.length !== 1 ? "s" : ""}
                     </span>
                     <div className="flex items-center gap-1">
                         <button
                             onClick={() => setPage(p => Math.max(1, p - 1))}
                             disabled={page === 1}
-                            className="px-3 py-1.5 glass border border-border rounded-lg text-xs font-bold text-foreground/50 hover:text-foreground disabled:opacity-30 transition-colors"
+                            className="px-3 py-1.5 bg-muted/50 border border-border rounded-lg text-sm font-medium text-foreground hover:bg-muted disabled:opacity-30 transition-colors"
                         >
                             Previous
                         </button>
@@ -386,7 +386,7 @@ export function BarangayManagementTab({
                                 <button
                                     key={p}
                                     onClick={() => setPage(p)}
-                                    className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors ${p === page ? "bg-primary/20 border border-primary/50 text-primary" : "glass border border-border text-foreground/50 hover:text-foreground"}`}
+                                    className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${p === page ? "bg-primary text-primary-foreground border border-primary" : "bg-muted/50 border border-border text-foreground hover:bg-muted"}`}
                                 >
                                     {p}
                                 </button>
@@ -395,7 +395,7 @@ export function BarangayManagementTab({
                         <button
                             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                             disabled={page === totalPages}
-                            className="px-3 py-1.5 glass border border-border rounded-lg text-xs font-bold text-foreground/50 hover:text-foreground disabled:opacity-30 transition-colors"
+                            className="px-3 py-1.5 bg-muted/50 border border-border rounded-lg text-sm font-medium text-foreground hover:bg-muted disabled:opacity-30 transition-colors"
                         >
                             Next
                         </button>
@@ -457,27 +457,19 @@ function BarangayRowCard({
     return (
         <div
             onClick={onSelect}
-            className={`glass-pro rounded-2xl border border-border bento-card cursor-pointer hover:border-primary/40 transition-all p-5 flex flex-col gap-3 ${statusBand} relative overflow-hidden`}
+            className={`bg-card rounded-lg border border-border cursor-pointer hover:border-primary/40 transition-all p-5 flex flex-col gap-3 ${statusBand} relative overflow-hidden shadow-sm`}
         >
-            {/* Ambient glow */}
-            {row.status === "breached" && (
-                <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-[40px] pointer-events-none" />
-            )}
-            {row.status === "at_risk" && (
-                <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/5 rounded-full blur-[40px] pointer-events-none" />
-            )}
-
             {/* Header: name + status pill */}
             <div className="flex items-start justify-between gap-2 relative z-10">
                 <div className="min-w-0">
                     <h3 className="font-bold text-foreground text-sm leading-tight truncate">{row.barangay}</h3>
-                    <div className="text-[10px] text-foreground/40 mt-0.5">San Jose del Monte</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">San Jose del Monte</div>
                 </div>
-                <div className={`flex items-center gap-1.5 shrink-0 px-2 py-1 rounded-full border text-[10px] font-bold uppercase tracking-widest ${
-                    row.status === "healthy" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300" :
-                    row.status === "at_risk" ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-300" :
-                    row.status === "breached" ? "bg-red-500/10 border-red-500/30 text-red-300" :
-                    "bg-orange-500/10 border-orange-500/30 text-orange-300"
+                <div className={`flex items-center gap-1.5 shrink-0 px-2 py-1 rounded-md border text-xs font-medium ${
+                    row.status === "healthy" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400" :
+                    row.status === "at_risk" ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-600 dark:text-yellow-400" :
+                    row.status === "breached" ? "bg-destructive/10 border-destructive/30 text-destructive" :
+                    "bg-orange-500/10 border-orange-500/30 text-orange-600 dark:text-orange-400"
                 }`}>
                     <div className={`w-1.5 h-1.5 rounded-full ${statusDot}`} />
                     {statusLabel}
@@ -486,17 +478,17 @@ function BarangayRowCard({
 
             {/* Admin row */}
             <div className="flex items-center gap-2 relative z-10">
-                <div className="w-7 h-7 rounded-full bg-foreground/10 border border-border flex items-center justify-center text-[10px] font-bold text-foreground/60 shrink-0">
+                <div className="w-8 h-8 rounded-full bg-muted border border-border flex items-center justify-center text-xs font-semibold text-muted-foreground shrink-0">
                     {row.admin ? row.admin.full_name.charAt(0).toUpperCase() : "?"}
                 </div>
                 <div className="min-w-0 flex-1">
                     {row.admin ? (
                         <>
-                            <div className="text-xs font-semibold text-foreground truncate">{row.admin.full_name}</div>
-                            <div className="text-[10px] text-foreground/40 truncate">{row.admin.email}</div>
+                            <div className="text-sm font-semibold text-foreground truncate">{row.admin.full_name}</div>
+                            <div className="text-xs text-muted-foreground truncate">{row.admin.email}</div>
                         </>
                     ) : (
-                        <div className="text-[10px] font-bold text-orange-400 uppercase tracking-widest">No Admin Assigned</div>
+                        <div className="text-xs font-medium text-orange-600 dark:text-orange-400 italic">No Admin Assigned</div>
                     )}
                 </div>
             </div>
@@ -505,17 +497,17 @@ function BarangayRowCard({
             <div className="grid grid-cols-4 gap-1 relative z-10">
                 {[
                     { label: "Reports", value: row.total_reports, color: "text-foreground" },
-                    { label: "Pending", value: row.pending, color: "text-yellow-400" },
-                    { label: "Resolved", value: row.resolved, color: "text-emerald-400" },
+                    { label: "Pending", value: row.pending, color: "text-yellow-600 dark:text-yellow-400" },
+                    { label: "Resolved", value: row.resolved, color: "text-emerald-600 dark:text-emerald-400" },
                     {
                         label: "Rate",
                         value: `${row.resolution_rate.toFixed(0)}%`,
-                        color: row.resolution_rate >= 75 ? "text-emerald-400" : row.resolution_rate >= 50 ? "text-yellow-400" : "text-red-400",
+                        color: row.resolution_rate >= 75 ? "text-emerald-600 dark:text-emerald-400" : row.resolution_rate >= 50 ? "text-yellow-600 dark:text-yellow-400" : "text-destructive",
                     },
                 ].map(k => (
                     <div key={k.label} className="text-center">
-                        <div className={`text-sm font-bold ${k.color}`}>{k.value}</div>
-                        <div className="text-[9px] text-foreground/40 uppercase tracking-widest">{k.label}</div>
+                        <div className={`text-lg font-bold ${k.color}`}>{k.value}</div>
+                        <div className="text-xs font-medium text-muted-foreground mt-0.5">{k.label}</div>
                     </div>
                 ))}
             </div>
@@ -535,21 +527,21 @@ function BarangayRowCard({
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-between pt-1 border-t border-border/50 relative z-10">
-                <span className="text-[10px] text-foreground/40">{lastReport}</span>
+            <div className="flex items-center justify-between pt-3 mt-1 border-t border-border/50 relative z-10">
+                <span className="text-xs text-muted-foreground">{lastReport}</span>
                 {!row.admin ? (
                     <button
                         onClick={(e) => { e.stopPropagation(); onAssignAdmin(); }}
-                        className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 uppercase tracking-widest"
+                        className="text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline"
                     >
                         Assign Admin
                     </button>
                 ) : (
                     <button
                         onClick={(e) => { e.stopPropagation(); }}
-                        className="text-[10px] font-bold text-foreground/40 hover:text-foreground/60 uppercase tracking-widest"
+                        className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
                     >
-                        Details →
+                        Details &rarr;
                     </button>
                 )}
             </div>
@@ -571,24 +563,18 @@ function KpiCard({
     tone: "red" | "yellow" | "emerald" | "blue";
 }) {
     const toneClasses = {
-        red: "bg-red-500/20 text-red-400 shadow-[0_0_20px_rgba(239,68,68,0.2)]",
-        yellow: "bg-yellow-500/20 text-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.2)]",
-        emerald: "bg-emerald-500/20 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)]",
-        blue: "bg-blue-500/20 text-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.2)]",
-    } as const;
-    const valueColor = {
-        red: "text-red-400",
-        yellow: "text-yellow-400",
-        emerald: "text-emerald-300",
-        blue: "text-blue-300",
+        red: "bg-destructive/10 text-destructive",
+        yellow: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400",
+        emerald: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+        blue: "bg-primary/10 text-primary",
     } as const;
     return (
-        <div className="glass-pro p-5 rounded-2xl bento-card flex items-center justify-between gap-4">
+        <div className="bg-card p-5 rounded-lg border border-border shadow-sm flex items-center justify-between gap-4">
             <div className="min-w-0">
-                <div className="text-[11px] text-foreground/50 uppercase tracking-widest font-bold mb-1.5 truncate">{label}</div>
-                <div className={`text-3xl font-bold tracking-tight ${valueColor[tone]}`}>{value}</div>
+                <div className="text-sm font-medium text-muted-foreground mb-1.5 truncate">{label}</div>
+                <div className="text-3xl font-bold text-foreground tracking-tight">{value}</div>
             </div>
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${toneClasses[tone]}`}>
+            <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 ${toneClasses[tone]}`}>
                 {icon}
             </div>
         </div>
@@ -599,7 +585,7 @@ function SkeletonRows({ count = 4 }: { count?: number }) {
     return (
         <div className="space-y-2">
             {Array.from({ length: count }).map((_, i) => (
-                <div key={i} className="h-10 bg-foreground/5 rounded animate-pulse" />
+                <div key={i} className="h-10 bg-muted/50 rounded-md animate-pulse" />
             ))}
         </div>
     );
