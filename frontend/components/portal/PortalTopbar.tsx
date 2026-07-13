@@ -8,6 +8,7 @@ interface PortalTopbarProps {
     role: string;
     pageBadge: string;
     notificationCount?: number;
+    actions?: React.ReactNode;
 }
 
 interface StoredUser { id?: number; }
@@ -17,7 +18,7 @@ function emitOpenTarget(detail: { report_id: number | null; work_order_id: numbe
     window.dispatchEvent(new CustomEvent("ecowatch:open-target", { detail }));
 }
 
-export function PortalTopbar({ role, pageBadge, notificationCount = 0 }: PortalTopbarProps) {
+export function PortalTopbar({ role, pageBadge, notificationCount = 0, actions }: PortalTopbarProps) {
     const [userId, setUserId] = useState<number | null>(null);
     useEffect(() => {
         try {
@@ -47,6 +48,7 @@ export function PortalTopbar({ role, pageBadge, notificationCount = 0 }: PortalT
             </div>
 
             <div className="flex items-center gap-3 shrink-0">
+                {actions && <div className="flex items-center gap-2 mr-2">{actions}</div>}
                 {userId != null && (
                     <NotificationDropdown
                         unreadCount={notificationCount}

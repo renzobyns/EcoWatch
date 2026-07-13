@@ -25,6 +25,7 @@ interface PortalShellProps {
     activeKey: string;
     onNavChange: (key: string) => void;
     notificationCount?: number;
+    actions?: React.ReactNode;
     children: ReactNode;
 }
 
@@ -37,6 +38,7 @@ export function PortalShell({
     activeKey,
     onNavChange,
     notificationCount,
+    actions,
     children,
 }: PortalShellProps) {
     const [collapsed, setCollapsed] = useState(false);
@@ -72,6 +74,7 @@ export function PortalShell({
                         role={role}
                         pageBadge={pageBadge}
                         notificationCount={notificationCount}
+                        actions={actions}
                     />
                 </div>
                 <main className="relative flex-1 overflow-y-auto px-4 md:px-8 py-6">

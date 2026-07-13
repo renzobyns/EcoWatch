@@ -937,10 +937,11 @@ function CenroDashboardInner() {
                 onNavChange={() => {}}
                 notificationCount={0}
             >
-                <div className="max-w-[1600px] mx-auto h-full flex flex-col gap-6 p-1">
-                    {/* Top Stats Bar Skeleton */}
-                    <div className="flex flex-col md:flex-row items-start gap-4 shrink-0 w-full">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 flex-1 w-full">
+                <div className="max-w-[1600px] mx-auto h-full flex-1 grid grid-cols-1 lg:grid-cols-[2.5fr_1fr] gap-6 overflow-hidden p-1 pb-4">
+                    {/* Left Section Skeleton */}
+                    <div className="flex flex-col gap-4 min-h-0">
+                        {/* Top Stats Bar Skeleton */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0 w-full">
                             {Array.from({ length: 4 }).map((_, i) => (
                                 <div key={i} className="glass-pro p-4 md:p-5 rounded-2xl h-24 bg-foreground/[0.02] flex flex-col justify-center">
                                     <div className="h-2 w-16 bg-foreground/10 rounded mb-3 animate-pulse"></div>
@@ -948,54 +949,50 @@ function CenroDashboardInner() {
                                 </div>
                             ))}
                         </div>
-                        <div className="w-full md:w-48 h-[46px] rounded-lg bg-foreground/5 animate-pulse shrink-0"></div>
-                    </div>
 
-                    {/* SLA Bar Skeleton */}
-                    <div className="glass-pro h-[74px] rounded-2xl border border-border shrink-0 bg-foreground/[0.02] flex items-center px-5 gap-5">
-                        <div className="w-10 h-10 rounded-xl bg-foreground/10 animate-pulse shrink-0"></div>
-                        <div className="flex flex-col gap-2">
-                            <div className="h-2 w-20 bg-foreground/10 rounded animate-pulse"></div>
-                            <div className="h-4 w-8 bg-foreground/10 rounded animate-pulse"></div>
-                        </div>
-                        <div className="hidden md:block w-px self-stretch bg-border shrink-0 mx-1" />
-                        <div className="hidden md:flex flex-col gap-2">
-                            <div className="h-2 w-20 bg-foreground/10 rounded animate-pulse"></div>
-                            <div className="flex gap-2">
-                                <div className="h-4 w-12 rounded bg-foreground/10 animate-pulse"></div>
-                                <div className="h-4 w-12 rounded bg-foreground/10 animate-pulse"></div>
-                                <div className="h-4 w-12 rounded bg-foreground/10 animate-pulse"></div>
+                        {/* SLA Bar Skeleton */}
+                        <div className="glass-pro h-[74px] rounded-2xl border border-border shrink-0 bg-foreground/[0.02] flex items-center px-5 gap-5">
+                            <div className="w-10 h-10 rounded-xl bg-foreground/10 animate-pulse shrink-0"></div>
+                            <div className="flex flex-col gap-2">
+                                <div className="h-2 w-20 bg-foreground/10 rounded animate-pulse"></div>
+                                <div className="h-4 w-8 bg-foreground/10 rounded animate-pulse"></div>
+                            </div>
+                            <div className="hidden md:block w-px self-stretch bg-border shrink-0 mx-1" />
+                            <div className="hidden md:flex flex-col gap-2">
+                                <div className="h-2 w-20 bg-foreground/10 rounded animate-pulse"></div>
+                                <div className="flex gap-2">
+                                    <div className="h-4 w-12 rounded bg-foreground/10 animate-pulse"></div>
+                                    <div className="h-4 w-12 rounded bg-foreground/10 animate-pulse"></div>
+                                    <div className="h-4 w-12 rounded bg-foreground/10 animate-pulse"></div>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Main Grid Skeleton */}
-                    <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-6 min-h-0">
                         {/* Map Skeleton */}
-                        <div className="glass rounded-2xl border border-border bg-foreground/[0.02] min-h-[300px] relative overflow-hidden">
+                        <div className="flex-1 glass rounded-2xl border border-border bg-foreground/[0.02] min-h-[400px] relative overflow-hidden">
                             <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-foreground/20 via-transparent to-transparent animate-pulse"></div>
                             <div className="absolute top-4 left-4 h-6 w-32 bg-foreground/10 rounded-full animate-pulse"></div>
                         </div>
-                        
-                        {/* 2x2 Grid Skeleton */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-rows-2 gap-6 min-h-0">
-                            {Array.from({ length: 4 }).map((_, i) => (
-                                <div key={i} className="glass-pro p-6 rounded-[2rem] bg-foreground/[0.02] flex flex-col">
-                                    <div className="h-3 w-24 bg-foreground/10 rounded mb-6 animate-pulse shrink-0"></div>
-                                    <div className="flex-1 flex flex-col gap-4 overflow-hidden">
-                                        {Array.from({ length: 3 }).map((_, j) => (
-                                            <div key={j} className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-foreground/10 animate-pulse shrink-0"></div>
-                                                <div className="flex-1 flex flex-col gap-2">
-                                                    <div className="h-2 bg-foreground/10 rounded animate-pulse w-3/4"></div>
-                                                    <div className="h-2 bg-foreground/10 rounded animate-pulse w-1/2"></div>
-                                                </div>
+                    </div>
+
+                    {/* Right Sidebar Skeleton */}
+                    <div className="flex flex-col gap-4 overflow-y-auto pr-2 scrollbar-thin">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                            <div key={i} className="glass-pro p-6 rounded-[2rem] bg-foreground/[0.02] flex flex-col shrink-0 min-h-[250px]">
+                                <div className="h-3 w-24 bg-foreground/10 rounded mb-6 animate-pulse shrink-0"></div>
+                                <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+                                    {Array.from({ length: 3 }).map((_, j) => (
+                                        <div className="flex items-center gap-3" key={j}>
+                                            <div className="w-8 h-8 rounded-full bg-foreground/10 animate-pulse shrink-0"></div>
+                                            <div className="flex-1 flex flex-col gap-2">
+                                                <div className="h-2 bg-foreground/10 rounded animate-pulse w-3/4"></div>
+                                                <div className="h-2 bg-foreground/10 rounded animate-pulse w-1/2"></div>
                                             </div>
-                                        ))}
-                                    </div>
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </PortalShell>
@@ -1047,6 +1044,16 @@ function CenroDashboardInner() {
                 router.replace('?tab=' + k, { scroll: false });
             }}
             notificationCount={unreadCount}
+            actions={activeTab === 'command_center' ? (
+                <button
+                    onClick={handleExportAnalytics}
+                    className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium shadow-sm hover:bg-primary/90 transition-colors shrink-0"
+                    title="Export analytics summary as CSV"
+                >
+                    <Download size={14} />
+                    <span className="hidden md:inline">Export CSV</span>
+                </button>
+            ) : undefined}
         >
             <div className="max-w-[1600px] mx-auto h-full flex flex-col">
 
@@ -1110,11 +1117,12 @@ function CenroDashboardInner() {
 
                 {activeTab === 'command_center' && (
                     /* COMMAND CENTER TAB */
-                    <div className="flex-1 flex flex-col gap-6 min-h-0 pb-8">
+                    <div className="flex-1 grid grid-cols-1 lg:grid-cols-[2.5fr_1fr] gap-6 overflow-hidden pb-4">
 
-                        {/* Top Stats Bar + Export */}
-                        <div className="flex flex-col md:flex-row items-start gap-3 shrink-0 animate-slide-up stagger-1 w-full">
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 flex-1 w-full">
+                        {/* Left: Main Content */}
+                        <div className="flex flex-col gap-4 min-h-0">
+                            {/* Top Stats Bar */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0 animate-slide-up stagger-1 w-full">
                                 <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm">
                                     <div className="flex flex-row items-center justify-between p-4 pb-2">
                                         <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Total Reports</h3>
@@ -1149,186 +1157,179 @@ function CenroDashboardInner() {
                                     </div>
                                 </div>
                             </div>
-                            <button
-                                onClick={handleExportAnalytics}
-                                className="flex items-center justify-center gap-2 px-3 py-2.5 md:py-2 md:h-20 w-full md:w-32 rounded-lg bg-card border border-border text-foreground text-xs font-medium shadow-sm hover:bg-accent hover:text-accent-foreground transition-colors shrink-0 md:self-stretch"
-                                title="Export analytics summary as CSV"
-                            >
-                                <Download size={14} />
-                                Export CSV
-                            </button>
-                        </div>
 
-                        {/* Merged SLA bar */}
-                        <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm px-4 py-3 shrink-0 flex flex-col md:flex-row items-start md:items-center gap-4 animate-slide-up stagger-2 overflow-hidden">
-                            {/* Breach icon */}
-                            <div className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 ${slaBreaches.length > 0 ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-500'}`}>
-                                <AlertTriangle size={16} />
-                            </div>
-
-                            {/* Breach info */}
-                            <div className="min-w-0 flex-1 md:flex-none">
-                                <div className="text-[11px] font-medium text-muted-foreground mb-0.5">SLA Breaches</div>
-                                <div className="text-lg font-bold leading-none mb-1 text-foreground">
-                                    {slaBreaches.length}
+                            {/* Merged SLA bar */}
+                            <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm px-4 py-3 shrink-0 flex flex-col md:flex-row items-start md:items-center gap-4 animate-slide-up stagger-2 overflow-hidden">
+                                {/* Breach icon */}
+                                <div className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 ${slaBreaches.length > 0 ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-500'}`}>
+                                    <AlertTriangle size={16} />
                                 </div>
-                                {slaBreaches.length > 0 ? (
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {slaBreaches.slice(0, 3).map((r) => {
-                                            const sla = slaInfo(r.created_at, r.status);
-                                            return (
-                                                <span key={r.id} className="px-1.5 py-0.5 rounded-sm text-[10px] font-medium bg-red-500/10 text-red-500 border border-red-500/20">
-                                                    {r.tracking_id}{sla ? ` ${sla.days}d` : ''}
-                                                </span>
-                                            );
-                                        })}
+
+                                {/* Breach info */}
+                                <div className="min-w-0 flex-1 md:flex-none">
+                                    <div className="text-[11px] font-medium text-muted-foreground mb-0.5">SLA Breaches</div>
+                                    <div className="text-lg font-bold leading-none mb-1 text-foreground">
+                                        {slaBreaches.length}
                                     </div>
-                                ) : (
-                                    <p className="text-[11px] text-muted-foreground">All on schedule</p>
-                                )}
-                            </div>
-
-                            {slaBreaches.length > 0 && (
-                                <button
-                                    onClick={() => {
-                                        setOversightStatus("");
-                                        setOversightSearch("");
-                                        setOversightDateRange(undefined);
-                                        setOversightBarangay("");
-                                        setActiveTab('oversight');
-                                    }}
-                                    className="text-xs font-medium text-primary hover:underline shrink-0"
-                                >
-                                    View Queue →
-                                </button>
-                            )}
-
-                            {/* Divider */}
-                            <div className="hidden md:block w-px self-stretch bg-border shrink-0 mx-2" />
-                            <div className="md:hidden h-px w-full bg-border shrink-0 my-1" />
-
-                            {/* Policy info */}
-                            <div className="min-w-0">
-                                <div className="text-[11px] font-medium text-muted-foreground mb-1.5">SLA Policy</div>
-                                <div className="flex gap-1.5 mb-1">
-                                    <span className="px-1.5 py-0.5 rounded-sm text-[10px] font-medium bg-green-500/10 text-green-500 border border-green-500/20">Low {slaPolicy.low}d</span>
-                                    <span className="px-1.5 py-0.5 rounded-sm text-[10px] font-medium bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20">Med {slaPolicy.medium}d</span>
-                                    <span className="px-1.5 py-0.5 rounded-sm text-[10px] font-medium bg-red-500/10 text-red-500 border border-red-500/20">High {slaPolicy.high}d</span>
+                                    {slaBreaches.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {slaBreaches.slice(0, 3).map((r) => {
+                                                const sla = slaInfo(r.created_at, r.status);
+                                                return (
+                                                    <span key={r.id} className="px-1.5 py-0.5 rounded-sm text-[10px] font-medium bg-red-500/10 text-red-500 border border-red-500/20">
+                                                        {r.tracking_id}{sla ? ` ${sla.days}d` : ''}
+                                                    </span>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <p className="text-[11px] text-muted-foreground">All on schedule</p>
+                                    )}
                                 </div>
-                                <button
-                                    onClick={() => setShowSlaModal(true)}
-                                    className="text-[11px] font-medium text-primary hover:underline"
-                                >
-                                    Edit Policy →
-                                </button>
+
+                                {slaBreaches.length > 0 && (
+                                    <button
+                                        onClick={() => {
+                                            setOversightStatus("");
+                                            setOversightSearch("");
+                                            setOversightDateRange(undefined);
+                                            setOversightBarangay("");
+                                            setActiveTab('oversight');
+                                        }}
+                                        className="text-xs font-medium text-primary hover:underline shrink-0"
+                                    >
+                                        View Queue →
+                                    </button>
+                                )}
+
+                                {/* Divider */}
+                                <div className="hidden md:block w-px self-stretch bg-border shrink-0 mx-2" />
+                                <div className="md:hidden h-px w-full bg-border shrink-0 my-1" />
+
+                                {/* Policy info */}
+                                <div className="min-w-0">
+                                    <div className="text-[11px] font-medium text-muted-foreground mb-1.5">SLA Policy</div>
+                                    <div className="flex gap-1.5 mb-1">
+                                        <span className="px-1.5 py-0.5 rounded-sm text-[10px] font-medium bg-green-500/10 text-green-500 border border-green-500/20">Low {slaPolicy.low}d</span>
+                                        <span className="px-1.5 py-0.5 rounded-sm text-[10px] font-medium bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20">Med {slaPolicy.medium}d</span>
+                                        <span className="px-1.5 py-0.5 rounded-sm text-[10px] font-medium bg-red-500/10 text-red-500 border border-red-500/20">High {slaPolicy.high}d</span>
+                                    </div>
+                                    <button
+                                        onClick={() => setShowSlaModal(true)}
+                                        className="text-[11px] font-medium text-primary hover:underline"
+                                    >
+                                        Edit Policy →
+                                    </button>
+                                </div>
                             </div>
-                        </div>
 
-                        {/* Main Grid — Map hero + 2×2 panels */}
-                        <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-3 min-h-0">
-
-                            {/* Left: Map hero */}
-                            <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm overflow-hidden relative min-h-[300px] animate-slide-up stagger-3">
-                                <div className="absolute top-3 left-3 z-[1000] bg-background/80 backdrop-blur-md px-2 py-1 rounded text-[11px] font-medium text-foreground border border-border pointer-events-none shadow-sm">Live City Map</div>
+                            {/* Map hero */}
+                            <div className="flex-1 rounded-lg border border-border bg-card text-card-foreground shadow-sm overflow-hidden relative min-h-[400px] animate-slide-up stagger-3">
+                                <div className="absolute top-3 left-3 z-[1000] bg-background/80 backdrop-blur-md px-2 py-1 rounded text-[11px] font-medium text-foreground border border-border pointer-events-none shadow-sm flex items-center gap-1.5">
+                                    <span className="relative flex h-2 w-2">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                    </span>
+                                    Live City Map
+                                </div>
                                 <MapComponent height="100%" reports={reports} heatmaps={heatmaps} focusedBarangay={null} onBarangayClick={() => {}} />
                             </div>
+                        </div>
 
-                            {/* Right: 2×2 panel grid */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-rows-2 gap-3 min-h-0 animate-slide-up stagger-4">
-
-                                {/* Top-left: Status Breakdown */}
-                                <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm flex flex-col min-h-0">
-                                    <div className="p-4 pb-2 shrink-0">
-                                        <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Status Breakdown</h3>
-                                    </div>
-                                    <div className="p-4 pt-0 flex-1 flex flex-col min-h-0">
-                                        <div className="flex-1 relative min-h-[100px]">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <PieChart>
-                                                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={30} outerRadius={50} paddingAngle={2} dataKey="value" stroke="none">
-                                                        {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                                                    </Pie>
-                                                    <Tooltip
-                                                        contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '4px 8px' }}
-                                                        itemStyle={{ color: 'var(--foreground)', fontSize: '11px', fontWeight: '500' }}
-                                                    />
-                                                </PieChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                        <div className="flex flex-wrap justify-center gap-2 mt-2 shrink-0">
-                                            {pieData.map(d => (
-                                                <div key={d.name} className="flex items-center gap-1 text-[10px] font-medium text-foreground/80">
-                                                    <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: d.color }}></div>
-                                                    {d.name}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
+                        {/* Right: Scrollable Sidebar */}
+                        <div className="flex flex-col gap-4 overflow-y-auto pr-2 scrollbar-thin animate-slide-up stagger-4">
+                            {/* City-Wide Trend */}
+                            <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm flex flex-col shrink-0 min-h-[250px]">
+                                <div className="p-4 pb-2 shrink-0">
+                                    <h3 className="text-xs font-medium text-muted-foreground tracking-tight">City-Wide Trend</h3>
                                 </div>
-
-                                {/* Top-right: Barangay Rankings */}
-                                <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm flex flex-col min-h-0">
-                                    <div className="p-4 pb-2 shrink-0">
-                                        <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Barangay Rankings</h3>
-                                    </div>
-                                    <div className="p-4 pt-0 flex-1 overflow-y-auto pr-1 space-y-1.5 scrollbar-hide">
-                                        {barangayStats.map((b, i) => (
-                                            <div key={b.name} className="flex items-center justify-between py-1.5 group">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-5 h-5 rounded bg-muted flex items-center justify-center text-[10px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">{i + 1}</div>
-                                                    <div className="text-[13px] font-medium text-foreground truncate max-w-[80px]">{b.name}</div>
-                                                </div>
-                                                <div className="text-right shrink-0">
-                                                    <div className="text-[13px] font-medium text-foreground">{b.rate.toFixed(0)}%</div>
-                                                    <div className="text-[9px] text-muted-foreground">{b.resolved} res.</div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
+                                <div className="p-4 pt-0 flex-1 relative min-h-[80px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={lineData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                                            <XAxis dataKey="date" stroke="var(--muted-foreground)" fontSize={9} tickMargin={8} axisLine={false} tickLine={false} />
+                                            <Tooltip contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '4px 8px' }} />
+                                            <Line type="monotone" dataKey="count" stroke="#10b981" strokeWidth={1.5} dot={{ r: 2.5, fill: '#10b981', strokeWidth: 1.5, stroke: 'var(--background)' }} activeDot={{ r: 4, fill: '#34d399' }} />
+                                        </LineChart>
+                                    </ResponsiveContainer>
                                 </div>
+                            </div>
 
-                                {/* Bottom-left: City-Wide Trend */}
-                                <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm flex flex-col min-h-0">
-                                    <div className="p-4 pb-2 shrink-0">
-                                        <h3 className="text-xs font-medium text-muted-foreground tracking-tight">City-Wide Trend</h3>
-                                    </div>
-                                    <div className="p-4 pt-0 flex-1 relative min-h-[80px]">
+                            {/* Live Feed */}
+                            <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm flex flex-col shrink-0 min-h-[250px]">
+                                <div className="p-4 pb-2 shrink-0">
+                                    <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Live Feed</h3>
+                                </div>
+                                <div className="p-4 pt-0 flex-1 overflow-y-auto pr-1 space-y-3 scrollbar-hide">
+                                    {recentFeed.map(r => (
+                                        <div key={r.id} className="relative pl-3 border-l-2 border-border">
+                                            <div className="absolute w-1.5 h-1.5 rounded-full bg-emerald-500 -left-[4px] top-1.5"></div>
+                                            <div className="text-[11px] font-medium text-foreground mb-0.5">Report {r.tracking_id}</div>
+                                            <div className="text-[9px] text-muted-foreground mb-1">{r.barangay} • {formatRelative(r.created_at)}</div>
+                                            <span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-medium border ${
+                                                r.status === 'resolved' ? 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20' :
+                                                r.status === 'assigned' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20' :
+                                                r.status === 'in_progress' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' :
+                                                r.status === 'verified' ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20' :
+                                                r.status === 'failed_cleanup' ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20' :
+                                                r.status === 'rejected' ? 'bg-muted text-muted-foreground border-border' :
+                                                'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
+                                            }`}>{r.status}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Status Breakdown */}
+                            <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm flex flex-col shrink-0 min-h-[250px]">
+                                <div className="p-4 pb-2 shrink-0">
+                                    <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Status Breakdown</h3>
+                                </div>
+                                <div className="p-4 pt-0 flex-1 flex flex-col min-h-0">
+                                    <div className="flex-1 relative min-h-[100px]">
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <LineChart data={lineData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                                                <XAxis dataKey="date" stroke="var(--muted-foreground)" fontSize={9} tickMargin={8} axisLine={false} tickLine={false} />
-                                                <Tooltip contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '4px 8px' }} />
-                                                <Line type="monotone" dataKey="count" stroke="#10b981" strokeWidth={1.5} dot={{ r: 2.5, fill: '#10b981', strokeWidth: 1.5, stroke: 'var(--background)' }} activeDot={{ r: 4, fill: '#34d399' }} />
-                                            </LineChart>
+                                            <PieChart>
+                                                <Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={2} dataKey="value" stroke="none">
+                                                    {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                                                </Pie>
+                                                <Tooltip
+                                                    contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '4px 8px' }}
+                                                    itemStyle={{ color: 'var(--foreground)', fontSize: '11px', fontWeight: '500' }}
+                                                />
+                                            </PieChart>
                                         </ResponsiveContainer>
                                     </div>
-                                </div>
-
-                                {/* Bottom-right: Live City Feed */}
-                                <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm flex flex-col min-h-0">
-                                    <div className="p-4 pb-2 shrink-0">
-                                        <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Live Feed</h3>
-                                    </div>
-                                    <div className="p-4 pt-0 flex-1 overflow-y-auto pr-1 space-y-3 scrollbar-hide">
-                                        {recentFeed.map(r => (
-                                            <div key={r.id} className="relative pl-3 border-l-2 border-border">
-                                                <div className="absolute w-1.5 h-1.5 rounded-full bg-emerald-500 -left-[4px] top-1.5"></div>
-                                                <div className="text-[11px] font-medium text-foreground mb-0.5">Report {r.tracking_id}</div>
-                                                <div className="text-[9px] text-muted-foreground mb-1">{r.barangay} • {formatRelative(r.created_at)}</div>
-                                                <span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-medium border ${
-                                                    r.status === 'resolved' ? 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20' :
-                                                    r.status === 'assigned' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20' :
-                                                    r.status === 'in_progress' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' :
-                                                    r.status === 'verified' ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20' :
-                                                    r.status === 'failed_cleanup' ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20' :
-                                                    r.status === 'rejected' ? 'bg-muted text-muted-foreground border-border' :
-                                                    'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
-                                                }`}>{r.status}</span>
+                                    <div className="flex flex-wrap justify-center gap-3 mt-4 shrink-0">
+                                        {pieData.map(d => (
+                                            <div key={d.name} className="flex items-center gap-1.5 text-[11px] font-medium text-foreground/80">
+                                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }}></div>
+                                                {d.name}
                                             </div>
                                         ))}
                                     </div>
                                 </div>
-
                             </div>
+
+                            {/* Barangay Rankings */}
+                            <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm flex flex-col shrink-0 min-h-[250px]">
+                                <div className="p-4 pb-2 shrink-0">
+                                    <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Barangay Rankings</h3>
+                                </div>
+                                <div className="p-4 pt-0 flex-1 overflow-y-auto pr-1 space-y-1.5 scrollbar-hide">
+                                    {barangayStats.map((b, i) => (
+                                        <div key={b.name} className="flex items-center justify-between py-1.5 group">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-5 h-5 rounded bg-muted flex items-center justify-center text-[10px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">{i + 1}</div>
+                                                <div className="text-[13px] font-medium text-foreground truncate max-w-[120px]">{b.name}</div>
+                                            </div>
+                                            <div className="text-right shrink-0">
+                                                <div className="text-[13px] font-medium text-foreground">{b.rate.toFixed(0)}%</div>
+                                                <div className="text-[9px] text-muted-foreground">{b.resolved} res.</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
                         </div>
                     </div>
                 )}
