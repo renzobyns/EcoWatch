@@ -590,6 +590,23 @@ function BarangayPortalInner() {
         }
     };
 
+    const fetchPortalData = async () => {
+        if (!user?.barangay_assignment) return;
+        setLoading(true);
+        try {
+            await Promise.all([
+                fetchReports(user.barangay_assignment),
+                fetchCleaners(),
+                fetchWorkOrders(),
+                activeView === 'accounts' ? fetchBrgyUsers() : Promise.resolve()
+            ]);
+        } catch (err) {
+            console.error("Failed to refresh portal data", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleCreateCleaner = async () => {
         if (!createCleanerForm.full_name.trim() || !createCleanerForm.email.trim()) {
             toast.error("Name and email are required.");
