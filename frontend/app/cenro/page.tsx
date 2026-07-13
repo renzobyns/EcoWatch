@@ -8,6 +8,7 @@ import {
     Search, Download, Plus, AlertTriangle, Copy, X,
     LayoutDashboard, Map, FileText, ShieldCheck, BarChart3, Building2, Image as ImageIcon, History, BookUser,
     Phone, MoreVertical, Upload, FileDown, RefreshCw, Eye, EyeOff, Edit2, Key, UserCheck, UserX, ChevronLeft, ChevronRight,
+    AlertCircle, Activity, CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
@@ -760,38 +761,49 @@ function CenroDashboardInner() {
                         {/* Left: Main Content */}
                         <div className="flex flex-col gap-4 min-h-0">
                             {/* Top Stats Bar */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0 animate-slide-up stagger-1 w-full">
-                                <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm">
-                                    <div className="flex flex-row items-center justify-between p-4 pb-2">
-                                        <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Total Reports</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0 animate-slide-up stagger-1 w-full">
+                                <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex items-center justify-between gap-4">
+                                    <div className="min-w-0">
+                                        <div className="text-sm font-medium text-muted-foreground mb-1.5 truncate">Total Reports</div>
+                                        <div className="text-3xl font-extrabold text-foreground tracking-tight leading-none">{stats.total}</div>
                                     </div>
-                                    <div className="p-4 pt-0">
-                                        <div className="text-xl md:text-2xl font-bold">{stats.total}</div>
-                                    </div>
-                                </div>
-                                <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm">
-                                    <div className="flex flex-row items-center justify-between p-4 pb-2">
-                                        <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Active/Pending</h3>
-                                    </div>
-                                    <div className="p-4 pt-0 flex items-baseline gap-2">
-                                        <div className="text-xl md:text-2xl font-bold">{pending}</div>
-                                        {pending > 0 && <span className="text-[10px] text-red-500 font-medium">needs action</span>}
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-primary/10 text-primary">
+                                        <FileText size={22} />
                                     </div>
                                 </div>
-                                <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm">
-                                    <div className="flex flex-row items-center justify-between p-4 pb-2">
-                                        <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Active Cleanups</h3>
+                                <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex items-center justify-between gap-4">
+                                    <div className="min-w-0">
+                                        <div className="text-sm font-medium text-muted-foreground mb-1.5 truncate">Active/Pending</div>
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="text-3xl font-extrabold text-foreground tracking-tight leading-none">{pending}</span>
+                                            {pending > 0 && (
+                                                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-red-500/10 text-red-400 border border-red-500/15 flex items-center gap-1.5 self-center animate-pulse">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                                                    needs action
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="p-4 pt-0">
-                                        <div className="text-xl md:text-2xl font-bold">{stats.active}</div>
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-destructive/10 text-destructive">
+                                        <AlertCircle size={22} />
                                     </div>
                                 </div>
-                                <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm">
-                                    <div className="flex flex-row items-center justify-between p-4 pb-2">
-                                        <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Success Rate</h3>
+                                <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex items-center justify-between gap-4">
+                                    <div className="min-w-0">
+                                        <div className="text-sm font-medium text-muted-foreground mb-1.5 truncate">Active Cleanups</div>
+                                        <div className="text-3xl font-extrabold text-foreground tracking-tight leading-none">{stats.active}</div>
                                     </div>
-                                    <div className="p-4 pt-0">
-                                        <div className="text-xl md:text-2xl font-bold">{successRate}%</div>
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">
+                                        <Activity size={22} />
+                                    </div>
+                                </div>
+                                <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex items-center justify-between gap-4">
+                                    <div className="min-w-0">
+                                        <div className="text-sm font-medium text-muted-foreground mb-1.5 truncate">Success Rate</div>
+                                        <div className="text-3xl font-extrabold text-foreground tracking-tight leading-none">{successRate}%</div>
+                                    </div>
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                                        <CheckCircle2 size={22} />
                                     </div>
                                 </div>
                             </div>
