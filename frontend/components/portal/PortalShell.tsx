@@ -61,7 +61,7 @@ export function PortalShell({
     const pageBadge = nav.find((n) => n.key === activeKey)?.label ?? "";
 
     return (
-        <div className="-mt-16 h-[100dvh] w-full flex bg-background overflow-hidden">
+        <div className="-mt-16 h-screen w-full flex bg-background overflow-hidden">
             <PortalSidebar
                 brand={brand}
                 nav={nav}
@@ -79,12 +79,10 @@ export function PortalShell({
                         actions={actions}
                     />
                 </div>
-                <main className={`relative flex-1 ${scrollable ? "overflow-y-auto" : "overflow-hidden"}`}>
-                    <div className="flex flex-col min-h-full px-4 md:px-8 py-6 md:pb-6">
-                        {children}
-                        {/* Explicit spacer to prevent content from hiding behind fixed mobile nav */}
-                        <div className="h-28 md:hidden shrink-0 w-full" />
-                    </div>
+                <main className={`relative flex-1 px-4 md:px-8 py-6 md:pb-6 ${scrollable ? "overflow-y-auto" : "overflow-hidden"}`}>
+                    {children}
+                    {/* Explicit spacer to prevent content from hiding behind fixed mobile nav (browsers collapse pb on overflow containers) */}
+                    <div className="h-24 md:hidden shrink-0" />
                 </main>
 
                 {/* Mobile Bottom Navigation */}

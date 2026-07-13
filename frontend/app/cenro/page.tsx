@@ -652,7 +652,7 @@ function CenroDashboardInner() {
                 </button>
             ) : undefined}
         >
-            <div className="max-w-[1600px] mx-auto min-h-full flex flex-col">
+            <div className="max-w-[1600px] mx-auto h-full flex flex-col">
 
                 {/* ANALYTICS TAB */}
                 {activeTab === 'analytics' && (

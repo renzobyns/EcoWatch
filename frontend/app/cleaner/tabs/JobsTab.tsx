@@ -73,7 +73,7 @@ export function JobsTab({ user, workOrders, onOpenWO, loading }: JobsTabProps) {
     const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
 
     return (
-        <div className="flex flex-col gap-6 pb-8 w-full animate-slide-up">
+        <div className="flex flex-col gap-6 pb-28 md:pb-8 w-full animate-slide-up">
             {/* Header */}
             <div className="flex items-start justify-between flex-wrap gap-3">
                 <div>

@@ -63,7 +63,7 @@ export function HelpTab({ user }: HelpTabProps) {
     }, [user?.barangay_assignment]);
 
     return (
-        <div className="space-y-5 animate-slide-up max-w-3xl">
+        <div className="space-y-5 animate-slide-up max-w-3xl pb-28 md:pb-0">
             {/* Header */}
             <div>
                 <h1 className="text-2xl font-bold text-foreground tracking-tight">

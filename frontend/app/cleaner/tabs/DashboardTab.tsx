@@ -73,7 +73,7 @@ export function DashboardTab({ user, workOrders, onOpenWO, onJump, loading = fal
     });
 
     return (
-        <div className="space-y-5 animate-slide-up">
+        <div className="space-y-5 animate-slide-up pb-28 md:pb-0">
             {/* Header */}
             <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
