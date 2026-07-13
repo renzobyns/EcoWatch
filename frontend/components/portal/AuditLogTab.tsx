@@ -148,7 +148,7 @@ export function AuditLogTab({ user }: { user: any }) {
             <div className="flex-1 overflow-auto">
                 <table className="w-full text-left border-collapse">
                     <thead>
-                        <tr className="border-b border-border text-xs text-muted-foreground font-medium tracking-tight bg-muted/30 sticky top-0 z-10">
+                        <tr className="border-b border-border text-xs text-muted-foreground font-medium tracking-tight bg-card sticky top-0 z-10">
                             <th className="p-4">Timestamp</th>
                             <th className="p-4">User</th>
                             <th className="p-4">Action</th>
