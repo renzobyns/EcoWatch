@@ -79,9 +79,35 @@ export function PortalShell({
                         actions={actions}
                     />
                 </div>
-                <main className={`relative flex-1 px-4 md:px-8 py-6 ${scrollable ? "overflow-y-auto" : "overflow-hidden"}`}>
+                <main className={`relative flex-1 px-4 md:px-8 py-6 pb-24 md:pb-6 ${scrollable ? "overflow-y-auto" : "overflow-hidden"}`}>
                     {children}
                 </main>
+
+                {/* Mobile Bottom Navigation */}
+                <div className="md:hidden fixed inset-x-0 bottom-0 z-50 bg-background/95 backdrop-blur-md border-t border-border flex items-center justify-around px-1 py-1.5 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.15)] pb-[env(safe-area-inset-bottom)]">
+                    {nav.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = item.key === activeKey;
+                        return (
+                            <button
+                                key={item.key}
+                                onClick={() => onNavChange(item.key)}
+                                className={`flex flex-col items-center justify-center w-full max-w-[4.5rem] h-14 gap-1 rounded-xl transition-all ${
+                                    isActive 
+                                        ? "text-primary" 
+                                        : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+                                }`}
+                            >
+                                <div className={`relative flex items-center justify-center w-8 h-8 rounded-full transition-all ${isActive ? "bg-primary/15" : "bg-transparent"}`}>
+                                    <Icon className={`size-5 ${isActive ? "scale-110" : "scale-100 transition-transform"}`} strokeWidth={isActive ? 2.5 : 2} />
+                                </div>
+                                <span className={`text-[10px] leading-none tracking-tight ${isActive ? "font-semibold" : "font-medium"}`}>
+                                    {item.label}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
             </div>
         </div>
     );
