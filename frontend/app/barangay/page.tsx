@@ -749,62 +749,79 @@ function BarangayPortalInner() {
                             <h1 className="text-2xl font-bold text-foreground tracking-tight">
                                 {user.barangay_assignment} <span className="text-primary">Dashboard</span>
                             </h1>
-                            <p className="text-muted-foreground text-sm mt-1">Jurisdiction overview · {new Date().toLocaleDateString()}</p>
+                            <p className="text-muted-foreground text-sm mt-1">Jurisdiction overview &middot; {new Date().toLocaleDateString()}</p>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
-                            <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col">
+                            <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col justify-center text-center">
                                 <div className="text-sm font-medium text-muted-foreground mb-1">Pending Reports</div>
-                                <div className="text-3xl font-bold text-foreground tracking-tight">{stats.pending}</div>
+                                <div className="text-3xl font-black text-foreground">{stats.pending}</div>
                             </div>
-                            <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col">
-                                <div className="text-sm font-medium text-muted-foreground mb-1">Teams Deployed</div>
-                                <div className="text-3xl font-bold text-foreground tracking-tight">{stats.deployed}</div>
+                            <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col justify-center text-center">
+                                <div className="text-sm font-medium text-blue-500/80 mb-1">Teams Deployed</div>
+                                <div className="text-3xl font-black text-blue-500">{stats.deployed}</div>
                             </div>
-                            <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col">
-                                <div className="text-sm font-medium text-muted-foreground mb-1">Total Resolved</div>
-                                <div className="text-3xl font-bold text-foreground tracking-tight">{stats.resolved}</div>
+                            <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col justify-center text-center">
+                                <div className="text-sm font-medium text-emerald-500/80 mb-1">Total Resolved</div>
+                                <div className="text-3xl font-black text-emerald-500">{stats.resolved}</div>
                             </div>
                         </div>
-                        <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col">
-                            <div className="flex items-center justify-between mb-5">
+                        <div className="bg-card border border-border rounded-xl shadow-sm flex flex-col min-h-[400px]">
+                            <div className="p-6 pb-4 border-b border-border flex items-center justify-between">
                                 <h2 className="text-base font-bold text-foreground">Recent Reports</h2>
                                 <button
                                     onClick={() => setActiveView('reports')}
-                                    className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                                    className="text-sm font-medium text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
                                 >
-                                    View All →
+                                    View All <ChevronRight size={14} />
                                 </button>
                             </div>
-                            {recentReports.length === 0 ? (
-                                <div className="text-foreground/40 text-sm">No reports yet.</div>
-                            ) : (
-                                <ul className="space-y-2">
-                                    {recentReports.map(r => {
-                                        const sla = slaInfo(r.created_at, r.status);
-                                        return (
-                                            <li key={r.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-foreground/5 transition-colors">
-                                                <div className="flex items-center gap-3 min-w-0">
-                                                    <span className="font-mono text-sm font-bold text-foreground truncate">{r.tracking_id}</span>
-                                                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                                                        r.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
-                                                        r.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
-                                                        r.status === 'assigned' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                        r.status === 'verified' ? 'bg-orange-500/20 text-orange-400' :
-                                                        r.status === 'failed_cleanup' ? 'bg-red-500/20 text-red-400' :
-                                                        r.status === 'rejected' ? 'bg-foreground/5 text-foreground/40' :
-                                                        'bg-foreground/10 text-foreground/70'
-                                                    }`}>{r.status}</span>
+                            <div className="p-6 pt-4 flex-1 overflow-auto">
+                                {tableLoading ? (
+                                    <div className="space-y-4">
+                                        {[1, 2, 3, 4, 5].map(i => (
+                                            <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-foreground/5 animate-pulse">
+                                                <div className="flex items-center gap-3 w-1/2">
+                                                    <div className="w-24 h-4 bg-foreground/10 rounded-md"></div>
+                                                    <div className="w-16 h-4 bg-foreground/10 rounded-md"></div>
                                                 </div>
-                                                {sla && (
-                                                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0 ${SLA_PILL_CLASSES[sla.color]}`}>
-                                                        {sla.days}d open
-                                                    </span>
-                                                )}
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
-                            )}
+                                                <div className="w-12 h-4 bg-foreground/10 rounded-md"></div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : recentReports.length === 0 ? (
+                                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-sm py-10">
+                                        <FileText className="mb-3 opacity-20" size={32} />
+                                        No reports yet.
+                                    </div>
+                                ) : (
+                                    <ul className="space-y-2">
+                                        {recentReports.map(r => {
+                                            const sla = slaInfo(r.created_at, r.status);
+                                            return (
+                                                <li key={r.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-foreground/5 transition-colors border border-transparent hover:border-border">
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <span className="font-mono text-sm font-bold text-foreground truncate">{r.tracking_id}</span>
+                                                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                                                            r.status === 'resolved' ? 'bg-emerald-500/20 text-emerald-500' :
+                                                            r.status === 'in_progress' ? 'bg-blue-500/20 text-blue-500' :
+                                                            r.status === 'assigned' ? 'bg-yellow-500/20 text-yellow-600' :
+                                                            r.status === 'verified' ? 'bg-orange-500/20 text-orange-500' :
+                                                            r.status === 'failed_cleanup' ? 'bg-red-500/20 text-red-500' :
+                                                            r.status === 'rejected' ? 'bg-foreground/5 text-foreground/40' :
+                                                            'bg-foreground/10 text-foreground/70'
+                                                        }`}>{r.status.replace('_', ' ')}</span>
+                                                    </div>
+                                                    {sla && (
+                                                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0 ${SLA_PILL_CLASSES[sla.color]}`}>
+                                                            {sla.days}d open
+                                                        </span>
+                                                    )}
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}
