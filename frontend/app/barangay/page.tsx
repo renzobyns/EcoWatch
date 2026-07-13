@@ -94,15 +94,7 @@ export default function BarangayPortal() {
 function BarangayPortalInner() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const [user, setUser] = useState<any>(() => {
-        if (typeof window === "undefined") return null;
-        try {
-            const raw = localStorage.getItem("ecowatch_user");
-            if (!raw) return null;
-            const parsed = JSON.parse(raw);
-            return parsed?.role === "barangay" ? parsed : null;
-        } catch { return null; }
-    });
+    const [user, setUser] = useState<any>(null);
     const [reports, setReports] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [tableLoading, setTableLoading] = useState(true);

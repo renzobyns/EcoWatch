@@ -37,15 +37,7 @@ export default function CleanerPortal() {
 function CleanerPortalInner() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const [user, setUser] = useState<any>(() => {
-        if (typeof window === "undefined") return null;
-        try {
-            const raw = localStorage.getItem("ecowatch_user");
-            if (!raw) return null;
-            const parsed = JSON.parse(raw);
-            return parsed?.role === "cleaner" ? parsed : null;
-        } catch { return null; }
-    });
+    const [user, setUser] = useState<any>(null);
     const [workOrders, setWorkOrders] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
