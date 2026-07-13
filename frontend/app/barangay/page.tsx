@@ -104,8 +104,9 @@ function BarangayPortalInner() {
     const rawSub = searchParams.get('sub');
     const VALID_SUBS: ReportSubFilter[] = ['pending', 'assigned', 'resolved'];
     const [reportSubFilter, setReportSubFilter] = useState<ReportSubFilter>(
-        VALID_SUBS.includes(rawSub as ReportSubFilter) ? (rawSub as ReportSubFilter) : 'pending'
+        (typeof window !== "undefined" ? (new URLSearchParams(window.location.search).get("sub") as ReportSubFilter) : null) || 'pending'
     );
+    const [reportPage, setReportPage] = useState(1);
 
     // Filters (B1)
     const [search, setSearch] = useState("");
@@ -131,7 +132,9 @@ function BarangayPortalInner() {
     const [barangayUsers, setBarangayUsers] = useState<BarangayUser[]>([]);
     const [userLoading, setUserLoading] = useState(false);
     const [userPage, setUserPage] = useState(1);
-    const USER_PAGE_SIZE = 8;
+    const USER_PAGE_SIZE = 10;
+    const REPORT_PAGE_SIZE = 10;
+    const WO_PAGE_SIZE = 10;
     const [userSearch, setUserSearch] = useState("");
     const debouncedUserSearch = useDebounce(userSearch, 300);
     const [userStatusFilter, setUserStatusFilter] = useState("all");
@@ -160,6 +163,7 @@ function BarangayPortalInner() {
     const [workOrders, setWorkOrders] = useState<any[]>([]);
     const [woLoading, setWoLoading] = useState(false);
     const [woError, setWoError] = useState<string | null>(null);
+    const [woPage, setWoPage] = useState(1);
     const [woStatusFilter, setWoStatusFilter] = useState<string>("all");
     const [woPriorityFilter, setWoPriorityFilter] = useState<string>("all");
     const [woCleanerFilter, setWoCleanerFilter] = useState<number | null>(null);
@@ -889,6 +893,36 @@ function BarangayPortalInner() {
                         verified: "Verified",
                     };
 
+                    const handleExportWorkordersCSV = () => {
+                        if (filtered.length === 0) {
+                            toast.error("No work orders to export");
+                            return;
+                        }
+                        const headers = ["Tracking ID", "Cleaner", "Priority", "Status", "SLA Deadline", "Created At"];
+                        const rows = filtered.map(wo => [
+                            wo.report_tracking_id || "",
+                            wo.assigned_cleaner_name || "",
+                            wo.priority || "",
+                            wo.status || "",
+                            wo.sla_deadline ? new Date(wo.sla_deadline).toISOString() : "",
+                            wo.created_at ? new Date(wo.created_at).toISOString() : ""
+                        ]);
+                        const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = `ecowatch_workorders_${new Date().toISOString().slice(0, 10)}.csv`;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        URL.revokeObjectURL(url);
+                        toast.success("CSV downloaded.");
+                    };
+
+                    const paginatedWo = filtered.slice((woPage - 1) * WO_PAGE_SIZE, woPage * WO_PAGE_SIZE);
+                    const woTotalPages = Math.ceil(filtered.length / WO_PAGE_SIZE) || 1;
+
                     return (
                         <div className="flex flex-col gap-5 animate-slide-up">
                             {/* Header */}
@@ -906,191 +940,228 @@ function BarangayPortalInner() {
                                 </button>
                             </div>
 
-                            {/* KPI Strip */}
-                            <div className="bg-card border border-border rounded-xl shadow-sm p-6 mb-2">
-                                <div className="flex items-center justify-between mb-4">
-                                    <span className="text-xs font-bold text-foreground/50 uppercase tracking-widest">Operational Overview</span>
-                                    <div className="flex items-center gap-1 bg-foreground/5 rounded-lg p-1">
-                                        {(["week", "month", "all"] as const).map(w => (
-                                            <button
-                                                key={w}
-                                                onClick={() => setWoKpiWindow(w)}
-                                                className={`px-3 py-1 rounded-md text-xs font-bold transition-colors ${woKpiWindow === w ? "bg-primary text-white" : "text-foreground/50 hover:text-foreground"}`}
-                                            >
-                                                {w === "week" ? "7d" : w === "month" ? "30d" : "All"}
-                                            </button>
-                                        ))}
+                            {/* KPI Strip - Moved out of the list card container */}
+                            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                                {[
+                                    { label: "Active", value: kpiActive, color: "text-foreground" },
+                                    { label: "Needs Redo", value: kpiNeedsRedo, color: "text-red-400" },
+                                    { label: "At Risk", value: kpiAtRisk, color: "text-yellow-400" },
+                                    { label: "Breached SLA", value: kpiBreached, color: "text-red-500" },
+                                    { label: woKpiWindow === "week" ? "Resolved (7d)" : woKpiWindow === "month" ? "Resolved (30d)" : "Resolved (All)", value: kpiResolved, color: "text-green-400" },
+                                ].map(kpi => (
+                                    <div key={kpi.label} className="bg-card border border-border shadow-sm rounded-xl p-4 text-center flex flex-col justify-center">
+                                        <div className={`text-2xl font-black ${kpi.color}`}>{kpi.value}</div>
+                                        <div className="text-[11px] text-foreground/50 mt-1 font-medium tracking-widest uppercase">{kpi.label}</div>
                                     </div>
-                                </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                                    {[
-                                        { label: "Active", value: kpiActive, color: "text-foreground" },
-                                        { label: "Needs Redo", value: kpiNeedsRedo, color: "text-red-400" },
-                                        { label: "At Risk", value: kpiAtRisk, color: "text-yellow-400" },
-                                        { label: "Breached SLA", value: kpiBreached, color: "text-red-500" },
-                                        { label: woKpiWindow === "week" ? "Resolved (7d)" : woKpiWindow === "month" ? "Resolved (30d)" : "Resolved (All)", value: kpiResolved, color: "text-green-400" },
-                                    ].map(kpi => (
-                                        <div key={kpi.label} className="bg-background border border-border shadow-sm rounded-xl p-4 text-center flex flex-col justify-center">
-                                            <div className={`text-2xl font-black ${kpi.color}`}>{kpi.value}</div>
-                                            <div className="text-[11px] text-foreground/50 mt-1 font-medium">{kpi.label}</div>
+                                ))}
+                            </div>
+
+                            {/* Main List Card Container */}
+                            <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col">
+                                {/* Action Toolbar */}
+                                <div className="p-4 border-b border-border flex flex-wrap gap-3 items-center justify-between bg-foreground/[0.02]">
+                                    <div className="flex flex-wrap gap-3 items-center flex-1">
+                                        <div className="relative min-w-[180px]">
+                                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" />
+                                            <input
+                                                value={woSearch}
+                                                onChange={e => { setWoSearch(e.target.value); setWoPage(1); }}
+                                                placeholder="Search tracking ID or cleaner…"
+                                                className="w-full pl-8 pr-3 py-2 bg-background rounded-lg text-sm text-foreground placeholder:text-foreground/30 border border-border focus:outline-none focus:border-primary/50"
+                                            />
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Filter Bar */}
-                            <div className="bg-card border border-border rounded-xl shadow-sm p-4 flex flex-wrap gap-3 items-center mb-4">
-                                <div className="relative flex-1 min-w-[180px]">
-                                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" />
-                                    <input
-                                        value={woSearch}
-                                        onChange={e => setWoSearch(e.target.value)}
-                                        placeholder="Search tracking ID or cleaner…"
-                                        className="w-full pl-8 pr-3 py-2 bg-background rounded-lg text-sm text-foreground placeholder:text-foreground/30 border border-border focus:outline-none focus:border-primary/50"
-                                    />
-                                </div>
-                                <select
-                                    value={woStatusFilter}
-                                    onChange={e => setWoStatusFilter(e.target.value)}
-                                    className="bg-background border border-border rounded-lg px-3 py-2 text-sm font-medium text-foreground focus:outline-none focus:border-primary/50"
-                                >
-                                    <option value="all">All Statuses</option>
-                                    <option value="assigned">Assigned</option>
-                                    <option value="in_progress">In Progress</option>
-                                    <option value="needs_redo">Needs Redo</option>
-                                    <option value="completed">Completed</option>
-                                    <option value="verified">Verified</option>
-                                </select>
-                                <select
-                                    value={woPriorityFilter}
-                                    onChange={e => setWoPriorityFilter(e.target.value)}
-                                    className="bg-background border border-border rounded-lg px-3 py-2 text-sm font-medium text-foreground focus:outline-none focus:border-primary/50"
-                                >
-                                    <option value="all">All Priorities</option>
-                                    <option value="high">High</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="low">Low</option>
-                                </select>
-                                <select
-                                    value={woCleanerFilter ?? ""}
-                                    onChange={e => setWoCleanerFilter(e.target.value ? Number(e.target.value) : null)}
-                                    className="bg-background border border-border rounded-lg px-3 py-2 text-sm font-medium text-foreground focus:outline-none focus:border-primary/50"
-                                >
-                                    <option value="">All Cleaners</option>
-                                    {activeCleaners.map((c: any) => (
-                                        <option key={c.id} value={c.id}>{c.full_name}</option>
-                                    ))}
-                                </select>
-                                <button
-                                    onClick={() => setWoSlaRiskOnly(!woSlaRiskOnly)}
-                                    className={`px-3 py-2 rounded-lg text-xs font-bold border transition-colors ${woSlaRiskOnly ? "bg-red-500/20 border-red-500/50 text-red-400" : "glass border-border text-foreground/50 hover:text-foreground"}`}
-                                >
-                                    SLA Risk Only
-                                </button>
-                                {(woStatusFilter !== "all" || woPriorityFilter !== "all" || woCleanerFilter || woSlaRiskOnly || woSearch) && (
-                                    <button
-                                        onClick={() => { setWoStatusFilter("all"); setWoPriorityFilter("all"); setWoCleanerFilter(null); setWoSlaRiskOnly(false); setWoSearch(""); }}
-                                        className="text-xs text-foreground/40 hover:text-foreground transition-colors underline"
-                                    >
-                                        Clear filters
-                                    </button>
-                                )}
-                            </div>
-
-                            {/* Table */}
-                            <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col flex-1 min-h-[400px]">
-                                {woLoading ? (
-                                    <div className="p-12 text-center">
-                                        <div className="inline-block w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
-                                        <p className="text-foreground/50 text-sm">Loading work orders…</p>
+                                        <select
+                                            value={woStatusFilter}
+                                            onChange={e => { setWoStatusFilter(e.target.value); setWoPage(1); }}
+                                            className="bg-background border border-border rounded-lg px-3 py-2 text-sm font-medium text-foreground focus:outline-none focus:border-primary/50"
+                                        >
+                                            <option value="all">All Statuses</option>
+                                            <option value="assigned">Assigned</option>
+                                            <option value="in_progress">In Progress</option>
+                                            <option value="needs_redo">Needs Redo</option>
+                                            <option value="completed">Completed</option>
+                                            <option value="verified">Verified</option>
+                                        </select>
+                                        <select
+                                            value={woPriorityFilter}
+                                            onChange={e => { setWoPriorityFilter(e.target.value); setWoPage(1); }}
+                                            className="bg-background border border-border rounded-lg px-3 py-2 text-sm font-medium text-foreground focus:outline-none focus:border-primary/50"
+                                        >
+                                            <option value="all">All Priorities</option>
+                                            <option value="high">High</option>
+                                            <option value="medium">Medium</option>
+                                            <option value="low">Low</option>
+                                        </select>
+                                        <select
+                                            value={woCleanerFilter ?? ""}
+                                            onChange={e => { setWoCleanerFilter(e.target.value ? Number(e.target.value) : null); setWoPage(1); }}
+                                            className="bg-background border border-border rounded-lg px-3 py-2 text-sm font-medium text-foreground focus:outline-none focus:border-primary/50"
+                                        >
+                                            <option value="">All Cleaners</option>
+                                            {activeCleaners.map((c: any) => (
+                                                <option key={c.id} value={c.id}>{c.full_name}</option>
+                                            ))}
+                                        </select>
+                                        <button
+                                            onClick={() => { setWoSlaRiskOnly(!woSlaRiskOnly); setWoPage(1); }}
+                                            className={`px-3 py-2 rounded-lg text-xs font-bold border transition-colors ${woSlaRiskOnly ? "bg-red-500/20 border-red-500/50 text-red-400" : "bg-background border-border text-foreground/50 hover:text-foreground"}`}
+                                        >
+                                            SLA Risk Only
+                                        </button>
+                                        {(woStatusFilter !== "all" || woPriorityFilter !== "all" || woCleanerFilter || woSlaRiskOnly || woSearch) && (
+                                            <button
+                                                onClick={() => { setWoStatusFilter("all"); setWoPriorityFilter("all"); setWoCleanerFilter(null); setWoSlaRiskOnly(false); setWoSearch(""); setWoPage(1); }}
+                                                className="text-xs text-foreground/40 hover:text-foreground transition-colors underline"
+                                            >
+                                                Clear filters
+                                            </button>
+                                        )}
                                     </div>
-                                ) : woError ? (
-                                    <div className="p-12 text-center">
-                                        <p className="text-red-400 text-sm mb-3">{woError}</p>
-                                        <button onClick={fetchWorkOrders} className="px-4 py-2 glass border border-border text-foreground/70 text-xs font-bold rounded-lg hover:bg-foreground/10 transition-colors">
-                                            Retry
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-1 bg-background border border-border rounded-lg p-1">
+                                            {(["week", "month", "all"] as const).map(w => (
+                                                <button
+                                                    key={w}
+                                                    onClick={() => setWoKpiWindow(w)}
+                                                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${woKpiWindow === w ? "bg-primary text-white" : "text-foreground/50 hover:text-foreground"}`}
+                                                >
+                                                    {w === "week" ? "7d" : w === "month" ? "30d" : "All"}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <button
+                                            onClick={handleExportWorkordersCSV}
+                                            className="flex items-center gap-2 px-4 py-2 bg-background border border-border text-foreground text-sm font-medium rounded-lg hover:bg-muted transition-colors"
+                                        >
+                                            <Download size={14} />
+                                            <span>Export CSV</span>
                                         </button>
                                     </div>
-                                ) : filtered.length === 0 ? (
-                                    <div className="p-12 text-center">
-                                        <ClipboardList size={32} className="text-foreground/20 mx-auto mb-3" />
-                                        <p className="text-foreground/50 text-sm">
-                                            {workOrders.length === 0 ? "No work orders yet. Deploy a verified report to create one." : "No work orders match these filters."}
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full">
-                                            <thead>
-                                                <tr className="border-b border-border text-sm font-medium text-muted-foreground bg-card sticky top-0 z-10">
-                                                    <th className="p-4 text-left">Tracking ID</th>
-                                                    <th className="p-4 text-left">Cleaner</th>
-                                                    <th className="p-4 text-left">Priority</th>
-                                                    <th className="p-4 text-left">Status</th>
-                                                    <th className="p-4 text-left">SLA Deadline</th>
-                                                    <th className="p-4 text-left">
-                                                        <div className="inline-flex items-center gap-1">
-                                                            <span>Time Left</span>
-                                                            <span
-                                                                ref={slaTooltipAnchorRef}
-                                                                onMouseEnter={() => {
-                                                                    const rect = slaTooltipAnchorRef.current?.getBoundingClientRect();
-                                                                    if (rect) setSlaTooltipPos({ top: rect.bottom + 8, left: Math.max(8, rect.left - 240) });
-                                                                    setShowSlaTooltip(true);
-                                                                }}
-                                                                onMouseLeave={() => setShowSlaTooltip(false)}
-                                                                className="cursor-help text-foreground/30 hover:text-primary transition-colors text-sm select-none"
-                                                            >ⓘ</span>
-                                                        </div>
-                                                    </th>
-                                                    <th className="p-4 text-left">Created</th>
-                                                    <th className="p-4"></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {filtered.map(wo => {
-                                                    const slaColor = slaDeadlineColor(wo.sla_deadline);
-                                                    const slaLabel = slaDeadlineLabel(wo.sla_deadline);
-                                                    return (
-                                                        <tr key={wo.id} className="border-b border-border hover:bg-foreground/5 transition-colors">
-                                                            <td className="p-4 font-mono text-sm font-bold text-foreground">{wo.report_tracking_id}</td>
-                                                            <td className="p-4 text-sm text-foreground/80">{wo.assigned_cleaner_name}</td>
-                                                            <td className="p-4">
-                                                                <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${PRIORITY_PILL[wo.priority] || "bg-foreground/10 text-foreground"}`}>
-                                                                    {wo.priority}
-                                                                </span>
-                                                            </td>
-                                                            <td className="p-4">
-                                                                <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${STATUS_PILL[wo.status] || "bg-foreground/10 text-foreground"}`}>
-                                                                    {STATUS_LABEL[wo.status] || wo.status}
-                                                                </span>
-                                                            </td>
-                                                            <td className="p-4 text-sm text-foreground/70">
-                                                                {wo.sla_deadline ? formatDate(wo.sla_deadline) : "—"}
-                                                            </td>
-                                                            <td className="p-4">
-                                                                {wo.sla_deadline ? (
-                                                                    <span className={`px-2 py-1 rounded-md text-[11px] font-bold ${SLA_PILL_CLASSES[slaColor]}`}>
-                                                                        {slaLabel}
+                                </div>
+
+                                {/* Data Grid */}
+                                <div className="flex-1 min-h-[400px]">
+                                    {woLoading ? (
+                                        <div className="p-12 text-center h-full flex flex-col items-center justify-center">
+                                            <div className="inline-block w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
+                                            <p className="text-foreground/50 text-sm">Loading work orders…</p>
+                                        </div>
+                                    ) : woError ? (
+                                        <div className="p-12 text-center h-full flex flex-col items-center justify-center">
+                                            <p className="text-red-400 text-sm mb-3">{woError}</p>
+                                            <button onClick={fetchWorkOrders} className="px-4 py-2 bg-background border border-border text-foreground/70 text-xs font-bold rounded-lg hover:bg-foreground/10 transition-colors">
+                                                Retry
+                                            </button>
+                                        </div>
+                                    ) : filtered.length === 0 ? (
+                                        <div className="p-12 text-center h-full flex flex-col items-center justify-center">
+                                            <ClipboardList size={32} className="text-foreground/20 mx-auto mb-3" />
+                                            <p className="text-foreground/50 text-sm">
+                                                {workOrders.length === 0 ? "No work orders yet. Deploy a verified report to create one." : "No work orders match these filters."}
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full">
+                                                <thead>
+                                                    <tr className="border-b border-border text-sm font-medium text-muted-foreground bg-foreground/[0.02]">
+                                                        <th className="p-4 text-left whitespace-nowrap">Tracking ID</th>
+                                                        <th className="p-4 text-left whitespace-nowrap">Cleaner</th>
+                                                        <th className="p-4 text-left whitespace-nowrap">Priority</th>
+                                                        <th className="p-4 text-left whitespace-nowrap">Status</th>
+                                                        <th className="p-4 text-left whitespace-nowrap">SLA Deadline</th>
+                                                        <th className="p-4 text-left whitespace-nowrap">
+                                                            <div className="inline-flex items-center gap-1">
+                                                                <span>Time Left</span>
+                                                                <span
+                                                                    ref={slaTooltipAnchorRef}
+                                                                    onMouseEnter={() => {
+                                                                        const rect = slaTooltipAnchorRef.current?.getBoundingClientRect();
+                                                                        if (rect) setSlaTooltipPos({ top: rect.bottom + 8, left: Math.max(8, rect.left - 240) });
+                                                                        setShowSlaTooltip(true);
+                                                                    }}
+                                                                    onMouseLeave={() => setShowSlaTooltip(false)}
+                                                                    className="cursor-help text-foreground/30 hover:text-primary transition-colors text-sm select-none"
+                                                                >ⓘ</span>
+                                                            </div>
+                                                        </th>
+                                                        <th className="p-4 text-left whitespace-nowrap">Created</th>
+                                                        <th className="p-4"></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {paginatedWo.map(wo => {
+                                                        const slaColor = slaDeadlineColor(wo.sla_deadline);
+                                                        const slaLabel = slaDeadlineLabel(wo.sla_deadline);
+                                                        return (
+                                                            <tr key={wo.id} className="border-b border-border hover:bg-foreground/5 transition-colors">
+                                                                <td className="p-4 font-mono text-sm font-bold text-foreground">{wo.report_tracking_id}</td>
+                                                                <td className="p-4 text-sm text-foreground/80">{wo.assigned_cleaner_name}</td>
+                                                                <td className="p-4">
+                                                                    <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${PRIORITY_PILL[wo.priority] || "bg-foreground/10 text-foreground"}`}>
+                                                                        {wo.priority}
                                                                     </span>
-                                                                ) : <span className="text-foreground/30 text-sm">—</span>}
-                                                            </td>
-                                                            <td className="p-4 text-sm text-foreground/50">
-                                                                {wo.created_at ? formatDate(wo.created_at) : "—"}
-                                                            </td>
-                                                            <td className="p-4 text-right">
-                                                                <button
-                                                                    onClick={() => { setSelectedWorkOrder(wo); setNewWoPriority(wo.priority); }}
-                                                                    className="px-4 py-2 bg-background border border-border text-foreground text-sm font-medium rounded-lg hover:bg-muted transition-colors"
-                                                                >
-                                                                    View
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
+                                                                </td>
+                                                                <td className="p-4">
+                                                                    <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${STATUS_PILL[wo.status] || "bg-foreground/10 text-foreground"}`}>
+                                                                        {STATUS_LABEL[wo.status] || wo.status}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="p-4 text-sm text-foreground/70">
+                                                                    {wo.sla_deadline ? formatDate(wo.sla_deadline) : "—"}
+                                                                </td>
+                                                                <td className="p-4">
+                                                                    {wo.sla_deadline ? (
+                                                                        <span className={`px-2 py-1 rounded-md text-[11px] font-bold ${SLA_PILL_CLASSES[slaColor]}`}>
+                                                                            {slaLabel}
+                                                                        </span>
+                                                                    ) : <span className="text-foreground/30 text-sm">—</span>}
+                                                                </td>
+                                                                <td className="p-4 text-sm text-foreground/50">
+                                                                    {wo.created_at ? formatDate(wo.created_at) : "—"}
+                                                                </td>
+                                                                <td className="p-4 text-right">
+                                                                    <button
+                                                                        onClick={() => { setSelectedWorkOrder(wo); setNewWoPriority(wo.priority); }}
+                                                                        className="px-4 py-2 bg-background border border-border text-foreground text-sm font-medium rounded-lg hover:bg-muted transition-colors"
+                                                                    >
+                                                                        View
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                {/* Pagination Footer */}
+                                {filtered.length > 0 && (
+                                    <div className="p-4 border-t border-border flex items-center justify-between bg-foreground/[0.02]">
+                                        <p className="text-xs text-foreground/50 font-medium">
+                                            Showing {((woPage - 1) * WO_PAGE_SIZE) + 1} to {Math.min(woPage * WO_PAGE_SIZE, filtered.length)} of {filtered.length} work orders
+                                        </p>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => setWoPage(p => Math.max(1, p - 1))}
+                                                disabled={woPage === 1}
+                                                className="px-3 py-1.5 bg-background border border-border text-foreground text-xs font-medium rounded-lg hover:bg-muted transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                                            >
+                                                Previous
+                                            </button>
+                                            <span className="text-xs font-bold text-foreground mx-2">
+                                                Page {woPage} of {woTotalPages}
+                                            </span>
+                                            <button
+                                                onClick={() => setWoPage(p => Math.min(woTotalPages, p + 1))}
+                                                disabled={woPage === woTotalPages}
+                                                className="px-3 py-1.5 bg-background border border-border text-foreground text-xs font-medium rounded-lg hover:bg-muted transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                                            >
+                                                Next
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -1347,125 +1418,202 @@ function BarangayPortalInner() {
                     });
                     const totalPages = Math.max(1, Math.ceil(filtered.length / USER_PAGE_SIZE));
                     const paged = filtered.slice((userPage - 1) * USER_PAGE_SIZE, userPage * USER_PAGE_SIZE);
+
+                    const kpiTotal = barangayUsers.length;
+                    const kpiActive = barangayUsers.filter(u => u.is_active).length;
+                    const kpiDisabled = barangayUsers.filter(u => !u.is_active).length;
+
                     return (
                         <div className="flex flex-col gap-5 animate-slide-up" onClick={() => userActionsMenu !== null && setUserActionsMenu(null)}>
+                            {/* Header */}
                             <div className="flex items-center justify-between">
                                 <div>
                                     <h1 className="text-2xl font-bold text-foreground tracking-tight">Cleaner <span className="text-primary">Accounts</span></h1>
                                     <p className="text-foreground/50 text-sm mt-1">{barangayUsers.length} cleaner{barangayUsers.length !== 1 ? 's' : ''} &middot; {user.barangay_assignment}</p>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <button onClick={(e) => { e.stopPropagation(); handleExportCleanersCSV(); }} className="flex items-center gap-2 px-4 py-2 bg-background border border-border text-foreground text-sm font-medium rounded-lg hover:bg-muted transition-colors">
-                                        <FileDown size={14} /> Export CSV
-                                    </button>
                                     <button onClick={(e) => { e.stopPropagation(); setShowCreateCleanerModal(true); }} className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium rounded-lg transition-colors">
                                         <Plus size={14} /> Create Cleaner
                                     </button>
                                 </div>
                             </div>
-                            <div className="bg-card border border-border rounded-xl shadow-sm p-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center mb-4">
-                                <div className="relative flex-1 min-w-[200px]">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} />
-                                    <input type="text" value={userSearch} onChange={e => { setUserSearch(e.target.value); setUserPage(1); }} placeholder="Search name or email..." className="w-full pl-9 pr-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none" />
+
+                            {/* KPI Grid */}
+                            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col justify-center text-center">
+                                    <div className="text-sm font-medium text-muted-foreground mb-1">Total Cleaners</div>
+                                    <div className="text-3xl font-black text-foreground">{kpiTotal}</div>
                                 </div>
-                                <select value={userStatusFilter} onChange={e => { setUserStatusFilter(e.target.value); setUserPage(1); }} className="px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm focus:border-primary focus:outline-none">
-                                    <option value="all">All Status</option>
-                                    <option value="active">Active</option>
-                                    <option value="disabled">Disabled</option>
-                                </select>
-                                <span className="text-sm text-muted-foreground font-medium shrink-0">{filtered.length} result{filtered.length !== 1 ? 's' : ''}</span>
+                                <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col justify-center text-center">
+                                    <div className="text-sm font-medium text-emerald-500/80 mb-1">Active Accounts</div>
+                                    <div className="text-3xl font-black text-emerald-500">{kpiActive}</div>
+                                </div>
+                                <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col justify-center text-center">
+                                    <div className="text-sm font-medium text-red-500/80 mb-1">Disabled Accounts</div>
+                                    <div className="text-3xl font-black text-red-500">{kpiDisabled}</div>
+                                </div>
                             </div>
-                            <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col flex-1">
-                                {userLoading ? (
-                                    <div className="p-12 text-center text-muted-foreground text-sm">Loading accounts...</div>
-                                ) : paged.length === 0 ? (
-                                    <div className="p-12 text-center text-muted-foreground font-medium">No cleaners found.</div>
-                                ) : (
-                                    <table className="w-full text-left border-collapse">
-                                        <thead>
-                                            <tr className="border-b border-border text-sm font-medium text-muted-foreground bg-card sticky top-0 z-10">
-                                                <th className="px-5 py-3">Full Name</th>
-                                                <th className="px-5 py-3">Email</th>
-                                                <th className="px-5 py-3">Phone</th>
-                                                <th className="px-5 py-3">Status</th>
-                                                <th className="px-5 py-3">Last Login</th>
-                                                <th className="px-5 py-3 text-right">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {paged.map(u => (
-                                                <tr key={u.id} className="border-b border-border hover:bg-foreground/5 transition-colors">
-                                                    <td className="px-5 py-3">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-[11px] font-bold text-blue-300 shrink-0">
-                                                                {getInitials(u.full_name)}
-                                                            </div>
-                                                            <span className="text-sm font-semibold text-foreground">{u.full_name}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-5 py-3 text-sm text-foreground/70 font-mono">{u.email}</td>
-                                                    <td className="px-5 py-3 text-sm text-foreground/60">{u.phone_number ?? <span className="text-foreground/30">--</span>}</td>
-                                                    <td className="px-5 py-3">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className={"w-1.5 h-1.5 rounded-full shrink-0 " + (u.is_active ? "bg-emerald-400" : "bg-red-400")} />
-                                                            <span className={"px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider " + (u.is_active ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400")}>
-                                                                {u.is_active ? "Active" : "Disabled"}
-                                                            </span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-5 py-3 text-sm text-foreground/50">{fmtLogin(u.last_login_at)}</td>
-                                                    <td className="px-5 py-3 text-right">
-                                                        <div className="relative inline-block" onClick={e => e.stopPropagation()}>
-                                                            <button onClick={() => setUserActionsMenu(userActionsMenu === u.id ? null : u.id)} className="p-2 rounded-lg hover:bg-foreground/10 text-foreground/50 hover:text-foreground transition-colors">
-                                                                <MoreVertical size={16} />
-                                                            </button>
-                                                            {userActionsMenu === u.id && (
-                                                                <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-xl shadow-sm z-50 overflow-hidden">
-                                                                    <button onClick={() => openEditCleaner(u)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors text-left">
-                                                                        <Edit2 size={14} className="text-muted-foreground" /> Edit Account
-                                                                    </button>
-                                                                    <button onClick={() => openResetPasswordBrgy(u)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors text-left">
-                                                                        <Key size={14} className="text-muted-foreground" /> Reset Password
-                                                                    </button>
-                                                                    <div className="border-t border-border" />
-                                                                    {u.is_active ? (
-                                                                        <button onClick={() => { setUserActionsMenu(null); handleDisableBrgyUser(u.id); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors text-left">
-                                                                            <UserX size={14} /> Disable Account
-                                                                        </button>
-                                                                    ) : (
-                                                                        <button onClick={() => { setUserActionsMenu(null); handleReactivateBrgyUser(u.id); }} disabled={reactivating.has(u.id)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-emerald-500 hover:bg-emerald-500/10 transition-colors text-left disabled:opacity-50">
-                                                                            <UserCheck size={14} /> {reactivating.has(u.id) ? "Reactivating..." : "Reactivate"}
-                                                                        </button>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                )}
-                            </div>
-                            {totalPages > 1 && (
-                                <div className="flex items-center justify-between text-sm font-medium text-muted-foreground mt-4">
-                                    <span>Page {userPage} of {totalPages}</span>
-                                    <div className="flex gap-2">
-                                        <button disabled={userPage === 1} onClick={() => setUserPage(p => p - 1)} className="px-3 py-1.5 bg-background border border-border rounded-lg disabled:opacity-50 hover:bg-muted transition-colors text-foreground">Prev</button>
-                                        <button disabled={userPage === totalPages} onClick={() => setUserPage(p => p + 1)} className="px-3 py-1.5 bg-background border border-border rounded-lg disabled:opacity-50 hover:bg-muted transition-colors text-foreground">Next</button>
+
+                            {/* Main List Card Container */}
+                            <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col flex-1 min-h-[500px]">
+                                {/* Action Toolbar */}
+                                <div className="p-4 border-b border-border flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between bg-foreground/[0.02]">
+                                    <div className="flex items-center gap-3 flex-1 w-full">
+                                        <div className="relative flex-1 min-w-[200px] max-w-sm">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} />
+                                            <input type="text" value={userSearch} onChange={e => { setUserSearch(e.target.value); setUserPage(1); }} placeholder="Search name or email..." className="w-full pl-9 pr-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none" />
+                                        </div>
+                                        <select value={userStatusFilter} onChange={e => { setUserStatusFilter(e.target.value); setUserPage(1); }} className="px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm focus:border-primary focus:outline-none">
+                                            <option value="all">All Status</option>
+                                            <option value="active">Active</option>
+                                            <option value="disabled">Disabled</option>
+                                        </select>
+                                    </div>
+                                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                                        <button onClick={(e) => { e.stopPropagation(); handleExportCleanersCSV(); }} className="flex items-center justify-center gap-2 px-4 py-2 bg-background border border-border text-foreground text-sm font-medium rounded-lg hover:bg-muted transition-colors w-full sm:w-auto">
+                                            <FileDown size={14} /> Export CSV
+                                        </button>
                                     </div>
                                 </div>
-                            )}
+
+                                {/* Table */}
+                                <div className="flex-1 overflow-auto">
+                                    {userLoading ? (
+                                        <div className="p-12 text-center h-full flex flex-col items-center justify-center">
+                                            <div className="inline-block w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
+                                            <p className="text-foreground/50 text-sm">Loading accounts...</p>
+                                        </div>
+                                    ) : paged.length === 0 ? (
+                                        <div className="p-12 text-center h-full flex flex-col items-center justify-center text-muted-foreground font-medium">No cleaners found.</div>
+                                    ) : (
+                                        <table className="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr className="border-b border-border text-sm font-medium text-muted-foreground bg-foreground/[0.02] sticky top-0 z-10">
+                                                    <th className="px-5 py-3">Full Name</th>
+                                                    <th className="px-5 py-3">Email</th>
+                                                    <th className="px-5 py-3">Phone</th>
+                                                    <th className="px-5 py-3">Status</th>
+                                                    <th className="px-5 py-3">Last Login</th>
+                                                    <th className="px-5 py-3 text-right">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {paged.map(u => (
+                                                    <tr key={u.id} className="border-b border-border hover:bg-foreground/5 transition-colors">
+                                                        <td className="px-5 py-3">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-[11px] font-bold text-blue-300 shrink-0">
+                                                                    {getInitials(u.full_name)}
+                                                                </div>
+                                                                <span className="text-sm font-semibold text-foreground">{u.full_name}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-5 py-3 text-sm text-foreground/70 font-mono">{u.email}</td>
+                                                        <td className="px-5 py-3 text-sm text-foreground/60">{u.phone_number ?? <span className="text-foreground/30">--</span>}</td>
+                                                        <td className="px-5 py-3">
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className={"w-1.5 h-1.5 rounded-full shrink-0 " + (u.is_active ? "bg-emerald-400" : "bg-red-400")} />
+                                                                <span className={"px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider " + (u.is_active ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400")}>
+                                                                    {u.is_active ? "Active" : "Disabled"}
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-5 py-3 text-sm text-foreground/50">{fmtLogin(u.last_login_at)}</td>
+                                                        <td className="px-5 py-3 text-right">
+                                                            <div className="relative inline-block" onClick={e => e.stopPropagation()}>
+                                                                <button onClick={() => setUserActionsMenu(userActionsMenu === u.id ? null : u.id)} className="p-2 rounded-lg hover:bg-foreground/10 text-foreground/50 hover:text-foreground transition-colors">
+                                                                    <MoreVertical size={16} />
+                                                                </button>
+                                                                {userActionsMenu === u.id && (
+                                                                    <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-xl shadow-sm z-50 overflow-hidden">
+                                                                        <button onClick={() => openEditCleaner(u)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors text-left">
+                                                                            <Edit2 size={14} className="text-muted-foreground" /> Edit Account
+                                                                        </button>
+                                                                        <button onClick={() => openResetPasswordBrgy(u)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors text-left">
+                                                                            <Key size={14} className="text-muted-foreground" /> Reset Password
+                                                                        </button>
+                                                                        <div className="border-t border-border" />
+                                                                        {u.is_active ? (
+                                                                            <button onClick={() => { setUserActionsMenu(null); handleDisableBrgyUser(u.id); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors text-left">
+                                                                                <UserX size={14} /> Disable Account
+                                                                            </button>
+                                                                        ) : (
+                                                                            <button onClick={() => { setUserActionsMenu(null); handleReactivateBrgyUser(u.id); }} disabled={reactivating.has(u.id)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-emerald-500 hover:bg-emerald-500/10 transition-colors text-left disabled:opacity-50">
+                                                                                <UserCheck size={14} /> {reactivating.has(u.id) ? "Reactivating..." : "Reactivate"}
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    )}
+                                </div>
+                                
+                                {/* Pagination Footer */}
+                                {filtered.length > 0 && (
+                                    <div className="p-4 border-t border-border flex items-center justify-between bg-foreground/[0.02]">
+                                        <p className="text-xs text-foreground/50 font-medium">
+                                            Showing {((userPage - 1) * USER_PAGE_SIZE) + 1} to {Math.min(userPage * USER_PAGE_SIZE, filtered.length)} of {filtered.length} cleaners
+                                        </p>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => setUserPage(p => Math.max(1, p - 1))}
+                                                disabled={userPage === 1}
+                                                className="px-3 py-1.5 bg-background border border-border text-foreground text-xs font-medium rounded-lg hover:bg-muted transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                                            >
+                                                Previous
+                                            </button>
+                                            <span className="text-xs font-bold text-foreground mx-2">
+                                                Page {userPage} of {totalPages}
+                                            </span>
+                                            <button
+                                                onClick={() => setUserPage(p => Math.min(totalPages, p + 1))}
+                                                disabled={userPage === totalPages}
+                                                className="px-3 py-1.5 bg-background border border-border text-foreground text-xs font-medium rounded-lg hover:bg-muted transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                                            >
+                                                Next
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     );
                 })()}
 
                 {/* REPORTS VIEW */}
-                {activeView === 'reports' && (
-                    <div className="flex flex-col flex-1 min-h-0 animate-slide-up">
-                        <div className="bg-card border border-border rounded-xl shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden">
-                            {/* Filter Bar — Reports view only */}
-                            {activeView === 'reports' && (
+                {activeView === 'reports' && (() => {
+                    const paginatedReports = displayReports.slice((reportPage - 1) * REPORT_PAGE_SIZE, reportPage * REPORT_PAGE_SIZE);
+                    const reportTotalPages = Math.ceil(displayReports.length / REPORT_PAGE_SIZE) || 1;
+                    return (
+                        <div className="flex flex-col gap-5 flex-1 min-h-0 animate-slide-up">
+                            {/* KPI GRID */}
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col justify-center text-center">
+                                    <div className="text-sm font-medium text-muted-foreground mb-1">Total Reports</div>
+                                    <div className="text-3xl font-black text-foreground">{reports.length}</div>
+                                </div>
+                                <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col justify-center text-center">
+                                    <div className="text-sm font-medium text-orange-400/80 mb-1">Pending Review</div>
+                                    <div className="text-3xl font-black text-orange-400">{stats.pending}</div>
+                                </div>
+                                <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col justify-center text-center">
+                                    <div className="text-sm font-medium text-blue-400/80 mb-1">Teams Deployed</div>
+                                    <div className="text-3xl font-black text-blue-400">{stats.deployed}</div>
+                                </div>
+                                <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col justify-center text-center">
+                                    <div className="text-sm font-medium text-green-400/80 mb-1">Total Resolved</div>
+                                    <div className="text-3xl font-black text-green-400">{stats.resolved}</div>
+                                </div>
+                            </div>
+
+                            {/* Main List Card */}
+                            <div className="bg-card border border-border rounded-xl shadow-sm flex flex-col flex-1 min-h-[500px] overflow-hidden">
+                                {/* Filter Bar */}
                                 <div className="flex flex-col lg:flex-row gap-3 p-4 border-b border-border shrink-0">
                                     <div className="relative flex-1 min-w-[200px]">
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={16} />
@@ -1520,137 +1668,143 @@ function BarangayPortalInner() {
                                         Export CSV
                                     </button>
                                 </div>
-                            )}
 
-                            {/* Sub-tabs — Reports view only */}
-                            {activeView === 'reports' && (
+                                {/* Sub-tabs */}
                                 <div className="flex border-b border-border shrink-0 bg-muted/20">
                                     <button
-                                        onClick={() => { setReportSubFilter('pending'); router.replace('?tab=reports&sub=pending', { scroll: false }); }}
+                                        onClick={() => { setReportSubFilter('pending'); setReportPage(1); router.replace('?tab=reports&sub=pending', { scroll: false }); }}
                                         className={`flex-1 py-3 text-sm font-medium transition-colors ${reportSubFilter === 'pending' ? 'bg-background text-primary border-b-2 border-primary' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}`}
                                     >
                                         Pending
                                     </button>
                                     <button
-                                        onClick={() => { setReportSubFilter('assigned'); router.replace('?tab=reports&sub=assigned', { scroll: false }); }}
+                                        onClick={() => { setReportSubFilter('assigned'); setReportPage(1); router.replace('?tab=reports&sub=assigned', { scroll: false }); }}
                                         className={`flex-1 py-3 text-sm font-medium transition-colors ${reportSubFilter === 'assigned' ? 'bg-background text-primary border-b-2 border-primary' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}`}
                                     >
                                         Assigned
                                     </button>
                                     <button
-                                        onClick={() => { setReportSubFilter('resolved'); router.replace('?tab=reports&sub=resolved', { scroll: false }); }}
+                                        onClick={() => { setReportSubFilter('resolved'); setReportPage(1); router.replace('?tab=reports&sub=resolved', { scroll: false }); }}
                                         className={`flex-1 py-3 text-sm font-medium transition-colors ${reportSubFilter === 'resolved' ? 'bg-background text-primary border-b-2 border-primary' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}`}
                                     >
                                         Done
                                     </button>
                                 </div>
-                            )}
 
-                            {/* Table Container */}
-                            <div className="flex-1 overflow-y-auto">
-                                <>
-                                        {tableLoading ? (
-                                            <table className="w-full text-left border-collapse">
-                                                <thead>
-                                                    <tr className="border-b border-border text-sm font-medium text-muted-foreground bg-card sticky top-0 z-10">
-                                                        <th className="p-4">Tracking ID</th>
-                                                        <th className="p-4">Date</th>
-                                                        <th className="p-4">Status</th>
-                                                        <th className="p-4">Open</th>
-                                                        <th className="p-4">AI Score</th>
-                                                        <th className="p-4 text-right">Action</th>
+                                {/* Table Container */}
+                                <div className="flex-1 overflow-y-auto">
+                                    {tableLoading ? (
+                                        <table className="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr className="border-b border-border text-sm font-medium text-muted-foreground bg-card sticky top-0 z-10">
+                                                    <th className="p-4">Tracking ID</th>
+                                                    <th className="p-4">Date</th>
+                                                    <th className="p-4">Status</th>
+                                                    <th className="p-4">Open</th>
+                                                    <th className="p-4">AI Score</th>
+                                                    <th className="p-4 text-right">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {Array.from({ length: 5 }).map((_, i) => (
+                                                    <tr key={i} className="border-b border-border">
+                                                        {Array.from({ length: 6 }).map((__, j) => (
+                                                            <td key={j} className="p-4"><div className="h-3 bg-foreground/10 rounded animate-pulse" /></td>
+                                                        ))}
                                                     </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {Array.from({ length: 5 }).map((_, i) => (
-                                                        <tr key={i} className="border-b border-border">
-                                                            {Array.from({ length: 6 }).map((__, j) => (
-                                                                <td key={j} className="p-4"><div className="h-3 bg-foreground/10 rounded animate-pulse" /></td>
-                                                            ))}
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        ) : displayReports.length === 0 ? (
-                                            <div className="p-12 text-center text-foreground/50 font-bold">No reports found in this category.</div>
-                                        ) : (
-                                            <table className="w-full text-left border-collapse">
-                                                <thead>
-                                                    <tr className="border-b border-border text-sm font-medium text-muted-foreground bg-card sticky top-0 z-10">
-                                                        <th className="p-4">Tracking ID</th>
-                                                        <th className="p-4">Date</th>
-                                                        <th className="p-4">Status</th>
-                                                        <th className="p-4">Open</th>
-                                                        <th className="p-4">AI Score</th>
-                                                        <th className="p-4 text-right">Action</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {displayReports.map(report => {
-                                                        const sla = slaInfo(report.created_at, report.status);
-                                                        return (
-                                                            <tr key={report.id} className="border-b border-border hover:bg-foreground/5 transition-colors">
-                                                                <td className="p-4 font-mono text-sm text-foreground font-bold">
-                                                                    {report.tracking_id}
-                                                                    {report.possible_duplicate_flag && report.status !== 'duplicate' && (
-                                                                        <span title="A nearby open report may be a duplicate" className="ml-2 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-400 align-middle">⚠ Dup?</span>
-                                                                    )}
-                                                                </td>
-                                                                <td className="p-4 text-sm text-foreground/70">
-                                                                    {formatDate(report.created_at)}
-                                                                </td>
-                                                                <td className="p-4">
-                                                                    <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
-                                                                        report.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
-                                                                        report.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
-                                                                        report.status === 'assigned' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                                        report.status === 'verified' ? 'bg-orange-500/20 text-orange-400' :
-                                                                        report.status === 'failed_cleanup' ? 'bg-red-500/20 text-red-400' :
-                                                                        report.status === 'rejected' ? 'bg-foreground/5 text-foreground/40' :
-                                                                        'bg-foreground/10 text-foreground/70'
-                                                                    }`}>
-                                                                        {report.status}
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    ) : paginatedReports.length === 0 ? (
+                                        <div className="p-12 text-center text-foreground/50 font-bold">No reports found in this category.</div>
+                                    ) : (
+                                        <table className="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr className="border-b border-border text-sm font-medium text-muted-foreground bg-card sticky top-0 z-10">
+                                                    <th className="p-4">Tracking ID</th>
+                                                    <th className="p-4">Date</th>
+                                                    <th className="p-4">Status</th>
+                                                    <th className="p-4">Open</th>
+                                                    <th className="p-4">AI Score</th>
+                                                    <th className="p-4 text-right">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {paginatedReports.map(report => {
+                                                    const sla = slaInfo(report.created_at, report.status);
+                                                    return (
+                                                        <tr key={report.id} className="border-b border-border hover:bg-foreground/5 transition-colors">
+                                                            <td className="p-4 font-mono text-sm text-foreground font-bold">
+                                                                {report.tracking_id}
+                                                                {report.possible_duplicate_flag && report.status !== 'duplicate' && (
+                                                                    <span title="A nearby open report may be a duplicate" className="ml-2 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-400 align-middle">⚠ Dup?</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="p-4 text-sm text-foreground/70">
+                                                                {formatDate(report.created_at)}
+                                                            </td>
+                                                            <td className="p-4">
+                                                                <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
+                                                                    report.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
+                                                                    report.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
+                                                                    report.status === 'assigned' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                                    report.status === 'verified' ? 'bg-orange-500/20 text-orange-400' :
+                                                                    report.status === 'failed_cleanup' ? 'bg-red-500/20 text-red-400' :
+                                                                    report.status === 'rejected' ? 'bg-foreground/5 text-foreground/40' :
+                                                                    'bg-foreground/10 text-foreground/70'
+                                                                }`}>
+                                                                    {report.status}
+                                                                </span>
+                                                            </td>
+                                                            <td className="p-4">
+                                                                {sla ? (
+                                                                    <span className={`px-2 py-1 rounded-md text-[11px] font-bold ${SLA_PILL_CLASSES[sla.color]}`}>
+                                                                        {sla.days}d
                                                                     </span>
-                                                                </td>
-                                                                <td className="p-4">
-                                                                    {sla ? (
-                                                                        <span className={`px-2 py-1 rounded-md text-[11px] font-bold ${SLA_PILL_CLASSES[sla.color]}`}>
-                                                                            {sla.days}d
-                                                                        </span>
-                                                                    ) : (
-                                                                        <span className="text-foreground/30 text-sm">—</span>
-                                                                    )}
-                                                                </td>
-                                                                <td className="p-4 text-sm font-bold text-foreground/80">
-                                                                    {report.ai_confidence ? `${(report.ai_confidence * 100).toFixed(0)}%` : 'N/A'}
-                                                                    {(report as any).needs_human_review && (
-                                                                        <span title="Low-trust photo — needs human review" className="text-yellow-400 ml-1 text-xs">⚠</span>
-                                                                    )}
-                                                                </td>
-                                                                <td className="p-4 text-right">
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            setSelectedReport(report);
-                                                                            setCleanupPreview(null);
-                                                                            setCleanupImage(null);
-                                                                            setDeploymentNotes("");
-                                                                        }}
-                                                                        className="px-4 py-2 bg-background border border-border text-foreground text-sm font-medium rounded-lg hover:bg-muted transition-colors"
-                                                                    >
-                                                                        Manage
-                                                                    </button>
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        )}
-                                    </>
+                                                                ) : (
+                                                                    <span className="text-foreground/30 text-sm">—</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="p-4 text-sm font-bold text-foreground/80">
+                                                                {report.ai_confidence ? `${(report.ai_confidence * 100).toFixed(0)}%` : 'N/A'}
+                                                                {(report as any).needs_human_review && (
+                                                                    <span title="Low-trust photo — needs human review" className="text-yellow-400 ml-1 text-xs">⚠</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="p-4 text-right">
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setSelectedReport(report);
+                                                                        setCleanupPreview(null);
+                                                                        setCleanupImage(null);
+                                                                        setDeploymentNotes("");
+                                                                    }}
+                                                                    className="px-4 py-2 bg-background border border-border text-foreground text-sm font-medium rounded-lg hover:bg-muted transition-colors"
+                                                                >
+                                                                    Manage
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    )}
+                                </div>
+                                {/* Pagination */}
+                                <div className="flex items-center justify-between p-4 border-t border-border shrink-0 bg-card">
+                                    <p className="text-sm text-muted-foreground">
+                                        Showing <span className="font-bold text-foreground">{displayReports.length === 0 ? 0 : (reportPage - 1) * REPORT_PAGE_SIZE + 1}</span> to <span className="font-bold text-foreground">{Math.min(reportPage * REPORT_PAGE_SIZE, displayReports.length)}</span> of <span className="font-bold text-foreground">{displayReports.length}</span> reports
+                                    </p>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => setReportPage(Math.max(1, reportPage - 1))} disabled={reportPage === 1} className="px-3 py-1 bg-muted/50 text-sm font-medium text-muted-foreground rounded-lg hover:text-foreground hover:bg-muted disabled:opacity-50 transition-colors">Previous</button>
+                                        <button onClick={() => setReportPage(Math.min(reportTotalPages, reportPage + 1))} disabled={reportPage === reportTotalPages} className="px-3 py-1 bg-muted/50 text-sm font-medium text-muted-foreground rounded-lg hover:text-foreground hover:bg-muted disabled:opacity-50 transition-colors">Next</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
+                    );
+                })()}
             </div>
 
             {/* Report Detail Modal */}
