@@ -229,6 +229,7 @@ function BarangayPortalInner() {
     }, [user?.barangay_assignment, debouncedSearch, dateRange]);
 
     useEffect(() => setReportPage(1), [search, reportStatus, reportSort, reportViewMode, dateRange]);
+    useEffect(() => setWoPage(1), [woSearch, woStatusFilter, woPriorityFilter, woCleanerFilter, woSlaRiskOnly, woSort, woViewMode]);
 
     const buildQuery = () => {
         const params = new URLSearchParams();
@@ -899,8 +900,6 @@ function BarangayPortalInner() {
 
                     const STATUS_ORDER: Record<string, number> = { assigned: 0, in_progress: 1, needs_redo: 2, completed: 3, verified: 4 };
                     const activeCleaners = cleaners.filter((c: any) => c.role === "cleaner" && c.is_active);
-
-                    useEffect(() => setWoPage(1), [woSearch, woStatusFilter, woPriorityFilter, woCleanerFilter, woSlaRiskOnly, woSort, woViewMode]);
 
                     const filtered = workOrders.filter(wo => {
                         const q = woSearch.toLowerCase();
