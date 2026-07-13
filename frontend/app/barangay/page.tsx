@@ -745,28 +745,28 @@ function BarangayPortalInner() {
                             <h1 className="text-2xl font-bold text-foreground tracking-tight">
                                 {user.barangay_assignment} <span className="text-primary">Dashboard</span>
                             </h1>
-                            <p className="text-foreground/50 text-sm mt-1">Jurisdiction overview · {new Date().toLocaleDateString()}</p>
+                            <p className="text-muted-foreground text-sm mt-1">Jurisdiction overview · {new Date().toLocaleDateString()}</p>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="glass-pro p-5 rounded-2xl bento-card">
-                                <div className="text-[11px] font-semibold text-foreground/40 uppercase tracking-[0.1em] mb-1.5">Pending Reports</div>
-                                <div className="text-3xl font-bold text-red-400 tracking-tight">{stats.pending}</div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
+                            <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col">
+                                <div className="text-sm font-medium text-muted-foreground mb-1">Pending Reports</div>
+                                <div className="text-3xl font-bold text-foreground tracking-tight">{stats.pending}</div>
                             </div>
-                            <div className="glass-pro p-5 rounded-2xl bento-card">
-                                <div className="text-[11px] font-semibold text-foreground/40 uppercase tracking-[0.1em] mb-1.5">Teams Deployed</div>
-                                <div className="text-3xl font-bold text-yellow-400 tracking-tight">{stats.deployed}</div>
+                            <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col">
+                                <div className="text-sm font-medium text-muted-foreground mb-1">Teams Deployed</div>
+                                <div className="text-3xl font-bold text-foreground tracking-tight">{stats.deployed}</div>
                             </div>
-                            <div className="glass-pro p-5 rounded-2xl bento-card">
-                                <div className="text-[11px] font-semibold text-foreground/40 uppercase tracking-[0.1em] mb-1.5">Total Resolved</div>
-                                <div className="text-3xl font-bold text-green-400 tracking-tight">{stats.resolved}</div>
+                            <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col">
+                                <div className="text-sm font-medium text-muted-foreground mb-1">Total Resolved</div>
+                                <div className="text-3xl font-bold text-foreground tracking-tight">{stats.resolved}</div>
                             </div>
                         </div>
-                        <div className="glass-pro rounded-2xl p-6">
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-sm font-bold text-foreground/60 uppercase tracking-widest">Recent Reports</h2>
+                        <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col">
+                            <div className="flex items-center justify-between mb-5">
+                                <h2 className="text-base font-bold text-foreground">Recent Reports</h2>
                                 <button
                                     onClick={() => setActiveView('reports')}
-                                    className="text-xs font-bold text-primary hover:text-emerald-300 uppercase tracking-widest"
+                                    className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
                                 >
                                     View All →
                                 </button>
