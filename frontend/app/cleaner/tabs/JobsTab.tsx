@@ -361,13 +361,13 @@ function CustomSortDropdown({ value, onChange }: { value: string; onChange: (val
         <div className="relative" onClick={(e) => e.stopPropagation()}>
             <button
                 onClick={() => setOpen(!open)}
-                className="flex items-center justify-between gap-2 w-32 px-3 py-2 bg-background border border-border rounded-lg text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors focus:outline-none"
+                className="flex items-center justify-between gap-2 w-[140px] px-3 py-2 bg-background border border-border rounded-lg text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors focus:outline-none"
             >
-                <span>{selectedLabel}</span>
-                <ChevronDown size={14} className="opacity-50" />
+                <span className="truncate">{selectedLabel}</span>
+                <ChevronDown size={14} className="opacity-50 shrink-0" />
             </button>
             {open && (
-                <div className="absolute top-full mt-1 right-0 w-32 bg-popover border border-border rounded-lg shadow-md overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="absolute top-full mt-1 right-0 w-[140px] bg-card border border-border rounded-lg shadow-lg overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2">
                     {options.map((opt) => (
                         <button
                             key={opt.value}
