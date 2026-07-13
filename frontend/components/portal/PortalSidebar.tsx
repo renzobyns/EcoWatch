@@ -104,7 +104,7 @@ export function PortalSidebar({
 
             {/* Bottom: theme toggle + collapse */}
             <div
-                className={`border-t border-border p-3 flex items-center ${
+                className={`border-t border-border px-3 pt-3 pb-16 flex items-center ${
                     collapsed ? "flex-col gap-2" : "justify-between gap-2"
                 }`}
             >
