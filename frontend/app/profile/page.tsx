@@ -277,6 +277,7 @@ export default function ProfilePage() {
     const router = useRouter();
     const [profileData, setProfileData] = useState<ProfileData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [mounted, setMounted] = useState(false);
     const [editMode, setEditMode] = useState(false);
     const [editName, setEditName] = useState("");
     const [editEmail, setEditEmail] = useState("");
@@ -291,6 +292,7 @@ export default function ProfilePage() {
     const ITEMS_PER_PAGE = 5;
 
     useEffect(() => {
+        setMounted(true);
         const stored = localStorage.getItem("ecowatch_user");
         if (!stored) { router.push("/login"); return; }
         fetchProfile();
@@ -311,6 +313,7 @@ export default function ProfilePage() {
                 toast.error(err instanceof ApiError ? err.message : "Failed to load profile");
             }
         } finally {
+            await new Promise((r) => setTimeout(r, 2000)); // ⚠️ DEV ONLY — remove before production
             setLoading(false);
         }
     };
@@ -410,6 +413,9 @@ export default function ProfilePage() {
     useEffect(() => {
         setAuditPage(1);
     }, [auditSearch, auditDateRange, auditSortDesc]);
+
+    // SSR guard: return null on first render so server and client agree (no hydration mismatch)
+    if (!mounted) return null;
 
     // --- Skeletal loader: rendered inside PortalShell so nav is immediately visible ---
     if (loading) {
