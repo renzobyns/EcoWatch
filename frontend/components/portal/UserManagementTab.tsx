@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useMemo, forwardRef, useImperativeHandle } from "react";
-import { Search, UserPlus, Upload, Download, MoreVertical, ShieldCheck, FileText, AlertCircle, Users, Copy, Key, X, Eye, Edit2 } from "lucide-react";
-import { api, ApiError } from "@/lib/api";
+import { useState, useEffect, useMemo, forwardRef, useImperativeHandle, useRef } from "react";
+import { Search, UserPlus, Upload, Download, MoreVertical, ShieldCheck, FileText, AlertCircle, Users, Copy, Key, X, Eye, Edit2, Shield, List, LayoutGrid, ShieldAlert, FileMinus } from "lucide-react";
+import { api, ApiError, API_URL } from "@/lib/api";
 import { toast } from "sonner";
 import { formatDateTime } from "@/lib/date-utils";
+import { KpiCard } from "@/components/portal/KpiCard";
 
 export interface BarangayUser {
     id: number;
@@ -31,7 +32,6 @@ const BARANGAYS = [
     "San Rafael IV", "San Rafael V", "Lawang Pari", "Kaybanban",
 ];
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 interface UserManagementTabProps {
     onBarangayAdminChange?: () => void;
@@ -62,6 +62,10 @@ export const UserManagementTab = forwardRef<UserManagementRef, UserManagementTab
     const [userSearch, setUserSearch] = useState("");
     const debouncedUserSearch = useDebounce(userSearch, 300);
     const [userPage, setUserPage] = useState(1);
+    
+    // View state
+    const [viewMode, setViewMode] = useState<"table" | "card">("table");
+    const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
     
     // Actions Menu
     const [userActionsMenu, setUserActionsMenu] = useState<number | null>(null);
@@ -334,170 +338,270 @@ export const UserManagementTab = forwardRef<UserManagementRef, UserManagementTab
                 (u.barangay_assignment || "").toLowerCase().includes(q)
             );
         }
+        
+        result = [...result].sort((a, b) => {
+            const dateA = new Date(a.created_at || 0).getTime();
+            const dateB = new Date(b.created_at || 0).getTime();
+            return sortOrder === "newest" ? dateB - dateA : dateA - dateB;
+        });
+        
         return result;
-    }, [barangayUsers, userRoleFilter, userStatusFilter, debouncedUserSearch]);
+    }, [barangayUsers, userRoleFilter, userStatusFilter, debouncedUserSearch, sortOrder]);
 
-    const userItemsPerPage = 15;
-    const userTotalPages = Math.ceil(filteredUsers.length / userItemsPerPage) || 1;
+    const userItemsPerPage = viewMode === "table" ? 15 : 12;
+    const userTotalPages = Math.max(1, Math.ceil(filteredUsers.length / userItemsPerPage));
     const displayedUsers = filteredUsers.slice((userPage - 1) * userItemsPerPage, userPage * userItemsPerPage);
 
+    useEffect(() => setUserPage(1), [userSearch, userRoleFilter, userStatusFilter, sortOrder, viewMode]);
+
+    // KPIs
+    const totalAccounts = barangayUsers.length;
+    const activeCenro = barangayUsers.filter(u => u.role === 'cenro' && u.is_active).length;
+    const activeBarangay = barangayUsers.filter(u => u.role === 'barangay' && u.is_active).length;
+    const disabledCount = barangayUsers.filter(u => !u.is_active).length;
+
     return (
-        <div className="flex-1 flex flex-col min-h-0 bg-background rounded-2xl animate-slide-up">
+        <div className="flex flex-col gap-6 pb-8 w-full shrink-0">
             {/* Header & Tools */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+            <div className="flex items-start justify-between gap-4 flex-wrap shrink-0">
                 <div>
-                    <h2 className="text-2xl font-bold text-foreground">Accounts</h2>
-                    <p className="text-sm text-muted-foreground mt-1">Manage platform users, roles, and access controls.</p>
+                    <h1 className="text-2xl font-bold text-foreground tracking-tight">Accounts</h1>
+                    <p className="text-sm text-foreground/50 mt-1">Manage platform users, roles, and access controls.</p>
                 </div>
-                <div className="flex items-center gap-2">
-                    <button onClick={handleExportCSV} className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg text-sm font-medium hover:bg-muted transition-colors">
-                        <Download size={16} /> Export
+                <div className="flex gap-2">
+                    <button onClick={handleExportCSV} className="flex items-center gap-2 px-4 py-2 bg-muted/50 border border-border rounded-lg text-sm font-medium hover:bg-muted transition-colors text-foreground">
+                        <Download size={14} /> Export CSV
                     </button>
-                    <button onClick={() => { setShowImportModal(true); setImportStep(1); setImportFile(null); }} className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg text-sm font-medium hover:bg-muted transition-colors">
-                        <Upload size={16} /> Import
+                    <button onClick={() => { setShowImportModal(true); setImportStep(1); setImportFile(null); }} className="flex items-center gap-2 px-4 py-2 bg-muted/50 border border-border rounded-lg text-sm font-medium hover:bg-muted transition-colors text-foreground">
+                        <Upload size={14} /> Import
                     </button>
                     <button onClick={() => { setShowCreateUserModal(true); setCreatedCredential(null); setCreateForm({ email: "", full_name: "", phone_number: "", barangay_assignment: "", role: "barangay" }); }} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm">
-                        <UserPlus size={16} /> Add User
+                        <UserPlus size={14} /> Add User
                     </button>
                 </div>
             </div>
 
+            {/* KPI Strip */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 shrink-0 animate-slide-up">
+                <KpiCard label="Total Accounts" value={totalAccounts} icon={<Users size={22} />} tone="blue" />
+                <KpiCard label="Active CENRO Admins" value={activeCenro} icon={<Shield size={22} />} tone="emerald" />
+                <KpiCard label="Active Barangay Admins" value={activeBarangay} icon={<ShieldAlert size={22} />} tone="yellow" />
+                <KpiCard label="Disabled Accounts" value={disabledCount} icon={<FileMinus size={22} />} tone={disabledCount > 0 ? "red" : "neutral"} />
+            </div>
+
             {/* Filters */}
-            <div className="flex flex-wrap items-center gap-3 mb-4">
-                <div className="relative flex-1 min-w-[200px]">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+            <div className="flex flex-wrap items-center gap-3 shrink-0">
+                <div className="relative flex-1 min-w-[200px] max-w-xs">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={14} />
                     <input 
                         type="text" 
                         placeholder="Search name, email, or barangay..." 
                         value={userSearch} 
-                        onChange={(e) => { setUserSearch(e.target.value); setUserPage(1); }} 
-                        className="w-full pl-9 pr-4 py-2 bg-card border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" 
+                        onChange={(e) => setUserSearch(e.target.value)} 
+                        className="w-full pl-9 pr-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" 
                     />
                 </div>
-                <select value={userRoleFilter} onChange={(e) => { setUserRoleFilter(e.target.value); setUserPage(1); }} className="px-3 py-2 bg-card border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors">
+                <select value={userRoleFilter} onChange={(e) => setUserRoleFilter(e.target.value)} className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
                     <option value="all">All Roles</option>
                     <option value="cenro">CENRO Admin</option>
                     <option value="barangay">Barangay Admin</option>
                     <option value="cleaner">Cleanup Worker</option>
                     <option value="citizen">Citizen</option>
                 </select>
-                <select value={userStatusFilter} onChange={(e) => { setUserStatusFilter(e.target.value); setUserPage(1); }} className="px-3 py-2 bg-card border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors">
-                    <option value="all">All Status</option>
+                <select value={userStatusFilter} onChange={(e) => setUserStatusFilter(e.target.value)} className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+                    <option value="all">All Statuses</option>
                     <option value="active">Active</option>
                     <option value="disabled">Disabled</option>
                 </select>
-                <span className="text-xs text-muted-foreground whitespace-nowrap font-medium">Showing {filteredUsers.length} account{filteredUsers.length !== 1 ? "s" : ""}</span>
+                
+                <div className="flex-1" />
+
+                <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value as "newest" | "oldest")} className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+                    <option value="newest">Sort: Newest First</option>
+                    <option value="oldest">Sort: Oldest First</option>
+                </select>
+
+                <div className="flex bg-muted/50 border border-border rounded-lg overflow-hidden">
+                    <button onClick={() => setViewMode("card")} title="Card view" className={`px-3 py-2 transition-colors ${viewMode === "card" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+                        <LayoutGrid size={15} />
+                    </button>
+                    <button onClick={() => setViewMode("table")} title="Table view" className={`px-3 py-2 transition-colors ${viewMode === "table" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+                        <List size={15} />
+                    </button>
+                </div>
             </div>
 
-            {/* Table Area */}
-            <div className="flex-1 bg-card rounded-2xl border border-border flex flex-col min-h-0 shadow-sm overflow-hidden">
-                <div className="flex-1 overflow-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="border-b border-border text-xs text-muted-foreground font-medium tracking-tight bg-card sticky top-0 z-10 shadow-sm">
-                                <th className="p-4 pl-5 w-10"></th>
-                                <th className="p-4">Full Name</th>
-                                <th className="p-4">Email Address</th>
-                                <th className="p-4">Role</th>
-                                <th className="p-4">Barangay</th>
-                                <th className="p-4">Phone Number</th>
-                                <th className="p-4">Status</th>
-                                <th className="p-4">Last Login</th>
-                                <th className="p-4 w-10"></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {usersLoading ? (
-                                Array.from({ length: 5 }).map((_, i) => (
-                                    <tr key={i} className="border-b border-border">
-                                        {Array.from({ length: 9 }).map((__, j) => (
-                                            <td key={j} className="p-4"><div className="h-4 bg-muted rounded animate-pulse" /></td>
-                                        ))}
-                                    </tr>
-                                ))
-                            ) : displayedUsers.length === 0 ? (
-                                <tr>
-                                    <td colSpan={9} className="p-12 text-center">
-                                        <div className="flex flex-col items-center justify-center gap-3">
-                                            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
-                                                <Users size={24} />
-                                            </div>
-                                            <div className="text-foreground font-medium">No accounts found</div>
-                                            <div className="text-xs text-muted-foreground">Try adjusting your search or filters.</div>
-                                        </div>
-                                    </td>
+            {/* Main View Area */}
+            {viewMode === "table" ? (
+                <div className="bg-card rounded-xl border border-border flex flex-col overflow-hidden animate-slide-up shadow-sm">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="border-b border-border text-xs text-muted-foreground font-medium tracking-tight bg-muted/20">
+                                    <th className="p-4 pl-5 w-10"></th>
+                                    <th className="p-4">Full Name</th>
+                                    <th className="p-4">Email Address</th>
+                                    <th className="p-4">Role</th>
+                                    <th className="p-4">Barangay</th>
+                                    <th className="p-4">Phone Number</th>
+                                    <th className="p-4">Status</th>
+                                    <th className="p-4">Last Login</th>
+                                    <th className="p-4 w-10"></th>
                                 </tr>
-                            ) : (
-                                displayedUsers.map((u) => (
-                                    <tr key={u.id} className={`border-b border-border hover:bg-muted/50 transition-colors ${!u.is_active ? 'opacity-50 grayscale' : ''}`}>
-                                        <td className="p-4 pl-5">
-                                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs uppercase">
-                                                {u.full_name.charAt(0)}
-                                            </div>
-                                        </td>
-                                        <td className="p-4 text-sm font-medium text-foreground">{u.full_name}</td>
-                                        <td className="p-4 text-sm text-foreground">{u.email}</td>
-                                        <td className="p-4">
-                                            <span className="px-2.5 py-1 rounded-md text-xs font-semibold uppercase bg-muted text-foreground border border-border">
-                                                {u.role}
-                                            </span>
-                                        </td>
-                                        <td className="p-4 text-sm text-foreground">{u.barangay_assignment || "—"}</td>
-                                        <td className="p-4 text-sm text-foreground">{u.phone_number || "—"}</td>
-                                        <td className="p-4">
-                                            {u.is_active ? (
-                                                <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">Active</span>
-                                            ) : (
-                                                <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-destructive/10 text-destructive border border-destructive/20">Disabled</span>
-                                            )}
-                                        </td>
-                                        <td className="p-4 text-xs text-muted-foreground">
-                                            {u.last_login_at ? formatDateTime(u.last_login_at) : "Never"}
-                                        </td>
-                                        <td className="p-4 relative">
-                                            <button onClick={() => setUserActionsMenu(userActionsMenu === u.id ? null : u.id)} className="p-2 hover:bg-muted rounded-lg text-muted-foreground transition-colors">
-                                                <MoreVertical size={16} />
-                                            </button>
-                                            {userActionsMenu === u.id && (
-                                                <>
-                                                    <div className="fixed inset-0 z-40" onClick={() => setUserActionsMenu(null)} />
-                                                    <div className="absolute right-8 top-4 z-50 w-48 bg-[#f5faf6] dark:bg-[#0f1410] border border-border rounded-xl shadow-lg p-1 animate-in fade-in zoom-in duration-200">
-                                                        <button onClick={() => openEditUser(u)} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors">Edit Details</button>
-                                                        <button onClick={() => openResetPassword(u)} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors">Reset Password</button>
-                                                        {u.role !== 'cenro' && (
-                                                            <>
-                                                                <div className="h-px bg-border my-1" />
-                                                                {u.is_active ? (
-                                                                    <button onClick={() => handleDisableUser(u.id, u.email)} disabled={disabling.has(u.id)} className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-md transition-colors disabled:opacity-50">
-                                                                        {disabling.has(u.id) ? "Disabling..." : "Disable Account"}
-                                                                    </button>
-                                                                ) : (
-                                                                    <button onClick={() => handleReactivateUser(u.id, u.email)} disabled={reactivating.has(u.id)} className="w-full text-left px-3 py-2 text-sm text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 rounded-md transition-colors disabled:opacity-50">
-                                                                        {reactivating.has(u.id) ? "Reactivating..." : "Reactivate Account"}
-                                                                    </button>
-                                                                )}
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </>
-                                            )}
-                                        </td>
+                            </thead>
+                            <tbody>
+                                {usersLoading ? (
+                                    Array.from({ length: 5 }).map((_, i) => (
+                                        <tr key={i} className="border-b border-border">
+                                            {Array.from({ length: 9 }).map((__, j) => (
+                                                <td key={j} className="p-4"><div className="h-4 bg-muted rounded animate-pulse" /></td>
+                                            ))}
+                                        </tr>
+                                    ))
+                                ) : displayedUsers.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={9} className="p-12 text-center text-muted-foreground font-medium">No accounts match the current filters.</td>
                                     </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                                ) : (
+                                    displayedUsers.map((u) => (
+                                        <tr key={u.id} className={`border-b border-border hover:bg-muted/50 transition-colors ${!u.is_active ? 'opacity-50 grayscale' : ''}`}>
+                                            <td className="p-4 pl-5">
+                                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs uppercase">
+                                                    {u.full_name.charAt(0)}
+                                                </div>
+                                            </td>
+                                            <td className="p-4 text-sm font-medium text-foreground">{u.full_name}</td>
+                                            <td className="p-4 text-sm text-foreground">{u.email}</td>
+                                            <td className="p-4">
+                                                <span className="px-2.5 py-1 rounded-md text-xs font-semibold uppercase bg-muted text-foreground border border-border">
+                                                    {u.role}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 text-sm text-foreground">{u.barangay_assignment || "—"}</td>
+                                            <td className="p-4 text-sm text-foreground">{u.phone_number || "—"}</td>
+                                            <td className="p-4">
+                                                {u.is_active ? (
+                                                    <span className="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">Active</span>
+                                                ) : (
+                                                    <span className="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-destructive/10 text-destructive border border-destructive/20">Disabled</span>
+                                                )}
+                                            </td>
+                                            <td className="p-4 text-xs text-muted-foreground">
+                                                {u.last_login_at ? formatDateTime(u.last_login_at) : "Never"}
+                                            </td>
+                                            <td className="p-4 relative">
+                                                <button onClick={() => setUserActionsMenu(userActionsMenu === u.id ? null : u.id)} className="p-2 hover:bg-muted rounded-lg text-muted-foreground transition-colors">
+                                                    <MoreVertical size={16} />
+                                                </button>
+                                                {userActionsMenu === u.id && (
+                                                    <>
+                                                        <div className="fixed inset-0 z-40" onClick={() => setUserActionsMenu(null)} />
+                                                        <div className="absolute right-8 top-4 z-50 w-48 bg-card border border-border rounded-xl shadow-lg p-1 animate-in fade-in zoom-in duration-200">
+                                                            <button onClick={() => openEditUser(u)} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors">Edit Details</button>
+                                                            <button onClick={() => openResetPassword(u)} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors">Reset Password</button>
+                                                            {u.role !== 'cenro' && (
+                                                                <>
+                                                                    <div className="h-px bg-border my-1" />
+                                                                    {u.is_active ? (
+                                                                        <button onClick={() => handleDisableUser(u.id, u.email)} disabled={disabling.has(u.id)} className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-md transition-colors disabled:opacity-50">
+                                                                            {disabling.has(u.id) ? "Disabling..." : "Disable Account"}
+                                                                        </button>
+                                                                    ) : (
+                                                                        <button onClick={() => handleReactivateUser(u.id, u.email)} disabled={reactivating.has(u.id)} className="w-full text-left px-3 py-2 text-sm text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 rounded-md transition-colors disabled:opacity-50">
+                                                                            {reactivating.has(u.id) ? "Reactivating..." : "Reactivate Account"}
+                                                                        </button>
+                                                                    )}
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-slide-up">
+                    {usersLoading ? (
+                        Array.from({ length: 8 }).map((_, i) => (
+                            <div key={i} className="h-40 bg-card rounded-xl border border-border animate-pulse" />
+                        ))
+                    ) : displayedUsers.length === 0 ? (
+                        <div className="col-span-full py-12 text-center text-muted-foreground font-medium">No accounts match the current filters.</div>
+                    ) : (
+                        displayedUsers.map(u => (
+                            <div key={u.id} className={`bg-card rounded-xl border border-border p-4 flex flex-col gap-3 relative ${!u.is_active ? 'opacity-70 grayscale' : ''}`}>
+                                <div className="absolute top-4 right-4 z-20">
+                                    <button onClick={() => setUserActionsMenu(userActionsMenu === u.id ? null : u.id)} className="p-1 hover:bg-muted rounded-lg text-muted-foreground transition-colors">
+                                        <MoreVertical size={14} />
+                                    </button>
+                                    {userActionsMenu === u.id && (
+                                        <>
+                                            <div className="fixed inset-0 z-40" onClick={() => setUserActionsMenu(null)} />
+                                            <div className="absolute right-0 top-6 z-50 w-48 bg-card border border-border rounded-xl shadow-lg p-1 animate-in fade-in zoom-in duration-200">
+                                                <button onClick={() => openEditUser(u)} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors">Edit Details</button>
+                                                <button onClick={() => openResetPassword(u)} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors">Reset Password</button>
+                                                {u.role !== 'cenro' && (
+                                                    <>
+                                                        <div className="h-px bg-border my-1" />
+                                                        {u.is_active ? (
+                                                            <button onClick={() => handleDisableUser(u.id, u.email)} disabled={disabling.has(u.id)} className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-md transition-colors disabled:opacity-50">
+                                                                {disabling.has(u.id) ? "Disabling..." : "Disable"}
+                                                            </button>
+                                                        ) : (
+                                                            <button onClick={() => handleReactivateUser(u.id, u.email)} disabled={reactivating.has(u.id)} className="w-full text-left px-3 py-2 text-sm text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 rounded-md transition-colors disabled:opacity-50">
+                                                                {reactivating.has(u.id) ? "Reactivating..." : "Reactivate"}
+                                                            </button>
+                                                        )}
+                                                    </>
+                                                )}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm uppercase">
+                                        {u.full_name.charAt(0)}
+                                    </div>
+                                    <div className="flex-1 min-w-0 pr-6">
+                                        <div className="font-bold text-sm text-foreground truncate">{u.full_name}</div>
+                                        <div className="text-xs text-muted-foreground truncate">{u.email}</div>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex items-center justify-between mt-auto pt-2 border-t border-border">
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-muted text-foreground border border-border">
+                                        {u.role}
+                                    </span>
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                        u.is_active 
+                                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' 
+                                            : 'bg-destructive/10 text-destructive border border-destructive/20'
+                                    }`}>
+                                        {u.is_active ? 'Active' : 'Disabled'}
+                                    </span>
+                                </div>
+                                {u.barangay_assignment && (
+                                    <div className="text-xs font-medium text-foreground">{u.barangay_assignment}</div>
+                                )}
+                            </div>
+                        ))
+                    )}
+                </div>
+            )}
 
                 {/* Pagination Controls */}
-                <div className="p-4 border-t border-border flex items-center justify-between bg-card shrink-0">
+                <div className="p-4 border-t border-border flex items-center justify-between bg-card shrink-0 mt-auto">
                     <span className="text-xs text-muted-foreground font-medium">Page {userPage} of {userTotalPages}</span>
                     <div className="flex items-center gap-2">
                         <button disabled={userPage === 1} onClick={() => setUserPage(p => p - 1)} className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted disabled:opacity-50 transition-colors text-foreground">Previous</button>
                         <button disabled={userPage === userTotalPages} onClick={() => setUserPage(p => p + 1)} className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted disabled:opacity-50 transition-colors text-foreground">Next</button>
                     </div>
                 </div>
-            </div>
 
             {/* CREATE MODAL */}
             {showCreateUserModal && (

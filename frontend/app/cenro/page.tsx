@@ -11,7 +11,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
-import { formatDate, formatDateTime, formatRelative } from "@/lib/date-utils";
+import { formatRelative, formatDate, formatDF } from "@/lib/date-utils";
+import { OversightTab } from "@/components/portal/OversightTab";
 import { PortalShell, type PortalNavItem } from "@/components/portal/PortalShell";
 import { SlaManagementTab } from "@/components/portal/SlaManagementTab";
 import { AnalyticsTab, type InsightsData } from "@/components/portal/AnalyticsTab";
@@ -29,7 +30,6 @@ import { TrustBadge } from "@/components/TrustBadge";
 import { useUnreadNotificationCount } from "@/lib/notification-poll";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { DateRange } from "react-day-picker";
-import { format as formatDF } from "date-fns";
 
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -200,17 +200,6 @@ function CenroDashboardInner() {
     const [barangayExporting, setBarangayExporting] = useState(false);
     const [selectedBarangayRow, setSelectedBarangayRow] = useState<BarangayOverviewRow | null>(null);
 
-    // C4 — Oversight Queue filters
-    const [queueReports, setQueueReports] = useState<any[]>([]);
-    const [queueLoading, setQueueLoading] = useState(false);
-    const [oversightSearch, setOversightSearch] = useState("");
-    const debouncedOversightSearch = useDebounce(oversightSearch, 300);
-    const [oversightStatus, setOversightStatus] = useState("");
-    const [oversightDateRange, setOversightDateRange] = useState<DateRange | undefined>();
-    const [oversightBarangay, setOversightBarangay] = useState("");
-
-
-
     const [unreadCount] = useUnreadNotificationCount(user?.id);
 
     // Auth + initial load
@@ -285,35 +274,6 @@ function CenroDashboardInner() {
         return () => window.removeEventListener("ecowatch:open-target", handler as EventListener);
     }, [router, reports]);
 
-    // C4 — refetch queue when filters change AND oversight tab active
-    const buildQueueQuery = () => {
-        const params = new URLSearchParams();
-        if (debouncedOversightSearch.trim()) params.set("search", debouncedOversightSearch.trim());
-        if (oversightStatus) params.set("status", oversightStatus);
-        if (oversightDateRange?.from) params.set("date_from", `${formatDF(oversightDateRange.from, "yyyy-MM-dd")}T00:00:00`);
-        if (oversightDateRange?.to) params.set("date_to", `${formatDF(oversightDateRange.to, "yyyy-MM-dd")}T23:59:59`);
-        params.set("limit", "200");
-        return `?${params.toString()}`;
-    };
-
-    const fetchQueueData = async () => {
-        setQueueLoading(true);
-        try {
-            const data = await api(`/reports/recent${buildQueueQuery()}`);
-            if (Array.isArray(data)) setQueueReports(data);
-        } catch (err) {
-            toast.error(err instanceof ApiError ? err.message : "Failed to load oversight queue");
-        } finally {
-            setQueueLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        if (activeTab !== 'oversight' || !user) return;
-        fetchQueueData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeTab, debouncedOversightSearch, oversightStatus, oversightDateRange, user]);
-
     // Fetch SLA policy on mount and when command_center tab active
     useEffect(() => {
         if (activeTab === 'command_center') {
@@ -344,13 +304,6 @@ function CenroDashboardInner() {
         fetchBarangayOverview();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, user]);
-
-    // Client-side barangay filter (backend has no barangay query param on /reports/recent)
-    const displayedQueueReports = oversightBarangay
-        ? queueReports.filter((r) => r.barangay === oversightBarangay)
-        : queueReports;
-
-
 
     const handleAssignBarangayAdmin = (barangayName: string) => {
         userManagementRef.current?.openCreateForBarangay(barangayName);
@@ -394,7 +347,6 @@ function CenroDashboardInner() {
             await api(`/report/${reportId}/reassign`, { method: "PUT", body: formData });
             const updater = (r: any) => (r.id === reportId ? { ...r, barangay: newBarangay } : r);
             setReports((prev) => prev.map(updater));
-            setQueueReports((prev) => prev.map(updater));
             setSelectedReport({ ...selectedReport, barangay: newBarangay });
             toast.success("Report reassigned.");
         } catch (err) {
@@ -412,7 +364,6 @@ function CenroDashboardInner() {
             await api(`/report/${reportId}/force-close`, { method: "PUT" });
             const updater = (r: any) => (r.id === reportId ? { ...r, status: 'resolved' } : r);
             setReports((prev) => prev.map(updater));
-            setQueueReports((prev) => prev.map(updater));
             setSelectedReport({ ...selectedReport, status: 'resolved' });
             toast.success("Report force-closed.");
         } catch (err) {
@@ -1119,126 +1070,14 @@ function CenroDashboardInner() {
                 )}
 
                 {activeTab === 'oversight' && (
-                    /* OVERSIGHT QUEUE TAB */
-                    <div className="flex-1 rounded-lg border border-border bg-card flex flex-col min-h-0 shadow-sm">
-                        <div className="p-5 border-b border-border shrink-0">
-                            <h2 className="text-lg font-semibold text-foreground tracking-tight">Global Report Queue</h2>
-                            <p className="text-sm text-muted-foreground mt-1">Manage overrides and cross-barangay assignments.</p>
-                        </div>
-
-                        {/* C4 — Filter Bar */}
-                        <div className="flex flex-col lg:flex-row gap-3 p-4 border-b border-border shrink-0">
-                            <div className="relative flex-1 min-w-[200px]">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-                                <input
-                                    type="text"
-                                    value={oversightSearch}
-                                    onChange={(e) => setOversightSearch(e.target.value)}
-                                    placeholder="Search tracking ID or notes…"
-                                    className="w-full pl-9 pr-3 h-9 rounded-md bg-transparent border border-border text-foreground text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
-                                />
-                            </div>
-                            <select
-                                value={oversightStatus}
-                                onChange={(e) => setOversightStatus(e.target.value)}
-                                className="px-3 h-9 rounded-md bg-transparent border border-border text-foreground text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
-                            >
-                                {STATUS_OPTIONS.map((s) => (
-                                    <option key={s || "all"} value={s}>{s ? s : "All statuses"}</option>
-                                ))}
-                            </select>
-                            <select
-                                value={oversightBarangay}
-                                onChange={(e) => setOversightBarangay(e.target.value)}
-                                className="px-3 h-9 rounded-md bg-transparent border border-border text-foreground text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
-                            >
-                                <option value="">All barangays</option>
-                                {BARANGAYS.map((b) => (
-                                    <option key={b} value={b}>{b}</option>
-                                ))}
-                            </select>
-                            <DateRangePicker 
-                                date={oversightDateRange} 
-                                onDateChange={setOversightDateRange} 
-                            />
-                        </div>
-
-                        <div className="flex-1 overflow-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="border-b border-border text-xs text-muted-foreground font-medium tracking-tight bg-card sticky top-0 z-10">
-                                        <th className="p-4">Tracking ID</th>
-                                        <th className="p-4">Barangay</th>
-                                        <th className="p-4">Status</th>
-                                        <th className="p-4">Open</th>
-                                        <th className="p-4">Date Reported</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {queueLoading ? (
-                                        Array.from({ length: 5 }).map((_, i) => (
-                                            <tr key={i} className="border-b border-border">
-                                                {Array.from({ length: 5 }).map((__, j) => (
-                                                    <td key={j} className="p-4"><div className="h-3 bg-foreground/10 rounded animate-pulse" /></td>
-                                                ))}
-                                            </tr>
-                                        ))
-                                    ) : displayedQueueReports.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={5} className="p-12 text-center">
-                                                <div className="flex flex-col items-center justify-center gap-3">
-                                                    <div className="w-12 h-12 rounded-full bg-foreground/5 flex items-center justify-center text-foreground/30">
-                                                        <FileText size={24} />
-                                                    </div>
-                                                    <div className="text-foreground/50 font-bold">No reports match the current filters</div>
-                                                    <div className="text-xs text-foreground/30">Try adjusting your search or status filter.</div>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        displayedQueueReports.map(report => {
-                                            const sla = slaInfo(report.created_at, report.status);
-                                            return (
-                                                <tr key={report.id} className="border-b border-border hover:bg-foreground/5 transition-colors cursor-pointer" onClick={() => { setSelectedReport(report); setNewBarangay(report.barangay ?? ""); }}>
-                                                    <td className="p-4 font-mono text-sm text-foreground font-medium">
-                                                        {report.tracking_id}
-                                                        {report.possible_duplicate_flag && report.status !== 'duplicate' && (
-                                                            <span title="A nearby open report may be a duplicate" className="ml-2 px-1.5 py-0.5 rounded text-[9px] font-semibold tracking-tight bg-amber-500/20 text-amber-500 align-middle">⚠ DUP?</span>
-                                                        )}
-                                                    </td>
-                                                    <td className="p-4 text-sm font-medium text-foreground">{report.barangay}</td>
-                                                    <td className="p-4">
-                                                        <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
-                                                            report.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
-                                                            report.status === 'assigned' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                            report.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
-                                                            report.status === 'verified' ? 'bg-orange-500/20 text-orange-400' :
-                                                            report.status === 'pending' ? 'bg-red-500/20 text-red-400' :
-                                                            report.status === 'failed_cleanup' ? 'bg-red-900/30 text-red-400' :
-                                                            report.status === 'rejected' ? 'bg-foreground/5 text-foreground/40' :
-                                                            'bg-foreground/10 text-foreground'
-                                                        }`}>
-                                                            {report.status}
-                                                        </span>
-                                                    </td>
-                                                    <td className="p-4">
-                                                        {sla ? (
-                                                            <span className={`px-2 py-1 rounded-md text-[11px] font-bold ${SLA_PILL_CLASSES[sla.color]}`}>{sla.days}d</span>
-                                                        ) : (
-                                                            <span className="text-foreground/30 text-sm">—</span>
-                                                        )}
-                                                    </td>
-                                                    <td className="p-4 text-sm text-foreground/60">
-                                                        {formatDate(report.created_at)}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                    <OversightTab 
+                        user={user} 
+                        barangays={BARANGAYS} 
+                        onReportClick={(report) => {
+                            setSelectedReport(report);
+                            setNewBarangay(report.barangay ?? "");
+                        }} 
+                    />
                 )}
 
                 {activeTab === 'audit' && (
