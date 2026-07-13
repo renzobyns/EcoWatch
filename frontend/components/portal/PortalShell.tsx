@@ -79,8 +79,10 @@ export function PortalShell({
                         actions={actions}
                     />
                 </div>
-                <main className={`relative flex-1 px-4 md:px-8 py-6 pb-24 md:pb-6 ${scrollable ? "overflow-y-auto" : "overflow-hidden"}`}>
+                <main className={`relative flex-1 px-4 md:px-8 py-6 md:pb-6 ${scrollable ? "overflow-y-auto" : "overflow-hidden"}`}>
                     {children}
+                    {/* Explicit spacer to prevent content from hiding behind fixed mobile nav (browsers collapse pb on overflow containers) */}
+                    <div className="h-24 md:hidden shrink-0" />
                 </main>
 
                 {/* Mobile Bottom Navigation */}
