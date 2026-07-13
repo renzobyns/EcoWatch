@@ -18,6 +18,7 @@ interface EvidenceGalleryTabProps {
     reports: QueueReport[];
     barangays: readonly string[];
     onReportClick: (report: QueueReport) => void;
+    loading?: boolean;
 }
 
 const STATUS_OPTIONS = [
@@ -31,7 +32,7 @@ const STATUS_OPTIONS = [
     { value: "rejected", label: "Rejected" },
 ];
 
-export function EvidenceGalleryTab({ reports, barangays, onReportClick }: EvidenceGalleryTabProps) {
+export function EvidenceGalleryTab({ reports, barangays, onReportClick, loading = false }: EvidenceGalleryTabProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedBarangay, setSelectedBarangay] = useState("all");
     const [selectedStatus, setSelectedStatus] = useState("all");
@@ -157,24 +158,28 @@ export function EvidenceGalleryTab({ reports, barangays, onReportClick }: Eviden
                     value={totalImages}
                     icon={<ImageIconSolid size={22} />}
                     tone="blue"
+                    loading={loading}
                 />
                 <KpiCard
                     label="AI Detected Masks"
                     value={verifiedMasks}
                     icon={<Activity size={22} />}
                     tone="emerald"
+                    loading={loading}
                 />
                 <KpiCard
                     label="High Confidence (>80%)"
                     value={highConfidence}
                     icon={<ListChecks size={22} />}
                     tone="emerald"
+                    loading={loading}
                 />
                 <KpiCard
                     label="Cleanups Documented"
                     value={cleanupsDocumented}
                     icon={<CheckSquare size={22} />}
                     tone={cleanupsDocumented > 0 ? "blue" : "neutral"}
+                    loading={loading}
                 />
             </div>
 
@@ -231,7 +236,20 @@ export function EvidenceGalleryTab({ reports, barangays, onReportClick }: Eviden
 
             {/* Gallery Grid */}
             <div className="flex-1 animate-slide-up">
-                {paginated.length === 0 ? (
+                {loading ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-pulse">
+                        {Array.from({ length: 8 }).map((_, i) => (
+                            <div key={i} className="bg-card rounded-xl border border-border overflow-hidden h-72 flex flex-col justify-between p-4">
+                                <div className="space-y-2">
+                                    <div className="h-4 bg-muted rounded w-1/3" />
+                                    <div className="h-3 bg-muted rounded w-1/2" />
+                                </div>
+                                <div className="flex-1 bg-muted/60 rounded my-3" />
+                                <div className="h-4 bg-muted rounded w-2/3" />
+                            </div>
+                        ))}
+                    </div>
+                ) : paginated.length === 0 ? (
                     <div className="flex flex-col items-center justify-center text-muted-foreground py-24 bg-card rounded-xl border border-border border-dashed shadow-sm">
                         <ImageIcon size={48} className="mb-4 opacity-20" />
                         <p className="text-sm font-medium">No images match your filters.</p>

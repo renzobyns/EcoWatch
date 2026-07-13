@@ -1,6 +1,6 @@
 "use client";
 
-import { X, ExternalLink, AlertCircle, Loader2 } from "lucide-react";
+import { X, ExternalLink, AlertCircle } from "lucide-react";
 
 type BreakdownChip = {
     label: string;
@@ -169,9 +169,29 @@ export function AnalyticsDrilldownModal({ open, loading, error, data, onClose, o
                 {/* Body */}
                 <div className="flex-1 overflow-y-auto min-h-0">
                     {loading && (
-                        <div className="flex items-center justify-center py-16 gap-3 text-foreground/40">
-                            <Loader2 size={20} className="animate-spin" />
-                            <span className="text-sm">Loading records…</span>
+                        <div className="p-4 animate-pulse">
+                            <table className="w-full text-left text-sm">
+                                <thead>
+                                    <tr className="border-b border-border bg-muted/20">
+                                        {Array.from({ length: 4 }).map((_, i) => (
+                                            <th key={i} className="py-3 px-4">
+                                                <div className="h-3 bg-muted rounded w-20" />
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {Array.from({ length: 5 }).map((_, i) => (
+                                        <tr key={i} className="border-b border-border/40">
+                                            {Array.from({ length: 4 }).map((_, j) => (
+                                                <td key={j} className="py-3 px-4">
+                                                    <div className="h-4 bg-muted rounded w-24" />
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     )}
 

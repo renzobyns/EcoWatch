@@ -512,7 +512,7 @@ function OverviewTab({ report, detail, loading, error, onRetry, onDuplicateConfi
                     <div className="h-12 glass rounded-xl animate-pulse" />
                 ) : error && !reporter ? (
                     <div className="flex items-center justify-between gap-3 text-[11px]">
-                        <span className="text-red-400">Couldn't load reporter info.</span>
+                        <span className="text-red-400">Couldn&apos;t load reporter info.</span>
                         <button onClick={onRetry} className="px-2 py-1 glass border border-border rounded text-[10px] font-bold uppercase tracking-widest hover:text-foreground transition-colors">Retry</button>
                     </div>
                 ) : reporter ? (

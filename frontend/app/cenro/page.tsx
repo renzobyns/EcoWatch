@@ -975,70 +975,103 @@ function CenroDashboardInner() {
 
                 {activeTab === 'overview' && (
                     /* OVERVIEW TAB (Map + Stats) */
-                    <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0">
-                        {/* Left: Stats Column */}
-                        <div className="flex-1 lg:max-w-xs flex flex-col gap-3">
-                            <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm flex flex-col">
-                                <div className="p-4 pb-2 flex items-center justify-between">
-                                    <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Total Reports</h3>
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground/60"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                    loading ? (
+                        <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0 animate-pulse">
+                            {/* Left: Stats Column Skeleton */}
+                            <div className="flex-1 lg:max-w-xs flex flex-col gap-3">
+                                <div className="rounded-lg border border-border bg-card p-4 flex flex-col gap-3 h-24 justify-center">
+                                    <div className="h-3 w-20 bg-muted rounded" />
+                                    <div className="h-7 w-12 bg-muted rounded" />
                                 </div>
-                                <div className="p-4 pt-0">
-                                    <div className="text-2xl font-bold">{stats.total}</div>
+                                <div className="rounded-lg border border-border bg-card p-4 flex flex-col gap-3 h-24 justify-center">
+                                    <div className="h-3 w-28 bg-muted rounded" />
+                                    <div className="h-7 w-12 bg-muted rounded" />
                                 </div>
-                            </div>
-
-                            <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm flex flex-col">
-                                <div className="p-4 pb-2 flex items-center justify-between">
-                                    <h3 className="text-xs font-medium text-muted-foreground tracking-tight">City Success Rate</h3>
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground/60"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                                </div>
-                                <div className="p-4 pt-0">
-                                    <div className="text-2xl font-bold">{successRate}%</div>
-                                    <p className="text-[10px] text-muted-foreground mt-0.5">{stats.resolved} resolved out of {stats.total}</p>
-                                </div>
-                            </div>
-
-                            <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm flex flex-col flex-1 min-h-[200px]">
-                                <div className="p-4 pb-2 shrink-0">
-                                    <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Active Hotspots</h3>
-                                </div>
-                                <div className="p-4 pt-0 flex-1 overflow-y-auto space-y-1.5 scrollbar-hide">
-                                    {heatmaps.length === 0 ? (
-                                        <p className="text-[11px] text-muted-foreground italic">No significant hotspots detected.</p>
-                                    ) : (
-                                        heatmaps.map((h, i) => (
-                                            <div key={i} className="flex items-center justify-between py-1.5 group border-b border-border last:border-0">
-                                                <div>
-                                                    <div className="text-[13px] font-medium text-foreground">Cluster {h.cluster_id}</div>
-                                                    <div className="text-[9px] text-red-500 font-medium">{h.intensity} Intensity</div>
-                                                </div>
-                                                <div className="text-sm font-bold text-foreground">{h.report_count}</div>
+                                <div className="rounded-lg border border-border bg-card p-4 flex flex-col gap-3 flex-1 min-h-[200px]">
+                                    <div className="h-4 w-28 bg-muted rounded mb-2" />
+                                    {Array.from({ length: 3 }).map((_, i) => (
+                                        <div key={i} className="flex justify-between items-center py-1.5 border-b border-border/40 last:border-0">
+                                            <div className="space-y-1">
+                                                <div className="h-3 w-16 bg-muted rounded" />
+                                                <div className="h-2 w-10 bg-muted rounded" />
                                             </div>
-                                        ))
-                                    )}
+                                            <div className="h-4 w-6 bg-muted rounded" />
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
-                        </div>
-
-                        {/* Right: Map */}
-                        <div className="flex-[3] rounded-lg border border-border bg-card shadow-sm overflow-hidden relative min-h-[400px]">
-                            <div className="absolute top-3 left-3 z-[1000] bg-background/80 backdrop-blur-md px-2 py-1 rounded text-[11px] font-medium text-foreground border border-border pointer-events-none shadow-sm flex items-center gap-1.5">
-                                <span className="relative flex h-2 w-2">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                                </span>
-                                City-Wide Live Map
+                            {/* Right: Map Skeleton */}
+                            <div className="flex-[3] rounded-lg border border-border bg-card relative min-h-[400px]">
+                                <div className="absolute inset-0 bg-muted/30 animate-pulse" />
+                                <div className="absolute top-3 left-3 h-5 w-32 bg-muted rounded-full" />
                             </div>
-                            <MapComponent
-                                height="100%"
-                                reports={reports}
-                                heatmaps={heatmaps}
-                                focusedBarangay={null}
-                                onBarangayClick={() => {}}
-                            />
                         </div>
-                    </div>
+                    ) : (
+                        <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0">
+                            {/* Left: Stats Column */}
+                            <div className="flex-1 lg:max-w-xs flex flex-col gap-3">
+                                <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm flex flex-col">
+                                    <div className="p-4 pb-2 flex items-center justify-between">
+                                        <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Total Reports</h3>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground/60"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                                    </div>
+                                    <div className="p-4 pt-0">
+                                        <div className="text-2xl font-bold">{stats.total}</div>
+                                    </div>
+                                </div>
+
+                                <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm flex flex-col">
+                                    <div className="p-4 pb-2 flex items-center justify-between">
+                                        <h3 className="text-xs font-medium text-muted-foreground tracking-tight">City Success Rate</h3>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground/60"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                    </div>
+                                    <div className="p-4 pt-0">
+                                        <div className="text-2xl font-bold">{successRate}%</div>
+                                        <p className="text-[10px] text-muted-foreground mt-0.5">{stats.resolved} resolved out of {stats.total}</p>
+                                    </div>
+                                </div>
+
+                                <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm flex flex-col flex-1 min-h-[200px]">
+                                    <div className="p-4 pb-2 shrink-0">
+                                        <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Active Hotspots</h3>
+                                    </div>
+                                    <div className="p-4 pt-0 flex-1 overflow-y-auto space-y-1.5 scrollbar-hide">
+                                        {heatmaps.length === 0 ? (
+                                            <p className="text-[11px] text-muted-foreground italic">No significant hotspots detected.</p>
+                                        ) : (
+                                            heatmaps.map((h, i) => (
+                                                <div key={i} className="flex items-center justify-between py-1.5 group border-b border-border last:border-0">
+                                                    <div>
+                                                        <div className="text-[13px] font-medium text-foreground">Cluster {h.cluster_id}</div>
+                                                        <div className="text-[9px] text-red-500 font-medium">{h.intensity} Intensity</div>
+                                                    </div>
+                                                    <div className="text-sm font-bold text-foreground">{h.report_count}</div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Right: Map */}
+                            <div className="flex-[3] rounded-lg border border-border bg-card shadow-sm overflow-hidden relative min-h-[400px]">
+                                <div className="absolute top-3 left-3 z-[1000] bg-background/80 backdrop-blur-md px-2 py-1 rounded text-[11px] font-medium text-foreground border border-border pointer-events-none shadow-sm flex items-center gap-1.5">
+                                    <span className="relative flex h-2 w-2">
+                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                    </span>
+                                    City-Wide Live Map
+                                </div>
+                                <MapComponent
+                                    height="100%"
+                                    reports={reports}
+                                    heatmaps={heatmaps}
+                                    focusedBarangay={null}
+                                    onBarangayClick={() => {}}
+                                />
+                            </div>
+                        </div>
+                    )
                 )}
 
                 {activeTab === 'oversight' && (
@@ -1061,6 +1094,7 @@ function CenroDashboardInner() {
                         reports={reports} 
                         barangays={BARANGAYS} 
                         onReportClick={setSelectedReport} 
+                        loading={loading}
                     />
                 )}
 
