@@ -938,6 +938,33 @@ function BarangayPortalInner() {
                         verified: "Verified",
                     };
 
+                    const handleExportWorkordersCSV = () => {
+                        if (filtered.length === 0) {
+                            toast.error("No work orders to export");
+                            return;
+                        }
+                        const headers = ["Tracking ID", "Cleaner", "Priority", "Status", "SLA Deadline", "Created At"];
+                        const rows = filtered.map(wo => [
+                            wo.report_tracking_id || "",
+                            wo.assigned_cleaner_name || "",
+                            wo.priority || "",
+                            wo.status || "",
+                            wo.sla_deadline ? new Date(wo.sla_deadline).toISOString() : "",
+                            wo.created_at ? new Date(wo.created_at).toISOString() : ""
+                        ]);
+                        const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = `ecowatch_workorders_${new Date().toISOString().slice(0, 10)}.csv`;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        URL.revokeObjectURL(url);
+                        toast.success("CSV downloaded.");
+                    };
+
                     const paginatedWo = filtered.slice((woPage - 1) * WO_PAGE_SIZE, woPage * WO_PAGE_SIZE);
                     const woTotalPages = Math.ceil(filtered.length / WO_PAGE_SIZE) || 1;
 
@@ -1543,7 +1570,7 @@ function BarangayPortalInner() {
                             {/* Toolbar */}
                             <div className="flex flex-wrap items-center gap-3 shrink-0">
                                 <div className="relative flex-1 min-w-[200px] max-w-xs">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={14} />
                                     <input type="text" value={userSearch} onChange={e => setUserSearch(e.target.value)} placeholder="Search name or email..." className="w-full pl-9 pr-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" />
                                 </div>
                                 <select value={userStatusFilter} onChange={e => setUserStatusFilter(e.target.value)} className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
@@ -1561,10 +1588,18 @@ function BarangayPortalInner() {
                                 )}
                                 <div className="flex-1" />
                                 <div className="flex bg-muted/50 border border-border rounded-lg overflow-hidden">
-                                    <button onClick={() => setUserViewMode("card")} className={`px-3 py-2 transition-colors ${userViewMode === "card" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+                                    <button
+                                        onClick={() => setUserViewMode("card")}
+                                        title="Card view"
+                                        className={`px-3 py-2 transition-colors ${userViewMode === "card" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                                    >
                                         <LayoutGrid size={15} />
                                     </button>
-                                    <button onClick={() => setUserViewMode("table")} className={`px-3 py-2 transition-colors ${userViewMode === "table" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+                                    <button
+                                        onClick={() => setUserViewMode("table")}
+                                        title="Table view"
+                                        className={`px-3 py-2 transition-colors ${userViewMode === "table" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                                    >
                                         <List size={15} />
                                     </button>
                                 </div>
