@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -9,10 +9,13 @@ import {
     GitBranch, ShieldX, Settings, UserPlus, ClipboardList,
     LayoutDashboard, FileText, Map, ShieldCheck, BarChart3,
     Image as ImageIcon, History, BookUser, Briefcase, Users, AlertCircle,
-    Eye, EyeOff, HelpCircle,
+    Eye, EyeOff, HelpCircle, Search, ArrowDownUp, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { PortalShell, type PortalNavItem } from "@/components/portal/PortalShell";
+import { DateRangePicker } from "@/components/ui/DateRangePicker";
+import { DateRange } from "react-day-picker";
+import { isWithinInterval, startOfDay, endOfDay } from "date-fns";
 
 interface ProfileData {
     id: number;
@@ -29,25 +32,25 @@ interface ProfileData {
 const ROLE_CONFIG: Record<string, { label: string; badge: string; department: string; location: string }> = {
     cenro: {
         label: "CENRO Officer",
-        badge: "bg-yellow-500/20 text-yellow-300",
+        badge: "bg-yellow-500/10 border border-yellow-500/20 text-yellow-600 dark:text-yellow-400",
         department: "City Environment and Natural Resources Office",
         location: "City-wide (CENRO HQ)",
     },
     barangay: {
         label: "Barangay Coordinator",
-        badge: "bg-blue-500/20 text-blue-300",
+        badge: "bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400",
         department: "Barangay Environmental Unit",
         location: "",
     },
     cleaner: {
         label: "Cleanup Team Member",
-        badge: "bg-purple-500/20 text-purple-300",
+        badge: "bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400",
         department: "Barangay Cleanup Division",
         location: "",
     },
     citizen: {
         label: "Citizen Reporter",
-        badge: "bg-primary/20 text-primary",
+        badge: "bg-primary/10 border border-primary/20 text-primary",
         department: "EcoWatch Community",
         location: "San Jose del Monte",
     },
@@ -100,15 +103,15 @@ const AUDIT_ACTION_DISPLAY: Record<string, string> = {
 };
 
 const STATUS_BADGE: Record<string, string> = {
-    pending: "bg-yellow-500/20 text-yellow-300",
-    verified: "bg-blue-500/20 text-blue-300",
-    resolved: "bg-green-500/20 text-green-400",
-    rejected: "bg-red-500/20 text-red-400",
-    deployed: "bg-purple-500/20 text-purple-300",
-    assigned: "bg-foreground/10 text-foreground/60",
-    in_progress: "bg-yellow-500/20 text-yellow-300",
-    completed: "bg-green-500/20 text-green-400",
-    needs_redo: "bg-red-500/20 text-red-400",
+    pending: "bg-yellow-500/10 border border-yellow-500/20 text-yellow-600 dark:text-yellow-400",
+    verified: "bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400",
+    resolved: "bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400",
+    rejected: "bg-muted border-border text-muted-foreground",
+    deployed: "bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400",
+    assigned: "bg-muted border-border text-muted-foreground",
+    in_progress: "bg-yellow-500/10 border border-yellow-500/20 text-yellow-600 dark:text-yellow-400",
+    completed: "bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400",
+    needs_redo: "bg-destructive/10 border border-destructive/20 text-destructive",
 };
 
 function formatDate(iso: string) {
@@ -120,9 +123,9 @@ function formatDate(iso: string) {
 }
 
 function StatusBadge({ status }: { status: string }) {
-    const cls = STATUS_BADGE[status] ?? "bg-foreground/10 text-foreground/60";
+    const cls = STATUS_BADGE[status] ?? "bg-muted border-border text-muted-foreground";
     return (
-        <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold uppercase ${cls}`}>
+        <span className={`px-2 py-0.5 rounded border text-[10px] font-bold uppercase tracking-widest ${cls}`}>
             {status.replace(/_/g, " ")}
         </span>
     );
@@ -134,16 +137,16 @@ function StatCard({
     label: string; value: string | number; sub?: string; positive?: boolean;
 }) {
     return (
-        <div className="bg-foreground/5 rounded-xl p-4 flex flex-col gap-1">
-            <span className="text-[10px] uppercase tracking-widest text-foreground/40 font-semibold">
+        <div className="bg-muted/30 rounded-lg border border-border p-4 flex flex-col gap-1.5">
+            <span className="text-sm font-medium text-muted-foreground">
                 {label}
             </span>
             <span className="text-2xl font-bold text-foreground">{value}</span>
             {sub && (
-                <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-md w-fit ${
-                    positive === true ? "bg-green-500/20 text-green-400"
-                    : positive === false ? "bg-red-500/20 text-red-400"
-                    : "text-foreground/40"
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-md w-fit border ${
+                    positive === true ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                    : positive === false ? "bg-destructive/10 border-destructive/20 text-destructive"
+                    : "bg-muted border-border text-muted-foreground"
                 }`}>
                     {sub}
                 </span>
@@ -155,11 +158,11 @@ function StatCard({
 function SlaBar({ pct }: { pct: number }) {
     return (
         <div className="mt-4">
-            <div className="flex justify-between text-[11px] font-semibold mb-1">
-                <span className="text-foreground/50 uppercase tracking-widest">SLA Compliance</span>
-                <span className="text-primary">{pct}%</span>
+            <div className="flex justify-between text-sm font-medium mb-1.5">
+                <span className="text-muted-foreground">SLA Compliance</span>
+                <span className="text-primary font-bold">{pct}%</span>
             </div>
-            <div className="h-2 rounded-full bg-foreground/10 overflow-hidden">
+            <div className="h-2 rounded-full bg-muted overflow-hidden">
                 <div
                     className="h-full rounded-full bg-primary transition-all duration-700"
                     style={{ width: `${pct}%` }}
@@ -171,13 +174,13 @@ function SlaBar({ pct }: { pct: number }) {
 
 function AuditIcon({ action }: { action: string }) {
     const cls = "w-4 h-4";
-    if (action === "reassign") return <GitBranch className={`${cls} text-blue-400`} />;
-    if (action === "force_close") return <ShieldX className={`${cls} text-red-400`} />;
-    if (action === "update_sla_config") return <Settings className={`${cls} text-yellow-400`} />;
-    if (action === "create_user") return <UserPlus className={`${cls} text-green-400`} />;
-    if (action === "deploy") return <Truck className={`${cls} text-green-400`} />;
-    if (action === "resolve") return <CheckCircle className={`${cls} text-green-400`} />;
-    return <Activity className={`${cls} text-foreground/40`} />;
+    if (action === "reassign") return <GitBranch className={`${cls} text-blue-500`} />;
+    if (action === "force_close") return <ShieldX className={`${cls} text-destructive`} />;
+    if (action === "update_sla_config") return <Settings className={`${cls} text-yellow-500`} />;
+    if (action === "create_user") return <UserPlus className={`${cls} text-emerald-500`} />;
+    if (action === "deploy") return <Truck className={`${cls} text-emerald-500`} />;
+    if (action === "resolve") return <CheckCircle className={`${cls} text-emerald-500`} />;
+    return <Activity className={`${cls} text-muted-foreground`} />;
 }
 
 function ChangePasswordModal({ onClose }: { onClose: () => void }) {
@@ -214,17 +217,17 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className="glass p-6 max-w-sm w-full rounded-2xl border border-border shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div className="bg-card p-6 max-w-sm w-full rounded-xl border border-border shadow-lg">
                 <div className="flex items-center justify-between mb-5">
-                    <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                        <KeyRound className="w-4 h-4 text-primary" /> Change Password
+                    <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                        <KeyRound className="w-5 h-5 text-primary" /> Change Password
                     </h3>
-                    <button onClick={onClose} className="text-foreground/40 hover:text-foreground transition-colors">
-                        <X className="w-4 h-4" />
+                    <button onClick={onClose} className="p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                        <X size={18} />
                     </button>
                 </div>
-                <div className="space-y-3 mb-5">
+                <div className="space-y-4 mb-6">
                     {(
                         [
                             { label: "Current Password", val: currentPw, set: setCurrentPw, show: showCurrent, toggle: () => setShowCurrent(v => !v) },
@@ -233,7 +236,7 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
                         ] as { label: string; val: string; set: (v: string) => void; show: boolean; toggle: () => void }[]
                     ).map(({ label, val, set, show, toggle }) => (
                         <div key={label}>
-                            <label className="block text-[11px] uppercase tracking-widest text-foreground/40 font-semibold mb-1">
+                            <label className="block text-sm font-medium text-muted-foreground mb-1.5">
                                 {label}
                             </label>
                             <div className="relative">
@@ -241,15 +244,15 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
                                     type={show ? "text" : "password"}
                                     value={val}
                                     onChange={(e) => set(e.target.value)}
-                                    className="w-full bg-background border border-border rounded-lg px-3 py-2 pr-10 text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors"
+                                    className="w-full bg-background border border-border rounded-lg px-3 py-2 pr-10 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                                     placeholder="••••••••"
                                 />
                                 <button
                                     type="button"
                                     onClick={toggle}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-primary transition-colors"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                                 >
-                                    {show ? <EyeOff size={15} /> : <Eye size={15} />}
+                                    {show ? <EyeOff size={16} /> : <Eye size={16} />}
                                 </button>
                             </div>
                         </div>
@@ -257,11 +260,11 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
                 </div>
                 <div className="flex gap-3">
                     <button onClick={onClose} disabled={saving}
-                        className="flex-1 px-4 py-2 glass border border-border text-foreground text-sm font-bold rounded-lg hover:bg-foreground/10 transition-colors">
+                        className="flex-1 px-4 py-2 bg-secondary border border-border text-secondary-foreground text-sm font-medium rounded-lg hover:bg-secondary/80 transition-colors">
                         Cancel
                     </button>
                     <button onClick={handleSubmit} disabled={saving}
-                        className="flex-1 px-4 py-2 eco-gradient text-white text-sm font-bold rounded-lg shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
+                        className="flex-1 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                         {saving ? "Saving..." : "Update"}
                     </button>
                 </div>
@@ -279,6 +282,13 @@ export default function ProfilePage() {
     const [editEmail, setEditEmail] = useState("");
     const [saving, setSaving] = useState(false);
     const [showPwModal, setShowPwModal] = useState(false);
+
+    // Audit History states
+    const [auditSearch, setAuditSearch] = useState("");
+    const [auditDateRange, setAuditDateRange] = useState<DateRange | undefined>(undefined);
+    const [auditSortDesc, setAuditSortDesc] = useState(true);
+    const [auditPage, setAuditPage] = useState(1);
+    const ITEMS_PER_PAGE = 5;
 
     useEffect(() => {
         const stored = localStorage.getItem("ecowatch_user");
@@ -353,13 +363,61 @@ export default function ProfilePage() {
         router.push(PORTAL_ROUTES[profileData.role] ?? "/");
     };
 
+    // Filter, Sort and Paginate History
+    const filteredHistory = useMemo(() => {
+        if (!profileData?.recent_activity) return [];
+        let data = [...profileData.recent_activity];
+
+        // Search Filter
+        if (auditSearch.trim()) {
+            const q = auditSearch.toLowerCase();
+            data = data.filter((entry) => {
+                const displayAction = AUDIT_ACTION_DISPLAY[entry.action] ?? entry.action ?? "";
+                const trackingId = entry.tracking_id ?? entry.report_tracking_id ?? `WO-${entry.id}` ?? "";
+                const targetId = entry.target_id ? String(entry.target_id) : "";
+                return (
+                    displayAction.toLowerCase().includes(q) ||
+                    trackingId.toLowerCase().includes(q) ||
+                    targetId.includes(q)
+                );
+            });
+        }
+
+        // Date Range Filter
+        if (auditDateRange?.from) {
+            data = data.filter((entry) => {
+                const date = new Date(entry.created_at);
+                const from = startOfDay(auditDateRange.from!);
+                const to = auditDateRange.to ? endOfDay(auditDateRange.to) : endOfDay(auditDateRange.from!);
+                return isWithinInterval(date, { start: from, end: to });
+            });
+        }
+
+        // Sort
+        data.sort((a, b) => {
+            const dA = new Date(a.created_at).getTime();
+            const dB = new Date(b.created_at).getTime();
+            return auditSortDesc ? dB - dA : dA - dB;
+        });
+
+        return data;
+    }, [profileData, auditSearch, auditDateRange, auditSortDesc]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredHistory.length / ITEMS_PER_PAGE));
+    const paginatedHistory = filteredHistory.slice((auditPage - 1) * ITEMS_PER_PAGE, auditPage * ITEMS_PER_PAGE);
+
+    // Reset pagination when filters change
+    useEffect(() => {
+        setAuditPage(1);
+    }, [auditSearch, auditDateRange, auditSortDesc]);
+
     if (loading) {
         return (
             <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-white p-1 shadow-[0_0_30px_rgba(16,185,129,0.3)] animate-pulse">
+                <div className="w-16 h-16 rounded-xl bg-white p-2 shadow-sm border border-border animate-pulse">
                     <img src="/logo.png" alt="Loading..." className="w-full h-full object-contain" />
                 </div>
-                <div className="text-emerald-500 font-bold tracking-widest uppercase text-sm animate-pulse">
+                <div className="text-muted-foreground font-medium text-sm animate-pulse">
                     Loading Profile...
                 </div>
             </div>
@@ -388,34 +446,36 @@ export default function ProfilePage() {
     };
 
     const identityHeader = (
-        <div className="glass-pro p-6 rounded-2xl border border-border shadow-2xl mb-6">
+        <div className="bg-card p-6 rounded-xl border border-border shadow-sm mb-6">
             <div className="flex items-start gap-5">
-                <div className="w-20 h-20 shrink-0 rounded-2xl eco-gradient flex items-center justify-center text-3xl font-bold text-white shadow-lg shadow-primary/30">
+                <div className="w-20 h-20 shrink-0 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-3xl font-bold text-primary">
                     {profileData.full_name.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                        <h1 className="text-xl font-bold text-foreground truncate">{profileData.full_name}</h1>
-                        <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold shrink-0 ${roleConfig.badge}`}>
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <h1 className="text-2xl font-bold text-foreground truncate">{profileData.full_name}</h1>
+                        <span className={`px-2 py-0.5 rounded border text-[10px] uppercase tracking-widest font-bold shrink-0 ${roleConfig.badge}`}>
                             {roleConfig.label}
                         </span>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase shrink-0 ${
-                            profileData.is_active ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
+                        <span className={`px-2 py-0.5 rounded border text-[10px] uppercase tracking-widest font-bold shrink-0 ${
+                            profileData.is_active 
+                                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400" 
+                                : "bg-destructive/10 border-destructive/20 text-destructive"
                         }`}>
                             {profileData.is_active ? "Active" : "Inactive"}
                         </span>
                     </div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-foreground/50 mb-3">
+                    <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-muted-foreground mb-4">
                         {locationDisplay && (
-                            <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {locationDisplay}</span>
+                            <span className="flex items-center gap-1.5"><MapPin size={16} /> {locationDisplay}</span>
                         )}
-                        <span className="flex items-center gap-1"><Building2 className="w-3.5 h-3.5" /> {roleConfig.department}</span>
-                        <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5" /> {profileData.email}</span>
-                        <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> Member since {formatDate(profileData.created_at)}</span>
+                        <span className="flex items-center gap-1.5"><Building2 size={16} /> {roleConfig.department}</span>
+                        <span className="flex items-center gap-1.5"><Mail size={16} /> {profileData.email}</span>
+                        <span className="flex items-center gap-1.5"><Calendar size={16} /> Member since {formatDate(profileData.created_at)}</span>
                     </div>
                     <button onClick={() => setEditMode(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 glass border border-border text-foreground/70 text-xs font-semibold rounded-lg hover:bg-foreground/10 hover:text-foreground transition-colors">
-                        <Pencil className="w-3 h-3" /> Edit Profile
+                        className="flex items-center gap-2 px-4 py-2 bg-secondary border border-border text-secondary-foreground text-sm font-medium rounded-lg hover:bg-secondary/80 transition-colors">
+                        <Pencil size={14} /> Edit Profile
                     </button>
                 </div>
             </div>
@@ -424,13 +484,13 @@ export default function ProfilePage() {
 
     const metricsPanel = (
         <div className="grid lg:grid-cols-2 gap-6 mb-6">
-            <div className="glass-pro p-6 rounded-2xl border border-border shadow-2xl">
-                <h2 className="text-sm font-bold text-foreground/70 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-primary" /> Activity Metrics
+            <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
+                <h2 className="text-base font-bold text-foreground mb-5 flex items-center gap-2">
+                    <Activity size={18} className="text-primary" /> Activity Metrics
                 </h2>
                 {profileData.role === "cenro" && (
                     <>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-2 gap-4">
                             <StatCard label="Total Reports" value={profileData.stats.total_reports ?? 0}
                                 sub={`${(profileData.stats.growth_pct ?? 0) > 0 ? "+" : ""}${profileData.stats.growth_pct ?? 0}% this month`}
                                 positive={(profileData.stats.growth_pct ?? 0) >= 0} />
@@ -442,7 +502,7 @@ export default function ProfilePage() {
                     </>
                 )}
                 {profileData.role === "barangay" && (
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-4">
                         <StatCard label="Total Reports" value={profileData.stats.total_reports ?? 0} />
                         <StatCard label="Resolved" value={profileData.stats.resolved_count ?? 0} />
                         <StatCard label="Pending" value={profileData.stats.pending_count ?? 0} />
@@ -451,7 +511,7 @@ export default function ProfilePage() {
                 )}
                 {profileData.role === "cleaner" && (
                     <>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-2 gap-4">
                             <StatCard label="Total Assigned" value={profileData.stats.total_assigned ?? 0} />
                             <StatCard label="In Progress" value={profileData.stats.in_progress ?? 0} />
                             <StatCard label="Completed" value={profileData.stats.completed ?? 0} />
@@ -461,7 +521,7 @@ export default function ProfilePage() {
                     </>
                 )}
                 {profileData.role === "citizen" && (
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-4">
                         <StatCard label="Submitted" value={profileData.stats.total_submitted ?? 0} />
                         <StatCard label="Pending" value={profileData.stats.pending ?? 0} />
                         <StatCard label="Verified" value={profileData.stats.verified ?? 0} />
@@ -469,43 +529,127 @@ export default function ProfilePage() {
                     </div>
                 )}
             </div>
-            <div className="glass-pro p-6 rounded-2xl border border-border shadow-2xl">
-                <h2 className="text-sm font-bold text-foreground/70 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <History className="w-4 h-4 text-primary" />
-                    {profileData.role === "cenro" ? "Audit History" : "Recent Activity"}
-                </h2>
-                {profileData.recent_activity.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-32 text-foreground/30">
-                        <AlertCircle className="w-8 h-8 mb-2" />
-                        <span className="text-sm font-medium">No activity yet</span>
+            <div className="bg-card p-6 rounded-xl border border-border shadow-sm flex flex-col">
+                <div className="flex items-center justify-between mb-5">
+                    <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                        <History size={18} className="text-primary" />
+                        {profileData.role === "cenro" ? "Audit History" : "Recent Activity"}
+                    </h2>
+                </div>
+
+                {/* Audit Toolbar */}
+                <div className="flex flex-col sm:flex-row items-center gap-3 mb-4">
+                    <div className="relative flex-1 w-full">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                            type="text"
+                            placeholder="Search activity..."
+                            value={auditSearch}
+                            onChange={(e) => setAuditSearch(e.target.value)}
+                            className="w-full bg-background border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                        />
+                    </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <DateRangePicker
+                            value={auditDateRange}
+                            onChange={setAuditDateRange}
+                            className="bg-background border-border"
+                        />
+                        <button
+                            onClick={() => setAuditSortDesc(!auditSortDesc)}
+                            className="p-2 border border-border bg-background rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+                            title="Toggle Sort Order"
+                        >
+                            <ArrowDownUp size={16} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Audit List */}
+                {paginatedHistory.length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center py-12 text-center border border-border border-dashed rounded-lg bg-muted/20">
+                        <AlertCircle className="w-8 h-8 text-muted-foreground/30 mb-2" />
+                        <span className="text-sm font-medium text-muted-foreground">No matching activity</span>
                     </div>
                 ) : (
-                    <div className="space-y-3">
+                    <div className="flex-1 space-y-2">
                         {profileData.role === "cenro"
-                            ? profileData.recent_activity.map((entry: any) => (
-                                <div key={entry.id} className="flex items-start gap-3 p-2.5 rounded-lg bg-foreground/5">
+                            ? paginatedHistory.map((entry: any) => (
+                                <div key={entry.id} className="flex items-start gap-3 p-3 rounded-lg border border-border bg-muted/20">
                                     <div className="mt-0.5 shrink-0"><AuditIcon action={entry.action} /></div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-semibold text-foreground">
+                                        <p className="text-sm font-semibold text-foreground">
                                             {AUDIT_ACTION_DISPLAY[entry.action] ?? entry.action}
                                         </p>
-                                        <p className="text-[11px] text-foreground/40 mt-0.5">
+                                        <p className="text-xs font-medium text-muted-foreground mt-0.5">
                                             {entry.target_type} #{entry.target_id} · {formatDate(entry.created_at)}
                                         </p>
                                     </div>
                                 </div>
                             ))
-                            : profileData.recent_activity.map((entry: any, idx: number) => (
-                                <div key={idx} className="flex items-center justify-between p-2.5 rounded-lg bg-foreground/5">
-                                    <div>
-                                        <p className="text-xs font-mono font-bold text-foreground">
+                            : paginatedHistory.map((entry: any, idx: number) => (
+                                <div key={idx} className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/20">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-bold text-foreground truncate">
                                             {entry.tracking_id ?? entry.report_tracking_id ?? `WO-${entry.id}`}
                                         </p>
-                                        <p className="text-[11px] text-foreground/40 mt-0.5">{formatDate(entry.created_at)}</p>
+                                        <p className="text-xs font-medium text-muted-foreground mt-0.5">{formatDate(entry.created_at)}</p>
                                     </div>
-                                    <StatusBadge status={entry.status} />
+                                    <div className="shrink-0 ml-3">
+                                        <StatusBadge status={entry.status} />
+                                    </div>
                                 </div>
                             ))}
+                    </div>
+                )}
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                    <div className="flex items-center justify-between pt-4 mt-auto border-t border-border">
+                        <span className="text-xs font-medium text-muted-foreground">
+                            Page {auditPage} of {totalPages}
+                        </span>
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={() => setAuditPage(p => Math.max(1, p - 1))}
+                                disabled={auditPage === 1}
+                                className="p-1.5 rounded-md border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <ChevronLeft size={16} />
+                            </button>
+                            <div className="flex gap-1 px-1">
+                                {Array.from({ length: totalPages }).map((_, i) => {
+                                    const p = i + 1;
+                                    // Show first, last, current, and adjacent pages
+                                    if (p === 1 || p === totalPages || Math.abs(p - auditPage) <= 1) {
+                                        return (
+                                            <button
+                                                key={p}
+                                                onClick={() => setAuditPage(p)}
+                                                className={`w-7 h-7 rounded-md text-xs font-semibold flex items-center justify-center transition-colors ${
+                                                    p === auditPage
+                                                        ? "bg-primary text-primary-foreground"
+                                                        : "bg-background border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+                                                }`}
+                                            >
+                                                {p}
+                                            </button>
+                                        );
+                                    }
+                                    if (p === auditPage - 2 || p === auditPage + 2) {
+                                        return <span key={p} className="text-xs text-muted-foreground px-1">...</span>;
+                                    }
+                                    return null;
+                                })}
+                            </div>
+                            <button
+                                onClick={() => setAuditPage(p => Math.min(totalPages, p + 1))}
+                                disabled={auditPage === totalPages}
+                                className="p-1.5 rounded-md border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <ChevronRight size={16} />
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
@@ -513,62 +657,62 @@ export default function ProfilePage() {
     );
 
     const accountConfig = (
-        <div className="glass-pro p-6 rounded-2xl border border-border shadow-2xl">
-            <h2 className="text-sm font-bold text-foreground/70 uppercase tracking-widest mb-5 flex items-center gap-2">
-                <Shield className="w-4 h-4 text-primary" /> Account Configuration
+        <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
+            <h2 className="text-base font-bold text-foreground mb-6 flex items-center gap-2">
+                <Shield size={18} className="text-primary" /> Account Configuration
             </h2>
-            <div className="grid sm:grid-cols-2 gap-4 mb-6">
-                <div className="flex flex-col gap-1.5">
-                    <span className="text-[10px] uppercase tracking-widest text-foreground/40 font-semibold">Full Name</span>
+            <div className="grid sm:grid-cols-2 gap-6 mb-8">
+                <div className="flex flex-col gap-2">
+                    <span className="text-sm font-medium text-muted-foreground">Full Name</span>
                     {editMode ? (
                         <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
-                            className="w-full bg-background border border-primary/40 rounded-lg px-3 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+                            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
                     ) : (
-                        <span className="text-sm font-semibold text-foreground">{profileData.full_name}</span>
+                        <span className="text-base font-semibold text-foreground">{profileData.full_name}</span>
                     )}
                 </div>
-                <div className="flex flex-col gap-1.5">
-                    <span className="text-[10px] uppercase tracking-widest text-foreground/40 font-semibold">Email Address</span>
+                <div className="flex flex-col gap-2">
+                    <span className="text-sm font-medium text-muted-foreground">Email Address</span>
                     {editMode ? (
                         <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)}
-                            className="w-full bg-background border border-primary/40 rounded-lg px-3 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+                            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
                     ) : (
-                        <span className="text-sm font-semibold text-foreground">{profileData.email}</span>
+                        <span className="text-base font-semibold text-foreground">{profileData.email}</span>
                     )}
                 </div>
-                <div className="flex flex-col gap-1.5">
-                    <span className="text-[10px] uppercase tracking-widest text-foreground/40 font-semibold">Role</span>
-                    <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold w-fit ${roleConfig.badge}`}>
+                <div className="flex flex-col gap-2">
+                    <span className="text-sm font-medium text-muted-foreground">Role</span>
+                    <span className={`px-2.5 py-0.5 rounded border text-xs font-bold w-fit ${roleConfig.badge}`}>
                         {roleConfig.label}
                     </span>
                 </div>
-                <div className="flex flex-col gap-1.5">
-                    <span className="text-[10px] uppercase tracking-widest text-foreground/40 font-semibold">Zone / Assignment</span>
-                    <span className="text-sm font-semibold text-foreground">{locationDisplay || "—"}</span>
+                <div className="flex flex-col gap-2">
+                    <span className="text-sm font-medium text-muted-foreground">Zone / Assignment</span>
+                    <span className="text-base font-semibold text-foreground">{locationDisplay || "—"}</span>
                 </div>
             </div>
             {editMode && (
-                <div className="flex gap-3 mb-6">
+                <div className="flex gap-3 mb-8">
                     <button onClick={handleCancelEdit} disabled={saving}
-                        className="flex items-center gap-1.5 px-4 py-2 glass border border-border text-foreground text-sm font-bold rounded-lg hover:bg-foreground/10 transition-colors">
-                        <X className="w-3.5 h-3.5" /> Cancel
+                        className="flex items-center gap-2 px-4 py-2 bg-secondary border border-border text-secondary-foreground text-sm font-medium rounded-lg hover:bg-secondary/80 transition-colors">
+                        <X size={16} /> Cancel
                     </button>
                     <button onClick={handleSaveProfile} disabled={saving}
-                        className="flex items-center gap-1.5 px-4 py-2 eco-gradient text-white text-sm font-bold rounded-lg shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
-                        <Save className="w-3.5 h-3.5" /> {saving ? "Saving..." : "Save Changes"}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <Save size={16} /> {saving ? "Saving..." : "Save Changes"}
                     </button>
                 </div>
             )}
-            <div className="pt-5 border-t border-border">
-                <h3 className="text-[11px] uppercase tracking-widest text-foreground/40 font-semibold mb-3">Security</h3>
+            <div className="pt-6 border-t border-border">
+                <h3 className="text-sm font-medium text-muted-foreground mb-4">Security Actions</h3>
                 <div className="flex flex-wrap gap-3">
                     <button onClick={() => setShowPwModal(true)}
-                        className="flex items-center gap-2 px-4 py-2 glass border border-border text-foreground text-sm font-bold rounded-lg hover:bg-foreground/10 transition-colors">
-                        <KeyRound className="w-3.5 h-3.5 text-primary" /> Change Password
+                        className="flex items-center gap-2 px-4 py-2 bg-secondary border border-border text-secondary-foreground text-sm font-medium rounded-lg hover:bg-secondary/80 transition-colors">
+                        <KeyRound size={16} className="text-primary" /> Change Password
                     </button>
                     <button onClick={handleSignOut}
-                        className="flex items-center gap-2 px-4 py-2 glass border border-red-500/20 text-red-400 text-sm font-bold rounded-lg hover:bg-red-500/10 transition-colors">
-                        <LogOut className="w-3.5 h-3.5" /> Sign Out
+                        className="flex items-center gap-2 px-4 py-2 bg-destructive/10 border border-destructive/20 text-destructive text-sm font-medium rounded-lg hover:bg-destructive/20 transition-colors">
+                        <LogOut size={16} /> Sign Out
                     </button>
                 </div>
             </div>
@@ -586,7 +730,7 @@ export default function ProfilePage() {
                     activeKey="profile"
                     onNavChange={handleNavChange}
                 >
-                    <div className="max-w-4xl mx-auto">
+                    <div className="max-w-4xl mx-auto pb-10">
                         {identityHeader}
                         {metricsPanel}
                         {accountConfig}
@@ -600,7 +744,7 @@ export default function ProfilePage() {
     return (
         <>
             <div className="min-h-[calc(100vh-4rem)] px-4 py-12">
-                <div className="max-w-4xl mx-auto">
+                <div className="max-w-4xl mx-auto pb-10">
                     {identityHeader}
                     {metricsPanel}
                     {accountConfig}
