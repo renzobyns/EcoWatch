@@ -858,6 +858,11 @@ function CenroDashboardInner() {
                                 <div className="hidden md:block w-px self-stretch bg-border/80 shrink-0 mx-2" />
                                 <div className="md:hidden h-px w-full bg-border/80 shrink-0 my-1" />
 
+                                {/* Policy icon */}
+                                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-primary/10 text-primary">
+                                    <ShieldCheck size={18} />
+                                </div>
+
                                 {/* Policy info */}
                                 <div className="min-w-0 flex flex-col gap-1.5">
                                     <div className="text-xs font-semibold text-muted-foreground">SLA Policy</div>
