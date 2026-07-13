@@ -78,7 +78,7 @@ export function DashboardTab({ user, workOrders, onOpenWO, onJump, loading = fal
             <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground tracking-tight">
-                        {greeting}, <span className="text-primary">{user?.full_name?.split(" ")[0] ?? "Cleaner"}</span>
+                        {greeting}, <span className="text-primary">{user?.full_name ? user.full_name.replace(/\s+cleaner$/i, "").trim() : "Cleaner"}</span>
                     </h1>
                     {user?.barangay_assignment && (
                         <p className="text-emerald-400 font-semibold uppercase tracking-[0.18em] text-[11px] mt-1 px-2.5 py-0.5 bg-emerald-400/10 rounded-full w-fit border border-emerald-400/20">
