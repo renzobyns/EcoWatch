@@ -139,7 +139,6 @@ function BarangayPortalInner() {
     const [userLoading, setUserLoading] = useState(false);
     const [userPage, setUserPage] = useState(1);
     const USER_PAGE_SIZE = 10;
-    const WO_PAGE_SIZE = 10;
     const [userSearch, setUserSearch] = useState("");
     const debouncedUserSearch = useDebounce(userSearch, 300);
     const [userStatusFilter, setUserStatusFilter] = useState("all");
@@ -169,6 +168,9 @@ function BarangayPortalInner() {
     const [woLoading, setWoLoading] = useState(false);
     const [woError, setWoError] = useState<string | null>(null);
     const [woPage, setWoPage] = useState(1);
+    const [woViewMode, setWoViewMode] = useState<"table" | "card">("table");
+    const [woSort, setWoSort] = useState<"newest" | "oldest">("newest");
+    const WO_PAGE_SIZE = woViewMode === "table" ? 10 : 12;
     const [woStatusFilter, setWoStatusFilter] = useState<string>("all");
     const [woPriorityFilter, setWoPriorityFilter] = useState<string>("all");
     const [woCleanerFilter, setWoCleanerFilter] = useState<number | null>(null);
@@ -897,6 +899,8 @@ function BarangayPortalInner() {
                     const STATUS_ORDER: Record<string, number> = { assigned: 0, in_progress: 1, needs_redo: 2, completed: 3, verified: 4 };
                     const activeCleaners = cleaners.filter((c: any) => c.role === "cleaner" && c.is_active);
 
+                    useEffect(() => setWoPage(1), [woSearch, woStatusFilter, woPriorityFilter, woCleanerFilter, woSlaRiskOnly, woSort, woViewMode]);
+
                     const filtered = workOrders.filter(wo => {
                         const q = woSearch.toLowerCase();
                         const matchSearch = !q || wo.report_tracking_id?.toLowerCase().includes(q) || wo.assigned_cleaner_name?.toLowerCase().includes(q);
@@ -906,10 +910,12 @@ function BarangayPortalInner() {
                         const matchSlaRisk = !woSlaRiskOnly || (wo.sla_deadline && new Date(wo.sla_deadline).getTime() <= now + 86400000);
                         return matchSearch && matchStatus && matchPriority && matchCleaner && matchSlaRisk;
                     }).sort((a, b) => {
-                        const aOrder = STATUS_ORDER[a.status] ?? 99;
-                        const bOrder = STATUS_ORDER[b.status] ?? 99;
-                        if (aOrder !== bOrder) return aOrder - bOrder;
-                        return new Date(a.sla_deadline).getTime() - new Date(b.sla_deadline).getTime();
+                        if (woSort === "oldest") {
+                            return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+                        } else {
+                            // newest
+                            return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+                        }
                     });
 
                     const PRIORITY_PILL: Record<string, string> = {
@@ -1000,18 +1006,19 @@ function BarangayPortalInner() {
                                 {/* Action Toolbar */}
                                 <div className="p-4 border-b border-border flex flex-wrap gap-3 items-center justify-between bg-foreground/[0.02]">
                                     <div className="flex flex-wrap gap-3 items-center flex-1">
-                                        <div className="relative min-w-[180px]">
+                                        <div className="relative min-w-[200px]">
                                             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" />
                                             <input
                                                 value={woSearch}
-                                                onChange={e => { setWoSearch(e.target.value); setWoPage(1); }}
+                                                onChange={e => setWoSearch(e.target.value)}
                                                 placeholder="Search tracking ID or cleaner…"
                                                 className="w-full pl-8 pr-3 py-2 bg-background rounded-lg text-sm text-foreground placeholder:text-foreground/30 border border-border focus:outline-none focus:border-primary/50"
                                             />
                                         </div>
+                                        <div className="h-6 w-px bg-border mx-1 hidden sm:block"></div>
                                         <select
                                             value={woStatusFilter}
-                                            onChange={e => { setWoStatusFilter(e.target.value); setWoPage(1); }}
+                                            onChange={e => setWoStatusFilter(e.target.value)}
                                             className="bg-background border border-border rounded-lg px-3 py-2 text-sm font-medium text-foreground focus:outline-none focus:border-primary/50"
                                         >
                                             <option value="all">All Statuses</option>
@@ -1023,7 +1030,7 @@ function BarangayPortalInner() {
                                         </select>
                                         <select
                                             value={woPriorityFilter}
-                                            onChange={e => { setWoPriorityFilter(e.target.value); setWoPage(1); }}
+                                            onChange={e => setWoPriorityFilter(e.target.value)}
                                             className="bg-background border border-border rounded-lg px-3 py-2 text-sm font-medium text-foreground focus:outline-none focus:border-primary/50"
                                         >
                                             <option value="all">All Priorities</option>
@@ -1033,7 +1040,7 @@ function BarangayPortalInner() {
                                         </select>
                                         <select
                                             value={woCleanerFilter ?? ""}
-                                            onChange={e => { setWoCleanerFilter(e.target.value ? Number(e.target.value) : null); setWoPage(1); }}
+                                            onChange={e => setWoCleanerFilter(e.target.value ? Number(e.target.value) : null)}
                                             className="bg-background border border-border rounded-lg px-3 py-2 text-sm font-medium text-foreground focus:outline-none focus:border-primary/50"
                                         >
                                             <option value="">All Cleaners</option>
@@ -1041,39 +1048,40 @@ function BarangayPortalInner() {
                                                 <option key={c.id} value={c.id}>{c.full_name}</option>
                                             ))}
                                         </select>
+                                        <select
+                                            value={woSort}
+                                            onChange={e => setWoSort(e.target.value as any)}
+                                            className="bg-background border border-border rounded-lg px-3 py-2 text-sm font-medium text-foreground focus:outline-none focus:border-primary/50"
+                                        >
+                                            <option value="newest">Newest First</option>
+                                            <option value="oldest">Oldest First</option>
+                                        </select>
                                         <button
-                                            onClick={() => { setWoSlaRiskOnly(!woSlaRiskOnly); setWoPage(1); }}
+                                            onClick={() => setWoSlaRiskOnly(!woSlaRiskOnly)}
                                             className={`px-3 py-2 rounded-lg text-xs font-bold border transition-colors ${woSlaRiskOnly ? "bg-red-500/20 border-red-500/50 text-red-400" : "bg-background border-border text-foreground/50 hover:text-foreground"}`}
                                         >
                                             SLA Risk Only
                                         </button>
-                                        {(woStatusFilter !== "all" || woPriorityFilter !== "all" || woCleanerFilter || woSlaRiskOnly || woSearch) && (
+                                        {(woStatusFilter !== "all" || woPriorityFilter !== "all" || woCleanerFilter || woSlaRiskOnly || woSearch || woSort !== "newest") && (
                                             <button
-                                                onClick={() => { setWoStatusFilter("all"); setWoPriorityFilter("all"); setWoCleanerFilter(null); setWoSlaRiskOnly(false); setWoSearch(""); setWoPage(1); }}
-                                                className="text-xs text-foreground/40 hover:text-foreground transition-colors underline"
+                                                onClick={() => { setWoStatusFilter("all"); setWoPriorityFilter("all"); setWoCleanerFilter(null); setWoSlaRiskOnly(false); setWoSearch(""); setWoSort("newest"); }}
+                                                className="flex items-center gap-1 px-3 py-2 text-xs font-bold text-foreground/50 hover:text-foreground transition-colors"
                                             >
-                                                Clear filters
+                                                <RefreshCw size={12} /> Clear
                                             </button>
                                         )}
                                     </div>
                                     <div className="flex items-center gap-3">
-                                        <div className="flex items-center gap-1 bg-background border border-border rounded-lg p-1">
-                                            {(["week", "month", "all"] as const).map(w => (
-                                                <button
-                                                    key={w}
-                                                    onClick={() => setWoKpiWindow(w)}
-                                                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${woKpiWindow === w ? "bg-primary text-white" : "text-foreground/50 hover:text-foreground"}`}
-                                                >
-                                                    {w === "week" ? "7d" : w === "month" ? "30d" : "All"}
-                                                </button>
-                                            ))}
+                                        <div className="flex items-center bg-background border border-border rounded-lg p-1">
+                                            <button onClick={() => setWoViewMode("table")} className={`p-1.5 rounded-md transition-colors ${woViewMode === "table" ? "bg-primary/10 text-primary" : "text-foreground/40 hover:text-foreground"}`}>
+                                                <List size={16} />
+                                            </button>
+                                            <button onClick={() => setWoViewMode("card")} className={`p-1.5 rounded-md transition-colors ${woViewMode === "card" ? "bg-primary/10 text-primary" : "text-foreground/40 hover:text-foreground"}`}>
+                                                <LayoutGrid size={16} />
+                                            </button>
                                         </div>
-                                        <button
-                                            onClick={handleExportWorkordersCSV}
-                                            className="flex items-center gap-2 px-4 py-2 bg-background border border-border text-foreground text-sm font-medium rounded-lg hover:bg-muted transition-colors"
-                                        >
-                                            <Download size={14} />
-                                            <span>Export CSV</span>
+                                        <button onClick={handleExportWorkordersCSV} className="flex items-center gap-2 px-4 py-2 bg-background border border-border text-foreground text-sm font-bold rounded-lg hover:bg-muted transition-colors">
+                                            <Download size={14} /> Export
                                         </button>
                                     </div>
                                 </div>
@@ -1099,7 +1107,7 @@ function BarangayPortalInner() {
                                                 {workOrders.length === 0 ? "No work orders yet. Deploy a verified report to create one." : "No work orders match these filters."}
                                             </p>
                                         </div>
-                                    ) : (
+                                    ) : woViewMode === "table" ? (
                                         <div className="overflow-x-auto">
                                             <table className="w-full">
                                                 <thead>
@@ -1172,6 +1180,47 @@ function BarangayPortalInner() {
                                                     })}
                                                 </tbody>
                                             </table>
+                                        </div>
+                                    ) : (
+                                        <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                            {paginatedWo.map(wo => {
+                                                const slaColor = slaDeadlineColor(wo.sla_deadline);
+                                                const slaLabel = slaDeadlineLabel(wo.sla_deadline);
+                                                return (
+                                                    <div key={wo.id} className="bg-background border border-border rounded-xl p-4 flex flex-col gap-3 hover:border-primary/30 transition-colors shadow-sm">
+                                                        <div className="flex items-start justify-between">
+                                                            <div className="font-mono text-sm font-bold text-foreground">{wo.report_tracking_id}</div>
+                                                            <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${STATUS_PILL[wo.status] || "bg-foreground/10 text-foreground"}`}>
+                                                                {STATUS_LABEL[wo.status] || wo.status}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex-1 flex flex-col justify-center">
+                                                            <div className="text-sm text-foreground/80 font-medium">{wo.assigned_cleaner_name}</div>
+                                                            <div className="text-xs text-foreground/50 mt-1">Priority: <span className={`font-bold ${PRIORITY_PILL[wo.priority]?.split(" ")[1]}`}>{wo.priority}</span></div>
+                                                        </div>
+                                                        <div className="text-xs text-foreground/50 flex flex-col gap-1">
+                                                            <div className="flex justify-between items-center">
+                                                                <span>SLA:</span>
+                                                                {wo.sla_deadline ? (
+                                                                    <span className={`px-2 py-1 rounded-md text-[10px] font-bold ${SLA_PILL_CLASSES[slaColor]}`}>
+                                                                        {slaLabel}
+                                                                    </span>
+                                                                ) : <span>—</span>}
+                                                            </div>
+                                                            <div className="flex justify-between items-center">
+                                                                <span>Created:</span>
+                                                                <span>{wo.created_at ? formatDate(wo.created_at) : "—"}</span>
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => { setSelectedWorkOrder(wo); setNewWoPriority(wo.priority); }}
+                                                            className="w-full py-2 bg-foreground/[0.03] hover:bg-foreground/[0.08] text-foreground text-sm font-bold rounded-lg transition-colors border border-border"
+                                                        >
+                                                            View Details
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     )}
                                 </div>
