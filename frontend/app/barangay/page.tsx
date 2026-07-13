@@ -138,7 +138,8 @@ function BarangayPortalInner() {
     const [barangayUsers, setBarangayUsers] = useState<BarangayUser[]>([]);
     const [userLoading, setUserLoading] = useState(false);
     const [userPage, setUserPage] = useState(1);
-    const USER_PAGE_SIZE = 10;
+    const [userViewMode, setUserViewMode] = useState<"table" | "card">("table");
+    const USER_PAGE_SIZE = userViewMode === "table" ? 10 : 12;
     const [userSearch, setUserSearch] = useState("");
     const debouncedUserSearch = useDebounce(userSearch, 300);
     const [userStatusFilter, setUserStatusFilter] = useState("all");
@@ -1545,21 +1546,37 @@ function BarangayPortalInner() {
                             {/* Main List Card Container */}
                             <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col flex-1 min-h-[500px]">
                                 {/* Action Toolbar */}
-                                <div className="p-4 border-b border-border flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between bg-foreground/[0.02]">
-                                    <div className="flex items-center gap-3 flex-1 w-full">
-                                        <div className="relative flex-1 min-w-[200px] max-w-sm">
-                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} />
-                                            <input type="text" value={userSearch} onChange={e => { setUserSearch(e.target.value); setUserPage(1); }} placeholder="Search name or email..." className="w-full pl-9 pr-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none" />
+                                <div className="p-4 border-b border-border flex flex-wrap gap-3 items-center justify-between bg-foreground/[0.02]">
+                                    <div className="flex flex-wrap gap-3 items-center flex-1">
+                                        <div className="relative min-w-[200px]">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
+                                            <input type="text" value={userSearch} onChange={e => { setUserSearch(e.target.value); setUserPage(1); }} placeholder="Search name or email..." className="w-full pl-8 pr-3 py-2 rounded-lg bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none" />
                                         </div>
-                                        <select value={userStatusFilter} onChange={e => { setUserStatusFilter(e.target.value); setUserPage(1); }} className="px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm focus:border-primary focus:outline-none">
-                                            <option value="all">All Status</option>
+                                        <select value={userStatusFilter} onChange={e => { setUserStatusFilter(e.target.value); setUserPage(1); }} className="px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm font-medium focus:border-primary/50 focus:outline-none">
+                                            <option value="all">All Statuses</option>
                                             <option value="active">Active</option>
                                             <option value="disabled">Disabled</option>
                                         </select>
+                                        {(userStatusFilter !== "all" || userSearch) && (
+                                            <button
+                                                onClick={() => { setUserStatusFilter("all"); setUserSearch(""); setUserPage(1); }}
+                                                className="flex items-center gap-1 px-3 py-2 text-xs font-bold text-foreground/50 hover:text-foreground transition-colors"
+                                            >
+                                                <RefreshCw size={12} /> Clear
+                                            </button>
+                                        )}
                                     </div>
-                                    <div className="flex items-center gap-3 w-full sm:w-auto">
-                                        <button onClick={(e) => { e.stopPropagation(); handleExportCleanersCSV(); }} className="flex items-center justify-center gap-2 px-4 py-2 bg-background border border-border text-foreground text-sm font-medium rounded-lg hover:bg-muted transition-colors w-full sm:w-auto">
-                                            <FileDown size={14} /> Export CSV
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center bg-background border border-border rounded-lg p-1">
+                                            <button onClick={() => setUserViewMode("table")} className={`p-1.5 rounded-md transition-colors ${userViewMode === "table" ? "bg-primary/10 text-primary" : "text-foreground/40 hover:text-foreground"}`}>
+                                                <List size={16} />
+                                            </button>
+                                            <button onClick={() => setUserViewMode("card")} className={`p-1.5 rounded-md transition-colors ${userViewMode === "card" ? "bg-primary/10 text-primary" : "text-foreground/40 hover:text-foreground"}`}>
+                                                <LayoutGrid size={16} />
+                                            </button>
+                                        </div>
+                                        <button onClick={(e) => { e.stopPropagation(); handleExportCleanersCSV(); }} className="flex items-center gap-2 px-4 py-2 bg-background border border-border text-foreground text-sm font-bold rounded-lg hover:bg-muted transition-colors">
+                                            <Download size={14} /> Export
                                         </button>
                                     </div>
                                 </div>
@@ -1572,8 +1589,11 @@ function BarangayPortalInner() {
                                             <p className="text-foreground/50 text-sm">Loading accounts...</p>
                                         </div>
                                     ) : paged.length === 0 ? (
-                                        <div className="p-12 text-center h-full flex flex-col items-center justify-center text-muted-foreground font-medium">No cleaners found.</div>
-                                    ) : (
+                                        <div className="p-12 text-center h-full flex flex-col items-center justify-center">
+                                            <ClipboardList size={32} className="text-foreground/20 mx-auto mb-3" />
+                                            <p className="text-foreground/50 text-sm font-medium">No cleaners found.</p>
+                                        </div>
+                                    ) : userViewMode === "table" ? (
                                         <table className="w-full text-left border-collapse">
                                             <thead>
                                                 <tr className="border-b border-border text-sm font-medium text-muted-foreground bg-foreground/[0.02] sticky top-0 z-10">
@@ -1638,6 +1658,61 @@ function BarangayPortalInner() {
                                                 ))}
                                             </tbody>
                                         </table>
+                                    ) : (
+                                        <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                            {paged.map(u => (
+                                                <div key={u.id} className="bg-background border border-border rounded-xl p-4 flex flex-col gap-3 hover:border-primary/30 transition-colors shadow-sm">
+                                                    <div className="flex items-start justify-between">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-10 h-10 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-sm font-bold text-blue-300 shrink-0">
+                                                                {getInitials(u.full_name)}
+                                                            </div>
+                                                            <div>
+                                                                <div className="text-sm font-semibold text-foreground">{u.full_name}</div>
+                                                                <div className="text-xs text-foreground/50">{u.phone_number ?? "No phone"}</div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="relative" onClick={e => e.stopPropagation()}>
+                                                            <button onClick={() => setUserActionsMenu(userActionsMenu === u.id ? null : u.id)} className="p-1 rounded-md hover:bg-foreground/10 text-foreground/50 hover:text-foreground transition-colors">
+                                                                <MoreVertical size={16} />
+                                                            </button>
+                                                            {userActionsMenu === u.id && (
+                                                                <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-xl shadow-sm z-50 overflow-hidden">
+                                                                    <button onClick={() => openEditCleaner(u)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors text-left">
+                                                                        <Edit2 size={14} className="text-muted-foreground" /> Edit Account
+                                                                    </button>
+                                                                    <button onClick={() => openResetPasswordBrgy(u)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors text-left">
+                                                                        <Key size={14} className="text-muted-foreground" /> Reset Password
+                                                                    </button>
+                                                                    <div className="border-t border-border" />
+                                                                    {u.is_active ? (
+                                                                        <button onClick={() => { setUserActionsMenu(null); handleDisableBrgyUser(u.id); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors text-left">
+                                                                            <UserX size={14} /> Disable Account
+                                                                        </button>
+                                                                    ) : (
+                                                                        <button onClick={() => { setUserActionsMenu(null); handleReactivateBrgyUser(u.id); }} disabled={reactivating.has(u.id)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-emerald-500 hover:bg-emerald-500/10 transition-colors text-left disabled:opacity-50">
+                                                                            <UserCheck size={14} /> {reactivating.has(u.id) ? "Reactivating..." : "Reactivate"}
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="text-xs text-foreground/70 font-mono break-all">{u.email}</div>
+                                                    
+                                                    <div className="mt-auto flex items-center justify-between pt-3 border-t border-border">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className={"w-1.5 h-1.5 rounded-full shrink-0 " + (u.is_active ? "bg-emerald-400" : "bg-red-400")} />
+                                                            <span className={"text-[10px] font-bold uppercase tracking-wider " + (u.is_active ? "text-emerald-500" : "text-red-500")}>
+                                                                {u.is_active ? "Active" : "Disabled"}
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-xs text-foreground/40">{fmtLogin(u.last_login_at)}</div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     )}
                                 </div>
                                 
