@@ -411,16 +411,108 @@ export default function ProfilePage() {
         setAuditPage(1);
     }, [auditSearch, auditDateRange, auditSortDesc]);
 
+    // --- Skeletal loader: rendered inside PortalShell so nav is immediately visible ---
     if (loading) {
+        // Derive nav / brand from localStorage so PortalShell is correct even before API responds
+        let skeletonNav: PortalNavItem[] = BARANGAY_NAV_PROFILE;
+        let skeletonBrand = { name: "Barangay Ops", suffix: "" };
+        let skeletonRole = "BARANGAY";
+        try {
+            const raw = localStorage.getItem("ecowatch_user");
+            if (raw) {
+                const u = JSON.parse(raw);
+                const navMap: Record<string, PortalNavItem[]> = {
+                    cenro: CENRO_NAV_PROFILE, barangay: BARANGAY_NAV_PROFILE, cleaner: CLEANER_NAV_PROFILE,
+                };
+                skeletonNav = navMap[u.role] ?? BARANGAY_NAV_PROFILE;
+                skeletonRole = (u.role ?? "barangay").toUpperCase();
+                const brandMap: Record<string, { name: string; suffix: string }> = {
+                    cenro: { name: "EcoWatch", suffix: "CJSDM" },
+                    barangay: { name: "Barangay Ops", suffix: u.barangay_assignment ?? "" },
+                    cleaner: { name: "EcoWatch", suffix: "Cleaner" },
+                };
+                skeletonBrand = brandMap[u.role] ?? skeletonBrand;
+            }
+        } catch { /* use defaults */ }
+
         return (
-            <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-                <div className="w-16 h-16 rounded-xl bg-white p-2 shadow-sm border border-border animate-pulse">
-                    <img src="/logo.png" alt="Loading..." className="w-full h-full object-contain" />
+            <PortalShell brand={skeletonBrand} role={skeletonRole} nav={skeletonNav} activeKey="profile" onNavChange={() => {}}>
+                <div className="max-w-4xl mx-auto pb-10 animate-pulse">
+                    {/* Identity header skeleton */}
+                    <div className="bg-card p-6 rounded-xl border border-border shadow-sm mb-6 flex items-start gap-5">
+                        <div className="w-20 h-20 shrink-0 rounded-xl bg-muted" />
+                        <div className="flex-1 min-w-0 space-y-3">
+                            <div className="flex gap-2">
+                                <div className="h-7 bg-muted rounded w-40" />
+                                <div className="h-5 bg-muted rounded w-24 self-center" />
+                                <div className="h-5 bg-muted rounded w-16 self-center" />
+                            </div>
+                            <div className="flex gap-4">
+                                <div className="h-4 bg-muted rounded w-20" />
+                                <div className="h-4 bg-muted rounded w-36" />
+                                <div className="h-4 bg-muted rounded w-32" />
+                            </div>
+                            <div className="h-9 bg-muted rounded w-32" />
+                        </div>
+                    </div>
+
+                    {/* Metrics + Activity grid skeleton */}
+                    <div className="grid lg:grid-cols-2 gap-6 mb-6">
+                        {/* Activity Metrics skeleton */}
+                        <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
+                            <div className="h-5 bg-muted rounded w-36 mb-5" />
+                            <div className="grid grid-cols-2 gap-4">
+                                {[...Array(4)].map((_, i) => (
+                                    <div key={i} className="bg-muted/30 rounded-lg border border-border p-4 space-y-2">
+                                        <div className="h-4 bg-muted rounded w-24" />
+                                        <div className="h-8 bg-muted rounded w-12" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Recent Activity skeleton */}
+                        <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
+                            <div className="h-5 bg-muted rounded w-36 mb-5" />
+                            {/* Toolbar */}
+                            <div className="flex gap-3 mb-4">
+                                <div className="h-9 bg-muted rounded flex-1" />
+                                <div className="h-9 bg-muted rounded w-28" />
+                                <div className="h-9 bg-muted rounded w-9 shrink-0" />
+                            </div>
+                            {/* Rows */}
+                            <div className="space-y-2">
+                                {[...Array(5)].map((_, i) => (
+                                    <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/20">
+                                        <div className="space-y-1.5 flex-1 min-w-0">
+                                            <div className="h-4 bg-muted rounded w-24" />
+                                            <div className="h-3 bg-muted rounded w-16" />
+                                        </div>
+                                        <div className="h-5 bg-muted rounded w-16 ml-3 shrink-0" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Account Config skeleton */}
+                    <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
+                        <div className="h-5 bg-muted rounded w-44 mb-6" />
+                        <div className="grid sm:grid-cols-2 gap-6 mb-8">
+                            {[...Array(4)].map((_, i) => (
+                                <div key={i} className="space-y-2">
+                                    <div className="h-4 bg-muted rounded w-20" />
+                                    <div className="h-5 bg-muted rounded w-36" />
+                                </div>
+                            ))}
+                        </div>
+                        <div className="pt-6 border-t border-border flex gap-3">
+                            <div className="h-9 bg-muted rounded w-36" />
+                            <div className="h-9 bg-muted rounded w-28" />
+                        </div>
+                    </div>
                 </div>
-                <div className="text-muted-foreground font-medium text-sm animate-pulse">
-                    Loading Profile...
-                </div>
-            </div>
+            </PortalShell>
         );
     }
 
