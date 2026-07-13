@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { Search, ListChecks, Clock, PlayCircle, RotateCcw, ChevronLeft, ChevronRight, Inbox } from "lucide-react";
+import { Search, ListChecks, Clock, PlayCircle, RotateCcw, ChevronLeft, ChevronRight, Inbox, ChevronDown } from "lucide-react";
 import { slaDeadlineLabel, slaDeadlineColor, SLA_PILL_CLASSES } from "@/lib/sla";
 import { KpiCard } from "@/components/portal/KpiCard";
 
@@ -159,15 +159,7 @@ export function JobsTab({ user, workOrders, onOpenWO, loading }: JobsTabProps) {
                     {/* Sort */}
                     <div className="flex items-center gap-2">
                         <span className="text-xs font-medium text-muted-foreground hidden sm:inline">Sort:</span>
-                        <select
-                            value={sortBy}
-                            onChange={(e) => setSortBy(e.target.value as SortKey)}
-                            className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer transition-colors"
-                        >
-                            <option value="sla_deadline">SLA deadline</option>
-                            <option value="priority">Priority</option>
-                            <option value="created_at">Newest</option>
-                        </select>
+                        <CustomSortDropdown value={sortBy} onChange={(val) => setSortBy(val as SortKey)} />
                     </div>
                 </div>
 
@@ -343,5 +335,57 @@ function ActionButton({ status, onClick, fullWidth }: { status: string; onClick:
                     ? "Upload Photo"
                     : "Re-attempt"}
         </button>
+    );
+}
+
+function CustomSortDropdown({ value, onChange }: { value: string; onChange: (val: string) => void }) {
+    const [open, setOpen] = useState(false);
+    
+    const options = [
+        { value: "sla_deadline", label: "SLA deadline" },
+        { value: "priority", label: "Priority" },
+        { value: "created_at", label: "Newest" },
+    ];
+    
+    const selectedLabel = options.find((o) => o.value === value)?.label ?? "Sort";
+
+    // Close when clicking outside
+    useEffect(() => {
+        if (!open) return;
+        const close = () => setOpen(false);
+        window.addEventListener("click", close);
+        return () => window.removeEventListener("click", close);
+    }, [open]);
+
+    return (
+        <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <button
+                onClick={() => setOpen(!open)}
+                className="flex items-center justify-between gap-2 w-32 px-3 py-2 bg-background border border-border rounded-lg text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors focus:outline-none"
+            >
+                <span>{selectedLabel}</span>
+                <ChevronDown size={14} className="opacity-50" />
+            </button>
+            {open && (
+                <div className="absolute top-full mt-1 right-0 w-32 bg-popover border border-border rounded-lg shadow-md overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                    {options.map((opt) => (
+                        <button
+                            key={opt.value}
+                            onClick={() => {
+                                onChange(opt.value);
+                                setOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                                value === opt.value
+                                    ? "bg-primary/10 text-primary font-medium"
+                                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                            }`}
+                        >
+                            {opt.label}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
     );
 }
