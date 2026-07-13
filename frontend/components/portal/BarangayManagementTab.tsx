@@ -417,18 +417,11 @@ function BarangayRowCard({
     onSelect: () => void;
     onAssignAdmin: () => void;
 }) {
-    const statusBand = {
-        healthy: "border-l-4 border-l-emerald-400",
-        at_risk: "border-l-4 border-l-yellow-400",
-        breached: "border-l-4 border-l-red-400",
-        unassigned: "border-l-4 border-l-orange-400",
-    }[row.status];
-
     const statusDot = {
-        healthy: "bg-emerald-400",
-        at_risk: "bg-yellow-400",
-        breached: "bg-red-400",
-        unassigned: "bg-orange-400",
+        healthy: "bg-emerald-500",
+        at_risk: "bg-yellow-500",
+        breached: "bg-destructive",
+        unassigned: "bg-orange-500",
     }[row.status];
 
     const statusLabel = {
@@ -457,7 +450,7 @@ function BarangayRowCard({
     return (
         <div
             onClick={onSelect}
-            className={`bg-card rounded-lg border border-border cursor-pointer hover:border-primary/40 transition-all p-5 flex flex-col gap-3 ${statusBand} relative overflow-hidden shadow-sm`}
+            className="bg-card rounded-lg border border-border cursor-pointer hover:border-primary/50 hover:shadow-md transition-all duration-200 p-5 flex flex-col gap-3 relative overflow-hidden shadow-sm"
         >
             {/* Header: name + status pill */}
             <div className="flex items-start justify-between gap-2 relative z-10">
