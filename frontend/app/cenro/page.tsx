@@ -19,6 +19,7 @@ import { AnalyticsDrilldownModal, type DrilldownData } from "@/components/portal
 import { BarangayManagementTab, type BarangayOverviewRow, type BarangayCityWide } from "@/components/portal/BarangayManagementTab";
 import { BarangayDetailDrawer } from "@/components/portal/BarangayDetailDrawer";
 import { ReportDetailDrawer } from "@/components/portal/ReportDetailDrawer";
+import { EvidenceGalleryTab } from "@/components/portal/EvidenceGalleryTab";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { ConfidenceTooltipBody } from "@/components/ConfidenceTooltipBody";
 import { BARANGAYS } from "@/lib/barangays";
@@ -1611,91 +1612,11 @@ function CenroDashboardInner() {
                 )}
 
                 {activeTab === 'gallery' && (
-                    /* Site Gallery */
-                    <div className="flex-1 glass rounded-2xl border border-border flex flex-col min-h-0 shadow-2xl">
-                        <div className="p-6 border-b border-border shrink-0">
-                            <h2 className="text-lg font-semibold text-foreground mb-4">Site Gallery</h2>
-                            <p className="text-sm text-foreground/50 mb-4">Before & After cleanup evidence. Original photo | AI Detection | Proof of Cleanup</p>
-                        </div>
-                        <div className="flex-1 overflow-auto p-6">
-                            {reports.length === 0 ? (
-                                <div className="text-center text-foreground/50 py-12">No reports with images yet.</div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {reports.filter(r => r.image_url).map((report) => (
-                                        <div key={report.id} className="glass rounded-xl border border-border overflow-hidden hover:border-primary transition-colors">
-                                            <div className="space-y-2 p-4 border-b border-border">
-                                                <div className="flex items-center justify-between">
-                                                    <span className="font-mono text-xs font-bold text-emerald-300">{report.tracking_id}</span>
-                                                    <span className={`px-2 py-1 rounded text-[10px] font-bold ${
-                                                        report.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
-                                                        report.status === 'assigned' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                        report.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
-                                                        report.status === 'verified' ? 'bg-orange-500/20 text-orange-400' :
-                                                        report.status === 'pending' ? 'bg-red-500/20 text-red-400' :
-                                                        report.status === 'failed_cleanup' ? 'bg-red-900/30 text-red-400' :
-                                                        report.status === 'rejected' ? 'bg-foreground/5 text-foreground/40' :
-                                                        'bg-foreground/10 text-foreground'
-                                                    }`}>
-                                                        {report.status}
-                                                    </span>
-                                                </div>
-                                                <div className="text-xs text-foreground/60">{report.barangay || 'Unassigned'}</div>
-                                            </div>
-
-                                            <div className="grid grid-cols-3 gap-1 p-2">
-                                                {/* Original */}
-                                                <div className="aspect-square rounded overflow-hidden bg-black/30 border border-border/50">
-                                                    {report.image_url ? (
-                                                        <img src={`${API_URL}${report.image_url}`} alt="Original" className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <div className="flex items-center justify-center h-full text-[10px] text-foreground/30">No image</div>
-                                                    )}
-                                                </div>
-
-                                                {/* AI Mask */}
-                                                <div className="aspect-square rounded overflow-hidden bg-black/30 border border-border/50">
-                                                    {report.ai_mask_url ? (
-                                                        <img src={`${API_URL}${report.ai_mask_url}`} alt="AI Detection" className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <div className="flex items-center justify-center h-full text-[10px] text-foreground/30">No mask</div>
-                                                    )}
-                                                </div>
-
-                                                {/* Cleanup Proof */}
-                                                <div className="aspect-square rounded overflow-hidden bg-black/30 border border-border/50">
-                                                    {report.cleanup_image_url ? (
-                                                        <img src={`${API_URL}${report.cleanup_image_url}`} alt="Cleanup Proof" className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <div className="flex items-center justify-center h-full text-[10px] text-foreground/30">Not yet</div>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            <div className="p-3 border-t border-border text-[11px] text-foreground/50">
-                                                <div>Reported: {formatDate(report.created_at)}</div>
-                                                {report.ai_confidence && (
-                                                    <div className="inline-flex items-center gap-1.5">
-                                                        <span>AI: {(report.ai_confidence * 100).toFixed(0)}%</span>
-                                                        <InfoTooltip side="top" label="How is AI confidence computed?">
-                                                            <ConfidenceTooltipBody />
-                                                        </InfoTooltip>
-                                                    </div>
-                                                )}
-                                                <TrustBadge
-                                                    trust_score={report.trust_score}
-                                                    trust_reasons={report.trust_reasons}
-                                                    failing_signals={report.failing_signals}
-                                                    needs_human_review={report.needs_human_review}
-                                                    tooltipSide="top"
-                                                />
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                    <EvidenceGalleryTab 
+                        reports={reports} 
+                        barangays={BARANGAYS} 
+                        onReportClick={setSelectedReport} 
+                    />
                 )}
 
                 {activeTab === 'users' && (() => {
