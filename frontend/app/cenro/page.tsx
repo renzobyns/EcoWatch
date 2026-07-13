@@ -19,6 +19,7 @@ import { AnalyticsDrilldownModal, type DrilldownData } from "@/components/portal
 import { BarangayManagementTab, type BarangayOverviewRow, type BarangayCityWide } from "@/components/portal/BarangayManagementTab";
 import { BarangayDetailDrawer } from "@/components/portal/BarangayDetailDrawer";
 import { ReportDetailDrawer } from "@/components/portal/ReportDetailDrawer";
+import { AuditLogTab } from "@/components/portal/AuditLogTab";
 import { EvidenceGalleryTab } from "@/components/portal/EvidenceGalleryTab";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { ConfidenceTooltipBody } from "@/components/ConfidenceTooltipBody";
@@ -227,12 +228,7 @@ function CenroDashboardInner() {
     const [oversightDateRange, setOversightDateRange] = useState<DateRange | undefined>();
     const [oversightBarangay, setOversightBarangay] = useState("");
 
-    // C1 — Audit Log tab
-    const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
-    const [auditAction, setAuditAction] = useState<string>("all");
-    const [auditOffset, setAuditOffset] = useState(0);
-    const [auditLoading, setAuditLoading] = useState(false);
-    const [auditHasMore, setAuditHasMore] = useState(false);
+
 
     // C2 — User Management
     const [barangayUsers, setBarangayUsers] = useState<BarangayUser[]>([]);
@@ -404,31 +400,7 @@ function CenroDashboardInner() {
         ? queueReports.filter((r) => r.barangay === oversightBarangay)
         : queueReports;
 
-    // C1 — fetch audit log
-    const fetchAuditLog = async (offset = 0) => {
-        setAuditLoading(true);
-        try {
-            const data = await api(`/audit-log?limit=50&offset=${offset}`);
-            const entries: AuditEntry[] = Array.isArray(data?.entries) ? data.entries : [];
-            setAuditEntries((prev) => (offset === 0 ? entries : [...prev, ...entries]));
-            setAuditHasMore(entries.length === 50);
-            setAuditOffset(offset);
-        } catch (err) {
-            toast.error(err instanceof ApiError ? err.message : "Failed to load audit log");
-        } finally {
-            setAuditLoading(false);
-        }
-    };
 
-    useEffect(() => {
-        if (activeTab !== 'audit' || !user) return;
-        if (auditEntries.length === 0) fetchAuditLog(0);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeTab, user]);
-
-    const displayedAuditEntries = auditAction === "all"
-        ? auditEntries
-        : auditEntries.filter((e) => e.action === auditAction);
 
     // C2 — fetch users
     const fetchUsers = async () => {
@@ -1529,86 +1501,7 @@ function CenroDashboardInner() {
                 )}
 
                 {activeTab === 'audit' && (
-                    /* C1 — AUDIT LOG TAB */
-                    <div className="flex-1 glass rounded-2xl border border-border flex flex-col min-h-0 shadow-2xl">
-                        <div className="p-6 border-b border-border shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                            <div>
-                                <h2 className="text-lg font-semibold text-foreground">Audit Log</h2>
-                                <p className="text-sm text-foreground/50">Every override action — who, when, what, why.</p>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <label className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest">Action</label>
-                                <select
-                                    value={auditAction}
-                                    onChange={(e) => setAuditAction(e.target.value)}
-                                    className="px-2 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-xs focus:border-primary focus:outline-none"
-                                >
-                                    {ACTION_FILTER_OPTIONS.map((a) => (
-                                        <option key={a} value={a}>{a === "all" ? "All actions" : a}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-
-                        <div className="flex-1 overflow-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="border-b border-border text-xs text-muted-foreground font-medium tracking-tight bg-foreground/[0.02] sticky top-0 z-10">
-                                        <th className="p-4">Timestamp</th>
-                                        <th className="p-4">User</th>
-                                        <th className="p-4">Action</th>
-                                        <th className="p-4">Target</th>
-                                        <th className="p-4">Details</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {auditLoading && auditEntries.length === 0 ? (
-                                        Array.from({ length: 5 }).map((_, i) => (
-                                            <tr key={i} className="border-b border-border">
-                                                {Array.from({ length: 5 }).map((__, j) => (
-                                                    <td key={j} className="p-4"><div className="h-3 bg-foreground/10 rounded animate-pulse" /></td>
-                                                ))}
-                                            </tr>
-                                        ))
-                                    ) : displayedAuditEntries.length === 0 ? (
-                                        <tr><td colSpan={5} className="p-12 text-center text-foreground/50 font-bold">No audit entries match this filter.</td></tr>
-                                    ) : (
-                                        displayedAuditEntries.map((e) => {
-                                            const detailsStr = e.details && Object.keys(e.details).length ? JSON.stringify(e.details) : "";
-                                            const targetLabel = e.details?.tracking_id || `${e.target_type} #${e.target_id ?? "—"}`;
-                                            return (
-                                                <tr key={e.id} className="border-b border-border hover:bg-foreground/5">
-                                                    <td className="p-4 text-xs text-foreground/70 whitespace-nowrap">{formatDateTime(e.created_at)}</td>
-                                                    <td className="p-4 text-sm text-foreground">{e.user_email || "—"}</td>
-                                                    <td className="p-4">
-                                                        <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider ${ACTION_PILL_CLASSES[e.action] || 'bg-foreground/10 text-foreground'}`}>
-                                                            {e.action}
-                                                        </span>
-                                                    </td>
-                                                    <td className="p-4 text-xs font-mono text-emerald-300">{targetLabel}</td>
-                                                    <td className="p-4 text-[11px] text-foreground/60 font-mono max-w-md truncate" title={detailsStr}>
-                                                        {detailsStr.length > 80 ? detailsStr.slice(0, 80) + "…" : detailsStr}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {auditHasMore && (
-                            <div className="p-4 border-t border-border shrink-0 flex justify-center">
-                                <button
-                                    onClick={() => fetchAuditLog(auditOffset + 50)}
-                                    disabled={auditLoading}
-                                    className="px-6 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-xs font-bold uppercase tracking-widest hover:bg-foreground/10 disabled:opacity-50"
-                                >
-                                    {auditLoading ? "Loading…" : "Load more"}
-                                </button>
-                            </div>
-                        )}
-                    </div>
+                    <AuditLogTab user={user} />
                 )}
 
                 {activeTab === 'gallery' && (
