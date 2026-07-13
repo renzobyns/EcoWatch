@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { Search, Download, LayoutDashboard, FileText, Map, ClipboardList, BookUser, MoreVertical, FileDown, Eye, EyeOff, Edit2, Key, UserCheck, UserX, Plus, ChevronRight } from "lucide-react";
+import { Search, Download, LayoutDashboard, FileText, Map, ClipboardList, BookUser, MoreVertical, FileDown, Eye, EyeOff, Edit2, Key, UserCheck, UserX, Plus, ChevronRight, LayoutGrid, List, RefreshCw, AlertTriangle, ListChecks, Hourglass, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
 import { slaInfo, SLA_PILL_CLASSES, slaDeadlineColor, slaDeadlineLabel } from "@/lib/sla";
@@ -15,6 +15,9 @@ import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { ConfidenceTooltipBody } from "@/components/ConfidenceTooltipBody";
 import { PhotoEvidenceDetail } from "@/components/PhotoEvidenceDetail";
 import { useUnreadNotificationCount } from "@/lib/notification-poll";
+import { KpiCard } from "@/components/portal/KpiCard";
+import { DateRangePicker } from "@/components/ui/DateRangePicker";
+import { DateRange } from "react-day-picker";
 
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
@@ -107,12 +110,15 @@ function BarangayPortalInner() {
         (typeof window !== "undefined" ? (new URLSearchParams(window.location.search).get("sub") as ReportSubFilter) : null) || 'pending'
     );
     const [reportPage, setReportPage] = useState(1);
+    const [reportViewMode, setReportViewMode] = useState<"table" | "card">("table");
+    const [reportSort, setReportSort] = useState<"newest" | "oldest">("newest");
+    const [reportStatus, setReportStatus] = useState("all");
+    const REPORT_PAGE_SIZE = reportViewMode === "table" ? 10 : 12;
 
     // Filters (B1)
     const [search, setSearch] = useState("");
     const debouncedSearch = useDebounce(search, 300);
-    const [dateFrom, setDateFrom] = useState("");
-    const [dateTo, setDateTo] = useState("");
+    const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
     // Action States
     const [actionLoading, setActionLoading] = useState(false);
@@ -133,7 +139,6 @@ function BarangayPortalInner() {
     const [userLoading, setUserLoading] = useState(false);
     const [userPage, setUserPage] = useState(1);
     const USER_PAGE_SIZE = 10;
-    const REPORT_PAGE_SIZE = 10;
     const WO_PAGE_SIZE = 10;
     const [userSearch, setUserSearch] = useState("");
     const debouncedUserSearch = useDebounce(userSearch, 300);
@@ -218,13 +223,26 @@ function BarangayPortalInner() {
         fetchCleaners(); // Ensure cleaners are available for the deploy modal on initial load
         api("/config/sla").then((data) => setSlaPolicy(data)).catch(() => {});
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user?.barangay_assignment, debouncedSearch, dateFrom, dateTo]);
+    }, [user?.barangay_assignment, debouncedSearch, dateRange]);
+
+    useEffect(() => setReportPage(1), [search, reportStatus, reportSort, reportViewMode, dateRange]);
 
     const buildQuery = () => {
         const params = new URLSearchParams();
         if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
-        if (dateFrom) params.set("date_from", `${dateFrom}T00:00:00`);
-        if (dateTo) params.set("date_to", `${dateTo}T23:59:59`);
+        if (dateRange?.from) {
+            const y = dateRange.from.getFullYear();
+            const m = String(dateRange.from.getMonth() + 1).padStart(2, '0');
+            const d = String(dateRange.from.getDate()).padStart(2, '0');
+            params.set("date_from", `${y}-${m}-${d}T00:00:00`);
+        }
+        if (dateRange?.to) {
+            const y = dateRange.to.getFullYear();
+            const m = String(dateRange.to.getMonth() + 1).padStart(2, '0');
+            const d = String(dateRange.to.getDate()).padStart(2, '0');
+            params.set("date_to", `${y}-${m}-${d}T23:59:59`);
+        }
+        params.set("limit", "1000"); // fetch up to 1000 for client-side pagination
         const qs = params.toString();
         return qs ? `?${qs}` : "";
     };
@@ -711,10 +729,14 @@ function BarangayPortalInner() {
         );
     }
 
-    const displayReports = reports.filter(r => {
-        if (reportSubFilter === 'pending') return r.status === 'pending' || r.status === 'verified';
-        if (reportSubFilter === 'assigned') return r.status === 'assigned' || r.status === 'in_progress' || r.status === 'failed_cleanup';
-        return r.status === 'resolved';
+    let displayReports = reports;
+    if (reportStatus !== "all") {
+        displayReports = displayReports.filter((r) => r.status === reportStatus);
+    }
+    displayReports = [...displayReports].sort((a, b) => {
+        return reportSort === "newest" 
+            ? new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            : new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
     });
 
     const stats = {
@@ -1604,221 +1626,263 @@ function BarangayPortalInner() {
 
                 {/* REPORTS VIEW */}
                 {activeView === 'reports' && (() => {
+                    const STATUS_OPTIONS = [
+                        { value: "all", label: "All Statuses" },
+                        { value: "pending", label: "Pending" },
+                        { value: "verified", label: "Verified" },
+                        { value: "assigned", label: "Assigned" },
+                        { value: "in_progress", label: "In Progress" },
+                        { value: "resolved", label: "Resolved" },
+                        { value: "failed_cleanup", label: "Failed Cleanup" },
+                        { value: "rejected", label: "Rejected" },
+                    ];
                     const paginatedReports = displayReports.slice((reportPage - 1) * REPORT_PAGE_SIZE, reportPage * REPORT_PAGE_SIZE);
                     const reportTotalPages = Math.ceil(displayReports.length / REPORT_PAGE_SIZE) || 1;
                     return (
-                        <div className="flex flex-col gap-5 flex-1 min-h-0 animate-slide-up">
-                            {/* KPI GRID */}
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                                <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col justify-center text-center">
-                                    <div className="text-sm font-medium text-muted-foreground mb-1">Total Reports</div>
-                                    <div className="text-3xl font-black text-foreground">{reports.length}</div>
+                        <div className="flex flex-col gap-6 flex-1 min-h-0 animate-slide-up pb-8 w-full shrink-0">
+                            {/* Header */}
+                            <div className="flex items-start justify-between gap-4 flex-wrap shrink-0">
+                                <div>
+                                    <h1 className="text-2xl font-bold text-foreground tracking-tight">Reports</h1>
+                                    <p className="text-sm text-foreground/50 mt-1">Manage and track reports in your jurisdiction.</p>
                                 </div>
-                                <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col justify-center text-center">
-                                    <div className="text-sm font-medium text-orange-400/80 mb-1">Pending Review</div>
-                                    <div className="text-3xl font-black text-orange-400">{stats.pending}</div>
-                                </div>
-                                <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col justify-center text-center">
-                                    <div className="text-sm font-medium text-blue-400/80 mb-1">Teams Deployed</div>
-                                    <div className="text-3xl font-black text-blue-400">{stats.deployed}</div>
-                                </div>
-                                <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col justify-center text-center">
-                                    <div className="text-sm font-medium text-green-400/80 mb-1">Total Resolved</div>
-                                    <div className="text-3xl font-black text-green-400">{stats.resolved}</div>
-                                </div>
-                            </div>
-
-                            {/* Main List Card */}
-                            <div className="bg-card border border-border rounded-xl shadow-sm flex flex-col flex-1 min-h-[500px] overflow-hidden">
-                                {/* Filter Bar */}
-                                <div className="flex flex-col lg:flex-row gap-3 p-4 border-b border-border shrink-0">
-                                    <div className="relative flex-1 min-w-[200px]">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={16} />
-                                        <input
-                                            type="text"
-                                            value={search}
-                                            onChange={(e) => setSearch(e.target.value)}
-                                            placeholder="Search tracking ID or notes…"
-                                            className="w-full pl-9 pr-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm placeholder:text-foreground/40 focus:border-primary focus:outline-none"
-                                        />
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex items-center gap-2">
-                                            <label className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest">From</label>
-                                            <input
-                                                type="date"
-                                                value={dateFrom}
-                                                onChange={(e) => setDateFrom(e.target.value)}
-                                                onClick={(e) => (e.target as any).showPicker?.()}
-                                                className="px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-xs focus:border-primary focus:outline-none cursor-pointer hover:bg-foreground/5 transition-colors"
-                                            />
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <label className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest">To</label>
-                                            <input
-                                                type="date"
-                                                value={dateTo}
-                                                onChange={(e) => setDateTo(e.target.value)}
-                                                onClick={(e) => (e.target as any).showPicker?.()}
-                                                className="px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-xs focus:border-primary focus:outline-none cursor-pointer hover:bg-foreground/5 transition-colors"
-                                            />
-                                        </div>
-                                        {(search || dateFrom || dateTo) && (
-                                            <button
-                                                onClick={() => {
-                                                    setSearch("");
-                                                    setDateFrom("");
-                                                    setDateTo("");
-                                                }}
-                                                className="text-[10px] font-bold text-foreground/30 hover:text-foreground uppercase tracking-widest transition-colors"
-                                            >
-                                                Clear Filters
-                                            </button>
-                                        )}
-                                    </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => fetchReports(user?.barangay_assignment || '')}
+                                        disabled={loading}
+                                        className="px-4 py-2 bg-muted/50 border border-border text-foreground text-sm font-medium rounded-lg hover:bg-muted transition-colors disabled:opacity-50 flex items-center gap-2"
+                                    >
+                                        <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+                                        Refresh
+                                    </button>
                                     <button
                                         onClick={handleExport}
-                                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/20 border border-primary/30 text-primary text-xs font-bold uppercase tracking-widest hover:bg-primary/30 transition-colors"
-                                        title="Export filtered reports as CSV"
+                                        className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm"
                                     >
-                                        <Download size={14} />
+                                        <FileDown size={14} />
                                         Export CSV
                                     </button>
                                 </div>
+                            </div>
 
-                                {/* Sub-tabs */}
-                                <div className="flex border-b border-border shrink-0 bg-muted/20">
-                                    <button
-                                        onClick={() => { setReportSubFilter('pending'); setReportPage(1); router.replace('?tab=reports&sub=pending', { scroll: false }); }}
-                                        className={`flex-1 py-3 text-sm font-medium transition-colors ${reportSubFilter === 'pending' ? 'bg-background text-primary border-b-2 border-primary' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}`}
-                                    >
-                                        Pending
-                                    </button>
-                                    <button
-                                        onClick={() => { setReportSubFilter('assigned'); setReportPage(1); router.replace('?tab=reports&sub=assigned', { scroll: false }); }}
-                                        className={`flex-1 py-3 text-sm font-medium transition-colors ${reportSubFilter === 'assigned' ? 'bg-background text-primary border-b-2 border-primary' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}`}
-                                    >
-                                        Assigned
-                                    </button>
-                                    <button
-                                        onClick={() => { setReportSubFilter('resolved'); setReportPage(1); router.replace('?tab=reports&sub=resolved', { scroll: false }); }}
-                                        className={`flex-1 py-3 text-sm font-medium transition-colors ${reportSubFilter === 'resolved' ? 'bg-background text-primary border-b-2 border-primary' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}`}
-                                    >
-                                        Done
-                                    </button>
+                            {/* KPI Strip */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 shrink-0">
+                                <KpiCard
+                                    label="Total Reports"
+                                    value={reports.length}
+                                    icon={<ListChecks size={22} />}
+                                    tone="blue"
+                                />
+                                <KpiCard
+                                    label="Pending Review"
+                                    value={stats.pending}
+                                    icon={<AlertTriangle size={22} />}
+                                    tone={stats.pending > 0 ? "yellow" : "emerald"}
+                                />
+                                <KpiCard
+                                    label="Teams Deployed"
+                                    value={stats.deployed}
+                                    icon={<Hourglass size={22} />}
+                                    tone="neutral"
+                                />
+                                <KpiCard
+                                    label="Total Resolved"
+                                    value={stats.resolved}
+                                    icon={<CheckCircle2 size={22} />}
+                                    tone={stats.resolved > 0 ? "emerald" : "neutral"}
+                                />
+                            </div>
+
+                            {/* Toolbar */}
+                            <div className="flex flex-wrap items-center gap-3 shrink-0">
+                                <div className="relative flex-1 min-w-[200px] max-w-xs">
+                                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" />
+                                    <input
+                                        value={search}
+                                        onChange={e => setSearch(e.target.value)}
+                                        placeholder="Search tracking ID or notes..."
+                                        className="w-full pl-9 pr-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                                    />
                                 </div>
 
-                                {/* Table Container */}
-                                <div className="flex-1 overflow-y-auto">
-                                    {tableLoading ? (
-                                        <table className="w-full text-left border-collapse">
-                                            <thead>
-                                                <tr className="border-b border-border text-sm font-medium text-muted-foreground bg-card sticky top-0 z-10">
-                                                    <th className="p-4">Tracking ID</th>
-                                                    <th className="p-4">Date</th>
-                                                    <th className="p-4">Status</th>
-                                                    <th className="p-4">Open</th>
-                                                    <th className="p-4">AI Score</th>
-                                                    <th className="p-4 text-right">Action</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {Array.from({ length: 5 }).map((_, i) => (
-                                                    <tr key={i} className="border-b border-border">
-                                                        {Array.from({ length: 6 }).map((__, j) => (
-                                                            <td key={j} className="p-4"><div className="h-3 bg-foreground/10 rounded animate-pulse" /></td>
-                                                        ))}
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    ) : paginatedReports.length === 0 ? (
-                                        <div className="p-12 text-center text-foreground/50 font-bold">No reports found in this category.</div>
-                                    ) : (
-                                        <table className="w-full text-left border-collapse">
-                                            <thead>
-                                                <tr className="border-b border-border text-sm font-medium text-muted-foreground bg-card sticky top-0 z-10">
-                                                    <th className="p-4">Tracking ID</th>
-                                                    <th className="p-4">Date</th>
-                                                    <th className="p-4">Status</th>
-                                                    <th className="p-4">Open</th>
-                                                    <th className="p-4">AI Score</th>
-                                                    <th className="p-4 text-right">Action</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {paginatedReports.map(report => {
-                                                    const sla = slaInfo(report.created_at, report.status);
-                                                    return (
-                                                        <tr key={report.id} className="border-b border-border hover:bg-foreground/5 transition-colors">
-                                                            <td className="p-4 font-mono text-sm text-foreground font-bold">
-                                                                {report.tracking_id}
-                                                                {report.possible_duplicate_flag && report.status !== 'duplicate' && (
-                                                                    <span title="A nearby open report may be a duplicate" className="ml-2 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-400 align-middle">⚠ Dup?</span>
-                                                                )}
-                                                            </td>
-                                                            <td className="p-4 text-sm text-foreground/70">
-                                                                {formatDate(report.created_at)}
-                                                            </td>
-                                                            <td className="p-4">
-                                                                <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
-                                                                    report.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
-                                                                    report.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
-                                                                    report.status === 'assigned' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                                    report.status === 'verified' ? 'bg-orange-500/20 text-orange-400' :
-                                                                    report.status === 'failed_cleanup' ? 'bg-red-500/20 text-red-400' :
-                                                                    report.status === 'rejected' ? 'bg-foreground/5 text-foreground/40' :
-                                                                    'bg-foreground/10 text-foreground/70'
-                                                                }`}>
-                                                                    {report.status}
-                                                                </span>
-                                                            </td>
-                                                            <td className="p-4">
-                                                                {sla ? (
-                                                                    <span className={`px-2 py-1 rounded-md text-[11px] font-bold ${SLA_PILL_CLASSES[sla.color]}`}>
-                                                                        {sla.days}d
-                                                                    </span>
-                                                                ) : (
-                                                                    <span className="text-foreground/30 text-sm">—</span>
-                                                                )}
-                                                            </td>
-                                                            <td className="p-4 text-sm font-bold text-foreground/80">
-                                                                {report.ai_confidence ? `${(report.ai_confidence * 100).toFixed(0)}%` : 'N/A'}
-                                                                {(report as any).needs_human_review && (
-                                                                    <span title="Low-trust photo — needs human review" className="text-yellow-400 ml-1 text-xs">⚠</span>
-                                                                )}
-                                                            </td>
-                                                            <td className="p-4 text-right">
-                                                                <button
-                                                                    onClick={() => {
-                                                                        setSelectedReport(report);
-                                                                        setCleanupPreview(null);
-                                                                        setCleanupImage(null);
-                                                                        setDeploymentNotes("");
-                                                                    }}
-                                                                    className="px-4 py-2 bg-background border border-border text-foreground text-sm font-medium rounded-lg hover:bg-muted transition-colors"
-                                                                >
-                                                                    Manage
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
-                                    )}
-                                </div>
-                                {/* Pagination */}
-                                <div className="flex items-center justify-between p-4 border-t border-border shrink-0 bg-card">
-                                    <p className="text-sm text-muted-foreground">
-                                        Showing <span className="font-bold text-foreground">{displayReports.length === 0 ? 0 : (reportPage - 1) * REPORT_PAGE_SIZE + 1}</span> to <span className="font-bold text-foreground">{Math.min(reportPage * REPORT_PAGE_SIZE, displayReports.length)}</span> of <span className="font-bold text-foreground">{displayReports.length}</span> reports
-                                    </p>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => setReportPage(Math.max(1, reportPage - 1))} disabled={reportPage === 1} className="px-3 py-1 bg-muted/50 text-sm font-medium text-muted-foreground rounded-lg hover:text-foreground hover:bg-muted disabled:opacity-50 transition-colors">Previous</button>
-                                        <button onClick={() => setReportPage(Math.min(reportTotalPages, reportPage + 1))} disabled={reportPage === reportTotalPages} className="px-3 py-1 bg-muted/50 text-sm font-medium text-muted-foreground rounded-lg hover:text-foreground hover:bg-muted disabled:opacity-50 transition-colors">Next</button>
-                                    </div>
+                                <select
+                                    value={reportStatus}
+                                    onChange={(e) => setReportStatus(e.target.value)}
+                                    className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                                >
+                                    {STATUS_OPTIONS.map((s) => (
+                                        <option key={s.value} value={s.value}>{s.label}</option>
+                                    ))}
+                                </select>
+
+                                <DateRangePicker 
+                                    date={dateRange} 
+                                    onDateChange={setDateRange} 
+                                />
+
+                                <div className="flex-1" />
+
+                                <select
+                                    value={reportSort}
+                                    onChange={e => setReportSort(e.target.value as any)}
+                                    className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                                >
+                                    <option value="newest">Sort: Newest First</option>
+                                    <option value="oldest">Sort: Oldest First</option>
+                                </select>
+
+                                <div className="flex bg-muted/50 border border-border rounded-lg overflow-hidden">
+                                    <button
+                                        onClick={() => setReportViewMode("card")}
+                                        title="Card view"
+                                        className={`px-3 py-2 transition-colors ${reportViewMode === "card" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                                    >
+                                        <LayoutGrid size={15} />
+                                    </button>
+                                    <button
+                                        onClick={() => setReportViewMode("table")}
+                                        title="Table view"
+                                        className={`px-3 py-2 transition-colors ${reportViewMode === "table" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                                    >
+                                        <List size={15} />
+                                    </button>
                                 </div>
                             </div>
+
+                            {/* Main View Area */}
+                            {reportViewMode === "table" ? (
+                                <div className="bg-card rounded-xl border border-border flex flex-col overflow-hidden animate-slide-up shadow-sm">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr className="border-b border-border text-xs text-muted-foreground font-medium bg-muted/20">
+                                                    <th className="p-4">Tracking ID</th>
+                                                    <th className="p-4">Date</th>
+                                                    <th className="p-4">Status</th>
+                                                    <th className="p-4">Open</th>
+                                                    <th className="p-4">AI Score</th>
+                                                    <th className="p-4 text-right">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {tableLoading ? (
+                                                    Array.from({ length: 5 }).map((_, i) => (
+                                                        <tr key={i} className="border-b border-border">
+                                                            {Array.from({ length: 6 }).map((__, j) => (
+                                                                <td key={j} className="p-4"><div className="h-4 bg-muted rounded animate-pulse" /></td>
+                                                            ))}
+                                                        </tr>
+                                                    ))
+                                                ) : paginatedReports.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan={6} className="p-12 text-center text-muted-foreground font-medium">No reports match the current filters.</td>
+                                                    </tr>
+                                                ) : (
+                                                    paginatedReports.map(report => {
+                                                        const sla = slaInfo(report.created_at, report.status);
+                                                        return (
+                                                            <tr key={report.id} className="border-b border-border hover:bg-muted/50 transition-colors">
+                                                                <td className="p-4 font-mono text-sm font-medium text-foreground">
+                                                                    {report.tracking_id}
+                                                                    {report.possible_duplicate_flag && report.status !== 'duplicate' && (
+                                                                        <span className="ml-2 px-1.5 py-0.5 rounded text-[9px] font-semibold tracking-tight bg-amber-500/20 text-amber-500 align-middle">⚠ DUP?</span>
+                                                                    )}
+                                                                </td>
+                                                                <td className="p-4 text-sm text-muted-foreground">{formatDate(report.created_at)}</td>
+                                                                <td className="p-4">
+                                                                    <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
+                                                                        report.status === 'resolved' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' :
+                                                                        report.status === 'assigned' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20' :
+                                                                        report.status === 'in_progress' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' :
+                                                                        report.status === 'verified' ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20' :
+                                                                        report.status === 'pending' ? 'bg-destructive/10 text-destructive border border-destructive/20' :
+                                                                        report.status === 'failed_cleanup' ? 'bg-destructive/10 text-destructive border border-destructive/20' :
+                                                                        report.status === 'rejected' ? 'bg-muted text-muted-foreground border border-border' :
+                                                                        'bg-muted text-foreground border border-border'
+                                                                    }`}>
+                                                                        {report.status.replace(/_/g, " ")}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="p-4">
+                                                                    {sla ? (
+                                                                        <span className={`px-2 py-1 rounded-md text-xs font-bold ${SLA_PILL_CLASSES[sla.color]}`}>{sla.days}d</span>
+                                                                    ) : (
+                                                                        <span className="text-muted-foreground text-sm">—</span>
+                                                                    )}
+                                                                </td>
+                                                                <td className="p-4 text-sm font-medium text-foreground">
+                                                                    {report.ai_confidence ? `${(report.ai_confidence * 100).toFixed(0)}%` : 'N/A'}
+                                                                    {(report as any).needs_human_review && (
+                                                                        <span title="Low-trust photo — needs human review" className="text-yellow-500 ml-1 text-xs">⚠</span>
+                                                                    )}
+                                                                </td>
+                                                                <td className="p-4 text-right">
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setSelectedReport(report);
+                                                                            setCleanupPreview(null);
+                                                                            setCleanupImage(null);
+                                                                            setDeploymentNotes("");
+                                                                        }}
+                                                                        className="px-3 py-1.5 bg-background border border-border text-foreground text-xs font-medium rounded-lg hover:bg-muted transition-colors"
+                                                                    >
+                                                                        Manage
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-slide-up">
+                                    {tableLoading ? (
+                                        Array.from({ length: 8 }).map((_, i) => (
+                                            <div key={i} className="h-40 bg-card rounded-xl border border-border animate-pulse" />
+                                        ))
+                                    ) : paginatedReports.length === 0 ? (
+                                        <div className="col-span-full py-12 text-center text-muted-foreground font-medium">No reports match the current filters.</div>
+                                    ) : (
+                                        paginatedReports.map(report => (
+                                            <div key={report.id} onClick={() => {
+                                                setSelectedReport(report);
+                                                setCleanupPreview(null);
+                                                setCleanupImage(null);
+                                                setDeploymentNotes("");
+                                            }} className="bg-card rounded-xl border border-border p-4 hover:shadow-md hover:border-primary/50 transition-all cursor-pointer flex flex-col gap-3">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="font-mono text-sm font-bold text-foreground">{report.tracking_id}</div>
+                                                    <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${
+                                                        report.status === 'resolved' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' :
+                                                        report.status === 'pending' ? 'bg-destructive/10 text-destructive border border-destructive/20' :
+                                                        'bg-muted text-foreground border border-border'
+                                                    }`}>
+                                                        {report.status.replace(/_/g, " ")}
+                                                    </span>
+                                                </div>
+                                                <div className="text-sm font-medium text-foreground">Score: {report.ai_confidence ? `${(report.ai_confidence * 100).toFixed(0)}%` : 'N/A'}</div>
+                                                <div className="text-xs text-muted-foreground mt-auto">{formatDate(report.created_at)}</div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Pagination Controls */}
+                            {reportTotalPages > 1 && (
+                                <div className="flex items-center justify-between bg-card p-4 rounded-xl border border-border shadow-sm shrink-0 mt-auto">
+                                    <span className="text-xs text-muted-foreground font-medium">
+                                        Page {reportPage} of {reportTotalPages} ({displayReports.length} total)
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <button disabled={reportPage === 1} onClick={() => setReportPage(p => p - 1)} className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted disabled:opacity-50 transition-colors text-foreground">Previous</button>
+                                        <button disabled={reportPage === reportTotalPages} onClick={() => setReportPage(p => p + 1)} className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted disabled:opacity-50 transition-colors text-foreground">Next</button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     );
                 })()}
