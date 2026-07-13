@@ -1355,35 +1355,35 @@ function BarangayPortalInner() {
                                     <p className="text-foreground/50 text-sm mt-1">{barangayUsers.length} cleaner{barangayUsers.length !== 1 ? 's' : ''} &middot; {user.barangay_assignment}</p>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <button onClick={(e) => { e.stopPropagation(); handleExportCleanersCSV(); }} className="flex items-center gap-2 px-4 py-2 glass border border-border text-foreground/70 text-xs font-bold rounded-xl hover:bg-foreground/10 transition-colors uppercase tracking-widest">
+                                    <button onClick={(e) => { e.stopPropagation(); handleExportCleanersCSV(); }} className="flex items-center gap-2 px-4 py-2 bg-background border border-border text-foreground text-sm font-medium rounded-lg hover:bg-muted transition-colors">
                                         <FileDown size={14} /> Export CSV
                                     </button>
-                                    <button onClick={(e) => { e.stopPropagation(); setShowCreateCleanerModal(true); }} className="flex items-center gap-2 px-4 py-2 eco-gradient text-white text-xs font-bold rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-widest">
+                                    <button onClick={(e) => { e.stopPropagation(); setShowCreateCleanerModal(true); }} className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium rounded-lg transition-colors">
                                         <Plus size={14} /> Create Cleaner
                                     </button>
                                 </div>
                             </div>
-                            <div className="glass-pro rounded-2xl p-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                            <div className="bg-card border border-border rounded-xl shadow-sm p-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center mb-4">
                                 <div className="relative flex-1 min-w-[200px]">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={15} />
-                                    <input type="text" value={userSearch} onChange={e => { setUserSearch(e.target.value); setUserPage(1); }} placeholder="Search name or email..." className="w-full pl-9 pr-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm placeholder:text-foreground/40 focus:border-primary focus:outline-none" />
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} />
+                                    <input type="text" value={userSearch} onChange={e => { setUserSearch(e.target.value); setUserPage(1); }} placeholder="Search name or email..." className="w-full pl-9 pr-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none" />
                                 </div>
-                                <select value={userStatusFilter} onChange={e => { setUserStatusFilter(e.target.value); setUserPage(1); }} className="px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:border-primary focus:outline-none">
+                                <select value={userStatusFilter} onChange={e => { setUserStatusFilter(e.target.value); setUserPage(1); }} className="px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm focus:border-primary focus:outline-none">
                                     <option value="all">All Status</option>
                                     <option value="active">Active</option>
                                     <option value="disabled">Disabled</option>
                                 </select>
-                                <span className="text-xs text-foreground/40 font-medium shrink-0">{filtered.length} result{filtered.length !== 1 ? 's' : ''}</span>
+                                <span className="text-sm text-muted-foreground font-medium shrink-0">{filtered.length} result{filtered.length !== 1 ? 's' : ''}</span>
                             </div>
-                            <div className="glass-pro rounded-2xl overflow-hidden">
+                            <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col flex-1">
                                 {userLoading ? (
-                                    <div className="p-12 text-center text-foreground/50 text-sm">Loading accounts...</div>
+                                    <div className="p-12 text-center text-muted-foreground text-sm">Loading accounts...</div>
                                 ) : paged.length === 0 ? (
-                                    <div className="p-12 text-center text-foreground/50 font-bold">No cleaners found.</div>
+                                    <div className="p-12 text-center text-muted-foreground font-medium">No cleaners found.</div>
                                 ) : (
                                     <table className="w-full text-left border-collapse">
                                         <thead>
-                                            <tr className="border-b border-border text-[10px] text-foreground/40 uppercase tracking-[0.1em] bg-black/20">
+                                            <tr className="border-b border-border text-sm font-medium text-muted-foreground bg-card sticky top-0 z-10">
                                                 <th className="px-5 py-3">Full Name</th>
                                                 <th className="px-5 py-3">Email</th>
                                                 <th className="px-5 py-3">Phone</th>
@@ -1420,20 +1420,20 @@ function BarangayPortalInner() {
                                                                 <MoreVertical size={16} />
                                                             </button>
                                                             {userActionsMenu === u.id && (
-                                                                <div className="absolute right-0 top-full mt-1 w-48 glass border border-border rounded-xl shadow-2xl z-50 overflow-hidden">
-                                                                    <button onClick={() => openEditCleaner(u)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-foreground/10 transition-colors text-left">
-                                                                        <Edit2 size={14} className="text-foreground/50" /> Edit Account
+                                                                <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-xl shadow-sm z-50 overflow-hidden">
+                                                                    <button onClick={() => openEditCleaner(u)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors text-left">
+                                                                        <Edit2 size={14} className="text-muted-foreground" /> Edit Account
                                                                     </button>
-                                                                    <button onClick={() => openResetPasswordBrgy(u)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-foreground/10 transition-colors text-left">
-                                                                        <Key size={14} className="text-foreground/50" /> Reset Password
+                                                                    <button onClick={() => openResetPasswordBrgy(u)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors text-left">
+                                                                        <Key size={14} className="text-muted-foreground" /> Reset Password
                                                                     </button>
                                                                     <div className="border-t border-border" />
                                                                     {u.is_active ? (
-                                                                        <button onClick={() => { setUserActionsMenu(null); handleDisableBrgyUser(u.id); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors text-left">
+                                                                        <button onClick={() => { setUserActionsMenu(null); handleDisableBrgyUser(u.id); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors text-left">
                                                                             <UserX size={14} /> Disable Account
                                                                         </button>
                                                                     ) : (
-                                                                        <button onClick={() => { setUserActionsMenu(null); handleReactivateBrgyUser(u.id); }} disabled={reactivating.has(u.id)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-emerald-400 hover:bg-emerald-500/10 transition-colors text-left disabled:opacity-50">
+                                                                        <button onClick={() => { setUserActionsMenu(null); handleReactivateBrgyUser(u.id); }} disabled={reactivating.has(u.id)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-emerald-500 hover:bg-emerald-500/10 transition-colors text-left disabled:opacity-50">
                                                                             <UserCheck size={14} /> {reactivating.has(u.id) ? "Reactivating..." : "Reactivate"}
                                                                         </button>
                                                                     )}
@@ -1448,11 +1448,11 @@ function BarangayPortalInner() {
                                 )}
                             </div>
                             {totalPages > 1 && (
-                                <div className="flex items-center justify-between text-xs text-foreground/50">
+                                <div className="flex items-center justify-between text-sm font-medium text-muted-foreground mt-4">
                                     <span>Page {userPage} of {totalPages}</span>
                                     <div className="flex gap-2">
-                                        <button disabled={userPage === 1} onClick={() => setUserPage(p => p - 1)} className="px-3 py-1.5 glass border border-border rounded-lg disabled:opacity-30 hover:bg-foreground/10 transition-colors">Prev</button>
-                                        <button disabled={userPage === totalPages} onClick={() => setUserPage(p => p + 1)} className="px-3 py-1.5 glass border border-border rounded-lg disabled:opacity-30 hover:bg-foreground/10 transition-colors">Next</button>
+                                        <button disabled={userPage === 1} onClick={() => setUserPage(p => p - 1)} className="px-3 py-1.5 bg-background border border-border rounded-lg disabled:opacity-50 hover:bg-muted transition-colors text-foreground">Prev</button>
+                                        <button disabled={userPage === totalPages} onClick={() => setUserPage(p => p + 1)} className="px-3 py-1.5 bg-background border border-border rounded-lg disabled:opacity-50 hover:bg-muted transition-colors text-foreground">Next</button>
                                     </div>
                                 </div>
                             )}
