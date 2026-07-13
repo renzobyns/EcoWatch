@@ -313,7 +313,6 @@ export default function ProfilePage() {
                 toast.error(err instanceof ApiError ? err.message : "Failed to load profile");
             }
         } finally {
-            await new Promise((r) => setTimeout(r, 2000)); // ⚠️ DEV ONLY — remove before production
             setLoading(false);
         }
     };
