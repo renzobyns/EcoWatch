@@ -37,7 +37,62 @@ When building or auditing UI, STRICTLY avoid the "AI-generated sci-fi" look. Fol
 - **Consistent Coloring (No Rainbows):** Avoid coloring arbitrary sections, icons, or KPI cards with distinct distinct colors (blue, yellow, green, red) just to make them look different. Stick to a monochromatic layout utilizing the brand's `primary` color and `muted` backgrounds. Only use semantic status colors (destructive/red, warning/yellow, success/green) for items that strictly convey an active state or alert.
 - **Sticky Table Headers:** When making table headers sticky (`sticky top-0`), ALWAYS use a solid, opaque background (e.g., `bg-card` or `bg-background` matching the parent container) instead of transparent or translucent backgrounds like `bg-foreground/[0.02]` or `bg-muted/30`. Otherwise, the scrolling rows will overlap and show through underneath the header text.
 
-## 5. Execution & The 3x Test
+## 5. Listing Tab / Data Grid Standardization
+When auditing or creating a page that lists data (e.g., reports, users, logs, history), enforce the following standard layout pattern:
+- **KPI Cards (Top Row):** Include a row of summary metric cards at the top of the view before the main list, highlighting key statistics (e.g., Total Items, Pending, Resolved) using the standard flat card aesthetic.
+- **Action Toolbar:** Directly above the list/table, provide a unified action toolbar (a flex row) containing:
+  - A Search Input with a left-aligned `<Search />` icon.
+  - A `<DateRangePicker />` (if the data is date-driven) or relevant category dropdowns.
+  - Sort toggles (e.g., Ascending/Descending `<ArrowDownUp />`).
+- **Pagination (Limiter):** Lists MUST NOT extend infinitely downward. Implement numbered pagination controls at the bottom of the list container (`< 1 2 ... >`) and slice the data array to a reasonable page size (e.g., 5, 10, or 20 items per page).
+
+**Example Structure to follow:**
+*(For a live reference of this structure, examine [frontend/components/portal/BarangayManagementTab.tsx](file:///c:/Users/Renzo%20Boyonas/OneDrive/Documents/3rd%20YR%202nd%20SEM/EcoWatch/frontend/components/portal/BarangayManagementTab.tsx#L158) or [frontend/app/profile/page.tsx](file:///c:/Users/Renzo%20Boyonas/OneDrive/Documents/3rd%20YR%202nd%20SEM/EcoWatch/frontend/app/profile/page.tsx#L474))*
+```tsx
+// 1. Top Level Grid for KPIs
+<div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <StatCard label="Total Items" value={data.length} />
+  {/* more stat cards */}
+</div>
+
+// 2. Main List Card
+<div className="bg-card p-6 rounded-xl border border-border shadow-sm flex flex-col">
+  <div className="flex items-center justify-between mb-5">
+      <h2 className="text-base font-bold text-foreground">Data List</h2>
+  </div>
+
+  {/* 3. Action Toolbar */}
+  <div className="flex flex-col sm:flex-row items-center gap-3 mb-4">
+      <div className="relative flex-1 w-full">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input type="text" placeholder="Search..." className="w-full bg-background border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+      </div>
+      <div className="flex items-center gap-2 w-full sm:w-auto">
+          <DateRangePicker value={dateRange} onChange={setDateRange} className="bg-background border-border" />
+          <button className="p-2 border border-border bg-background rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0">
+              <ArrowDownUp size={16} />
+          </button>
+      </div>
+  </div>
+
+  {/* 4. Data Rendering Area */}
+  <div className="flex-1">
+      {/* Map paginated items here */}
+  </div>
+
+  {/* 5. Pagination Controls */}
+  <div className="flex items-center justify-between pt-4 mt-auto border-t border-border">
+      <span className="text-xs font-medium text-muted-foreground">Page {page} of {totalPages}</span>
+      <div className="flex items-center gap-1">
+          <button onClick={() => setPage(p => p - 1)} className="..."> <ChevronLeft size={16} /> </button>
+          {/* Map page numbers */}
+          <button onClick={() => setPage(p => p + 1)} className="..."> <ChevronRight size={16} /> </button>
+      </div>
+  </div>
+</div>
+```
+
+## 6. Execution & The 3x Test
 - Apply the changes using the file editing tools.
 - **Test 1**: Run `npm run lint` and `npm run build` in the frontend directory. Fix any TypeScript/Build errors.
 - **Test 2**: Run backend test scripts if you touched any API data structures.
