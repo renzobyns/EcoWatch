@@ -196,7 +196,7 @@ function CleanerPortalInner() {
         setTimeout(tick, 1500);
     };
 
-    if (loading && !user) {
+    if (!user) {
         return (
             <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
                 <div className="w-16 h-16 rounded-2xl bg-white p-1 shadow-[0_0_30px_rgba(16,185,129,0.3)] animate-pulse">
@@ -230,6 +230,7 @@ function CleanerPortalInner() {
                         workOrders={workOrders}
                         onOpenWO={setSelectedWorkOrder}
                         onJump={(v) => setActiveView(v as CleanerView)}
+                        loading={loading}
                     />
                 )}
                 {activeView === "jobs" && (

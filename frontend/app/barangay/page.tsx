@@ -97,7 +97,7 @@ function BarangayPortalInner() {
     const [user, setUser] = useState<any>(null);
     const [reports, setReports] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [tableLoading, setTableLoading] = useState(false);
+    const [tableLoading, setTableLoading] = useState(true);
     const [selectedReport, setSelectedReport] = useState<any>(null);
     const [unreadCount] = useUnreadNotificationCount(user?.id);
     const rawTab = searchParams.get('tab');
@@ -252,11 +252,7 @@ function BarangayPortalInner() {
     };
 
     const fetchReports = async (barangayName: string) => {
-        if (loading) {
-            // initial mount: keep full-screen loader; skip table skeleton
-        } else {
-            setTableLoading(true);
-        }
+        setTableLoading(true);
         try {
             const data = await api(`/reports/barangay/${encodeURIComponent(barangayName)}${buildQuery()}`);
             if (Array.isArray(data)) {
@@ -739,7 +735,7 @@ function BarangayPortalInner() {
         }
     };
 
-    if (loading || !user) {
+    if (!user) {
         return (
             <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
                 <div className="w-16 h-16 rounded-2xl bg-white p-1 shadow-[0_0_30px_rgba(16,185,129,0.3)] animate-pulse">

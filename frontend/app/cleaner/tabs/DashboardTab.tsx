@@ -14,6 +14,7 @@ interface DashboardTabProps {
     workOrders: any[];
     onOpenWO: (wo: any) => void;
     onJump: (view: string) => void;
+    loading?: boolean;
 }
 
 interface CleanerStats {
@@ -32,7 +33,7 @@ interface RecentActivityItem {
     created_at: string;
 }
 
-export function DashboardTab({ user, workOrders, onOpenWO, onJump }: DashboardTabProps) {
+export function DashboardTab({ user, workOrders, onOpenWO, onJump, loading = false }: DashboardTabProps) {
     const [stats, setStats] = useState<CleanerStats | null>(null);
     const [activity, setActivity] = useState<RecentActivityItem[]>([]);
     const [loadError, setLoadError] = useState(false);
@@ -95,24 +96,28 @@ export function DashboardTab({ user, workOrders, onOpenWO, onJump }: DashboardTa
                     label="Assigned"
                     value={stats?.total_assigned ?? "—"}
                     accent="text-emerald-400"
+                    loading={loading}
                 />
                 <KpiCard
                     icon={Loader2}
                     label="In Progress"
                     value={stats?.in_progress ?? "—"}
                     accent="text-yellow-400"
+                    loading={loading}
                 />
                 <KpiCard
                     icon={CheckCircle2}
                     label="Completed"
                     value={stats?.completed ?? "—"}
                     accent="text-green-400"
+                    loading={loading}
                 />
                 <KpiCard
                     icon={Target}
                     label="SLA Compliance"
                     value={stats != null ? `${stats.sla_compliance}%` : "—"}
                     accent="text-blue-400"
+                    loading={loading}
                 />
             </div>
 
@@ -227,7 +232,30 @@ export function DashboardTab({ user, workOrders, onOpenWO, onJump }: DashboardTa
     );
 }
 
-function KpiCard({ icon: Icon, label, value, accent }: { icon: any; label: string; value: number | string; accent: string }) {
+function KpiCard({
+    icon: Icon,
+    label,
+    value,
+    accent,
+    loading = false,
+}: {
+    icon: any;
+    label: string;
+    value: number | string;
+    accent: string;
+    loading?: boolean;
+}) {
+    if (loading) {
+        return (
+            <div className="glass rounded-2xl border border-border shadow-2xl p-4 animate-pulse">
+                <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 bg-muted rounded shrink-0" />
+                    <div className="h-3 bg-muted rounded w-16" />
+                </div>
+                <div className="h-8 bg-muted rounded w-12 mt-3" />
+            </div>
+        );
+    }
     return (
         <div className="glass rounded-2xl border border-border shadow-2xl p-4">
             <div className={`flex items-center gap-2 ${accent}`}>
