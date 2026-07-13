@@ -810,18 +810,21 @@ function BarangayPortalInner() {
                                 value={stats.pending}
                                 icon={<AlertTriangle size={22} />}
                                 tone={stats.pending > 0 ? "yellow" : "emerald"}
+                                loading={loading}
                             />
                             <KpiCard
                                 label="Teams Deployed"
                                 value={stats.deployed}
                                 icon={<Hourglass size={22} />}
                                 tone="blue"
+                                loading={loading}
                             />
                             <KpiCard
                                 label="Total Resolved"
                                 value={stats.resolved}
                                 icon={<CheckCircle2 size={22} />}
                                 tone={stats.resolved > 0 ? "emerald" : "neutral"}
+                                loading={loading}
                             />
                         </div>
 
@@ -1038,30 +1041,35 @@ function BarangayPortalInner() {
                                     value={kpiActive}
                                     icon={<ClipboardList size={22} />}
                                     tone="blue"
+                                    loading={woLoading}
                                 />
                                 <KpiCard
                                     label="Needs Redo"
                                     value={kpiNeedsRedo}
                                     icon={<AlertTriangle size={22} />}
                                     tone={kpiNeedsRedo > 0 ? "red" : "neutral"}
+                                    loading={woLoading}
                                 />
                                 <KpiCard
                                     label="At Risk"
                                     value={kpiAtRisk}
                                     icon={<Hourglass size={22} />}
                                     tone={kpiAtRisk > 0 ? "yellow" : "neutral"}
+                                    loading={woLoading}
                                 />
                                 <KpiCard
                                     label="Breached SLA"
                                     value={kpiBreached}
                                     icon={<AlertTriangle size={22} />}
                                     tone={kpiBreached > 0 ? "red" : "neutral"}
+                                    loading={woLoading}
                                 />
                                 <KpiCard
                                     label={woKpiWindow === "week" ? "Resolved (7d)" : woKpiWindow === "month" ? "Resolved (30d)" : "Resolved (All)"}
                                     value={kpiResolved}
                                     icon={<CheckCircle2 size={22} />}
                                     tone={kpiResolved > 0 ? "emerald" : "neutral"}
+                                    loading={woLoading}
                                 />
                             </div>
 
@@ -1588,18 +1596,21 @@ function BarangayPortalInner() {
                                     value={kpiTotal}
                                     icon={<BookUser size={22} />}
                                     tone="blue"
+                                    loading={userLoading}
                                 />
                                 <KpiCard
                                     label="Active Accounts"
                                     value={kpiActive}
                                     icon={<UserCheck size={22} />}
                                     tone="emerald"
+                                    loading={userLoading}
                                 />
                                 <KpiCard
                                     label="Disabled Accounts"
                                     value={kpiDisabled}
                                     icon={<UserX size={22} />}
                                     tone="red"
+                                    loading={userLoading}
                                 />
                             </div>
 
@@ -1852,24 +1863,28 @@ function BarangayPortalInner() {
                                     value={reports.length}
                                     icon={<ListChecks size={22} />}
                                     tone="blue"
+                                    loading={tableLoading}
                                 />
                                 <KpiCard
                                     label="Pending Review"
                                     value={stats.pending}
                                     icon={<AlertTriangle size={22} />}
                                     tone={stats.pending > 0 ? "yellow" : "emerald"}
+                                    loading={tableLoading}
                                 />
                                 <KpiCard
                                     label="Teams Deployed"
                                     value={stats.deployed}
                                     icon={<Hourglass size={22} />}
                                     tone="neutral"
+                                    loading={tableLoading}
                                 />
                                 <KpiCard
                                     label="Total Resolved"
                                     value={stats.resolved}
                                     icon={<CheckCircle2 size={22} />}
                                     tone={stats.resolved > 0 ? "emerald" : "neutral"}
+                                    loading={tableLoading}
                                 />
                             </div>
 
