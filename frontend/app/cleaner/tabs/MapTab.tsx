@@ -18,11 +18,11 @@ export function MapTab({ user, workOrders, onOpenWO }: MapTabProps) {
     );
 
     return (
-        <div className="animate-slide-up h-full flex flex-col relative w-full -mt-6 md:-mt-6 pb-28 md:pb-8">
-            {/* Full Height Map Wrapper */}
-            <div className="glass rounded-2xl border border-border shadow-2xl overflow-hidden flex-1 min-h-[450px] relative z-0">
+        <div className="animate-slide-up h-full w-full flex flex-col relative overflow-hidden">
+            {/* Edge-to-Edge Map Wrapper */}
+            <div className="w-full h-full flex-1 relative z-0">
                 {/* Floating Header */}
-                <div className="absolute top-4 left-4 z-[1000] pointer-events-auto bg-background/80 backdrop-blur-md border border-border rounded-xl p-3 shadow-md max-w-[200px]">
+                <div className="absolute top-4 left-4 z-[1000] pointer-events-auto bg-background/90 dark:bg-background/95 backdrop-blur-md border border-border rounded-xl p-3 shadow-lg max-w-[200px]">
                     <h1 className="text-base font-bold text-foreground tracking-tight leading-none">
                         Map <span className="text-primary">View</span>
                     </h1>
@@ -32,7 +32,7 @@ export function MapTab({ user, workOrders, onOpenWO }: MapTabProps) {
                 </div>
 
                 {/* Floating Legend */}
-                <div className="absolute top-4 right-4 z-[1000] pointer-events-auto bg-background/80 backdrop-blur-md border border-border rounded-xl px-3 py-2 shadow-md">
+                <div className="absolute top-4 right-4 z-[1000] pointer-events-auto bg-background/90 dark:bg-background/95 backdrop-blur-md border border-border rounded-xl px-3 py-2 shadow-lg">
                     <Legend />
                 </div>
 

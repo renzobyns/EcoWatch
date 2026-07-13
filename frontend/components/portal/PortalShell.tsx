@@ -79,10 +79,14 @@ export function PortalShell({
                         actions={actions}
                     />
                 </div>
-                <main className={`relative flex-1 px-4 md:px-8 py-6 md:pb-6 ${scrollable ? "overflow-y-auto" : "overflow-hidden"}`}>
-                    {children}
-                    {/* Explicit spacer to prevent content from hiding behind fixed mobile nav (browsers collapse pb on overflow containers) */}
-                    <div className="h-24 md:hidden shrink-0" />
+                <main className={`relative flex-1 ${scrollable ? "overflow-y-auto" : "overflow-hidden"}`}>
+                    <div className={`flex flex-col min-h-full ${activeKey === "map_view" || activeKey === "overview" ? "p-0" : "px-4 md:px-8 py-6 md:pb-6"}`}>
+                        {children}
+                        {/* Explicit spacer to prevent content from hiding behind fixed mobile nav */}
+                        {activeKey !== "map_view" && activeKey !== "overview" && (
+                            <div className="h-28 md:hidden shrink-0 w-full" />
+                        )}
+                    </div>
                 </main>
 
                 {/* Mobile Bottom Navigation */}
