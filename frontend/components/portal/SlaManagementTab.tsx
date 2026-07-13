@@ -183,25 +183,25 @@ export function SlaManagementTab({
                     label="Active Breaches"
                     value={cw ? cw.active_breaches.toString() : "—"}
                     icon={<AlertTriangle size={22} />}
-                    tone={cw && cw.active_breaches > 0 ? "red" : "emerald"}
+                    tone={cw && cw.active_breaches > 0 ? "red" : "default"}
                 />
                 <KpiCard
                     label="At-Risk Next 24h"
                     value={cw ? cw.at_risk_24h.toString() : "—"}
                     icon={<Clock size={22} />}
-                    tone={cw && cw.at_risk_24h > 0 ? "yellow" : "emerald"}
+                    tone={cw && cw.at_risk_24h > 0 ? "yellow" : "default"}
                 />
                 <KpiCard
                     label="City-Wide Compliance"
                     value={cw ? `${cw.compliance_rate}%` : "—"}
                     icon={<ShieldCheck size={22} />}
-                    tone={cw ? (cw.compliance_rate >= slaPolicy.compliance_target ? "emerald" : cw.compliance_rate >= slaPolicy.compliance_target - 10 ? "yellow" : "red") : "emerald"}
+                    tone={cw ? (cw.compliance_rate >= slaPolicy.compliance_target ? "default" : cw.compliance_rate >= slaPolicy.compliance_target - 10 ? "yellow" : "red") : "default"}
                 />
                 <KpiCard
                     label="Avg Resolution Time"
                     value={cw ? `${cw.avg_resolution_days}d` : "—"}
                     icon={<Activity size={22} />}
-                    tone="blue"
+                    tone="default"
                 />
             </div>
 
@@ -278,7 +278,7 @@ export function SlaManagementTab({
                 <div className="lg:col-span-1 bg-card p-6 rounded-lg border border-border shadow-sm">
                     <div className="flex items-center justify-between mb-5 relative z-10">
                         <div className="flex items-center gap-2">
-                            <Clock size={18} className="text-yellow-400" />
+                            <Clock size={18} className="text-muted-foreground" />
                             <h2 className="text-base font-bold text-foreground">At-Risk Queue (24h)</h2>
                         </div>
                         <span className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-tight bg-yellow-500/20 text-yellow-600 dark:text-yellow-400">
@@ -320,7 +320,7 @@ export function SlaManagementTab({
                 {/* SLA Policy History (timeline) */}
                 <div className="lg:col-span-2 bg-card p-6 rounded-lg border border-border shadow-sm">
                     <div className="flex items-center gap-2 mb-5 relative z-10">
-                        <History size={18} className="text-emerald-400" />
+                        <History size={18} className="text-muted-foreground" />
                         <h2 className="text-base font-bold text-foreground">SLA Policy History</h2>
                     </div>
                     <div className="relative z-10">
@@ -338,7 +338,7 @@ export function SlaManagementTab({
                                 {history.slice(0, 8).map((entry, idx) => (
                                     <div key={entry.id} className="flex items-start gap-4 relative">
                                         <div className="flex flex-col items-center shrink-0 pt-1">
-                                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 ring-4 ring-emerald-400/20" />
+                                            <div className="w-2.5 h-2.5 rounded-full bg-primary ring-4 ring-primary/20" />
                                             {idx < Math.min(history.length, 8) - 1 && (
                                                 <div className="w-px flex-1 bg-border mt-1 min-h-[28px]" />
                                             )}
@@ -368,16 +368,16 @@ export function SlaManagementTab({
                     <div className="bg-card p-6 rounded-lg border border-border shadow-sm">
                         <div className="flex items-center justify-between mb-4 relative z-10">
                             <div className="flex items-center gap-2">
-                                <Settings2 size={18} className="text-emerald-400" />
+                                <Settings2 size={18} className="text-muted-foreground" />
                                 <h2 className="text-base font-bold text-foreground">SLA Policy Config</h2>
                             </div>
                         </div>
 
                         <div className="relative z-10 space-y-3">
                             <div className="grid grid-cols-3 gap-2">
-                                <PolicyTile label="Low" value={slaPolicy.low} unit="d" tone="blue" />
-                                <PolicyTile label="Medium" value={slaPolicy.medium} unit="d" tone="yellow" />
-                                <PolicyTile label="High" value={slaPolicy.high} unit="d" tone="red" />
+                                <PolicyTile label="Low" value={slaPolicy.low} unit="d" />
+                                <PolicyTile label="Medium" value={slaPolicy.medium} unit="d" />
+                                <PolicyTile label="High" value={slaPolicy.high} unit="d" />
                             </div>
 
                             <div className="pt-1">
@@ -415,7 +415,7 @@ export function SlaManagementTab({
                     {/* Top Performing Barangays */}
                     <div className="bg-card p-6 rounded-lg border border-border shadow-sm">
                         <div className="flex items-center gap-2 mb-4 relative z-10">
-                            <Award size={18} className="text-emerald-400" />
+                            <Award size={18} className="text-muted-foreground" />
                             <h2 className="text-base font-bold text-foreground">Top Performing Barangays</h2>
                         </div>
                         <div className="relative z-10 space-y-3">
@@ -427,7 +427,7 @@ export function SlaManagementTab({
                                 topPerforming.map((b, idx) => (
                                     <div key={b.barangay} className="flex items-center justify-between gap-3">
                                         <div className="flex items-center gap-3 min-w-0">
-                                            <div className="w-7 h-7 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-300 text-xs font-bold shrink-0">
+                                            <div className="w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">
                                                 {idx + 1}
                                             </div>
                                             <div className="min-w-0">
@@ -450,7 +450,7 @@ export function SlaManagementTab({
             <div className="bg-card p-6 rounded-lg border border-border shadow-sm shrink-0 animate-slide-up stagger-4">
                 <div className="flex items-center justify-between mb-5 relative z-10 flex-wrap gap-3">
                     <div className="flex items-center gap-2">
-                        <TrendingUp size={18} className="text-emerald-400" />
+                        <TrendingUp size={18} className="text-muted-foreground" />
                         <h2 className="text-base font-bold text-foreground">Per-Barangay SLA Performance</h2>
                         <span className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-tight bg-muted text-muted-foreground">
                             sorted worst → best
@@ -512,12 +512,13 @@ export function SlaManagementTab({
 
 // Sub-components
 
-function KpiCard({ label, value, icon, tone }: { label: string; value: string; icon: React.ReactNode; tone: "red" | "yellow" | "emerald" | "blue" }) {
+function KpiCard({ label, value, icon, tone = "default" }: { label: string; value: string; icon: React.ReactNode; tone?: "red" | "yellow" | "emerald" | "blue" | "default" }) {
     const toneClasses = {
-        red: "bg-red-500/20 text-red-600 dark:text-red-400",
-        yellow: "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400",
-        emerald: "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400",
-        blue: "bg-blue-500/20 text-blue-600 dark:text-blue-400",
+        red: "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20",
+        yellow: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20",
+        emerald: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20",
+        blue: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20",
+        default: "bg-primary/10 text-primary border border-primary/20",
     } as const;
     return (
         <div className="bg-card border border-border shadow-sm p-5 rounded-lg flex items-center justify-between gap-4">
@@ -532,14 +533,9 @@ function KpiCard({ label, value, icon, tone }: { label: string; value: string; i
     );
 }
 
-function PolicyTile({ label, value, unit, tone }: { label: string; value: number; unit: string; tone: "blue" | "yellow" | "red" }) {
-    const tones = {
-        blue: "bg-blue-500/10 border-blue-500/20",
-        yellow: "bg-yellow-500/10 border-yellow-500/20",
-        red: "bg-red-500/10 border-red-500/20",
-    } as const;
+function PolicyTile({ label, value, unit }: { label: string; value: number; unit: string }) {
     return (
-        <div className={`p-3 rounded-lg border ${tones[tone]} text-center`}>
+        <div className={`p-3 rounded-lg border bg-muted/50 border-border text-center`}>
             <div className="text-xs font-medium text-muted-foreground mb-1">{label}</div>
             <div className="text-xl font-bold text-foreground">{value}{unit}</div>
         </div>

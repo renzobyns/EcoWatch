@@ -34,6 +34,7 @@ When building or auditing UI, STRICTLY avoid the "AI-generated sci-fi" look. Fol
 - **Buttons & Interactions:** Always ensure buttons have visible `hover:` backgrounds and foregrounds. For destructive or forcing actions, ensure they have a bold, distinct color (e.g., `bg-red-600 hover:bg-red-700 text-white`). For disabled buttons, you MUST explicitly include `disabled:cursor-not-allowed` so the user knows the button is inactive.
 - **Spacing:** Use Shadcn's card standard: a header `div` with `p-6 pb-2` and a content `div` with `p-6 pt-0`. If using tighter spaces, use `p-4 pb-2` and `p-4 pt-0`. Avoid massive empty padding.
 - **Accents:** Use vibrant colors sparingly. Restrict them to small badges, icons, or trend indicators. Never apply heavy glowing drop-shadows (`shadow-[0_0_15px_...]`) to text or icons.
+- **Consistent Coloring (No Rainbows):** Avoid coloring arbitrary sections, icons, or KPI cards with distinct distinct colors (blue, yellow, green, red) just to make them look different. Stick to a monochromatic layout utilizing the brand's `primary` color and `muted` backgrounds. Only use semantic status colors (destructive/red, warning/yellow, success/green) for items that strictly convey an active state or alert.
 
 ## 5. Execution & The 3x Test
 - Apply the changes using the file editing tools.
