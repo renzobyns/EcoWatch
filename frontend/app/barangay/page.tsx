@@ -907,7 +907,7 @@ function BarangayPortalInner() {
                             </div>
 
                             {/* KPI Strip */}
-                            <div className="glass-pro rounded-2xl p-5">
+                            <div className="bg-card border border-border rounded-xl shadow-sm p-6 mb-2">
                                 <div className="flex items-center justify-between mb-4">
                                     <span className="text-xs font-bold text-foreground/50 uppercase tracking-widest">Operational Overview</span>
                                     <div className="flex items-center gap-1 bg-foreground/5 rounded-lg p-1">
@@ -930,7 +930,7 @@ function BarangayPortalInner() {
                                         { label: "Breached SLA", value: kpiBreached, color: "text-red-500" },
                                         { label: woKpiWindow === "week" ? "Resolved (7d)" : woKpiWindow === "month" ? "Resolved (30d)" : "Resolved (All)", value: kpiResolved, color: "text-green-400" },
                                     ].map(kpi => (
-                                        <div key={kpi.label} className="glass rounded-xl p-4 text-center">
+                                        <div key={kpi.label} className="bg-background border border-border shadow-sm rounded-xl p-4 text-center flex flex-col justify-center">
                                             <div className={`text-2xl font-black ${kpi.color}`}>{kpi.value}</div>
                                             <div className="text-[11px] text-foreground/50 mt-1 font-medium">{kpi.label}</div>
                                         </div>
@@ -939,20 +939,20 @@ function BarangayPortalInner() {
                             </div>
 
                             {/* Filter Bar */}
-                            <div className="glass-pro rounded-2xl p-4 flex flex-wrap gap-3 items-center">
+                            <div className="bg-card border border-border rounded-xl shadow-sm p-4 flex flex-wrap gap-3 items-center mb-4">
                                 <div className="relative flex-1 min-w-[180px]">
                                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" />
                                     <input
                                         value={woSearch}
                                         onChange={e => setWoSearch(e.target.value)}
                                         placeholder="Search tracking ID or cleaner…"
-                                        className="w-full pl-8 pr-3 py-2 glass rounded-lg text-sm text-foreground placeholder:text-foreground/30 border border-border focus:outline-none focus:border-primary/50 bg-transparent"
+                                        className="w-full pl-8 pr-3 py-2 bg-background rounded-lg text-sm text-foreground placeholder:text-foreground/30 border border-border focus:outline-none focus:border-primary/50"
                                     />
                                 </div>
                                 <select
                                     value={woStatusFilter}
                                     onChange={e => setWoStatusFilter(e.target.value)}
-                                    className="glass border border-border rounded-lg px-3 py-2 text-xs text-foreground bg-transparent focus:outline-none focus:border-primary/50"
+                                    className="bg-background border border-border rounded-lg px-3 py-2 text-sm font-medium text-foreground focus:outline-none focus:border-primary/50"
                                 >
                                     <option value="all">All Statuses</option>
                                     <option value="assigned">Assigned</option>
@@ -964,7 +964,7 @@ function BarangayPortalInner() {
                                 <select
                                     value={woPriorityFilter}
                                     onChange={e => setWoPriorityFilter(e.target.value)}
-                                    className="glass border border-border rounded-lg px-3 py-2 text-xs text-foreground bg-transparent focus:outline-none focus:border-primary/50"
+                                    className="bg-background border border-border rounded-lg px-3 py-2 text-sm font-medium text-foreground focus:outline-none focus:border-primary/50"
                                 >
                                     <option value="all">All Priorities</option>
                                     <option value="high">High</option>
@@ -974,7 +974,7 @@ function BarangayPortalInner() {
                                 <select
                                     value={woCleanerFilter ?? ""}
                                     onChange={e => setWoCleanerFilter(e.target.value ? Number(e.target.value) : null)}
-                                    className="glass border border-border rounded-lg px-3 py-2 text-xs text-foreground bg-transparent focus:outline-none focus:border-primary/50"
+                                    className="bg-background border border-border rounded-lg px-3 py-2 text-sm font-medium text-foreground focus:outline-none focus:border-primary/50"
                                 >
                                     <option value="">All Cleaners</option>
                                     {activeCleaners.map((c: any) => (
@@ -998,7 +998,7 @@ function BarangayPortalInner() {
                             </div>
 
                             {/* Table */}
-                            <div className="glass-pro rounded-2xl overflow-hidden">
+                            <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col flex-1 min-h-[400px]">
                                 {woLoading ? (
                                     <div className="p-12 text-center">
                                         <div className="inline-block w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
@@ -1022,13 +1022,13 @@ function BarangayPortalInner() {
                                     <div className="overflow-x-auto">
                                         <table className="w-full">
                                             <thead>
-                                                <tr className="border-b border-border">
-                                                    <th className="p-4 text-left text-xs font-bold text-foreground/50 uppercase tracking-wider">Tracking ID</th>
-                                                    <th className="p-4 text-left text-xs font-bold text-foreground/50 uppercase tracking-wider">Cleaner</th>
-                                                    <th className="p-4 text-left text-xs font-bold text-foreground/50 uppercase tracking-wider">Priority</th>
-                                                    <th className="p-4 text-left text-xs font-bold text-foreground/50 uppercase tracking-wider">Status</th>
-                                                    <th className="p-4 text-left text-xs font-bold text-foreground/50 uppercase tracking-wider">SLA Deadline</th>
-                                                    <th className="p-4 text-left text-xs font-bold text-foreground/50 uppercase tracking-wider">
+                                                <tr className="border-b border-border text-sm font-medium text-muted-foreground bg-card sticky top-0 z-10">
+                                                    <th className="p-4 text-left">Tracking ID</th>
+                                                    <th className="p-4 text-left">Cleaner</th>
+                                                    <th className="p-4 text-left">Priority</th>
+                                                    <th className="p-4 text-left">Status</th>
+                                                    <th className="p-4 text-left">SLA Deadline</th>
+                                                    <th className="p-4 text-left">
                                                         <div className="inline-flex items-center gap-1">
                                                             <span>Time Left</span>
                                                             <span
@@ -1043,7 +1043,7 @@ function BarangayPortalInner() {
                                                             >ⓘ</span>
                                                         </div>
                                                     </th>
-                                                    <th className="p-4 text-left text-xs font-bold text-foreground/50 uppercase tracking-wider">Created</th>
+                                                    <th className="p-4 text-left">Created</th>
                                                     <th className="p-4"></th>
                                                 </tr>
                                             </thead>
@@ -1081,7 +1081,7 @@ function BarangayPortalInner() {
                                                             <td className="p-4 text-right">
                                                                 <button
                                                                     onClick={() => { setSelectedWorkOrder(wo); setNewWoPriority(wo.priority); }}
-                                                                    className="px-4 py-2 glass border border-border text-foreground text-xs font-bold rounded-lg hover:bg-foreground/10 transition-colors"
+                                                                    className="px-4 py-2 bg-background border border-border text-foreground text-sm font-medium rounded-lg hover:bg-muted transition-colors"
                                                                 >
                                                                     View
                                                                 </button>
