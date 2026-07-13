@@ -770,7 +770,7 @@ function BarangayPortalInner() {
                 }}
             notificationCount={unreadCount}
         >
-            <div className="max-w-[1600px] mx-auto h-full flex flex-col gap-5">
+            <div className="max-w-[1600px] mx-auto min-h-full flex flex-col gap-5">
 
                 {/* DASHBOARD VIEW */}
                 {activeView === 'dashboard' && (
