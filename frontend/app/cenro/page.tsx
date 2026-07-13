@@ -1259,7 +1259,7 @@ function CenroDashboardInner() {
                                 <div className="p-4 pb-2 shrink-0">
                                     <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Live Feed</h3>
                                 </div>
-                                <div className="p-4 pt-0 flex-1 overflow-y-auto pr-1 space-y-3 scrollbar-hide">
+                                <div className="p-4 pt-0 flex-1 overflow-y-auto pr-4 space-y-3 scrollbar-hide">
                                     {recentFeed.map(r => (
                                         <div key={r.id} className="relative pl-3 border-l-2 border-border">
                                             <div className="absolute w-1.5 h-1.5 rounded-full bg-emerald-500 -left-[4px] top-1.5"></div>
@@ -1314,7 +1314,7 @@ function CenroDashboardInner() {
                                 <div className="p-4 pb-2 shrink-0">
                                     <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Barangay Rankings</h3>
                                 </div>
-                                <div className="p-4 pt-0 flex-1 overflow-y-auto pr-1 space-y-1.5 scrollbar-hide">
+                                <div className="p-4 pt-0 flex-1 overflow-y-auto pr-4 space-y-1.5 scrollbar-hide">
                                     {barangayStats.map((b, i) => (
                                         <div key={b.name} className="flex items-center justify-between py-1.5 group">
                                             <div className="flex items-center gap-2">
