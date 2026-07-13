@@ -185,7 +185,7 @@ export function HistoryTab({ user, workOrders, onOpenWO }: HistoryTabProps) {
                 {filtered.length === 0 ? (
                     <div className="py-16 flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed border-border rounded-xl">
                         <Inbox size={48} className="mb-4 opacity-20" />
-                        <p className="text-sm font-medium text-foreground">
+                        <p className="text-sm font-medium text-foreground text-center max-w-xs px-4">
                             {historyList.length === 0 ? "No completed jobs yet. Your record will appear here." : "No jobs match your filter."}
                         </p>
                     </div>
