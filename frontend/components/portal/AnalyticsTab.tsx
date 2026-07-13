@@ -115,16 +115,16 @@ const WINDOW_PRESETS: Array<{ days: number; label: string }> = [
 ];
 
 const PRIORITY_TONE: Record<string, { text: string; bg: string; border: string; dot: string }> = {
-    high: { text: "text-red-300", bg: "bg-red-500/10", border: "border-red-500/30", dot: "bg-red-400" },
-    medium: { text: "text-yellow-300", bg: "bg-yellow-500/10", border: "border-yellow-500/30", dot: "bg-yellow-400" },
-    low: { text: "text-blue-300", bg: "bg-blue-500/10", border: "border-blue-500/30", dot: "bg-blue-400" },
+    high: { text: "text-red-600 dark:text-red-400", bg: "bg-red-500/10", border: "border-red-500/20", dot: "bg-red-400" },
+    medium: { text: "text-yellow-600 dark:text-yellow-400", bg: "bg-yellow-500/10", border: "border-yellow-500/20", dot: "bg-yellow-400" },
+    low: { text: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20", dot: "bg-blue-400" },
 };
 
 const FUNNEL_TONE = [
-    { fill: "bg-gradient-to-r from-blue-500/30 to-blue-500/10", text: "text-blue-300", border: "border-blue-500/30" },
-    { fill: "bg-gradient-to-r from-cyan-500/30 to-cyan-500/10", text: "text-cyan-300", border: "border-cyan-500/30" },
-    { fill: "bg-gradient-to-r from-yellow-500/30 to-yellow-500/10", text: "text-yellow-300", border: "border-yellow-500/30" },
-    { fill: "bg-gradient-to-r from-emerald-500/30 to-emerald-500/10", text: "text-emerald-300", border: "border-emerald-500/30" },
+    { fill: "bg-primary/30", text: "text-foreground", border: "border-primary/40" },
+    { fill: "bg-primary/20", text: "text-foreground", border: "border-primary/30" },
+    { fill: "bg-primary/10", text: "text-foreground", border: "border-primary/20" },
+    { fill: "bg-primary/5", text: "text-foreground", border: "border-primary/10" },
 ];
 
 function formatRelativeWindow(start: string, end: string): string {
@@ -168,14 +168,14 @@ function deltaTone(value: number | null, higherIsBetter = true): "emerald" | "re
 
 function DeltaArrow({ value, higherIsBetter = true, suffix = "%" }: { value: number | null; higherIsBetter?: boolean; suffix?: string }) {
     if (value === null) {
-        return <span className="inline-flex items-center gap-1 text-foreground/40 text-[11px] font-bold"><Minus size={12} /> n/a</span>;
+        return <span className="inline-flex items-center gap-1 text-muted-foreground text-xs font-medium"><Minus size={12} /> n/a</span>;
     }
     const tone = deltaTone(value, higherIsBetter);
-    const cls = tone === "emerald" ? "text-emerald-300" : tone === "red" ? "text-red-300" : "text-foreground/40";
+    const cls = tone === "emerald" ? "text-emerald-600 dark:text-emerald-400" : tone === "red" ? "text-red-600 dark:text-red-400" : "text-muted-foreground";
     const Icon = value === 0 ? Minus : value > 0 ? ArrowUpRight : ArrowDownRight;
     const sign = value > 0 ? "+" : "";
     return (
-        <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${cls}`}>
+        <span className={`inline-flex items-center gap-1 text-xs font-medium ${cls}`}>
             <Icon size={12} />
             {sign}{value.toFixed(1)}{suffix}
         </span>
@@ -183,47 +183,34 @@ function DeltaArrow({ value, higherIsBetter = true, suffix = "%" }: { value: num
 }
 
 function HeroKpi({
-    label, value, suffix, icon, accent, delta, deltaSuffix, higherIsBetter, priorLabel, onClick,
+    label, value, suffix, icon, delta, deltaSuffix, higherIsBetter, priorLabel, onClick,
 }: {
     label: string;
     value: string;
     suffix?: string;
     icon: React.ReactNode;
-    accent: "emerald" | "blue" | "yellow" | "red" | "violet";
     delta: number | null;
     deltaSuffix?: string;
     higherIsBetter?: boolean;
     priorLabel: string;
     onClick?: () => void;
 }) {
-    const accentMap = {
-        emerald: { glow: "rgba(16,185,129,0.18)", text: "text-emerald-300", bg: "bg-emerald-500/15", ring: "ring-emerald-500/20", grad: "from-emerald-500/30 via-emerald-500/5 to-transparent" },
-        blue:    { glow: "rgba(59,130,246,0.18)", text: "text-blue-300",    bg: "bg-blue-500/15",    ring: "ring-blue-500/20",    grad: "from-blue-500/30 via-blue-500/5 to-transparent" },
-        yellow:  { glow: "rgba(250,204,21,0.18)", text: "text-yellow-300",  bg: "bg-yellow-500/15",  ring: "ring-yellow-500/20",  grad: "from-yellow-500/30 via-yellow-500/5 to-transparent" },
-        red:     { glow: "rgba(239,68,68,0.18)",  text: "text-red-300",     bg: "bg-red-500/15",     ring: "ring-red-500/20",     grad: "from-red-500/30 via-red-500/5 to-transparent" },
-        violet:  { glow: "rgba(139,92,246,0.18)", text: "text-violet-300",  bg: "bg-violet-500/15",  ring: "ring-violet-500/20",  grad: "from-violet-500/30 via-violet-500/5 to-transparent" },
-    } as const;
-    const a = accentMap[accent];
     return (
         <div
-            className={`relative glass-pro rounded-2xl bento-card overflow-hidden group ${onClick ? "cursor-pointer hover:ring-2 hover:ring-blue-500/40 transition-shadow" : ""}`}
+            className={`bg-card rounded-lg border border-border shadow-sm p-5 flex flex-col gap-3 group ${onClick ? "cursor-pointer hover:border-primary/50 transition-colors" : ""}`}
             onClick={onClick}
         >
-            <div className={`absolute inset-0 bg-gradient-to-br ${a.grad} opacity-50 pointer-events-none`} />
-            <div className="absolute -top-12 -right-12 w-44 h-44 rounded-full blur-[60px] pointer-events-none" style={{ background: a.glow }} />
-            <div className="relative z-10 p-5 flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                    <div className="text-[10px] text-foreground/50 uppercase tracking-widest font-bold">{label}</div>
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${a.bg} ring-1 ${a.ring} ${a.text}`}>{icon}</div>
-                </div>
-                <div className="flex items-baseline gap-1.5">
-                    <span className={`text-4xl font-bold tracking-tight ${a.text}`}>{value}</span>
-                    {suffix && <span className={`text-base font-bold ${a.text} opacity-70`}>{suffix}</span>}
-                </div>
-                <div className="flex items-center justify-between gap-2 pt-1 border-t border-foreground/10">
-                    <DeltaArrow value={delta} higherIsBetter={higherIsBetter} suffix={deltaSuffix || "%"} />
-                    <span className="text-[10px] text-foreground/40 uppercase tracking-widest font-bold truncate">{onClick ? "View breakdown →" : priorLabel}</span>
-                </div>
+            <div className="flex items-center justify-between">
+                <div className="text-sm font-medium text-muted-foreground truncate">{label}</div>
+                <div className={`w-9 h-9 rounded-md flex items-center justify-center bg-primary/10 text-primary`}>{icon}</div>
+            </div>
+            <div className="flex items-baseline gap-1.5">
+                <span className={`text-3xl font-bold tracking-tight text-foreground`}>{value}</span>
+                {suffix && <span className={`text-base font-medium text-muted-foreground`}>{suffix}</span>}
+            </div>
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
+                <DeltaArrow value={delta} higherIsBetter={higherIsBetter} suffix={deltaSuffix || "%"} />
+                <span className="text-xs text-muted-foreground truncate">{onClick ? "View breakdown →" : priorLabel}</span>
             </div>
         </div>
     );
@@ -237,18 +224,18 @@ function FunnelRow({
     return (
         <div className={`flex items-center gap-4 group ${onClick ? "cursor-pointer" : ""}`} onClick={onClick}>
             <div className="w-32 shrink-0">
-                <div className={`text-xs font-bold ${tone.text} uppercase tracking-widest`}>{label}</div>
-                {sublabel && <div className="text-[10px] text-foreground/40 mt-0.5">{sublabel}</div>}
+                <div className={`text-sm font-semibold text-foreground tracking-tight`}>{label}</div>
+                {sublabel && <div className="text-xs text-muted-foreground mt-0.5">{sublabel}</div>}
             </div>
-            <div className="flex-1 relative h-12">
-                <div className="absolute inset-0 rounded-xl bg-foreground/5 border border-border" />
+            <div className="flex-1 relative h-10">
+                <div className="absolute inset-0 rounded-md bg-muted border border-border" />
                 <div
-                    className={`absolute inset-y-0 left-0 rounded-xl border ${tone.border} ${tone.fill} transition-all duration-700 ease-out`}
+                    className={`absolute inset-y-0 left-0 rounded-md border ${tone.border} ${tone.fill} transition-all duration-700 ease-out`}
                     style={{ width: `${Math.max(width, 4)}%` }}
                 />
                 <div className="absolute inset-0 flex items-center justify-between px-4">
-                    <span className={`text-2xl font-bold tracking-tight ${tone.text}`}>{count}</span>
-                    <span className="text-[11px] text-foreground/50 font-bold">{percent.toFixed(0)}%</span>
+                    <span className={`text-lg font-bold tracking-tight ${tone.text}`}>{count}</span>
+                    <span className="text-xs text-muted-foreground font-medium">{percent.toFixed(0)}%</span>
                 </div>
             </div>
         </div>
@@ -299,28 +286,28 @@ export function AnalyticsTab({
             <div className="flex items-start justify-between gap-4 flex-wrap shrink-0">
                 <div>
                     <div className="flex items-center gap-2 mb-1">
-                        <BarChart3 size={20} className="text-emerald-400" />
+                        <BarChart3 size={20} className="text-primary" />
                         <h1 className="text-2xl font-bold text-foreground tracking-tight">Analytics</h1>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-300 uppercase tracking-widest border border-emerald-500/20">
+                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary border border-primary/20">
                             Live Insights
                         </span>
                     </div>
-                    <p className="text-sm text-foreground/50">
+                    <p className="text-sm text-muted-foreground">
                         {data ? formatRelativeWindow(data.window.start, data.window.end) : "Loading window..."}
-                        <span className="mx-2 text-foreground/20">|</span>
-                        Updated <span className="text-foreground/70 font-semibold">{formatLastUpdated(lastUpdated)}</span>
+                        <span className="mx-2 text-border">|</span>
+                        Updated <span className="text-foreground font-semibold">{formatLastUpdated(lastUpdated)}</span>
                     </p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                    <div className="flex items-center gap-1.5 glass border border-border rounded-xl p-1">
-                        <Filter size={12} className="text-foreground/40 ml-2" />
+                    <div className="flex items-center gap-1 bg-card border border-border rounded-lg p-1 shadow-sm">
+                        <Filter size={14} className="text-muted-foreground ml-2 mr-1" />
                         {WINDOW_PRESETS.map((p) => {
                             const active = p.days === windowDays;
                             return (
                                 <button
                                     key={p.days}
                                     onClick={() => onWindowChange(p.days)}
-                                    className={`px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest rounded-lg transition-colors ${active ? "bg-emerald-500 text-emerald-950 shadow-[0_0_12px_rgba(16,185,129,0.4)]" : "text-foreground/60 hover:bg-foreground/10"}`}
+                                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
                                 >
                                     {p.label}
                                 </button>
@@ -330,17 +317,17 @@ export function AnalyticsTab({
                     <button
                         onClick={onRefresh}
                         disabled={loading}
-                        className="px-4 py-2 glass border border-border text-foreground/70 text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-foreground/10 transition-colors disabled:opacity-50 flex items-center gap-2"
+                        className="px-4 py-2 bg-card border border-border text-foreground text-sm font-medium rounded-lg hover:bg-muted transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm"
                     >
-                        <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+                        <RefreshCw size={14} className={loading ? "animate-spin text-muted-foreground" : "text-muted-foreground"} />
                         Refresh
                     </button>
                     <button
                         onClick={onExport}
                         disabled={exporting || !data}
-                        className="px-5 py-2 bg-emerald-500 text-emerald-950 text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-emerald-400 transition-colors shadow-[0_0_20px_rgba(16,185,129,0.3)] disabled:opacity-50 flex items-center gap-2"
+                        className="px-5 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
                     >
-                        <FileDown size={14} />
+                        <FileDown size={16} />
                         {exporting ? "Exporting..." : "Export CSV"}
                     </button>
                 </div>
@@ -403,17 +390,16 @@ export function AnalyticsTab({
 
             {/* Row 2 - Trend chart + Period-over-period card */}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 shrink-0 animate-slide-up stagger-2">
-                <div className="xl:col-span-2 glass-pro p-6 rounded-[2.5rem] border border-border bento-card relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-[80px] pointer-events-none" />
-                    <div className="flex items-center justify-between mb-5 relative z-10 flex-wrap gap-3">
-                        <div className="flex items-center gap-2">
-                            <TrendingUp size={18} className="text-emerald-400" />
-                            <h2 className="text-base font-bold text-foreground">Report Lifecycle Over Time</h2>
+                <div className="xl:col-span-2 bg-card p-6 rounded-lg border border-border shadow-sm flex flex-col">
+                    <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
+                        <div className="flex items-center gap-2 text-foreground">
+                            <TrendingUp size={18} className="text-muted-foreground" />
+                            <h2 className="text-base font-semibold">Report Lifecycle Over Time</h2>
                         </div>
-                        <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest">
-                            <span className="flex items-center gap-1.5 text-blue-300"><span className="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(59,130,246,0.8)]" />Submitted</span>
-                            <span className="flex items-center gap-1.5 text-emerald-300"><span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />Resolved</span>
-                            <span className="flex items-center gap-1.5 text-red-300"><span className="w-2 h-2 rounded-full bg-red-400 shadow-[0_0_8px_rgba(239,68,68,0.8)]" />Rejected</span>
+                        <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground">
+                            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-blue-500" />Submitted</span>
+                            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />Resolved</span>
+                            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500" />Rejected</span>
                         </div>
                     </div>
                     <div className="relative z-10 h-72">
@@ -460,11 +446,10 @@ export function AnalyticsTab({
                     </div>
                 </div>
 
-                <div className="xl:col-span-1 glass-pro p-6 rounded-[2.5rem] border border-border bento-card relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/5 rounded-full blur-[80px] pointer-events-none" />
-                    <div className="flex items-center gap-2 mb-4 relative z-10">
-                        <Zap size={18} className="text-violet-400" />
-                        <h2 className="text-base font-bold text-foreground">Period vs Period</h2>
+                <div className="xl:col-span-1 bg-card p-6 rounded-lg border border-border shadow-sm flex flex-col">
+                    <div className="flex items-center gap-2 mb-4 text-foreground">
+                        <Zap size={18} className="text-muted-foreground" />
+                        <h2 className="text-base font-semibold">Period vs Period</h2>
                     </div>
                     <div className="relative z-10 space-y-3">
                         {showSkeleton ? (
@@ -485,15 +470,14 @@ export function AnalyticsTab({
             </div>
             {/* Row 3 - Lifecycle Funnel + AI Quality */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 shrink-0 animate-slide-up stagger-3">
-                <div className="glass-pro p-6 rounded-[2.5rem] border border-border bento-card relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-[80px] pointer-events-none" />
-                    <div className="flex items-center justify-between mb-5 relative z-10">
-                        <div className="flex items-center gap-2">
-                            <Activity size={18} className="text-blue-400" />
-                            <h2 className="text-base font-bold text-foreground">Lifecycle Funnel</h2>
+                <div className="bg-card p-6 rounded-lg border border-border shadow-sm flex flex-col">
+                    <div className="flex items-center justify-between mb-5">
+                        <div className="flex items-center gap-2 text-foreground">
+                            <Activity size={18} className="text-muted-foreground" />
+                            <h2 className="text-base font-semibold">Lifecycle Funnel</h2>
                         </div>
                         {data && totalRejectedShare > 0 && (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/15 text-red-300 uppercase tracking-widest border border-red-500/20">
+                            <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-500/20">
                                 {totalRejectedShare}% rejected
                             </span>
                         )}
@@ -545,15 +529,14 @@ export function AnalyticsTab({
                     </div>
                 </div>
 
-                <div className="glass-pro p-6 rounded-[2.5rem] border border-border bento-card relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/5 rounded-full blur-[80px] pointer-events-none" />
-                    <div className="flex items-center justify-between mb-5 relative z-10">
-                        <div className="flex items-center gap-2">
-                            <Brain size={18} className="text-violet-400" />
-                            <h2 className="text-base font-bold text-foreground">AI Verification Quality</h2>
+                <div className="bg-card p-6 rounded-lg border border-border shadow-sm flex flex-col">
+                    <div className="flex items-center justify-between mb-5">
+                        <div className="flex items-center gap-2 text-foreground">
+                            <Brain size={18} className="text-muted-foreground" />
+                            <h2 className="text-base font-semibold">AI Verification Quality</h2>
                         </div>
                         {data && (
-                            <span className="text-[10px] text-foreground/40 uppercase tracking-widest font-bold">
+                            <span className="text-xs text-muted-foreground font-medium">
                                 Threshold {Math.round((data.ai_quality.ai_threshold || 0.5) * 100)}%
                             </span>
                         )}
@@ -616,13 +599,12 @@ export function AnalyticsTab({
 
             {/* Row 4 - Barangay Leaderboard + Response Time by Priority */}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 shrink-0 animate-slide-up stagger-4">
-                <div className="xl:col-span-2 glass-pro p-6 rounded-[2.5rem] border border-border bento-card relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-[80px] pointer-events-none" />
-                    <div className="flex items-center justify-between mb-5 relative z-10 flex-wrap gap-3">
-                        <div className="flex items-center gap-2">
-                            <Award size={18} className="text-emerald-400" />
-                            <h2 className="text-base font-bold text-foreground">Barangay Leaderboard</h2>
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-foreground/10 text-foreground/60 uppercase tracking-widest">Top 10 by volume</span>
+                <div className="xl:col-span-2 bg-card p-6 rounded-lg border border-border shadow-sm flex flex-col">
+                    <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
+                        <div className="flex items-center gap-2 text-foreground">
+                            <Award size={18} className="text-muted-foreground" />
+                            <h2 className="text-base font-semibold">Barangay Leaderboard</h2>
+                            <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-muted text-muted-foreground">Top 10 by volume</span>
                         </div>
                     </div>
                     <div className="relative z-10 overflow-x-auto">
@@ -633,7 +615,7 @@ export function AnalyticsTab({
                         ) : data ? (
                             <table className="w-full text-left text-sm">
                                 <thead>
-                                    <tr className="border-b border-border text-[10px] text-foreground/40 uppercase tracking-widest">
+                                    <tr className="border-b border-border text-xs text-muted-foreground font-medium">
                                         <th className="py-3 pr-3">#</th>
                                         <th className="py-3 pr-3">Barangay</th>
                                         <th className="py-3 pr-3 text-right">Reports</th>
@@ -647,11 +629,11 @@ export function AnalyticsTab({
                                     {data.barangay_leaderboard.slice(0, 10).map((row, idx) => (
                                         <tr
                                             key={row.barangay}
-                                            className={`border-b border-border/40 hover:bg-foreground/5 transition-colors ${onDrilldown ? "cursor-pointer" : ""}`}
+                                            className={`border-b border-border hover:bg-muted/50 transition-colors ${onDrilldown ? "cursor-pointer" : ""}`}
                                             onClick={onDrilldown ? () => onDrilldown("leaderboard", row.barangay) : undefined}
                                         >
                                             <td className="py-3 pr-3">
-                                                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold ${idx < 3 ? "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/30" : "bg-foreground/5 text-foreground/50"}`}>
+                                                <div className={`w-7 h-7 rounded-md flex items-center justify-center text-xs font-semibold ${idx < 3 ? "bg-primary/10 text-primary border border-primary/20" : "bg-muted text-muted-foreground"}`}>
                                                     {idx + 1}
                                                 </div>
                                             </td>
@@ -659,15 +641,15 @@ export function AnalyticsTab({
                                             <td className="py-3 pr-3 text-right font-bold text-foreground">{row.total}</td>
                                             <td className="py-3 pr-3 text-right text-foreground/70">{row.resolved}</td>
                                             <td className="py-3 pr-3 text-right">
-                                                <span className={`font-bold ${row.resolution_rate >= 50 ? "text-emerald-300" : row.resolution_rate >= 25 ? "text-yellow-300" : "text-red-300"}`}>
+                                                <span className={`font-semibold ${row.resolution_rate >= 50 ? "text-emerald-600 dark:text-emerald-400" : row.resolution_rate >= 25 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400"}`}>
                                                     {row.resolution_rate.toFixed(1)}%
                                                 </span>
                                             </td>
-                                            <td className="py-3 pr-3 text-right text-foreground/70">{row.avg_resolve_days > 0 ? `${row.avg_resolve_days}d` : "-"}</td>
+                                            <td className="py-3 pr-3 text-right text-muted-foreground">{row.avg_resolve_days > 0 ? `${row.avg_resolve_days}d` : "-"}</td>
                                             <td className="py-3 text-right">
-                                                <span className="inline-flex items-center gap-1.5 text-[11px] text-foreground/60">
+                                                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                                                     <TrendArrow trend={row.trend} />
-                                                    <span className="font-bold">{row.prior_total}</span>
+                                                    <span className="font-semibold">{row.prior_total}</span>
                                                 </span>
                                             </td>
                                         </tr>
@@ -678,11 +660,10 @@ export function AnalyticsTab({
                     </div>
                 </div>
 
-                <div className="xl:col-span-1 glass-pro p-6 rounded-[2.5rem] border border-border bento-card relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-yellow-500/5 rounded-full blur-[80px] pointer-events-none" />
-                    <div className="flex items-center gap-2 mb-5 relative z-10">
-                        <Zap size={18} className="text-yellow-400" />
-                        <h2 className="text-base font-bold text-foreground">Response Time by Priority</h2>
+                <div className="xl:col-span-1 bg-card p-6 rounded-lg border border-border shadow-sm flex flex-col">
+                    <div className="flex items-center gap-2 mb-5 text-foreground">
+                        <Zap size={18} className="text-muted-foreground" />
+                        <h2 className="text-base font-semibold">Response Time by Priority</h2>
                     </div>
                     <div className="relative z-10 space-y-3">
                         {showSkeleton ? (
@@ -695,24 +676,24 @@ export function AnalyticsTab({
                                 return (
                                     <div
                                         key={row.priority}
-                                        className={`p-4 rounded-2xl border ${tone.border} ${tone.bg} ${onDrilldown ? "cursor-pointer hover:brightness-110 transition-all" : ""}`}
+                                        className={`p-4 rounded-lg border bg-muted/50 border-border ${onDrilldown ? "cursor-pointer hover:bg-muted transition-colors" : ""}`}
                                         onClick={onDrilldown ? () => onDrilldown("response_priority", row.priority) : undefined}
                                     >
                                         <div className="flex items-center justify-between mb-3">
                                             <div className="flex items-center gap-2">
-                                                <span className={`w-2 h-2 rounded-full ${tone.dot} shadow-[0_0_8px_currentColor]`} style={{ color: "currentColor" }} />
-                                                <span className={`text-[11px] font-bold uppercase tracking-widest ${tone.text}`}>{row.priority} priority</span>
+                                                <span className={`w-2.5 h-2.5 rounded-full ${tone.dot}`} />
+                                                <span className={`text-xs font-semibold capitalize ${tone.text}`}>{row.priority} Priority</span>
                                             </div>
-                                            <span className="text-[10px] text-foreground/40 uppercase tracking-widest font-bold">{row.total_wos} WOs</span>
+                                            <span className="text-xs text-muted-foreground font-medium">{row.total_wos} WOs</span>
                                         </div>
                                         <div className="grid grid-cols-2 gap-3">
                                             <div>
-                                                <div className="text-[9px] text-foreground/40 uppercase tracking-widest mb-1 font-bold">Create &rarr; Start</div>
-                                                <div className={`text-lg font-bold ${tone.text}`}>{c2d !== null ? `${c2d}h` : "-"}</div>
+                                                <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Create &rarr; Start</div>
+                                                <div className={`text-lg font-bold text-foreground`}>{c2d !== null ? `${c2d}h` : "-"}</div>
                                             </div>
                                             <div>
-                                                <div className="text-[9px] text-foreground/40 uppercase tracking-widest mb-1 font-bold">Start &rarr; Done</div>
-                                                <div className={`text-lg font-bold ${tone.text}`}>{d2c !== null ? `${d2c}h` : "-"}</div>
+                                                <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Start &rarr; Done</div>
+                                                <div className={`text-lg font-bold text-foreground`}>{d2c !== null ? `${d2c}h` : "-"}</div>
                                             </div>
                                         </div>
                                     </div>
@@ -743,11 +724,11 @@ function PvpRow({
 }) {
     const fmt = (v: number | null) => v != null ? `${v.toFixed(label === "Reports" ? 0 : 1)}${suffix}` : "N/A";
     return (
-        <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-foreground/5 border border-border">
+        <div className="flex items-center justify-between gap-3 p-4 rounded-lg bg-muted/50 border border-border">
             <div>
-                <div className="text-[10px] text-foreground/40 uppercase tracking-widest font-bold mb-0.5">{label}</div>
+                <div className="text-sm font-medium text-muted-foreground mb-1">{label}</div>
                 <div className="text-lg font-bold text-foreground">{fmt(current)}</div>
-                <div className="text-[10px] text-foreground/40 mt-0.5">vs {fmt(prior)}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">vs {fmt(prior)}</div>
             </div>
             <DeltaArrow value={delta} higherIsBetter={higherIsBetter} suffix={deltaSuffix} />
         </div>
@@ -755,11 +736,11 @@ function PvpRow({
 }
 
 function AiStat({ label, value, tone }: { label: string; value: string; tone: "emerald" | "violet" | "red" }) {
-    const text = tone === "emerald" ? "text-emerald-300" : tone === "violet" ? "text-violet-300" : "text-red-300";
-    const bg = tone === "emerald" ? "bg-emerald-500/10 border-emerald-500/20" : tone === "violet" ? "bg-violet-500/10 border-violet-500/20" : "bg-red-500/10 border-red-500/20";
+    const text = tone === "emerald" ? "text-emerald-600 dark:text-emerald-400" : tone === "violet" ? "text-violet-600 dark:text-violet-400" : "text-red-600 dark:text-red-400";
+    const bg = "bg-muted/50 border-border";
     return (
-        <div className={`p-3 rounded-xl border ${bg} text-center`}>
-            <div className="text-[9px] uppercase tracking-widest font-bold text-foreground/50 mb-1">{label}</div>
+        <div className={`p-4 rounded-lg border ${bg} text-center`}>
+            <div className="text-xs font-medium text-muted-foreground mb-2">{label}</div>
             <div className={`text-xl font-bold ${text}`}>{value}</div>
         </div>
     );
@@ -769,7 +750,13 @@ function KpiSkeleton({ count = 4, small }: { count?: number; small?: boolean }) 
     return (
         <>
             {Array.from({ length: count }).map((_, i) => (
-                <div key={i} className={`bg-foreground/5 rounded-2xl animate-pulse ${small ? "h-16" : "h-32"}`} />
+                <div key={i} className={`bg-card rounded-lg border border-border p-5 flex flex-col gap-3 animate-pulse ${small ? "h-20" : "h-32"}`}>
+                    <div className="flex items-center justify-between">
+                        <div className="h-4 w-24 bg-muted rounded" />
+                        <div className="h-9 w-9 bg-muted rounded-md" />
+                    </div>
+                    <div className="h-8 w-16 bg-muted rounded mt-auto" />
+                </div>
             ))}
         </>
     );
