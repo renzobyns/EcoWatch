@@ -807,12 +807,12 @@ function BarangayPortalInner() {
 
                 {/* MAP VIEW */}
                 {activeView === 'map_view' && (
-                    <div className="glass-pro rounded-[2.5rem] overflow-hidden shadow-2xl relative flex-1 min-h-[500px] animate-slide-up">
-                        <div className="absolute top-6 left-6 z-[1000] glass-pro px-4 py-2 rounded-full text-[11px] font-bold text-foreground uppercase tracking-widest pointer-events-none">
+                    <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden relative flex-1 min-h-[500px] animate-slide-up">
+                        <div className="absolute top-6 left-6 z-[1000] bg-background/90 backdrop-blur-sm border border-border px-4 py-2 rounded-lg text-sm font-medium text-foreground shadow-sm pointer-events-none">
                             <span className="flex items-center gap-2">
                                 <span className="relative flex h-2 w-2">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
                                 </span>
                                 {user.barangay_assignment}
                             </span>
