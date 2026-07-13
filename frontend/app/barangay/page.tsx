@@ -1463,7 +1463,7 @@ function BarangayPortalInner() {
                 {/* REPORTS VIEW */}
                 {activeView === 'reports' && (
                     <div className="flex flex-col flex-1 min-h-0 animate-slide-up">
-                        <div className="glass-pro rounded-[2.5rem] flex flex-col flex-1 min-h-0 shadow-2xl overflow-hidden">
+                        <div className="bg-card border border-border rounded-xl shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden">
                             {/* Filter Bar — Reports view only */}
                             {activeView === 'reports' && (
                                 <div className="flex flex-col lg:flex-row gap-3 p-4 border-b border-border shrink-0">
@@ -1524,22 +1524,22 @@ function BarangayPortalInner() {
 
                             {/* Sub-tabs — Reports view only */}
                             {activeView === 'reports' && (
-                                <div className="flex border-b border-border shrink-0">
+                                <div className="flex border-b border-border shrink-0 bg-muted/20">
                                     <button
                                         onClick={() => { setReportSubFilter('pending'); router.replace('?tab=reports&sub=pending', { scroll: false }); }}
-                                        className={`flex-1 py-3 text-[11px] font-semibold uppercase tracking-widest transition-colors ${reportSubFilter === 'pending' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-foreground/50 hover:bg-foreground/5 hover:text-foreground'}`}
+                                        className={`flex-1 py-3 text-sm font-medium transition-colors ${reportSubFilter === 'pending' ? 'bg-background text-primary border-b-2 border-primary' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}`}
                                     >
                                         Pending
                                     </button>
                                     <button
                                         onClick={() => { setReportSubFilter('assigned'); router.replace('?tab=reports&sub=assigned', { scroll: false }); }}
-                                        className={`flex-1 py-3 text-[11px] font-semibold uppercase tracking-widest transition-colors ${reportSubFilter === 'assigned' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-foreground/50 hover:bg-foreground/5 hover:text-foreground'}`}
+                                        className={`flex-1 py-3 text-sm font-medium transition-colors ${reportSubFilter === 'assigned' ? 'bg-background text-primary border-b-2 border-primary' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}`}
                                     >
                                         Assigned
                                     </button>
                                     <button
                                         onClick={() => { setReportSubFilter('resolved'); router.replace('?tab=reports&sub=resolved', { scroll: false }); }}
-                                        className={`flex-1 py-3 text-[11px] font-semibold uppercase tracking-widest transition-colors ${reportSubFilter === 'resolved' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-foreground/50 hover:bg-foreground/5 hover:text-foreground'}`}
+                                        className={`flex-1 py-3 text-sm font-medium transition-colors ${reportSubFilter === 'resolved' ? 'bg-background text-primary border-b-2 border-primary' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}`}
                                     >
                                         Done
                                     </button>
@@ -1552,7 +1552,7 @@ function BarangayPortalInner() {
                                         {tableLoading ? (
                                             <table className="w-full text-left border-collapse">
                                                 <thead>
-                                                    <tr className="border-b border-border text-xs text-foreground/40 uppercase tracking-widest bg-black/20">
+                                                    <tr className="border-b border-border text-sm font-medium text-muted-foreground bg-card sticky top-0 z-10">
                                                         <th className="p-4">Tracking ID</th>
                                                         <th className="p-4">Date</th>
                                                         <th className="p-4">Status</th>
@@ -1576,7 +1576,7 @@ function BarangayPortalInner() {
                                         ) : (
                                             <table className="w-full text-left border-collapse">
                                                 <thead>
-                                                    <tr className="border-b border-border text-xs text-foreground/40 uppercase tracking-widest bg-black/20">
+                                                    <tr className="border-b border-border text-sm font-medium text-muted-foreground bg-card sticky top-0 z-10">
                                                         <th className="p-4">Tracking ID</th>
                                                         <th className="p-4">Date</th>
                                                         <th className="p-4">Status</th>
@@ -1635,7 +1635,7 @@ function BarangayPortalInner() {
                                                                             setCleanupImage(null);
                                                                             setDeploymentNotes("");
                                                                         }}
-                                                                        className="px-4 py-2 glass border border-border text-foreground text-xs font-bold rounded-lg hover:bg-foreground/10 transition-colors"
+                                                                        className="px-4 py-2 bg-background border border-border text-foreground text-sm font-medium rounded-lg hover:bg-muted transition-colors"
                                                                     >
                                                                         Manage
                                                                     </button>
