@@ -18,22 +18,24 @@ export function MapTab({ user, workOrders, onOpenWO }: MapTabProps) {
     );
 
     return (
-        <div className="space-y-4 animate-slide-up h-full flex flex-col">
-            {/* Header */}
-            <div className="flex items-end justify-between flex-wrap gap-3">
-                <div>
-                    <h1 className="text-2xl font-bold text-foreground tracking-tight">
+        <div className="animate-slide-up h-full flex flex-col relative w-full -mt-6 md:-mt-6 pb-28 md:pb-8">
+            {/* Full Height Map Wrapper */}
+            <div className="glass rounded-2xl border border-border shadow-2xl overflow-hidden flex-1 min-h-[450px] relative z-0">
+                {/* Floating Header */}
+                <div className="absolute top-4 left-4 z-[1000] pointer-events-auto bg-background/80 backdrop-blur-md border border-border rounded-xl p-3 shadow-md max-w-[200px]">
+                    <h1 className="text-base font-bold text-foreground tracking-tight leading-none">
                         Map <span className="text-primary">View</span>
                     </h1>
-                    <p className="text-xs text-foreground/50 mt-1">
-                        {openWOs.length} open {openWOs.length === 1 ? "job" : "jobs"} for cleanup
+                    <p className="text-[10px] text-muted-foreground mt-1.5 font-medium">
+                        {openWOs.length} open {openWOs.length === 1 ? "job" : "jobs"}
                     </p>
                 </div>
-                <Legend />
-            </div>
 
-            {/* Map */}
-            <div className="glass rounded-2xl border border-border shadow-2xl overflow-hidden flex-1 min-h-[500px] relative">
+                {/* Floating Legend */}
+                <div className="absolute top-4 right-4 z-[1000] pointer-events-auto bg-background/80 backdrop-blur-md border border-border rounded-xl px-3 py-2 shadow-md">
+                    <Legend />
+                </div>
+
                 {openWOs.length === 0 ? (
                     <div className="absolute inset-0 flex items-center justify-center text-center p-6 z-10 pointer-events-none">
                         <div className="glass px-5 py-4 rounded-xl border border-border bg-background/80">

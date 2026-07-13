@@ -338,10 +338,10 @@ export default function SJDMMap({
             </MapContainer>
 
             {/* Back to City View Button */}
-            {focusedBarangay && (
+            {focusedBarangay && onBarangayClick && (
                 <button
-                    onClick={() => onBarangayClick && onBarangayClick(null)}
-                    className="absolute top-24 left-4 z-[1000] glass px-4 py-2 rounded-full text-xs font-bold text-foreground hover:bg-foreground/10 transition-colors flex items-center gap-2 shadow-xl shadow-black/50"
+                    onClick={() => onBarangayClick(null)}
+                    className="absolute top-[84px] left-4 z-[1000] glass px-4 py-2 rounded-full text-xs font-bold text-foreground hover:bg-foreground/10 transition-colors flex items-center gap-2 shadow-xl shadow-black/50"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                     Back to City View
