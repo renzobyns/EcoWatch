@@ -22,6 +22,7 @@ When the user calls this skill on a specific page or component, follow these ste
 ## 3. Responsiveness Check
 - Verify that the layout does not break or overflow horizontally on `sm` and `md` breakpoint screens.
 - Use `flex-col` or `grid-cols-1` on mobile, scaling up to `flex-row` or multi-column grids on desktop.
+- **Mobile Navigation**: If a page features a wide sidebar on desktop, DO NOT let it squash the main content on mobile screens. Ensure the sidebar is hidden on mobile (`hidden md:flex`) and implement a sleek **Bottom Navigation Bar** fixed at the bottom of the screen instead (`md:hidden fixed inset-x-0 bottom-0`). Ensure the main container has enough bottom padding (e.g., `pb-24 md:pb-6`) so content isn't obscured by the bottom nav.
 
 ## 4. Professional Aesthetic (Shadcn / Vercel Look)
 When building or auditing UI, STRICTLY avoid the "AI-generated sci-fi" look. Follow these modern, minimalist principles:

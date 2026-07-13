@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
+import { Search, ListChecks, Clock, PlayCircle, RotateCcw, ChevronLeft, ChevronRight, Inbox } from "lucide-react";
 import { slaDeadlineLabel, slaDeadlineColor, SLA_PILL_CLASSES } from "@/lib/sla";
+import { KpiCard } from "@/components/portal/KpiCard";
 
 function parseUTCMs(iso: string): number {
     return new Date(iso.endsWith("Z") || iso.includes("+") || iso.includes("-", 10) ? iso : iso + "Z").getTime();
@@ -24,6 +25,8 @@ export function JobsTab({ user, workOrders, onOpenWO, loading }: JobsTabProps) {
     const [filter, setFilter] = useState<JobFilter>("all");
     const [sortBy, setSortBy] = useState<SortKey>("sla_deadline");
     const [search, setSearch] = useState("");
+    const [page, setPage] = useState(1);
+    const pageSize = 10;
 
     const openJobs = useMemo(
         () => workOrders.filter((w) => ["assigned", "in_progress", "needs_redo"].includes(w.status)),
@@ -62,144 +65,231 @@ export function JobsTab({ user, workOrders, onOpenWO, loading }: JobsTabProps) {
         return sorted;
     }, [openJobs, filter, search, sortBy]);
 
+    useEffect(() => {
+        setPage(1); // Reset to page 1 on filter/search change
+    }, [filter, search, sortBy]);
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+
     return (
-        <div className="space-y-5 animate-slide-up">
+        <div className="flex flex-col gap-6 pb-8 w-full animate-slide-up">
             {/* Header */}
-            <div className="flex items-end justify-between flex-wrap gap-3">
+            <div className="flex items-start justify-between flex-wrap gap-3">
                 <div>
-                    <h1 className="text-2xl font-bold text-foreground tracking-tight">
-                        My <span className="text-primary">Jobs</span>
-                    </h1>
-                    {user?.barangay_assignment && (
-                        <p className="text-emerald-400 font-semibold uppercase tracking-[0.18em] text-[11px] mt-1 px-2.5 py-0.5 bg-emerald-400/10 rounded-full w-fit border border-emerald-400/20">
-                            {user.barangay_assignment}
+                    <h1 className="text-2xl font-bold text-foreground tracking-tight">My Jobs</h1>
+                    {user?.barangay_assignment ? (
+                        <p className="text-sm text-muted-foreground mt-1">
+                            Assigned to: <span className="font-semibold text-foreground">{user.barangay_assignment}</span>
                         </p>
+                    ) : (
+                        <p className="text-sm text-muted-foreground mt-1">View and manage your assigned cleanup work orders.</p>
                     )}
                 </div>
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-foreground/40 pointer-events-none" />
-                    <input
-                        type="text"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search EW-..."
-                        className="pl-9 pr-3 py-2 rounded-xl glass border border-border text-sm text-foreground placeholder-foreground/40 focus:outline-none focus:border-primary/60 w-56"
-                    />
-                </div>
             </div>
 
-            {/* Filters + sort */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap gap-2">
-                    <FilterChip active={filter === "all"} onClick={() => setFilter("all")} label="All" count={counts.all} />
-                    <FilterChip active={filter === "assigned"} onClick={() => setFilter("assigned")} label="Assigned" count={counts.assigned} />
-                    <FilterChip active={filter === "in_progress"} onClick={() => setFilter("in_progress")} label="In Progress" count={counts.in_progress} />
-                    <FilterChip active={filter === "needs_redo"} onClick={() => setFilter("needs_redo")} label="Needs Redo" count={counts.needs_redo} />
-                </div>
-                <div className="flex items-center gap-2 text-xs">
-                    <span className="text-foreground/50 uppercase tracking-widest font-bold">Sort:</span>
-                    <select
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value as SortKey)}
-                        className="glass border border-border rounded-lg px-2 py-1.5 text-foreground text-xs font-semibold focus:outline-none focus:border-primary/60"
-                    >
-                        <option value="sla_deadline">SLA deadline</option>
-                        <option value="priority">Priority</option>
-                        <option value="created_at">Newest</option>
-                    </select>
-                </div>
+            {/* KPI Strip */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
+                <KpiCard
+                    label="Total Open"
+                    value={counts.all}
+                    icon={<ListChecks size={22} />}
+                    tone="blue"
+                />
+                <KpiCard
+                    label="Pending Start"
+                    value={counts.assigned}
+                    icon={<Clock size={22} />}
+                    tone="yellow"
+                />
+                <KpiCard
+                    label="In Progress"
+                    value={counts.in_progress}
+                    icon={<PlayCircle size={22} />}
+                    tone="emerald"
+                />
+                <KpiCard
+                    label="Needs Redo"
+                    value={counts.needs_redo}
+                    icon={<RotateCcw size={22} />}
+                    tone={counts.needs_redo > 0 ? "red" : "emerald"}
+                />
             </div>
 
-            {/* Table */}
-            <div className="glass rounded-2xl border border-border shadow-2xl overflow-hidden">
+            {/* Main List Container */}
+            <div className="bg-card p-4 md:p-6 rounded-xl border border-border shadow-sm flex flex-col">
+                <div className="flex items-center justify-between mb-5">
+                    <h2 className="text-base font-bold text-foreground">Work Orders</h2>
+                </div>
+
+                {/* Toolbar */}
+                <div className="flex flex-wrap items-center gap-3 mb-6">
+                    {/* Search */}
+                    <div className="relative flex-1 min-w-[200px] max-w-xs">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Search Tracking ID..."
+                            className="w-full pl-9 pr-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-colors"
+                        />
+                    </div>
+
+                    {/* Filter chips */}
+                    <div className="flex flex-wrap gap-1.5">
+                        {(["all", "assigned", "in_progress", "needs_redo"] as const).map((f) => (
+                            <button
+                                key={f}
+                                onClick={() => setFilter(f)}
+                                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
+                                    filter === f
+                                        ? "bg-primary text-primary-foreground border-primary"
+                                        : "bg-muted/50 border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+                                }`}
+                            >
+                                {f === "all" ? "All" : f === "assigned" ? "Assigned" : f === "in_progress" ? "In Progress" : "Needs Redo"}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Spacer */}
+                    <div className="flex-1" />
+
+                    {/* Sort */}
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-muted-foreground hidden sm:inline">Sort:</span>
+                        <select
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value as SortKey)}
+                            className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer transition-colors"
+                        >
+                            <option value="sla_deadline">SLA deadline</option>
+                            <option value="priority">Priority</option>
+                            <option value="created_at">Newest</option>
+                        </select>
+                    </div>
+                </div>
+
+                {/* Data Rendering */}
                 {loading ? (
-                    <div className="p-12 text-center text-foreground/50">
-                        <div className="inline-block w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-                        <p className="mt-4 text-sm font-bold">Loading work orders…</p>
+                    <div className="py-12 flex flex-col items-center justify-center text-muted-foreground">
+                        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin mb-4" />
+                        <p className="text-sm font-medium">Loading work orders...</p>
                     </div>
                 ) : filtered.length === 0 ? (
-                    <div className="p-12 text-center text-foreground/50 font-bold">
-                        {openJobs.length === 0
-                            ? "No work assigned yet. Check back soon!"
-                            : "No jobs match your filter."}
+                    <div className="py-16 flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed border-border rounded-xl">
+                        <Inbox size={48} className="mb-4 opacity-20" />
+                        <p className="text-sm font-medium text-foreground">
+                            {openJobs.length === 0 ? "No work assigned yet. Enjoy the break!" : "No jobs match your filter."}
+                        </p>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="border-b border-border text-xs text-foreground/40 uppercase tracking-widest bg-black/20">
-                                    <th className="p-4">Tracking ID</th>
-                                    <th className="p-4">Priority</th>
-                                    <th className="p-4">SLA</th>
-                                    <th className="p-4">Status</th>
-                                    <th className="p-4 text-right">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filtered.map((wo) => {
-                                    const slaLabel = wo.sla_deadline ? slaDeadlineLabel(wo.sla_deadline) : "—";
-                                    const color = wo.sla_deadline ? slaDeadlineColor(wo.sla_deadline) : "green";
-                                    return (
-                                        <tr
-                                            key={wo.id}
-                                            onClick={() => onOpenWO(wo)}
-                                            className="border-b border-border hover:bg-foreground/5 transition-colors cursor-pointer"
-                                        >
-                                            <td className="p-4 font-mono text-sm text-foreground font-bold">
-                                                {wo.report_tracking_id ?? `WO #${wo.id}`}
-                                            </td>
-                                            <td className="p-4 text-sm font-semibold">
-                                                <span
-                                                    className={`px-2.5 py-1 rounded-md text-xs uppercase tracking-wider ${
-                                                        wo.priority === "high"
-                                                            ? "bg-red-500/20 text-red-400"
-                                                            : wo.priority === "low"
-                                                              ? "bg-blue-500/20 text-blue-400"
-                                                              : "bg-yellow-500/20 text-yellow-400"
-                                                    }`}
-                                                >
-                                                    {wo.priority}
+                    <div className="flex-1">
+                        {/* Desktop Table View */}
+                        <div className="hidden md:block overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="border-b border-border text-xs font-medium text-muted-foreground bg-muted/30">
+                                        <th className="px-4 py-3 font-medium">Tracking ID</th>
+                                        <th className="px-4 py-3 font-medium">Priority</th>
+                                        <th className="px-4 py-3 font-medium">SLA Deadline</th>
+                                        <th className="px-4 py-3 font-medium">Status</th>
+                                        <th className="px-4 py-3 font-medium text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {paginated.map((wo) => {
+                                        const slaLabel = wo.sla_deadline ? slaDeadlineLabel(wo.sla_deadline) : "—";
+                                        const color = wo.sla_deadline ? slaDeadlineColor(wo.sla_deadline) : "green";
+                                        return (
+                                            <tr
+                                                key={wo.id}
+                                                onClick={() => onOpenWO(wo)}
+                                                className="border-b border-border hover:bg-muted/50 transition-colors cursor-pointer group"
+                                            >
+                                                <td className="px-4 py-3 font-mono text-sm font-medium text-foreground">
+                                                    {wo.report_tracking_id ?? `WO #${wo.id}`}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <PriorityBadge priority={wo.priority} />
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span className={`px-2 py-1 rounded-md text-[11px] font-bold ${SLA_PILL_CLASSES[color]}`}>
+                                                        {slaLabel}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <StatusBadge status={wo.status} />
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <ActionButton status={wo.status} onClick={() => onOpenWO(wo)} />
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Mobile Card View */}
+                        <div className="grid grid-cols-1 gap-3 md:hidden">
+                            {paginated.map((wo) => {
+                                const slaLabel = wo.sla_deadline ? slaDeadlineLabel(wo.sla_deadline) : "—";
+                                const color = wo.sla_deadline ? slaDeadlineColor(wo.sla_deadline) : "green";
+                                return (
+                                    <div
+                                        key={wo.id}
+                                        onClick={() => onOpenWO(wo)}
+                                        className="flex flex-col bg-background border border-border rounded-xl p-4 shadow-sm hover:border-primary/50 transition-colors cursor-pointer"
+                                    >
+                                        <div className="flex items-start justify-between mb-3">
+                                            <div>
+                                                <p className="text-xs text-muted-foreground font-medium mb-1">Tracking ID</p>
+                                                <p className="font-mono text-sm font-bold text-foreground">{wo.report_tracking_id ?? `WO #${wo.id}`}</p>
+                                            </div>
+                                            <StatusBadge status={wo.status} />
+                                        </div>
+                                        
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-2">
+                                                <PriorityBadge priority={wo.priority} />
+                                                <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold ${SLA_PILL_CLASSES[color]}`}>
+                                                    SLA: {slaLabel}
                                                 </span>
-                                            </td>
-                                            <td className="p-4">
-                                                <span className={`px-2 py-1 rounded-md text-[11px] font-bold ${SLA_PILL_CLASSES[color]}`}>
-                                                    {slaLabel}
-                                                </span>
-                                            </td>
-                                            <td className="p-4">
-                                                <span
-                                                    className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
-                                                        wo.status === "in_progress"
-                                                            ? "bg-yellow-500/20 text-yellow-400"
-                                                            : wo.status === "needs_redo"
-                                                              ? "bg-red-500/20 text-red-400"
-                                                              : "bg-foreground/10 text-foreground"
-                                                    }`}
-                                                >
-                                                    {wo.status === "needs_redo" ? "Redo" : wo.status.replaceAll("_", " ")}
-                                                </span>
-                                            </td>
-                                            <td className="p-4 text-right">
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        onOpenWO(wo);
-                                                    }}
-                                                    className="px-4 py-2 glass border border-primary text-primary text-xs font-bold rounded-lg hover:bg-primary/10 transition-colors"
-                                                >
-                                                    {wo.status === "assigned"
-                                                        ? "Start"
-                                                        : wo.status === "in_progress"
-                                                          ? "Upload Photo"
-                                                          : "Re-attempt"}
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+                                            </div>
+                                        </div>
+                                        
+                                        <ActionButton status={wo.status} onClick={() => onOpenWO(wo)} fullWidth />
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {/* Pagination Controls */}
+                {filtered.length > 0 && (
+                    <div className="flex items-center justify-between pt-4 mt-4 border-t border-border">
+                        <span className="text-xs font-medium text-muted-foreground">
+                            Page {page} of {totalPages} ({filtered.length} total)
+                        </span>
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                disabled={page === 1}
+                                className="p-1.5 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-50 transition-colors"
+                            >
+                                <ChevronLeft size={16} />
+                            </button>
+                            <button
+                                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                                disabled={page === totalPages}
+                                className="p-1.5 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-50 transition-colors"
+                            >
+                                <ChevronRight size={16} />
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
@@ -207,18 +297,51 @@ export function JobsTab({ user, workOrders, onOpenWO, loading }: JobsTabProps) {
     );
 }
 
-function FilterChip({ active, onClick, label, count }: { active: boolean; onClick: () => void; label: string; count: number }) {
+// --- Helper Components ---
+
+function PriorityBadge({ priority }: { priority: string }) {
+    return (
+        <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold uppercase tracking-wider ${
+            priority === "high"
+                ? "bg-red-500/10 text-red-500 border border-red-500/20"
+                : priority === "low"
+                    ? "bg-blue-500/10 text-blue-500 border border-blue-500/20"
+                    : "bg-yellow-500/10 text-yellow-600 border border-yellow-500/20"
+        }`}>
+            {priority}
+        </span>
+    );
+}
+
+function StatusBadge({ status }: { status: string }) {
+    return (
+        <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold uppercase tracking-wider ${
+            status === "in_progress"
+                ? "bg-yellow-500/10 text-yellow-600 border border-yellow-500/20"
+                : status === "needs_redo"
+                    ? "bg-red-500/10 text-red-500 border border-red-500/20"
+                    : "bg-primary/10 text-primary border border-primary/20"
+        }`}>
+            {status === "needs_redo" ? "Redo" : status.replaceAll("_", " ")}
+        </span>
+    );
+}
+
+function ActionButton({ status, onClick, fullWidth }: { status: string; onClick: () => void; fullWidth?: boolean }) {
     return (
         <button
             type="button"
-            onClick={onClick}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider border transition-colors ${
-                active
-                    ? "bg-primary/20 border-primary text-primary"
-                    : "glass border-border text-foreground/70 hover:text-foreground hover:bg-foreground/5"
-            }`}
+            onClick={(e) => {
+                e.stopPropagation();
+                onClick();
+            }}
+            className={`px-3 py-1.5 bg-background border border-border text-muted-foreground text-xs font-semibold rounded-lg hover:border-primary hover:text-primary transition-colors ${fullWidth ? "w-full" : ""}`}
         >
-            {label} <span className="ml-1 opacity-70">({count})</span>
+            {status === "assigned"
+                ? "Start Work"
+                : status === "in_progress"
+                    ? "Upload Photo"
+                    : "Re-attempt"}
         </button>
     );
 }
