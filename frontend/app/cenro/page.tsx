@@ -592,78 +592,7 @@ function CenroDashboardInner() {
         }
     };
 
-    if (loading || !user) {
-        return (
-            <PortalShell
-                brand={{ name: "EcoWatch", suffix: "CJSDM" }}
-                role="CENRO"
-                nav={CENRO_NAV}
-                activeKey={activeTab}
-                onNavChange={() => {}}
-                notificationCount={0}
-                scrollable={activeTab !== 'command_center'}
-            >
-                <div className="max-w-[1600px] mx-auto h-full flex-1 grid grid-cols-1 lg:grid-cols-[2.5fr_1fr] gap-6 overflow-hidden p-1 pb-4">
-                    {/* Left Section Skeleton */}
-                    <div className="flex flex-col gap-4 min-h-0">
-                        {/* Top Stats Bar Skeleton */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0 w-full">
-                            {Array.from({ length: 4 }).map((_, i) => (
-                                <div key={i} className="glass-pro p-4 md:p-5 rounded-2xl h-24 bg-foreground/[0.02] flex flex-col justify-center">
-                                    <div className="h-2 w-16 bg-foreground/10 rounded mb-3 animate-pulse"></div>
-                                    <div className="h-6 w-12 bg-foreground/10 rounded animate-pulse"></div>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* SLA Bar Skeleton */}
-                        <div className="glass-pro h-[74px] rounded-2xl border border-border shrink-0 bg-foreground/[0.02] flex items-center px-5 gap-5">
-                            <div className="w-10 h-10 rounded-xl bg-foreground/10 animate-pulse shrink-0"></div>
-                            <div className="flex flex-col gap-2">
-                                <div className="h-2 w-20 bg-foreground/10 rounded animate-pulse"></div>
-                                <div className="h-4 w-8 bg-foreground/10 rounded animate-pulse"></div>
-                            </div>
-                            <div className="hidden md:block w-px self-stretch bg-border shrink-0 mx-1" />
-                            <div className="hidden md:flex flex-col gap-2">
-                                <div className="h-2 w-20 bg-foreground/10 rounded animate-pulse"></div>
-                                <div className="flex gap-2">
-                                    <div className="h-4 w-12 rounded bg-foreground/10 animate-pulse"></div>
-                                    <div className="h-4 w-12 rounded bg-foreground/10 animate-pulse"></div>
-                                    <div className="h-4 w-12 rounded bg-foreground/10 animate-pulse"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Map Skeleton */}
-                        <div className="flex-1 glass rounded-2xl border border-border bg-foreground/[0.02] min-h-[400px] relative overflow-hidden">
-                            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-foreground/20 via-transparent to-transparent animate-pulse"></div>
-                            <div className="absolute top-4 left-4 h-6 w-32 bg-foreground/10 rounded-full animate-pulse"></div>
-                        </div>
-                    </div>
-
-                    {/* Right Sidebar Skeleton */}
-                    <div className="flex flex-col gap-4 overflow-y-auto pr-2 scrollbar-thin">
-                        {Array.from({ length: 4 }).map((_, i) => (
-                            <div key={i} className="glass-pro p-6 rounded-[2rem] bg-foreground/[0.02] flex flex-col shrink-0 min-h-[250px]">
-                                <div className="h-3 w-24 bg-foreground/10 rounded mb-6 animate-pulse shrink-0"></div>
-                                <div className="flex-1 flex flex-col gap-4 overflow-hidden">
-                                    {Array.from({ length: 3 }).map((_, j) => (
-                                        <div className="flex items-center gap-3" key={j}>
-                                            <div className="w-8 h-8 rounded-full bg-foreground/10 animate-pulse shrink-0"></div>
-                                            <div className="flex-1 flex flex-col gap-2">
-                                                <div className="h-2 bg-foreground/10 rounded animate-pulse w-3/4"></div>
-                                                <div className="h-2 bg-foreground/10 rounded animate-pulse w-1/2"></div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </PortalShell>
-        );
-    }
+    if (!user) return null;
 
     const stats = {
         total: reports.length,
@@ -784,6 +713,48 @@ function CenroDashboardInner() {
 
                 {activeTab === 'command_center' && (
                     /* COMMAND CENTER TAB */
+                    loading ? (
+                        /* Dashboard skeleton — only shown when on the Dashboard tab */
+                        <div className="flex-1 grid grid-cols-1 lg:grid-cols-[2.5fr_1fr] gap-6 overflow-hidden pb-4 animate-pulse">
+                            <div className="flex flex-col gap-4 min-h-0">
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0 w-full">
+                                    {Array.from({ length: 4 }).map((_, i) => (
+                                        <div key={i} className="rounded-lg border border-border bg-card p-4 flex flex-col gap-3 h-24 justify-center">
+                                            <div className="h-3 w-20 bg-muted rounded" />
+                                            <div className="h-7 w-12 bg-muted rounded" />
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="rounded-lg border border-border bg-card h-[74px] shrink-0 flex items-center px-5 gap-4">
+                                    <div className="w-10 h-10 rounded-xl bg-muted shrink-0" />
+                                    <div className="flex flex-col gap-2 flex-1">
+                                        <div className="h-3 w-24 bg-muted rounded" />
+                                        <div className="h-4 w-16 bg-muted rounded" />
+                                    </div>
+                                </div>
+                                <div className="flex-1 rounded-lg border border-border bg-card min-h-[400px] relative overflow-hidden">
+                                    <div className="absolute inset-0 bg-muted/30" />
+                                    <div className="absolute top-4 left-4 h-5 w-28 bg-muted rounded-full" />
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-4 overflow-y-auto pr-2">
+                                {Array.from({ length: 3 }).map((_, i) => (
+                                    <div key={i} className="rounded-lg border border-border bg-card p-5 flex flex-col gap-4 min-h-[200px]">
+                                        <div className="h-4 w-28 bg-muted rounded" />
+                                        {Array.from({ length: 3 }).map((_, j) => (
+                                            <div key={j} className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-muted shrink-0" />
+                                                <div className="flex-1 flex flex-col gap-1.5">
+                                                    <div className="h-3 bg-muted rounded w-3/4" />
+                                                    <div className="h-3 bg-muted rounded w-1/2" />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
                     <div className="flex-1 grid grid-cols-1 lg:grid-cols-[2.5fr_1fr] gap-6 overflow-hidden pb-4">
 
                         {/* Left: Main Content */}
@@ -999,6 +970,7 @@ function CenroDashboardInner() {
 
                         </div>
                     </div>
+                    )
                 )}
 
                 {activeTab === 'overview' && (
