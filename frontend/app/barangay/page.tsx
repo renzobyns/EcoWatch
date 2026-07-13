@@ -770,28 +770,46 @@ function BarangayPortalInner() {
 
                 {/* DASHBOARD VIEW */}
                 {activeView === 'dashboard' && (
-                    <div className="flex flex-col gap-5 animate-slide-up">
-                        <div>
-                            <h1 className="text-2xl font-bold text-foreground tracking-tight">
-                                {user.barangay_assignment} <span className="text-primary">Dashboard</span>
-                            </h1>
-                            <p className="text-muted-foreground text-sm mt-1">Jurisdiction overview &middot; {new Date().toLocaleDateString()}</p>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
-                            <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col justify-center text-center">
-                                <div className="text-sm font-medium text-muted-foreground mb-1">Pending Reports</div>
-                                <div className="text-3xl font-black text-foreground">{stats.pending}</div>
+                    <div className="flex flex-col gap-6 flex-1 min-h-0 animate-slide-up pb-8 w-full shrink-0">
+                        {/* Header */}
+                        <div className="flex items-start justify-between gap-4 flex-wrap shrink-0">
+                            <div>
+                                <h1 className="text-2xl font-bold text-foreground tracking-tight">
+                                    {user.barangay_assignment} <span className="text-primary">Dashboard</span>
+                                </h1>
+                                <p className="text-sm text-foreground/50 mt-1">Jurisdiction overview &middot; {new Date().toLocaleDateString()}</p>
                             </div>
-                            <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col justify-center text-center">
-                                <div className="text-sm font-medium text-blue-500/80 mb-1">Teams Deployed</div>
-                                <div className="text-3xl font-black text-blue-500">{stats.deployed}</div>
-                            </div>
-                            <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col justify-center text-center">
-                                <div className="text-sm font-medium text-emerald-500/80 mb-1">Total Resolved</div>
-                                <div className="text-3xl font-black text-emerald-500">{stats.resolved}</div>
+                            <div className="flex gap-2">
+                                <button onClick={fetchPortalData} disabled={loading} className="p-2 bg-muted/50 border border-border text-foreground rounded-lg hover:bg-muted transition-colors" title="Refresh data">
+                                    <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+                                </button>
                             </div>
                         </div>
-                        <div className="bg-card border border-border rounded-xl shadow-sm flex flex-col min-h-[400px]">
+
+                        {/* KPI Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
+                            <KpiCard
+                                label="Pending Reports"
+                                value={stats.pending}
+                                icon={<AlertTriangle size={22} />}
+                                tone={stats.pending > 0 ? "yellow" : "emerald"}
+                            />
+                            <KpiCard
+                                label="Teams Deployed"
+                                value={stats.deployed}
+                                icon={<Hourglass size={22} />}
+                                tone="blue"
+                            />
+                            <KpiCard
+                                label="Total Resolved"
+                                value={stats.resolved}
+                                icon={<CheckCircle2 size={22} />}
+                                tone={stats.resolved > 0 ? "emerald" : "neutral"}
+                            />
+                        </div>
+
+                        {/* Recent Reports Container */}
+                        <div className="bg-card border border-border rounded-xl shadow-sm flex flex-col flex-1 min-h-[400px]">
                             <div className="p-6 pb-4 border-b border-border flex items-center justify-between">
                                 <h2 className="text-base font-bold text-foreground">Recent Reports</h2>
                                 <button
@@ -824,17 +842,18 @@ function BarangayPortalInner() {
                                         {recentReports.map(r => {
                                             const sla = slaInfo(r.created_at, r.status);
                                             return (
-                                                <li key={r.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-foreground/5 transition-colors border border-transparent hover:border-border">
+                                                <li key={r.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-colors border border-transparent hover:border-border">
                                                     <div className="flex items-center gap-3 min-w-0">
                                                         <span className="font-mono text-sm font-bold text-foreground truncate">{r.tracking_id}</span>
                                                         <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                                                            r.status === 'resolved' ? 'bg-emerald-500/20 text-emerald-500' :
-                                                            r.status === 'in_progress' ? 'bg-blue-500/20 text-blue-500' :
-                                                            r.status === 'assigned' ? 'bg-yellow-500/20 text-yellow-600' :
-                                                            r.status === 'verified' ? 'bg-orange-500/20 text-orange-500' :
-                                                            r.status === 'failed_cleanup' ? 'bg-red-500/20 text-red-500' :
-                                                            r.status === 'rejected' ? 'bg-foreground/5 text-foreground/40' :
-                                                            'bg-foreground/10 text-foreground/70'
+                                                            r.status === 'resolved' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' :
+                                                            r.status === 'assigned' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20' :
+                                                            r.status === 'in_progress' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' :
+                                                            r.status === 'verified' ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20' :
+                                                            r.status === 'pending' ? 'bg-destructive/10 text-destructive border border-destructive/20' :
+                                                            r.status === 'failed_cleanup' ? 'bg-destructive/10 text-destructive border border-destructive/20' :
+                                                            r.status === 'rejected' ? 'bg-muted text-muted-foreground border border-border' :
+                                                            'bg-muted text-foreground border border-border'
                                                         }`}>{r.status.replace('_', ' ')}</span>
                                                     </div>
                                                     {sla && (
