@@ -919,16 +919,16 @@ function BarangayPortalInner() {
                     });
 
                     const PRIORITY_PILL: Record<string, string> = {
-                        high: "bg-red-500/20 text-red-400",
-                        medium: "bg-yellow-500/20 text-yellow-400",
-                        low: "bg-blue-500/20 text-blue-400",
+                        high: "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20",
+                        medium: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20",
+                        low: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20",
                     };
                     const STATUS_PILL: Record<string, string> = {
-                        assigned: "bg-foreground/10 text-foreground",
-                        in_progress: "bg-yellow-500/20 text-yellow-400",
-                        needs_redo: "bg-red-500/20 text-red-400",
-                        completed: "bg-green-500/20 text-green-400",
-                        verified: "bg-green-500/20 text-green-400",
+                        assigned: "bg-muted text-muted-foreground border border-border",
+                        in_progress: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20",
+                        needs_redo: "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20",
+                        completed: "bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20",
+                        verified: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20",
                     };
                     const STATUS_LABEL: Record<string, string> = {
                         assigned: "Assigned",
@@ -938,223 +938,237 @@ function BarangayPortalInner() {
                         verified: "Verified",
                     };
 
-                    const handleExportWorkordersCSV = () => {
-                        if (filtered.length === 0) {
-                            toast.error("No work orders to export");
-                            return;
-                        }
-                        const headers = ["Tracking ID", "Cleaner", "Priority", "Status", "SLA Deadline", "Created At"];
-                        const rows = filtered.map(wo => [
-                            wo.report_tracking_id || "",
-                            wo.assigned_cleaner_name || "",
-                            wo.priority || "",
-                            wo.status || "",
-                            wo.sla_deadline ? new Date(wo.sla_deadline).toISOString() : "",
-                            wo.created_at ? new Date(wo.created_at).toISOString() : ""
-                        ]);
-                        const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
-                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = `ecowatch_workorders_${new Date().toISOString().slice(0, 10)}.csv`;
-                        document.body.appendChild(a);
-                        a.click();
-                        a.remove();
-                        URL.revokeObjectURL(url);
-                        toast.success("CSV downloaded.");
-                    };
-
                     const paginatedWo = filtered.slice((woPage - 1) * WO_PAGE_SIZE, woPage * WO_PAGE_SIZE);
                     const woTotalPages = Math.ceil(filtered.length / WO_PAGE_SIZE) || 1;
 
                     return (
-                        <div className="flex flex-col gap-5 animate-slide-up">
+                        <div className="flex flex-col gap-6 flex-1 min-h-0 animate-slide-up pb-8 w-full shrink-0">
                             {/* Header */}
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-start justify-between gap-4 flex-wrap shrink-0">
                                 <div>
-                                    <h1 className="text-2xl font-bold text-foreground tracking-tight">Work <span className="text-primary">Orders</span></h1>
-                                    <p className="text-foreground/50 text-sm mt-1">{workOrders.length} total &middot; {user.barangay_assignment}</p>
+                                    <h1 className="text-2xl font-bold text-foreground tracking-tight">Work Orders</h1>
+                                    <p className="text-sm text-foreground/50 mt-1">Manage and track work orders assigned to cleaners.</p>
                                 </div>
-                                <button
-                                    onClick={fetchWorkOrders}
-                                    disabled={woLoading}
-                                    className="flex items-center gap-2 px-4 py-2 glass border border-border text-foreground/70 text-xs font-bold rounded-xl hover:bg-foreground/10 transition-colors uppercase tracking-widest disabled:opacity-50"
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={fetchWorkOrders}
+                                        disabled={woLoading}
+                                        className="px-4 py-2 bg-muted/50 border border-border text-foreground text-sm font-medium rounded-lg hover:bg-muted transition-colors disabled:opacity-50 flex items-center gap-2"
+                                    >
+                                        <RefreshCw size={14} className={woLoading ? "animate-spin" : ""} />
+                                        Refresh
+                                    </button>
+                                    <button
+                                        onClick={handleExportWorkordersCSV}
+                                        className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm"
+                                    >
+                                        <FileDown size={14} />
+                                        Export CSV
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* KPI Strip */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4 shrink-0">
+                                <KpiCard
+                                    label="Active Work Orders"
+                                    value={kpiActive}
+                                    icon={<ClipboardList size={22} />}
+                                    tone="blue"
+                                />
+                                <KpiCard
+                                    label="Needs Redo"
+                                    value={kpiNeedsRedo}
+                                    icon={<AlertTriangle size={22} />}
+                                    tone={kpiNeedsRedo > 0 ? "red" : "neutral"}
+                                />
+                                <KpiCard
+                                    label="At Risk"
+                                    value={kpiAtRisk}
+                                    icon={<Hourglass size={22} />}
+                                    tone={kpiAtRisk > 0 ? "yellow" : "neutral"}
+                                />
+                                <KpiCard
+                                    label="Breached SLA"
+                                    value={kpiBreached}
+                                    icon={<AlertTriangle size={22} />}
+                                    tone={kpiBreached > 0 ? "red" : "neutral"}
+                                />
+                                <KpiCard
+                                    label={woKpiWindow === "week" ? "Resolved (7d)" : woKpiWindow === "month" ? "Resolved (30d)" : "Resolved (All)"}
+                                    value={kpiResolved}
+                                    icon={<CheckCircle2 size={22} />}
+                                    tone={kpiResolved > 0 ? "emerald" : "neutral"}
+                                />
+                            </div>
+
+                            {/* Toolbar */}
+                            <div className="flex flex-wrap items-center gap-3 shrink-0">
+                                <div className="relative flex-1 min-w-[200px] max-w-xs">
+                                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" />
+                                    <input
+                                        value={woSearch}
+                                        onChange={e => setWoSearch(e.target.value)}
+                                        placeholder="Search tracking ID or cleaner..."
+                                        className="w-full pl-9 pr-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                                    />
+                                </div>
+
+                                <select
+                                    value={woStatusFilter}
+                                    onChange={e => setWoStatusFilter(e.target.value)}
+                                    className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                                 >
-                                    {woLoading ? "Refreshing…" : "Refresh"}
-                                </button>
-                            </div>
+                                    <option value="all">All Statuses</option>
+                                    <option value="assigned">Assigned</option>
+                                    <option value="in_progress">In Progress</option>
+                                    <option value="needs_redo">Needs Redo</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="verified">Verified</option>
+                                </select>
 
-                            {/* KPI Strip - Moved out of the list card container */}
-                            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                                {[
-                                    { label: "Active", value: kpiActive, color: "text-foreground" },
-                                    { label: "Needs Redo", value: kpiNeedsRedo, color: "text-red-400" },
-                                    { label: "At Risk", value: kpiAtRisk, color: "text-yellow-400" },
-                                    { label: "Breached SLA", value: kpiBreached, color: "text-red-500" },
-                                    { label: woKpiWindow === "week" ? "Resolved (7d)" : woKpiWindow === "month" ? "Resolved (30d)" : "Resolved (All)", value: kpiResolved, color: "text-green-400" },
-                                ].map(kpi => (
-                                    <div key={kpi.label} className="bg-card border border-border shadow-sm rounded-xl p-4 text-center flex flex-col justify-center">
-                                        <div className={`text-2xl font-black ${kpi.color}`}>{kpi.value}</div>
-                                        <div className="text-[11px] text-foreground/50 mt-1 font-medium tracking-widest uppercase">{kpi.label}</div>
-                                    </div>
-                                ))}
-                            </div>
+                                <select
+                                    value={woPriorityFilter}
+                                    onChange={e => setWoPriorityFilter(e.target.value)}
+                                    className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                                >
+                                    <option value="all">All Priorities</option>
+                                    <option value="high">High</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="low">Low</option>
+                                </select>
 
-                            {/* Main List Card Container */}
-                            <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col">
-                                {/* Action Toolbar */}
-                                <div className="p-4 border-b border-border flex flex-wrap gap-3 items-center justify-between bg-foreground/[0.02]">
-                                    <div className="flex flex-wrap gap-3 items-center flex-1">
-                                        <div className="relative min-w-[200px]">
-                                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" />
-                                            <input
-                                                value={woSearch}
-                                                onChange={e => setWoSearch(e.target.value)}
-                                                placeholder="Search tracking ID or cleaner…"
-                                                className="w-full pl-8 pr-3 py-2 bg-background rounded-lg text-sm text-foreground placeholder:text-foreground/30 border border-border focus:outline-none focus:border-primary/50"
-                                            />
-                                        </div>
-                                        <div className="h-6 w-px bg-border mx-1 hidden sm:block"></div>
-                                        <select
-                                            value={woStatusFilter}
-                                            onChange={e => setWoStatusFilter(e.target.value)}
-                                            className="bg-background border border-border rounded-lg px-3 py-2 text-sm font-medium text-foreground focus:outline-none focus:border-primary/50"
-                                        >
-                                            <option value="all">All Statuses</option>
-                                            <option value="assigned">Assigned</option>
-                                            <option value="in_progress">In Progress</option>
-                                            <option value="needs_redo">Needs Redo</option>
-                                            <option value="completed">Completed</option>
-                                            <option value="verified">Verified</option>
-                                        </select>
-                                        <select
-                                            value={woPriorityFilter}
-                                            onChange={e => setWoPriorityFilter(e.target.value)}
-                                            className="bg-background border border-border rounded-lg px-3 py-2 text-sm font-medium text-foreground focus:outline-none focus:border-primary/50"
-                                        >
-                                            <option value="all">All Priorities</option>
-                                            <option value="high">High</option>
-                                            <option value="medium">Medium</option>
-                                            <option value="low">Low</option>
-                                        </select>
-                                        <select
-                                            value={woCleanerFilter ?? ""}
-                                            onChange={e => setWoCleanerFilter(e.target.value ? Number(e.target.value) : null)}
-                                            className="bg-background border border-border rounded-lg px-3 py-2 text-sm font-medium text-foreground focus:outline-none focus:border-primary/50"
-                                        >
-                                            <option value="">All Cleaners</option>
-                                            {activeCleaners.map((c: any) => (
-                                                <option key={c.id} value={c.id}>{c.full_name}</option>
-                                            ))}
-                                        </select>
-                                        <select
-                                            value={woSort}
-                                            onChange={e => setWoSort(e.target.value as any)}
-                                            className="bg-background border border-border rounded-lg px-3 py-2 text-sm font-medium text-foreground focus:outline-none focus:border-primary/50"
-                                        >
-                                            <option value="newest">Newest First</option>
-                                            <option value="oldest">Oldest First</option>
-                                        </select>
+                                <select
+                                    value={woCleanerFilter ?? ""}
+                                    onChange={e => setWoCleanerFilter(e.target.value ? Number(e.target.value) : null)}
+                                    className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                                >
+                                    <option value="">All Cleaners</option>
+                                    {activeCleaners.map((c: any) => (
+                                        <option key={c.id} value={c.id}>{c.full_name}</option>
+                                    ))}
+                                </select>
+
+                                <div className="flex bg-muted/50 border border-border rounded-lg overflow-hidden">
+                                    {(["week", "month", "all"] as const).map(w => (
                                         <button
-                                            onClick={() => setWoSlaRiskOnly(!woSlaRiskOnly)}
-                                            className={`px-3 py-2 rounded-lg text-xs font-bold border transition-colors ${woSlaRiskOnly ? "bg-red-500/20 border-red-500/50 text-red-400" : "bg-background border-border text-foreground/50 hover:text-foreground"}`}
+                                            key={w}
+                                            onClick={() => setWoKpiWindow(w)}
+                                            className={`px-3 py-1.5 text-xs font-semibold transition-colors ${woKpiWindow === w ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                                         >
-                                            SLA Risk Only
+                                            {w === "week" ? "7d" : w === "month" ? "30d" : "All"}
                                         </button>
-                                        {(woStatusFilter !== "all" || woPriorityFilter !== "all" || woCleanerFilter || woSlaRiskOnly || woSearch || woSort !== "newest") && (
-                                            <button
-                                                onClick={() => { setWoStatusFilter("all"); setWoPriorityFilter("all"); setWoCleanerFilter(null); setWoSlaRiskOnly(false); setWoSearch(""); setWoSort("newest"); }}
-                                                className="flex items-center gap-1 px-3 py-2 text-xs font-bold text-foreground/50 hover:text-foreground transition-colors"
-                                            >
-                                                <RefreshCw size={12} /> Clear
-                                            </button>
-                                        )}
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex items-center bg-background border border-border rounded-lg p-1">
-                                            <button onClick={() => setWoViewMode("table")} className={`p-1.5 rounded-md transition-colors ${woViewMode === "table" ? "bg-primary/10 text-primary" : "text-foreground/40 hover:text-foreground"}`}>
-                                                <List size={16} />
-                                            </button>
-                                            <button onClick={() => setWoViewMode("card")} className={`p-1.5 rounded-md transition-colors ${woViewMode === "card" ? "bg-primary/10 text-primary" : "text-foreground/40 hover:text-foreground"}`}>
-                                                <LayoutGrid size={16} />
-                                            </button>
-                                        </div>
-                                        <button onClick={handleExportWorkordersCSV} className="flex items-center gap-2 px-4 py-2 bg-background border border-border text-foreground text-sm font-bold rounded-lg hover:bg-muted transition-colors">
-                                            <Download size={14} /> Export
-                                        </button>
-                                    </div>
+                                    ))}
                                 </div>
 
-                                {/* Data Grid */}
-                                <div className="flex-1 min-h-[400px]">
-                                    {woLoading ? (
-                                        <div className="p-12 text-center h-full flex flex-col items-center justify-center">
-                                            <div className="inline-block w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
-                                            <p className="text-foreground/50 text-sm">Loading work orders…</p>
-                                        </div>
-                                    ) : woError ? (
-                                        <div className="p-12 text-center h-full flex flex-col items-center justify-center">
-                                            <p className="text-red-400 text-sm mb-3">{woError}</p>
-                                            <button onClick={fetchWorkOrders} className="px-4 py-2 bg-background border border-border text-foreground/70 text-xs font-bold rounded-lg hover:bg-foreground/10 transition-colors">
-                                                Retry
-                                            </button>
-                                        </div>
-                                    ) : filtered.length === 0 ? (
-                                        <div className="p-12 text-center h-full flex flex-col items-center justify-center">
-                                            <ClipboardList size={32} className="text-foreground/20 mx-auto mb-3" />
-                                            <p className="text-foreground/50 text-sm">
-                                                {workOrders.length === 0 ? "No work orders yet. Deploy a verified report to create one." : "No work orders match these filters."}
-                                            </p>
-                                        </div>
-                                    ) : woViewMode === "table" ? (
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full">
-                                                <thead>
-                                                    <tr className="border-b border-border text-sm font-medium text-muted-foreground bg-foreground/[0.02]">
-                                                        <th className="p-4 text-left whitespace-nowrap">Tracking ID</th>
-                                                        <th className="p-4 text-left whitespace-nowrap">Cleaner</th>
-                                                        <th className="p-4 text-left whitespace-nowrap">Priority</th>
-                                                        <th className="p-4 text-left whitespace-nowrap">Status</th>
-                                                        <th className="p-4 text-left whitespace-nowrap">SLA Deadline</th>
-                                                        <th className="p-4 text-left whitespace-nowrap">
-                                                            <div className="inline-flex items-center gap-1">
-                                                                <span>Time Left</span>
-                                                                <span
-                                                                    ref={slaTooltipAnchorRef}
-                                                                    onMouseEnter={() => {
-                                                                        const rect = slaTooltipAnchorRef.current?.getBoundingClientRect();
-                                                                        if (rect) setSlaTooltipPos({ top: rect.bottom + 8, left: Math.max(8, rect.left - 240) });
-                                                                        setShowSlaTooltip(true);
-                                                                    }}
-                                                                    onMouseLeave={() => setShowSlaTooltip(false)}
-                                                                    className="cursor-help text-foreground/30 hover:text-primary transition-colors text-sm select-none"
-                                                                >ⓘ</span>
-                                                            </div>
-                                                        </th>
-                                                        <th className="p-4 text-left whitespace-nowrap">Created</th>
-                                                        <th className="p-4"></th>
+                                <button
+                                    onClick={() => setWoSlaRiskOnly(!woSlaRiskOnly)}
+                                    className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${woSlaRiskOnly ? "bg-destructive/10 border-destructive/20 text-destructive" : "bg-background border-border text-muted-foreground hover:text-foreground"}`}
+                                >
+                                    SLA Risk Only
+                                </button>
+
+                                {(woStatusFilter !== "all" || woPriorityFilter !== "all" || woCleanerFilter || woSlaRiskOnly || woSearch || woSort !== "newest") && (
+                                    <button
+                                        onClick={() => { setWoStatusFilter("all"); setWoPriorityFilter("all"); setWoCleanerFilter(null); setWoSlaRiskOnly(false); setWoSearch(""); setWoSort("newest"); }}
+                                        className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                                    >
+                                        <RefreshCw size={12} /> Clear
+                                    </button>
+                                )}
+
+                                <div className="flex-1" />
+
+                                <select
+                                    value={woSort}
+                                    onChange={e => setWoSort(e.target.value as any)}
+                                    className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                                >
+                                    <option value="newest">Sort: Newest First</option>
+                                    <option value="oldest">Sort: Oldest First</option>
+                                </select>
+
+                                <div className="flex bg-muted/50 border border-border rounded-lg overflow-hidden">
+                                    <button
+                                        onClick={() => setWoViewMode("card")}
+                                        title="Card view"
+                                        className={`px-3 py-2 transition-colors ${woViewMode === "card" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                                    >
+                                        <LayoutGrid size={15} />
+                                    </button>
+                                    <button
+                                        onClick={() => setWoViewMode("table")}
+                                        title="Table view"
+                                        className={`px-3 py-2 transition-colors ${woViewMode === "table" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                                    >
+                                        <List size={15} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Main View Area */}
+                            {woViewMode === "table" ? (
+                                <div className="bg-card rounded-xl border border-border flex flex-col overflow-hidden animate-slide-up shadow-sm">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr className="border-b border-border text-xs text-muted-foreground font-medium bg-muted/20">
+                                                    <th className="p-4">Tracking ID</th>
+                                                    <th className="p-4">Cleaner</th>
+                                                    <th className="p-4">Priority</th>
+                                                    <th className="p-4">Status</th>
+                                                    <th className="p-4">SLA Deadline</th>
+                                                    <th className="p-4">
+                                                        <div className="inline-flex items-center gap-1">
+                                                            <span>Time Left</span>
+                                                            <span
+                                                                ref={slaTooltipAnchorRef}
+                                                                onMouseEnter={() => {
+                                                                    const rect = slaTooltipAnchorRef.current?.getBoundingClientRect();
+                                                                    if (rect) setSlaTooltipPos({ top: rect.bottom + 8, left: Math.max(8, rect.left - 240) });
+                                                                    setShowSlaTooltip(true);
+                                                                }}
+                                                                onMouseLeave={() => setShowSlaTooltip(false)}
+                                                                className="cursor-help text-foreground/30 hover:text-primary transition-colors text-sm select-none"
+                                                            >ⓘ</span>
+                                                        </div>
+                                                    </th>
+                                                    <th className="p-4">Created</th>
+                                                    <th className="p-4 text-right">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {woLoading ? (
+                                                    Array.from({ length: 5 }).map((_, i) => (
+                                                        <tr key={i} className="border-b border-border">
+                                                            {Array.from({ length: 8 }).map((__, j) => (
+                                                                <td key={j} className="p-4"><div className="h-4 bg-muted rounded animate-pulse" /></td>
+                                                            ))}
+                                                        </tr>
+                                                    ))
+                                                ) : paginatedWo.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan={8} className="p-12 text-center text-muted-foreground font-medium">No work orders match the current filters.</td>
                                                     </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {paginatedWo.map(wo => {
+                                                ) : (
+                                                    paginatedWo.map(wo => {
                                                         const slaColor = slaDeadlineColor(wo.sla_deadline);
                                                         const slaLabel = slaDeadlineLabel(wo.sla_deadline);
                                                         return (
-                                                            <tr key={wo.id} className="border-b border-border hover:bg-foreground/5 transition-colors">
-                                                                <td className="p-4 font-mono text-sm font-bold text-foreground">{wo.report_tracking_id}</td>
-                                                                <td className="p-4 text-sm text-foreground/80">{wo.assigned_cleaner_name}</td>
+                                                            <tr key={wo.id} className="border-b border-border hover:bg-muted/50 transition-colors">
+                                                                <td className="p-4 font-mono text-sm font-medium text-foreground">{wo.report_tracking_id}</td>
+                                                                <td className="p-4 text-sm text-muted-foreground">{wo.assigned_cleaner_name}</td>
                                                                 <td className="p-4">
-                                                                    <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${PRIORITY_PILL[wo.priority] || "bg-foreground/10 text-foreground"}`}>
+                                                                    <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${PRIORITY_PILL[wo.priority] || "bg-muted text-foreground border border-border"}`}>
                                                                         {wo.priority}
                                                                     </span>
                                                                 </td>
                                                                 <td className="p-4">
-                                                                    <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${STATUS_PILL[wo.status] || "bg-foreground/10 text-foreground"}`}>
+                                                                    <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${STATUS_PILL[wo.status] || "bg-muted text-foreground border border-border"}`}>
                                                                         {STATUS_LABEL[wo.status] || wo.status}
                                                                     </span>
                                                                 </td>
-                                                                <td className="p-4 text-sm text-foreground/70">
+                                                                <td className="p-4 text-sm text-muted-foreground">
                                                                     {wo.sla_deadline ? formatDate(wo.sla_deadline) : "—"}
                                                                 </td>
                                                                 <td className="p-4">
@@ -1162,98 +1176,73 @@ function BarangayPortalInner() {
                                                                         <span className={`px-2 py-1 rounded-md text-[11px] font-bold ${SLA_PILL_CLASSES[slaColor]}`}>
                                                                             {slaLabel}
                                                                         </span>
-                                                                    ) : <span className="text-foreground/30 text-sm">—</span>}
+                                                                    ) : <span className="text-muted-foreground text-sm">—</span>}
                                                                 </td>
-                                                                <td className="p-4 text-sm text-foreground/50">
+                                                                <td className="p-4 text-sm text-muted-foreground">
                                                                     {wo.created_at ? formatDate(wo.created_at) : "—"}
                                                                 </td>
                                                                 <td className="p-4 text-right">
                                                                     <button
                                                                         onClick={() => { setSelectedWorkOrder(wo); setNewWoPriority(wo.priority); }}
-                                                                        className="px-4 py-2 bg-background border border-border text-foreground text-sm font-medium rounded-lg hover:bg-muted transition-colors"
+                                                                        className="px-3 py-1.5 bg-background border border-border text-foreground text-xs font-medium rounded-lg hover:bg-muted transition-colors"
                                                                     >
-                                                                        View
+                                                                        Manage
                                                                     </button>
                                                                 </td>
                                                             </tr>
                                                         );
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                                    })
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-slide-up">
+                                    {woLoading ? (
+                                        Array.from({ length: 8 }).map((_, i) => (
+                                            <div key={i} className="h-40 bg-card rounded-xl border border-border animate-pulse" />
+                                        ))
+                                    ) : paginatedWo.length === 0 ? (
+                                        <div className="col-span-full py-12 text-center text-muted-foreground font-medium">No work orders match the current filters.</div>
                                     ) : (
-                                        <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                            {paginatedWo.map(wo => {
-                                                const slaColor = slaDeadlineColor(wo.sla_deadline);
-                                                const slaLabel = slaDeadlineLabel(wo.sla_deadline);
-                                                return (
-                                                    <div key={wo.id} className="bg-background border border-border rounded-xl p-4 flex flex-col gap-3 hover:border-primary/30 transition-colors shadow-sm">
-                                                        <div className="flex items-start justify-between">
-                                                            <div className="font-mono text-sm font-bold text-foreground">{wo.report_tracking_id}</div>
-                                                            <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${STATUS_PILL[wo.status] || "bg-foreground/10 text-foreground"}`}>
-                                                                {STATUS_LABEL[wo.status] || wo.status}
-                                                            </span>
-                                                        </div>
-                                                        <div className="flex-1 flex flex-col justify-center">
-                                                            <div className="text-sm text-foreground/80 font-medium">{wo.assigned_cleaner_name}</div>
-                                                            <div className="text-xs text-foreground/50 mt-1">Priority: <span className={`font-bold ${PRIORITY_PILL[wo.priority]?.split(" ")[1]}`}>{wo.priority}</span></div>
-                                                        </div>
-                                                        <div className="text-xs text-foreground/50 flex flex-col gap-1">
-                                                            <div className="flex justify-between items-center">
-                                                                <span>SLA:</span>
-                                                                {wo.sla_deadline ? (
-                                                                    <span className={`px-2 py-1 rounded-md text-[10px] font-bold ${SLA_PILL_CLASSES[slaColor]}`}>
-                                                                        {slaLabel}
-                                                                    </span>
-                                                                ) : <span>—</span>}
-                                                            </div>
-                                                            <div className="flex justify-between items-center">
-                                                                <span>Created:</span>
-                                                                <span>{wo.created_at ? formatDate(wo.created_at) : "—"}</span>
-                                                            </div>
-                                                        </div>
-                                                        <button
-                                                            onClick={() => { setSelectedWorkOrder(wo); setNewWoPriority(wo.priority); }}
-                                                            className="w-full py-2 bg-foreground/[0.03] hover:bg-foreground/[0.08] text-foreground text-sm font-bold rounded-lg transition-colors border border-border"
-                                                        >
-                                                            View Details
-                                                        </button>
+                                        paginatedWo.map(wo => {
+                                            const slaColor = slaDeadlineColor(wo.sla_deadline);
+                                            const slaLabel = slaDeadlineLabel(wo.sla_deadline);
+                                            return (
+                                                <div key={wo.id} onClick={() => { setSelectedWorkOrder(wo); setNewWoPriority(wo.priority); }} className="bg-card rounded-xl border border-border p-4 hover:shadow-md hover:border-primary/50 transition-all cursor-pointer flex flex-col gap-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="font-mono text-sm font-bold text-foreground">{wo.report_tracking_id}</div>
+                                                        <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${STATUS_PILL[wo.status] || "bg-muted text-foreground"}`}>
+                                                            {STATUS_LABEL[wo.status] || wo.status}
+                                                        </span>
                                                     </div>
-                                                );
-                                            })}
-                                        </div>
+                                                    <div className="text-sm font-medium text-foreground">{wo.assigned_cleaner_name || "Unassigned"}</div>
+                                                    <div className="flex justify-between items-center text-xs text-muted-foreground mt-auto">
+                                                        <span>Priority: <span className="font-bold text-foreground capitalize">{wo.priority}</span></span>
+                                                        {wo.sla_deadline ? (
+                                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${SLA_PILL_CLASSES[slaColor]}`}>{slaLabel}</span>
+                                                        ) : <span>—</span>}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
                                     )}
                                 </div>
-                                
-                                {/* Pagination Footer */}
-                                {filtered.length > 0 && (
-                                    <div className="p-4 border-t border-border flex items-center justify-between bg-foreground/[0.02]">
-                                        <p className="text-xs text-foreground/50 font-medium">
-                                            Showing {((woPage - 1) * WO_PAGE_SIZE) + 1} to {Math.min(woPage * WO_PAGE_SIZE, filtered.length)} of {filtered.length} work orders
-                                        </p>
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                onClick={() => setWoPage(p => Math.max(1, p - 1))}
-                                                disabled={woPage === 1}
-                                                className="px-3 py-1.5 bg-background border border-border text-foreground text-xs font-medium rounded-lg hover:bg-muted transition-colors disabled:opacity-50 disabled:pointer-events-none"
-                                            >
-                                                Previous
-                                            </button>
-                                            <span className="text-xs font-bold text-foreground mx-2">
-                                                Page {woPage} of {woTotalPages}
-                                            </span>
-                                            <button
-                                                onClick={() => setWoPage(p => Math.min(woTotalPages, p + 1))}
-                                                disabled={woPage === woTotalPages}
-                                                className="px-3 py-1.5 bg-background border border-border text-foreground text-xs font-medium rounded-lg hover:bg-muted transition-colors disabled:opacity-50 disabled:pointer-events-none"
-                                            >
-                                                Next
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
+                            )}
 
+                            {/* Pagination Controls */}
+                            {woTotalPages > 1 && (
+                                <div className="flex items-center justify-between bg-card p-4 rounded-xl border border-border shadow-sm shrink-0 mt-auto">
+                                    <span className="text-xs text-muted-foreground font-medium">
+                                        Page {woPage} of {woTotalPages} ({filtered.length} total)
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <button disabled={woPage === 1} onClick={() => setWoPage(p => p - 1)} className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted disabled:opacity-50 transition-colors text-foreground">Previous</button>
+                                        <button disabled={woPage === woTotalPages} onClick={() => setWoPage(p => p + 1)} className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted disabled:opacity-50 transition-colors text-foreground">Next</button>
+                                    </div>
+                                </div>
+                            )}
                             {/* SLA Tooltip — fixed so it escapes overflow containers */}
                             {showSlaTooltip && (
                                 <div
@@ -1512,90 +1501,82 @@ function BarangayPortalInner() {
                     const kpiDisabled = barangayUsers.filter(u => !u.is_active).length;
 
                     return (
-                        <div className="flex flex-col gap-5 animate-slide-up" onClick={() => userActionsMenu !== null && setUserActionsMenu(null)}>
+                        <div className="flex flex-col gap-6 flex-1 min-h-0 animate-slide-up pb-8 w-full shrink-0" onClick={() => userActionsMenu !== null && setUserActionsMenu(null)}>
                             {/* Header */}
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-start justify-between gap-4 flex-wrap shrink-0">
                                 <div>
-                                    <h1 className="text-2xl font-bold text-foreground tracking-tight">Cleaner <span className="text-primary">Accounts</span></h1>
-                                    <p className="text-foreground/50 text-sm mt-1">{barangayUsers.length} cleaner{barangayUsers.length !== 1 ? 's' : ''} &middot; {user.barangay_assignment}</p>
+                                    <h1 className="text-2xl font-bold text-foreground tracking-tight">Cleaner Accounts</h1>
+                                    <p className="text-sm text-foreground/50 mt-1">Manage accounts for your barangay's cleanup team.</p>
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    <button onClick={(e) => { e.stopPropagation(); setShowCreateCleanerModal(true); }} className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium rounded-lg transition-colors">
+                                <div className="flex gap-2">
+                                    <button onClick={(e) => { e.stopPropagation(); setShowCreateCleanerModal(true); }} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors shadow-sm">
                                         <Plus size={14} /> Create Cleaner
+                                    </button>
+                                    <button onClick={(e) => { e.stopPropagation(); handleExportCleanersCSV(); }} className="flex items-center gap-2 px-4 py-2 bg-muted/50 border border-border text-foreground text-sm font-medium rounded-lg hover:bg-muted transition-colors">
+                                        <FileDown size={14} /> Export CSV
                                     </button>
                                 </div>
                             </div>
 
                             {/* KPI Grid */}
-                            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                                <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col justify-center text-center">
-                                    <div className="text-sm font-medium text-muted-foreground mb-1">Total Cleaners</div>
-                                    <div className="text-3xl font-black text-foreground">{kpiTotal}</div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
+                                <KpiCard
+                                    label="Total Cleaners"
+                                    value={kpiTotal}
+                                    icon={<BookUser size={22} />}
+                                    tone="blue"
+                                />
+                                <KpiCard
+                                    label="Active Accounts"
+                                    value={kpiActive}
+                                    icon={<UserCheck size={22} />}
+                                    tone="emerald"
+                                />
+                                <KpiCard
+                                    label="Disabled Accounts"
+                                    value={kpiDisabled}
+                                    icon={<UserX size={22} />}
+                                    tone="red"
+                                />
+                            </div>
+
+                            {/* Toolbar */}
+                            <div className="flex flex-wrap items-center gap-3 shrink-0">
+                                <div className="relative flex-1 min-w-[200px] max-w-xs">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
+                                    <input type="text" value={userSearch} onChange={e => setUserSearch(e.target.value)} placeholder="Search name or email..." className="w-full pl-9 pr-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" />
                                 </div>
-                                <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col justify-center text-center">
-                                    <div className="text-sm font-medium text-emerald-500/80 mb-1">Active Accounts</div>
-                                    <div className="text-3xl font-black text-emerald-500">{kpiActive}</div>
-                                </div>
-                                <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col justify-center text-center">
-                                    <div className="text-sm font-medium text-red-500/80 mb-1">Disabled Accounts</div>
-                                    <div className="text-3xl font-black text-red-500">{kpiDisabled}</div>
+                                <select value={userStatusFilter} onChange={e => setUserStatusFilter(e.target.value)} className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+                                    <option value="all">All Statuses</option>
+                                    <option value="active">Active</option>
+                                    <option value="disabled">Disabled</option>
+                                </select>
+                                {(userStatusFilter !== "all" || userSearch) && (
+                                    <button
+                                        onClick={() => { setUserStatusFilter("all"); setUserSearch(""); }}
+                                        className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                                    >
+                                        <RefreshCw size={12} /> Clear
+                                    </button>
+                                )}
+                                <div className="flex-1" />
+                                <div className="flex bg-muted/50 border border-border rounded-lg overflow-hidden">
+                                    <button onClick={() => setUserViewMode("card")} className={`px-3 py-2 transition-colors ${userViewMode === "card" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+                                        <LayoutGrid size={15} />
+                                    </button>
+                                    <button onClick={() => setUserViewMode("table")} className={`px-3 py-2 transition-colors ${userViewMode === "table" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+                                        <List size={15} />
+                                    </button>
                                 </div>
                             </div>
 
-                            {/* Main List Card Container */}
-                            <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col flex-1 min-h-[500px]">
-                                {/* Action Toolbar */}
-                                <div className="p-4 border-b border-border flex flex-wrap gap-3 items-center justify-between bg-foreground/[0.02]">
-                                    <div className="flex flex-wrap gap-3 items-center flex-1">
-                                        <div className="relative min-w-[200px]">
-                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
-                                            <input type="text" value={userSearch} onChange={e => { setUserSearch(e.target.value); setUserPage(1); }} placeholder="Search name or email..." className="w-full pl-8 pr-3 py-2 rounded-lg bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none" />
-                                        </div>
-                                        <select value={userStatusFilter} onChange={e => { setUserStatusFilter(e.target.value); setUserPage(1); }} className="px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm font-medium focus:border-primary/50 focus:outline-none">
-                                            <option value="all">All Statuses</option>
-                                            <option value="active">Active</option>
-                                            <option value="disabled">Disabled</option>
-                                        </select>
-                                        {(userStatusFilter !== "all" || userSearch) && (
-                                            <button
-                                                onClick={() => { setUserStatusFilter("all"); setUserSearch(""); setUserPage(1); }}
-                                                className="flex items-center gap-1 px-3 py-2 text-xs font-bold text-foreground/50 hover:text-foreground transition-colors"
-                                            >
-                                                <RefreshCw size={12} /> Clear
-                                            </button>
-                                        )}
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex items-center bg-background border border-border rounded-lg p-1">
-                                            <button onClick={() => setUserViewMode("table")} className={`p-1.5 rounded-md transition-colors ${userViewMode === "table" ? "bg-primary/10 text-primary" : "text-foreground/40 hover:text-foreground"}`}>
-                                                <List size={16} />
-                                            </button>
-                                            <button onClick={() => setUserViewMode("card")} className={`p-1.5 rounded-md transition-colors ${userViewMode === "card" ? "bg-primary/10 text-primary" : "text-foreground/40 hover:text-foreground"}`}>
-                                                <LayoutGrid size={16} />
-                                            </button>
-                                        </div>
-                                        <button onClick={(e) => { e.stopPropagation(); handleExportCleanersCSV(); }} className="flex items-center gap-2 px-4 py-2 bg-background border border-border text-foreground text-sm font-bold rounded-lg hover:bg-muted transition-colors">
-                                            <Download size={14} /> Export
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Table */}
-                                <div className="flex-1 overflow-auto">
-                                    {userLoading ? (
-                                        <div className="p-12 text-center h-full flex flex-col items-center justify-center">
-                                            <div className="inline-block w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
-                                            <p className="text-foreground/50 text-sm">Loading accounts...</p>
-                                        </div>
-                                    ) : paged.length === 0 ? (
-                                        <div className="p-12 text-center h-full flex flex-col items-center justify-center">
-                                            <ClipboardList size={32} className="text-foreground/20 mx-auto mb-3" />
-                                            <p className="text-foreground/50 text-sm font-medium">No cleaners found.</p>
-                                        </div>
-                                    ) : userViewMode === "table" ? (
+                            {/* Main View Area */}
+                            {userViewMode === "table" ? (
+                                <div className="bg-card rounded-xl border border-border flex flex-col overflow-hidden animate-slide-up shadow-sm">
+                                    <div className="overflow-x-auto">
                                         <table className="w-full text-left border-collapse">
                                             <thead>
-                                                <tr className="border-b border-border text-sm font-medium text-muted-foreground bg-foreground/[0.02] sticky top-0 z-10">
+                                                <tr className="border-b border-border text-xs text-muted-foreground font-medium bg-muted/20">
                                                     <th className="px-5 py-3">Full Name</th>
                                                     <th className="px-5 py-3">Email</th>
                                                     <th className="px-5 py-3">Phone</th>
@@ -1605,144 +1586,149 @@ function BarangayPortalInner() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {paged.map(u => (
-                                                    <tr key={u.id} className="border-b border-border hover:bg-foreground/5 transition-colors">
-                                                        <td className="px-5 py-3">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-[11px] font-bold text-blue-300 shrink-0">
-                                                                    {getInitials(u.full_name)}
-                                                                </div>
-                                                                <span className="text-sm font-semibold text-foreground">{u.full_name}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-5 py-3 text-sm text-foreground/70 font-mono">{u.email}</td>
-                                                        <td className="px-5 py-3 text-sm text-foreground/60">{u.phone_number ?? <span className="text-foreground/30">--</span>}</td>
-                                                        <td className="px-5 py-3">
-                                                            <div className="flex items-center gap-1.5">
-                                                                <span className={"w-1.5 h-1.5 rounded-full shrink-0 " + (u.is_active ? "bg-emerald-400" : "bg-red-400")} />
-                                                                <span className={"px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider " + (u.is_active ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400")}>
-                                                                    {u.is_active ? "Active" : "Disabled"}
-                                                                </span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-5 py-3 text-sm text-foreground/50">{fmtLogin(u.last_login_at)}</td>
-                                                        <td className="px-5 py-3 text-right">
-                                                            <div className="relative inline-block" onClick={e => e.stopPropagation()}>
-                                                                <button onClick={() => setUserActionsMenu(userActionsMenu === u.id ? null : u.id)} className="p-2 rounded-lg hover:bg-foreground/10 text-foreground/50 hover:text-foreground transition-colors">
-                                                                    <MoreVertical size={16} />
-                                                                </button>
-                                                                {userActionsMenu === u.id && (
-                                                                    <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-xl shadow-sm z-50 overflow-hidden">
-                                                                        <button onClick={() => openEditCleaner(u)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors text-left">
-                                                                            <Edit2 size={14} className="text-muted-foreground" /> Edit Account
-                                                                        </button>
-                                                                        <button onClick={() => openResetPasswordBrgy(u)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors text-left">
-                                                                            <Key size={14} className="text-muted-foreground" /> Reset Password
-                                                                        </button>
-                                                                        <div className="border-t border-border" />
-                                                                        {u.is_active ? (
-                                                                            <button onClick={() => { setUserActionsMenu(null); handleDisableBrgyUser(u.id); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors text-left">
-                                                                                <UserX size={14} /> Disable Account
-                                                                            </button>
-                                                                        ) : (
-                                                                            <button onClick={() => { setUserActionsMenu(null); handleReactivateBrgyUser(u.id); }} disabled={reactivating.has(u.id)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-emerald-500 hover:bg-emerald-500/10 transition-colors text-left disabled:opacity-50">
-                                                                                <UserCheck size={14} /> {reactivating.has(u.id) ? "Reactivating..." : "Reactivate"}
-                                                                            </button>
-                                                                        )}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </td>
+                                                {userLoading ? (
+                                                    Array.from({ length: 5 }).map((_, i) => (
+                                                        <tr key={i} className="border-b border-border">
+                                                            {Array.from({ length: 6 }).map((__, j) => (
+                                                                <td key={j} className="p-4"><div className="h-4 bg-muted rounded animate-pulse" /></td>
+                                                            ))}
+                                                        </tr>
+                                                    ))
+                                                ) : paged.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan={6} className="p-12 text-center text-muted-foreground font-medium">No cleaners found.</td>
                                                     </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    ) : (
-                                        <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                            {paged.map(u => (
-                                                <div key={u.id} className="bg-background border border-border rounded-xl p-4 flex flex-col gap-3 hover:border-primary/30 transition-colors shadow-sm">
-                                                    <div className="flex items-start justify-between">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-10 h-10 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-sm font-bold text-blue-300 shrink-0">
-                                                                {getInitials(u.full_name)}
-                                                            </div>
-                                                            <div>
-                                                                <div className="text-sm font-semibold text-foreground">{u.full_name}</div>
-                                                                <div className="text-xs text-foreground/50">{u.phone_number ?? "No phone"}</div>
-                                                            </div>
-                                                        </div>
-                                                        <div className="relative" onClick={e => e.stopPropagation()}>
-                                                            <button onClick={() => setUserActionsMenu(userActionsMenu === u.id ? null : u.id)} className="p-1 rounded-md hover:bg-foreground/10 text-foreground/50 hover:text-foreground transition-colors">
-                                                                <MoreVertical size={16} />
-                                                            </button>
-                                                            {userActionsMenu === u.id && (
-                                                                <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-xl shadow-sm z-50 overflow-hidden">
-                                                                    <button onClick={() => openEditCleaner(u)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors text-left">
-                                                                        <Edit2 size={14} className="text-muted-foreground" /> Edit Account
+                                                ) : (
+                                                    paged.map(u => (
+                                                        <tr key={u.id} className="border-b border-border hover:bg-muted/50 transition-colors">
+                                                            <td className="px-5 py-3">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-[11px] font-bold text-blue-300 shrink-0">
+                                                                        {getInitials(u.full_name)}
+                                                                    </div>
+                                                                    <span className="text-sm font-semibold text-foreground">{u.full_name}</span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-5 py-3 text-sm text-muted-foreground font-mono">{u.email}</td>
+                                                            <td className="px-5 py-3 text-sm text-muted-foreground">{u.phone_number ?? <span className="text-foreground/30">--</span>}</td>
+                                                            <td className="px-5 py-3">
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <span className={"w-1.5 h-1.5 rounded-full shrink-0 " + (u.is_active ? "bg-emerald-400" : "bg-red-400")} />
+                                                                    <span className={"px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider " + (u.is_active ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400")}>
+                                                                        {u.is_active ? "Active" : "Disabled"}
+                                                                    </span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-5 py-3 text-sm text-muted-foreground">{fmtLogin(u.last_login_at)}</td>
+                                                            <td className="px-5 py-3 text-right">
+                                                                <div className="relative inline-block" onClick={e => e.stopPropagation()}>
+                                                                    <button onClick={() => setUserActionsMenu(userActionsMenu === u.id ? null : u.id)} className="p-2 rounded-lg hover:bg-foreground/10 text-foreground/50 hover:text-foreground transition-colors">
+                                                                        <MoreVertical size={16} />
                                                                     </button>
-                                                                    <button onClick={() => openResetPasswordBrgy(u)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors text-left">
-                                                                        <Key size={14} className="text-muted-foreground" /> Reset Password
-                                                                    </button>
-                                                                    <div className="border-t border-border" />
-                                                                    {u.is_active ? (
-                                                                        <button onClick={() => { setUserActionsMenu(null); handleDisableBrgyUser(u.id); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors text-left">
-                                                                            <UserX size={14} /> Disable Account
-                                                                        </button>
-                                                                    ) : (
-                                                                        <button onClick={() => { setUserActionsMenu(null); handleReactivateBrgyUser(u.id); }} disabled={reactivating.has(u.id)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-emerald-500 hover:bg-emerald-500/10 transition-colors text-left disabled:opacity-50">
-                                                                            <UserCheck size={14} /> {reactivating.has(u.id) ? "Reactivating..." : "Reactivate"}
-                                                                        </button>
+                                                                    {userActionsMenu === u.id && (
+                                                                        <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-xl shadow-sm z-50 overflow-hidden">
+                                                                            <button onClick={() => openEditCleaner(u)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors text-left">
+                                                                                <Edit2 size={14} className="text-muted-foreground" /> Edit Account
+                                                                            </button>
+                                                                            <button onClick={() => openResetPasswordBrgy(u)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors text-left">
+                                                                                <Key size={14} className="text-muted-foreground" /> Reset Password
+                                                                            </button>
+                                                                            <div className="border-t border-border" />
+                                                                            {u.is_active ? (
+                                                                                <button onClick={() => { setUserActionsMenu(null); handleDisableBrgyUser(u.id); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors text-left">
+                                                                                    <UserX size={14} /> Disable Account
+                                                                                </button>
+                                                                            ) : (
+                                                                                <button onClick={() => { setUserActionsMenu(null); handleReactivateBrgyUser(u.id); }} disabled={reactivating.has(u.id)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-emerald-500 hover:bg-emerald-500/10 transition-colors text-left disabled:opacity-50">
+                                                                                    <UserCheck size={14} /> {reactivating.has(u.id) ? "Reactivating..." : "Reactivate"}
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
                                                                     )}
                                                                 </div>
-                                                            )}
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-slide-up">
+                                    {userLoading ? (
+                                        Array.from({ length: 8 }).map((_, i) => (
+                                            <div key={i} className="h-40 bg-card rounded-xl border border-border animate-pulse" />
+                                        ))
+                                    ) : paged.length === 0 ? (
+                                        <div className="col-span-full py-12 text-center text-muted-foreground font-medium">No cleaners found.</div>
+                                    ) : (
+                                        paged.map(u => (
+                                            <div key={u.id} className="bg-card rounded-xl border border-border p-4 flex flex-col gap-3 hover:shadow-md hover:border-primary/50 transition-all">
+                                                <div className="flex items-start justify-between">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-sm font-bold text-blue-300 shrink-0">
+                                                            {getInitials(u.full_name)}
+                                                        </div>
+                                                        <div>
+                                                            <div className="text-sm font-semibold text-foreground">{u.full_name}</div>
+                                                            <div className="text-xs text-muted-foreground">{u.phone_number ?? "No phone"}</div>
                                                         </div>
                                                     </div>
-                                                    
-                                                    <div className="text-xs text-foreground/70 font-mono break-all">{u.email}</div>
-                                                    
-                                                    <div className="mt-auto flex items-center justify-between pt-3 border-t border-border">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className={"w-1.5 h-1.5 rounded-full shrink-0 " + (u.is_active ? "bg-emerald-400" : "bg-red-400")} />
-                                                            <span className={"text-[10px] font-bold uppercase tracking-wider " + (u.is_active ? "text-emerald-500" : "text-red-500")}>
-                                                                {u.is_active ? "Active" : "Disabled"}
-                                                            </span>
-                                                        </div>
-                                                        <div className="text-xs text-foreground/40">{fmtLogin(u.last_login_at)}</div>
+                                                    <div className="relative" onClick={e => e.stopPropagation()}>
+                                                        <button onClick={() => setUserActionsMenu(userActionsMenu === u.id ? null : u.id)} className="p-1 rounded-md hover:bg-foreground/10 text-foreground/50 hover:text-foreground transition-colors">
+                                                            <MoreVertical size={16} />
+                                                        </button>
+                                                        {userActionsMenu === u.id && (
+                                                            <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-xl shadow-sm z-50 overflow-hidden">
+                                                                <button onClick={() => openEditCleaner(u)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors text-left">
+                                                                    <Edit2 size={14} className="text-muted-foreground" /> Edit Account
+                                                                </button>
+                                                                <button onClick={() => openResetPasswordBrgy(u)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors text-left">
+                                                                    <Key size={14} className="text-muted-foreground" /> Reset Password
+                                                                </button>
+                                                                <div className="border-t border-border" />
+                                                                {u.is_active ? (
+                                                                    <button onClick={() => { setUserActionsMenu(null); handleDisableBrgyUser(u.id); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors text-left">
+                                                                        <UserX size={14} /> Disable Account
+                                                                    </button>
+                                                                ) : (
+                                                                    <button onClick={() => { setUserActionsMenu(null); handleReactivateBrgyUser(u.id); }} disabled={reactivating.has(u.id)} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-emerald-500 hover:bg-emerald-500/10 transition-colors text-left disabled:opacity-50">
+                                                                        <UserCheck size={14} /> {reactivating.has(u.id) ? "Reactivating..." : "Reactivate"}
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
-                                            ))}
-                                        </div>
+                                                <div className="text-xs text-muted-foreground font-mono break-all mt-1">{u.email}</div>
+                                                <div className="mt-auto flex items-center justify-between pt-3 border-t border-border">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className={"w-1.5 h-1.5 rounded-full shrink-0 " + (u.is_active ? "bg-emerald-400" : "bg-red-400")} />
+                                                        <span className={"text-[10px] font-bold uppercase tracking-wider " + (u.is_active ? "text-emerald-500" : "text-red-500")}>
+                                                            {u.is_active ? "Active" : "Disabled"}
+                                                        </span>
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground">{fmtLogin(u.last_login_at)}</div>
+                                                </div>
+                                            </div>
+                                        ))
                                     )}
                                 </div>
-                                
-                                {/* Pagination Footer */}
-                                {filtered.length > 0 && (
-                                    <div className="p-4 border-t border-border flex items-center justify-between bg-foreground/[0.02]">
-                                        <p className="text-xs text-foreground/50 font-medium">
-                                            Showing {((userPage - 1) * USER_PAGE_SIZE) + 1} to {Math.min(userPage * USER_PAGE_SIZE, filtered.length)} of {filtered.length} cleaners
-                                        </p>
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                onClick={() => setUserPage(p => Math.max(1, p - 1))}
-                                                disabled={userPage === 1}
-                                                className="px-3 py-1.5 bg-background border border-border text-foreground text-xs font-medium rounded-lg hover:bg-muted transition-colors disabled:opacity-50 disabled:pointer-events-none"
-                                            >
-                                                Previous
-                                            </button>
-                                            <span className="text-xs font-bold text-foreground mx-2">
-                                                Page {userPage} of {totalPages}
-                                            </span>
-                                            <button
-                                                onClick={() => setUserPage(p => Math.min(totalPages, p + 1))}
-                                                disabled={userPage === totalPages}
-                                                className="px-3 py-1.5 bg-background border border-border text-foreground text-xs font-medium rounded-lg hover:bg-muted transition-colors disabled:opacity-50 disabled:pointer-events-none"
-                                            >
-                                                Next
-                                            </button>
-                                        </div>
+                            )}
+
+                            {/* Pagination Controls */}
+                            {totalPages > 1 && (
+                                <div className="flex items-center justify-between bg-card p-4 rounded-xl border border-border shadow-sm shrink-0 mt-auto">
+                                    <span className="text-xs text-muted-foreground font-medium">
+                                        Page {userPage} of {totalPages} ({filtered.length} total)
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <button disabled={userPage === 1} onClick={() => setUserPage(p => p - 1)} className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted disabled:opacity-50 transition-colors text-foreground">Previous</button>
+                                        <button disabled={userPage === totalPages} onClick={() => setUserPage(p => p + 1)} className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted disabled:opacity-50 transition-colors text-foreground">Next</button>
                                     </div>
-                                )}
-                            </div>
+                                </div>
+                            )}
                         </div>
                     );
                 })()}
