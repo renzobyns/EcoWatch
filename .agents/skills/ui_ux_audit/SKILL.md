@@ -35,6 +35,7 @@ When building or auditing UI, STRICTLY avoid the "AI-generated sci-fi" look. Fol
 - **Spacing:** Use Shadcn's card standard: a header `div` with `p-6 pb-2` and a content `div` with `p-6 pt-0`. If using tighter spaces, use `p-4 pb-2` and `p-4 pt-0`. Avoid massive empty padding.
 - **Accents:** Use vibrant colors sparingly. Restrict them to small badges, icons, or trend indicators. Never apply heavy glowing drop-shadows (`shadow-[0_0_15px_...]`) to text or icons.
 - **Consistent Coloring (No Rainbows):** Avoid coloring arbitrary sections, icons, or KPI cards with distinct distinct colors (blue, yellow, green, red) just to make them look different. Stick to a monochromatic layout utilizing the brand's `primary` color and `muted` backgrounds. Only use semantic status colors (destructive/red, warning/yellow, success/green) for items that strictly convey an active state or alert.
+- **Sticky Table Headers:** When making table headers sticky (`sticky top-0`), ALWAYS use a solid, opaque background (e.g., `bg-card` or `bg-background` matching the parent container) instead of transparent or translucent backgrounds like `bg-foreground/[0.02]` or `bg-muted/30`. Otherwise, the scrolling rows will overlap and show through underneath the header text.
 
 ## 5. Execution & The 3x Test
 - Apply the changes using the file editing tools.

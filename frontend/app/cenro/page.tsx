@@ -1425,7 +1425,7 @@ function CenroDashboardInner() {
                         <div className="flex-1 overflow-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="border-b border-border text-xs text-muted-foreground font-medium tracking-tight bg-foreground/[0.02] sticky top-0 z-10">
+                                    <tr className="border-b border-border text-xs text-muted-foreground font-medium tracking-tight bg-card sticky top-0 z-10">
                                         <th className="p-4">Tracking ID</th>
                                         <th className="p-4">Barangay</th>
                                         <th className="p-4">Status</th>
@@ -1591,7 +1591,7 @@ function CenroDashboardInner() {
                             <div className="flex-1 overflow-auto">
                                 <table className="w-full text-left border-collapse">
                                     <thead>
-                                        <tr className="border-b border-border text-xs text-muted-foreground font-medium tracking-tight bg-foreground/[0.02] sticky top-0 z-10">
+                                        <tr className="border-b border-border text-xs text-muted-foreground font-medium tracking-tight bg-card sticky top-0 z-10">
                                             <th className="p-4 pl-5 w-10"></th>
                                             <th className="p-4">Full Name</th>
                                             <th className="p-4">Email Address</th>
