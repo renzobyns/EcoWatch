@@ -936,6 +936,7 @@ function CenroDashboardInner() {
                 activeKey={activeTab}
                 onNavChange={() => {}}
                 notificationCount={0}
+                scrollable={activeTab !== 'command_center'}
             >
                 <div className="max-w-[1600px] mx-auto h-full flex-1 grid grid-cols-1 lg:grid-cols-[2.5fr_1fr] gap-6 overflow-hidden p-1 pb-4">
                     {/* Left Section Skeleton */}
@@ -1044,6 +1045,7 @@ function CenroDashboardInner() {
                 router.replace('?tab=' + k, { scroll: false });
             }}
             notificationCount={unreadCount}
+            scrollable={activeTab !== 'command_center'}
             actions={activeTab === 'command_center' ? (
                 <button
                     onClick={handleExportAnalytics}

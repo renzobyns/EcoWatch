@@ -26,6 +26,7 @@ interface PortalShellProps {
     onNavChange: (key: string) => void;
     notificationCount?: number;
     actions?: React.ReactNode;
+    scrollable?: boolean;
     children: ReactNode;
 }
 
@@ -39,6 +40,7 @@ export function PortalShell({
     onNavChange,
     notificationCount,
     actions,
+    scrollable = true,
     children,
 }: PortalShellProps) {
     const [collapsed, setCollapsed] = useState(false);
@@ -77,7 +79,7 @@ export function PortalShell({
                         actions={actions}
                     />
                 </div>
-                <main className="relative flex-1 overflow-y-auto px-4 md:px-8 py-6">
+                <main className={`relative flex-1 px-4 md:px-8 py-6 ${scrollable ? "overflow-y-auto" : "overflow-hidden"}`}>
                     {children}
                 </main>
             </div>
