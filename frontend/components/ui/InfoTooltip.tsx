@@ -14,6 +14,8 @@ export interface InfoTooltipProps {
   /** Accessible label for the trigger button. */
   label?: string;
   className?: string;
+  /** Custom class overrides for the popover panel. */
+  panelClassName?: string;
 }
 
 /**
@@ -27,6 +29,7 @@ export function InfoTooltip({
   align = "left",
   label = "More info",
   className,
+  panelClassName,
 }: InfoTooltipProps) {
   return (
     <span className={cn("relative inline-flex group/info align-middle", className)}>
@@ -45,7 +48,8 @@ export function InfoTooltip({
           "group-hover/info:opacity-100 group-hover/info:translate-y-0",
           "group-focus-within/info:opacity-100 group-focus-within/info:translate-y-0",
           side === "bottom" ? "top-full mt-2" : "bottom-full mb-2",
-          align === "left" ? "left-0" : "right-0"
+          align === "left" ? "left-0" : "right-0",
+          panelClassName
         )}
       >
         {children}

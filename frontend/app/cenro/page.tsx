@@ -1076,12 +1076,17 @@ function CenroDashboardInner() {
                                 <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm flex flex-col flex-1 min-h-[200px]">
                                     <div className="p-4 pb-2 shrink-0 flex items-center gap-1.5">
                                         <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Active Hotspots</h3>
-                                        <InfoTooltip side="top" align="left">
-                                            <div className="space-y-1">
+                                        <InfoTooltip side="top" align="left" panelClassName="w-80 md:w-96">
+                                            <div className="space-y-2">
                                                 <div className="font-semibold text-foreground">Active Hotspots (Clusters)</div>
                                                 <div className="text-muted-foreground text-[10px] leading-relaxed">
                                                     Areas with a high concentration of active reports. Our system groups reports located within ~100 meters of each other using DBSCAN to detect critical waste hotspots.
                                                 </div>
+                                                <img 
+                                                    src="/clustered_tooltip.png" 
+                                                    alt="Clustering visualization" 
+                                                    className="w-full h-auto rounded-lg border border-border/40 bg-muted/20 mt-1"
+                                                />
                                             </div>
                                         </InfoTooltip>
                                     </div>
