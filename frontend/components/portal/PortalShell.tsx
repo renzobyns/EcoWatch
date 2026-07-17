@@ -79,7 +79,7 @@ export function PortalShell({
                         actions={actions}
                     />
                 </div>
-                <main className={`relative flex-1 ${scrollable ? "overflow-y-auto" : "overflow-hidden"} ${activeKey === "map_view" || activeKey === "overview" ? "p-0" : "px-4 md:px-8 py-6 md:pb-6"}`}>
+                <main className={`relative flex-1 ${scrollable ? "overflow-y-auto" : "overflow-hidden"} ${activeKey === "map_view" ? "p-0" : "px-4 md:px-8 py-6 md:pb-6"}`}>
                     {children}
                 </main>
 
