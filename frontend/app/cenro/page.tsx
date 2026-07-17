@@ -54,6 +54,13 @@ const SLA_PILL_CLASSES: Record<"green" | "yellow" | "red", string> = {
     red: "bg-red-500/20 text-red-400",
 };
 
+const formatClusterLocation = (barangays?: string[]) => {
+    if (!barangays || barangays.length === 0) return "Unknown location";
+    if (barangays.length === 1) return barangays[0];
+    if (barangays.length === 2) return `Between ${barangays[0]} and ${barangays[1]}`;
+    return `Between ${barangays.slice(0, -1).join(', ')}, and ${barangays[barangays.length - 1]}`;
+};
+
 function useDebounce<T>(value: T, delayMs: number): T {
     const [debounced, setDebounced] = useState(value);
     useEffect(() => {
@@ -1067,20 +1074,31 @@ function CenroDashboardInner() {
                                 </div>
 
                                 <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm flex flex-col flex-1 min-h-[200px]">
-                                    <div className="p-4 pb-2 shrink-0">
+                                    <div className="p-4 pb-2 shrink-0 flex items-center gap-1.5">
                                         <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Active Hotspots</h3>
+                                        <InfoTooltip side="top" align="left">
+                                            <div className="space-y-1">
+                                                <div className="font-semibold text-foreground">Active Hotspots (Clusters)</div>
+                                                <div className="text-muted-foreground text-[10px] leading-relaxed">
+                                                    Areas with a high concentration of active reports. Our system groups reports located within ~100 meters of each other using DBSCAN to detect critical waste hotspots.
+                                                </div>
+                                            </div>
+                                        </InfoTooltip>
                                     </div>
                                     <div className="p-4 pt-0 flex-1 overflow-y-auto space-y-1.5 scrollbar-hide">
                                         {heatmaps.length === 0 ? (
                                             <p className="text-[11px] text-muted-foreground italic">No significant hotspots detected.</p>
                                         ) : (
                                             heatmaps.map((h, i) => (
-                                                <div key={i} className="flex items-center justify-between py-1.5 group border-b border-border last:border-0">
-                                                    <div>
+                                                <div key={i} className="flex items-center justify-between py-2 group border-b border-border last:border-0">
+                                                    <div className="min-w-0 pr-2">
                                                         <div className="text-[13px] font-medium text-foreground">Cluster {h.cluster_id}</div>
-                                                        <div className="text-[9px] text-red-500 font-medium">{h.intensity} Intensity</div>
+                                                        <div className="text-[10px] text-muted-foreground mt-0.5 font-medium leading-tight truncate" title={formatClusterLocation(h.barangays)}>
+                                                            {formatClusterLocation(h.barangays)}
+                                                        </div>
+                                                        <div className="text-[9px] text-red-500 font-semibold mt-1 uppercase tracking-wider">{h.intensity} Intensity</div>
                                                     </div>
-                                                    <div className="text-sm font-bold text-foreground">{h.report_count}</div>
+                                                    <div className="text-xs font-extrabold px-2 py-1 rounded bg-muted text-foreground/80 shrink-0">{h.report_count} reports</div>
                                                 </div>
                                             ))
                                         )}

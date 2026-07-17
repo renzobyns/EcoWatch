@@ -84,18 +84,23 @@ def get_heatmap_clusters(reports, eps=0.001, min_samples=2):
         if label == -1:
             continue
 
-        class_member_mask = (labels == label)
-        cluster_points = coords[class_member_mask]
+        # Get all reports in this cluster
+        cluster_reports = [reports[idx] for idx, l in enumerate(labels) if l == label]
+        
+        # Get unique, sorted list of non-empty barangays
+        cluster_barangays = sorted(list(set(r.barangay for r in cluster_reports if r.barangay)))
 
-        centroid_lat = np.mean(cluster_points[:, 0])
-        centroid_lon = np.mean(cluster_points[:, 1])
+        centroid_lat = np.mean([r.lat for r in cluster_reports])
+        centroid_lon = np.mean([r.lon for r in cluster_reports])
 
         clusters.append({
             "cluster_id": int(label),
             "lat": float(centroid_lat),
             "lon": float(centroid_lon),
-            "intensity": len(cluster_points),
-            "points": [{"lat": float(p[0]), "lon": float(p[1])} for p in cluster_points]
+            "intensity": len(cluster_reports),
+            "report_count": len(cluster_reports),
+            "barangays": cluster_barangays,
+            "points": [{"lat": float(r.lat), "lon": float(r.lon)} for r in cluster_reports]
         })
 
     return clusters
