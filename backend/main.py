@@ -3068,7 +3068,7 @@ async def get_barangay_ranking(db: Session = Depends(get_db)):
 def _load_barangay_names() -> list:
     """Load the 59 barangay names from the GeoJSON file."""
     import os as _os
-    geojson_path = _os.path.join(_os.path.dirname(__file__), "..", "data", "sjdm_barangays.geojson")
+    geojson_path = _os.path.join(_os.path.dirname(__file__), "data", "sjdm_barangays.geojson")
     with open(geojson_path, "r", encoding="utf-8") as f:
         gj = json.load(f)
     return sorted(set(feat["properties"]["ADM4_EN"] for feat in gj["features"]))
