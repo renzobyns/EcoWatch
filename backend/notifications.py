@@ -86,8 +86,8 @@ def sweep_sla_notifications(db: Session) -> None:
         return
     _last_sla_sweep_ts = now_ts
 
-    from datetime import datetime, timedelta, timezone
-    now = datetime.now(timezone.utc)
+    from datetime import datetime, timedelta
+    now = datetime.utcnow()
     soon = now + timedelta(hours=24)
 
     active = db.query(models.WorkOrder).filter(

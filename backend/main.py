@@ -17,15 +17,21 @@ import bcrypt
 from datetime import datetime, timedelta, timezone
 
 
-def _utcnow() -> datetime:
-    """Return the current UTC time as a timezone-aware datetime.
+def _to_naive_utc(dt: Optional[datetime]) -> Optional[datetime]:
+    """Converts a datetime to naive UTC, regardless of whether it's naive or aware, to allow safe comparisons."""
+    if dt is None:
+        return None
+    if dt.tzinfo is not None:
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
 
-    PostgreSQL (Supabase) stores timezone-aware timestamps. Comparing them
-    against naive ``datetime.utcnow()`` raises ``TypeError``. This helper
-    ensures every "now" reference in the codebase is tz-aware so it works
-    identically on local SQLite **and** production PostgreSQL.
+
+def _utcnow() -> datetime:
+    """Return the current UTC time as a timezone-naive datetime.
+    
+    All database datetimes will be converted to naive UTC before comparison using ``_to_naive_utc()``.
     """
-    return datetime.now(timezone.utc)
+    return datetime.utcnow()
 from sqlalchemy import or_, text
 from sqlalchemy.orm import Session, joinedload
 from database import engine, get_db, SessionLocal
@@ -3170,12 +3176,12 @@ def _build_barangay_overview_data(db: Session) -> dict:
         # "current window" = resolved_at in [7d ago, now)
         # "prior window"   = resolved_at in [14d ago, 7d ago)
         resolved_reports = [r for r in bar_reports if r.status == models.ReportStatus.RESOLVED and r.resolved_at]
-        current_resolved = [r for r in resolved_reports if seven_days_ago <= r.resolved_at <= now]
-        prior_resolved = [r for r in resolved_reports if fourteen_days_ago <= r.resolved_at < seven_days_ago]
+        current_resolved = [r for r in resolved_reports if seven_days_ago <= _to_naive_utc(r.resolved_at) <= now]
+        prior_resolved = [r for r in resolved_reports if fourteen_days_ago <= _to_naive_utc(r.resolved_at) < seven_days_ago]
 
         # Denominator: all non-rejected reports created in each window
-        current_window_total = [r for r in bar_reports if r.created_at and seven_days_ago <= r.created_at <= now and r.status != models.ReportStatus.REJECTED]
-        prior_window_total = [r for r in bar_reports if r.created_at and fourteen_days_ago <= r.created_at < seven_days_ago and r.status != models.ReportStatus.REJECTED]
+        current_window_total = [r for r in bar_reports if r.created_at and seven_days_ago <= _to_naive_utc(r.created_at) <= now and r.status != models.ReportStatus.REJECTED]
+        prior_window_total = [r for r in bar_reports if r.created_at and fourteen_days_ago <= _to_naive_utc(r.created_at) < seven_days_ago and r.status != models.ReportStatus.REJECTED]
 
         cur_rate = (len(current_resolved) / len(current_window_total) * 100) if current_window_total else 0.0
         prior_rate = (len(prior_resolved) / len(prior_window_total) * 100) if prior_window_total else 0.0
@@ -3409,17 +3415,17 @@ def _compute_sla_compliance(db: Session) -> dict:
         if wo.status in TERMINAL_WO_STATUSES and wo.completed_at:
             total_completed += 1
             bs["total_completed"] += 1
-            delta = (wo.completed_at - wo.created_at).total_seconds()
+            delta = (_to_naive_utc(wo.completed_at) - _to_naive_utc(wo.created_at)).total_seconds()
             resolution_seconds_total += delta
             bs["resolution_seconds_total"] += delta
-            if wo.completed_at <= wo.sla_deadline:
+            if _to_naive_utc(wo.completed_at) <= _to_naive_utc(wo.sla_deadline):
                 on_time_completed += 1
                 bs["on_time"] += 1
         elif wo.status in ACTIVE_WO_STATUSES:
-            if wo.sla_deadline < now:
+            if _to_naive_utc(wo.sla_deadline) < now:
                 active_breaches += 1
                 bs["active_breaches"] += 1
-            elif wo.sla_deadline <= horizon_24h:
+            elif _to_naive_utc(wo.sla_deadline) <= horizon_24h:
                 at_risk_24h += 1
 
     city_compliance_rate = (on_time_completed / total_completed * 100) if total_completed > 0 else 0.0

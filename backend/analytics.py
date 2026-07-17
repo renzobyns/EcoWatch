@@ -1,7 +1,7 @@
 import math
 import numpy as np
 from sklearn.cluster import DBSCAN
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from collections import defaultdict
 
 import models
@@ -32,7 +32,7 @@ def find_nearby_reports(report, db, radius_m: float = 100, within_days: int = 7)
     Used by Module 3 to surface possible duplicates. Excludes the report itself,
     and any rejected/resolved/duplicate report. Returns dicts sorted by distance.
     """
-    cutoff = datetime.now(timezone.utc) - timedelta(days=within_days)
+    cutoff = datetime.utcnow() - timedelta(days=within_days)
     candidates = (
         db.query(models.Report)
         .filter(
@@ -373,7 +373,7 @@ def _build_response_time_by_priority(work_orders, start, end):
 def compute_drilldown(reports, work_orders, metric, key=None, start=None, end=None, days=30, now=None):
     """Return the records that compose one analytics element, with a formula/breakdown for display."""
     if start is None or end is None:
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.utcnow()
         end = now
         start = now - timedelta(days=days)
 
@@ -571,7 +571,7 @@ def compute_drilldown(reports, work_orders, metric, key=None, start=None, end=No
 
 def compute_insights(reports, work_orders, days, now=None):
     """Pure aggregation - produces all data the Analytics tab needs."""
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.utcnow()
     end = now
     start = now - timedelta(days=days)
     prior_start = start - timedelta(days=days)

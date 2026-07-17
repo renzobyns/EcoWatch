@@ -1,7 +1,21 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, Boolean, Text, ForeignKey, TypeDecorator, DateTime as SQLADateTime
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from database import Base
+
+class SafeDateTime(TypeDecorator):
+    """SQLAlchemy TypeDecorator that ensures datetimes read from the DB are always timezone-naive UTC."""
+    impl = SQLADateTime
+    cache_ok = True
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        if value.tzinfo is not None:
+            return value.astimezone(timezone.utc).replace(tzinfo=None)
+        return value
+
+DateTime = SafeDateTime
 import enum
 
 
