@@ -3267,7 +3267,12 @@ async def get_barangay_overview(
     _user: models.User = Depends(require_role("cenro")),
 ):
     """City-wide + per-barangay admin, report, and SLA overview. CENRO-only."""
-    return _build_barangay_overview_data(db)
+    try:
+        return _build_barangay_overview_data(db)
+    except Exception as e:
+        import traceback
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=traceback.format_exc())
 
 
 def _csv_safe(value: str) -> str:

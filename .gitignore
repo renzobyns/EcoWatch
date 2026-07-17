@@ -55,11 +55,13 @@ backend/ecowatch.db
 
 # Dynamic Uploads
 backend/uploads/
+uploads/
 
 # Mask R-CNN model weights (too big for git, downloaded separately)
 maskrcnn/
 *.h5
 backend/models/
+models/
 backend/logs/
 
 # NOTE: backend/mrcnn/ is the vendored Mask R-CNN library (Python source, ~559 KB)
