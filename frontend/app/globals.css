@@ -62,6 +62,7 @@
   --color-secondary: #34d399;
   --color-accent: #fbbf24;
   --color-danger: #ef4444;
+  --color-destructive: #ef4444;
 }
 
 body {
