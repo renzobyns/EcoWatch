@@ -1051,7 +1051,7 @@ function CenroDashboardInner() {
                     ) : (
                         <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0">
                             {/* Left: Stats Column */}
-                            <div className="flex-1 lg:max-w-xs flex flex-col gap-3">
+                            <div className="flex-1 lg:max-w-xs flex flex-col gap-3 relative z-10">
                                 <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm flex flex-col">
                                     <div className="p-4 pb-2 flex items-center justify-between">
                                         <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Total Reports</h3>

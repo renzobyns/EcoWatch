@@ -43,7 +43,7 @@ export function InfoTooltip({
       <span
         role="tooltip"
         className={cn(
-          "pointer-events-none absolute z-50 w-64 rounded-xl border border-border bg-background/95 backdrop-blur-xl p-3 text-left text-[11px] leading-relaxed text-foreground/80 shadow-2xl shadow-black/40",
+          "pointer-events-none absolute z-[9999] w-64 rounded-xl border border-border bg-background/95 backdrop-blur-xl p-3 text-left text-[11px] leading-relaxed text-foreground/80 shadow-2xl shadow-black/40",
           "opacity-0 translate-y-0.5 transition-all duration-150",
           "group-hover/info:opacity-100 group-hover/info:translate-y-0",
           "group-focus-within/info:opacity-100 group-focus-within/info:translate-y-0",
