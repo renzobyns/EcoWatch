@@ -14,7 +14,18 @@ import os
 import secrets
 import uuid
 import bcrypt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+
+def _utcnow() -> datetime:
+    """Return the current UTC time as a timezone-aware datetime.
+
+    PostgreSQL (Supabase) stores timezone-aware timestamps. Comparing them
+    against naive ``datetime.utcnow()`` raises ``TypeError``. This helper
+    ensures every "now" reference in the codebase is tz-aware so it works
+    identically on local SQLite **and** production PostgreSQL.
+    """
+    return datetime.now(timezone.utc)
 from sqlalchemy import or_, text
 from sqlalchemy.orm import Session, joinedload
 from database import engine, get_db, SessionLocal
@@ -443,7 +454,7 @@ def compute_sla_deadline(db: Session, priority: str, anchor: Optional[datetime] 
     if priority not in PRIORITY_KEY_MAP:
         raise HTTPException(status_code=400, detail=f"priority must be one of {list(PRIORITY_KEY_MAP)}")
     policy = get_sla_policy(db)
-    return (anchor or datetime.utcnow()) + timedelta(days=policy[priority])
+    return (anchor or _utcnow()) + timedelta(days=policy[priority])
 
 
 def serialize_work_order(wo: models.WorkOrder) -> dict:
@@ -612,7 +623,7 @@ async def login(req: LoginRequest, db: Session = Depends(get_db)):
             detail="Account disabled. Contact CENRO administrator.",
         )
 
-    user.last_login_at = datetime.utcnow()
+    user.last_login_at = _utcnow()
     db.commit()
 
     return {
@@ -892,7 +903,7 @@ async def export_users_csv(
             u.last_login_at.isoformat() if u.last_login_at else "",
         ])
     output.seek(0)
-    filename = f"ecowatch_accounts_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+    filename = f"ecowatch_accounts_{_utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
     return StreamingResponse(iter([output.getvalue()]), media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"})
 
@@ -965,7 +976,7 @@ async def get_my_profile(
     recent_activity: list = []
 
     if current_user.role == "cenro":
-        now = datetime.utcnow()
+        now = _utcnow()
         thirty_days_ago = now - timedelta(days=30)
         sixty_days_ago = now - timedelta(days=60)
 
@@ -1522,7 +1533,7 @@ async def _bg_verify_resolve(report_id: int, user_id: int) -> None:
             report.status = models.ReportStatus.FAILED_CLEANUP
         else:
             report.status = models.ReportStatus.RESOLVED
-            report.resolved_at = datetime.utcnow()
+            report.resolved_at = _utcnow()
         report.verification_pending = False
         report.verification_kind = None
 
@@ -1602,7 +1613,7 @@ async def _bg_verify_complete(work_order_id: int, user_id: int) -> None:
         else:
             wo.status = models.WorkOrderStatus.VERIFIED
             report.status = models.ReportStatus.RESOLVED
-            report.resolved_at = datetime.utcnow()
+            report.resolved_at = _utcnow()
             emit_notification(
                 db, wo.assigned_cleaner_id, "verified",
                 f"Job verified: {report.tracking_id}",
@@ -1932,7 +1943,7 @@ async def get_sla_breaches(db: Session = Depends(get_db)):
     List reports with active work orders past their SLA deadline.
     A work order is "active" if its status is not completed or verified.
     """
-    now = datetime.utcnow()
+    now = _utcnow()
     # Find all reports with at least one active work order past deadline
     breached_reports = (
         db.query(models.Report)
@@ -2168,7 +2179,7 @@ async def export_reports(
             (report.notes or "").replace("\n", " ").replace("\r", " "),
         ])
 
-    filename = f"ecowatch_reports_{datetime.utcnow().strftime('%Y%m%d')}.csv"
+    filename = f"ecowatch_reports_{_utcnow().strftime('%Y%m%d')}.csv"
     return StreamingResponse(
         iter([buffer.getvalue()]),
         media_type="text/csv",
@@ -2209,7 +2220,7 @@ async def assign_report(
 
     notes_clean = (deployment_notes or "").strip() or None
     report.status = models.ReportStatus.ASSIGNED
-    report.deployed_at = datetime.utcnow()
+    report.deployed_at = _utcnow()
     report.deployment_notes = notes_clean
 
     # If both priority and cleaner_id provided, create a WorkOrder
@@ -2222,7 +2233,7 @@ async def assign_report(
         if not cleaner:
             raise HTTPException(status_code=404, detail="Cleaner not found or inactive")
 
-        sla_deadline = compute_sla_deadline(db, priority, datetime.utcnow())
+        sla_deadline = compute_sla_deadline(db, priority, _utcnow())
         work_order = models.WorkOrder(
             report_id=report_id,
             assigned_cleaner_id=assigned_cleaner_id,
@@ -2365,7 +2376,7 @@ async def create_work_order(
         raise HTTPException(status_code=404, detail="Cleaner not found or inactive")
 
     # Compute SLA deadline based on priority
-    sla_deadline = compute_sla_deadline(db, req.priority, datetime.utcnow())
+    sla_deadline = compute_sla_deadline(db, req.priority, _utcnow())
 
     # Create work order
     work_order = models.WorkOrder(
@@ -2380,7 +2391,7 @@ async def create_work_order(
     db.add(work_order)
     db.flush()  # populate work_order.id for the notification FK
     report.status = models.ReportStatus.ASSIGNED
-    report.deployed_at = datetime.utcnow()
+    report.deployed_at = _utcnow()
 
     write_audit(db, user.id, "create_work_order", report.id, {
         "tracking_id": report.tracking_id,
@@ -2479,7 +2490,7 @@ async def start_work_order(
         )
 
     wo.status = models.WorkOrderStatus.IN_PROGRESS
-    wo.started_at = datetime.utcnow()
+    wo.started_at = _utcnow()
     if wo.report:
         wo.report.status = models.ReportStatus.IN_PROGRESS
 
@@ -2549,7 +2560,7 @@ async def complete_work_order(
     report.cleanup_image_url = saved_urls[0]  # backward compat
     report.verification_pending = True
     report.verification_kind = "complete"
-    wo.completed_at = datetime.utcnow()
+    wo.completed_at = _utcnow()
     db.commit()
 
     for url in saved_urls:
@@ -2723,11 +2734,11 @@ async def force_resolve_work_order(
         raise HTTPException(status_code=404, detail="Associated report not found")
 
     wo.status = models.WorkOrderStatus.VERIFIED
-    wo.completed_at = wo.completed_at or datetime.utcnow()
+    wo.completed_at = wo.completed_at or _utcnow()
     wo.notes = f"{wo.notes or ''}\n[Force-resolved by barangay: {reason}]".strip()
 
     report.status = models.ReportStatus.RESOLVED
-    report.resolved_at = datetime.utcnow()
+    report.resolved_at = _utcnow()
 
     write_audit(db, user.id, "force_resolve_work_order", report.id, {
         "work_order_id": wo.id,
@@ -2801,7 +2812,7 @@ async def update_sla_config(
         if row:
             row.value = value
             row.updated_by = user.id
-            row.updated_at = datetime.utcnow()
+            row.updated_at = _utcnow()
         else:
             # Shouldn't happen due to seeding, but handle it
             db.add(models.SystemConfig(key=key, value=value, updated_by=user.id))
@@ -2874,7 +2885,7 @@ async def force_close_report(
 
     previous_status = report.status
     report.status = models.ReportStatus.RESOLVED
-    report.resolved_at = datetime.utcnow()
+    report.resolved_at = _utcnow()
     write_audit(db, user.id, "force_close", report.id, {
         "tracking_id": report.tracking_id,
         "previous_status": previous_status,
@@ -3121,7 +3132,7 @@ def _build_barangay_overview_data(db: Session) -> dict:
     except (ValueError, TypeError):
         sla_target = 95.0
 
-    now = datetime.utcnow()
+    now = _utcnow()
     seven_days_ago = now - timedelta(days=7)
     fourteen_days_ago = now - timedelta(days=14)
 
@@ -3274,7 +3285,7 @@ async def export_barangay_overview_csv(
             row["status"],
         ])
     output.seek(0)
-    filename = f"ecowatch_barangay_performance_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+    filename = f"ecowatch_barangay_performance_{_utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
     return StreamingResponse(
         iter([output.getvalue()]),
         media_type="text/csv",
@@ -3325,7 +3336,7 @@ async def get_breached_work_orders(
     _user: models.User = Depends(require_role("cenro")),
 ):
     """List all active work orders past their SLA deadline. CENRO-only."""
-    now = datetime.utcnow()
+    now = _utcnow()
     rows = (
         db.query(models.WorkOrder)
         .filter(
@@ -3347,7 +3358,7 @@ async def get_at_risk_work_orders(
     """List active WOs with deadline within next N hours (default 24). CENRO-only."""
     if hours < 1 or hours > 168:
         raise HTTPException(status_code=400, detail="hours must be between 1 and 168")
-    now = datetime.utcnow()
+    now = _utcnow()
     horizon = now + timedelta(hours=hours)
     rows = (
         db.query(models.WorkOrder)
@@ -3364,7 +3375,7 @@ async def get_at_risk_work_orders(
 
 def _compute_sla_compliance(db: Session) -> dict:
     """Pure helper - city-wide + per-barangay SLA compliance stats from all WOs."""
-    now = datetime.utcnow()
+    now = _utcnow()
 
     all_wos = (
         db.query(models.WorkOrder)
@@ -3510,7 +3521,7 @@ async def export_sla_report(
     _user: models.User = Depends(require_role("cenro")),
 ):
     """CSV export of full SLA compliance report. CENRO-only."""
-    now = datetime.utcnow()
+    now = _utcnow()
     policy = get_sla_policy(db)
     compliance_data = _compute_sla_compliance(db)
 
@@ -3606,7 +3617,7 @@ async def get_analytics_insights(
     if days < 1 or days > 365:
         raise HTTPException(status_code=400, detail="days must be between 1 and 365")
 
-    horizon_start = datetime.utcnow() - timedelta(days=days * 2 + 1)
+    horizon_start = _utcnow() - timedelta(days=days * 2 + 1)
     reports = (
         db.query(models.Report)
         .filter(models.Report.created_at >= horizon_start)
@@ -3658,7 +3669,7 @@ async def get_analytics_drilldown(
             raise HTTPException(status_code=400, detail="Invalid end datetime")
 
     # Load data using the same horizon as /analytics/insights
-    now = datetime.utcnow()
+    now = _utcnow()
     horizon_start = now - timedelta(days=days * 2 + 1)
     if parsed_start:
         horizon_start = min(horizon_start, parsed_start - timedelta(days=1))
@@ -3738,7 +3749,7 @@ async def export_analytics_insights(
     if days < 1 or days > 365:
         raise HTTPException(status_code=400, detail="days must be between 1 and 365")
 
-    now = datetime.utcnow()
+    now = _utcnow()
     horizon_start = now - timedelta(days=days * 2 + 1)
     reports = (
         db.query(models.Report)
@@ -3868,7 +3879,7 @@ async def list_notifications(
 
     if user.role == "cenro":
         from datetime import datetime, timedelta
-        cutoff = datetime.utcnow() - timedelta(hours=48)
+        cutoff = _utcnow() - timedelta(hours=48)
         stale = (
             db.query(models.Report)
             .outerjoin(models.WorkOrder, models.WorkOrder.report_id == models.Report.id)

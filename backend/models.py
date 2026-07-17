@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, ForeignKey
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 from database import Base
 import enum
 
@@ -36,7 +36,7 @@ class User(Base):
     barangay_assignment = Column(String, nullable=True)  # Only for barangay/cleaner role
     phone_number = Column(String, nullable=True)
     is_active = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_login_at = Column(DateTime, nullable=True)
 
     # Relationships
@@ -83,7 +83,7 @@ class Report(Base):
     tracking_url = Column(String, unique=True, nullable=True)  # e.g. "/track/abc123"
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     deployed_at = Column(DateTime, nullable=True)
     resolved_at = Column(DateTime, nullable=True)
 
@@ -119,7 +119,7 @@ class WorkOrder(Base):
     status = Column(String, nullable=False, default=WorkOrderStatus.ASSIGNED, index=True)
     notes = Column(Text, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
 
@@ -138,7 +138,7 @@ class SystemConfig(Base):
 
     key = Column(String, primary_key=True)
     value = Column(String, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     updated_by = Column(Integer, ForeignKey("users.id"), nullable=True)
 
 
@@ -152,7 +152,7 @@ class AuditLog(Base):
     target_type = Column(String, nullable=False, default="report")
     target_id = Column(Integer, nullable=True, index=True)
     details = Column(Text, nullable=True)  # JSON-encoded dict
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
 
 
 class Notification(Base):
@@ -172,7 +172,7 @@ class Notification(Base):
     work_order_id = Column(Integer, ForeignKey("work_orders.id"), nullable=True, index=True)
     report_id = Column(Integer, ForeignKey("reports.id"), nullable=True, index=True)
     is_read = Column(Boolean, nullable=False, default=False, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
 
 
 class ReportPhoto(Base):
@@ -185,7 +185,7 @@ class ReportPhoto(Base):
     ai_confidence = Column(Float, nullable=True)
     ai_verified = Column(Boolean, nullable=True)
     ai_mask_path = Column(String, nullable=True)
-    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    uploaded_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Trust scoring
     trust_score = Column(String, nullable=True)  # "high" | "medium" | "low"
@@ -204,6 +204,6 @@ class CleanupPhoto(Base):
     file_path = Column(String, nullable=False)
     ai_confidence = Column(Float, nullable=True)
     ai_verified = Column(Boolean, nullable=True)
-    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    uploaded_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     report = relationship("Report", back_populates="cleanup_photos")
