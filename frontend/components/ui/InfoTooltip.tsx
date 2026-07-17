@@ -8,8 +8,8 @@ export interface InfoTooltipProps {
   /** Tooltip body — plain text or rich JSX. */
   children: React.ReactNode;
   /** Which side of the trigger the panel opens toward. Default "bottom". */
-  side?: "top" | "bottom";
-  /** Horizontal anchoring of the panel. Default "left". */
+  side?: "top" | "bottom" | "right" | "left";
+  /** Horizontal anchoring of the panel (for top/bottom sides). Default "left". */
   align?: "left" | "right";
   /** Accessible label for the trigger button. */
   label?: string;
@@ -44,11 +44,15 @@ export function InfoTooltip({
         role="tooltip"
         className={cn(
           "pointer-events-none absolute z-[9999] w-64 rounded-xl border border-border bg-background/95 backdrop-blur-xl p-3 text-left text-[11px] leading-relaxed text-foreground/80 shadow-2xl shadow-black/40",
-          "opacity-0 translate-y-0.5 transition-all duration-150",
-          "group-hover/info:opacity-100 group-hover/info:translate-y-0",
-          "group-focus-within/info:opacity-100 group-focus-within/info:translate-y-0",
-          side === "bottom" ? "top-full mt-2" : "bottom-full mb-2",
-          align === "left" ? "left-0" : "right-0",
+          "opacity-0 transition-all duration-150",
+          "group-hover/info:opacity-100",
+          "group-focus-within/info:opacity-100",
+          side === "bottom" ? "top-full mt-2 translate-y-0.5 group-hover/info:translate-y-0 group-focus-within/info:translate-y-0" : 
+          side === "top" ? "bottom-full mb-2 -translate-y-0.5 group-hover/info:translate-y-0 group-focus-within/info:translate-y-0" : 
+          side === "right" ? "left-full ml-3 top-0 translate-x-1 group-hover/info:translate-x-0 group-focus-within/info:translate-x-0" :
+          "right-full mr-3 top-0 -translate-x-1 group-hover/info:translate-x-0 group-focus-within/info:translate-x-0",
+          (side === "top" || side === "bottom") && align === "left" ? "left-0" : 
+          (side === "top" || side === "bottom") && align === "right" ? "right-0" : "",
           panelClassName
         )}
       >
