@@ -17,11 +17,16 @@ import bcrypt
 from datetime import datetime, timedelta, timezone
 
 
-def _to_naive_utc(dt: Optional[datetime]) -> Optional[datetime]:
+def _to_naive_utc(dt) -> Optional[datetime]:
     """Converts a datetime to naive UTC, regardless of whether it's naive or aware, to allow safe comparisons."""
     if dt is None:
         return None
-    if dt.tzinfo is not None:
+    if isinstance(dt, str):
+        try:
+            dt = datetime.fromisoformat(dt.replace('Z', '+00:00'))
+        except ValueError:
+            return None
+    if hasattr(dt, "tzinfo") and dt.tzinfo is not None:
         return dt.astimezone(timezone.utc).replace(tzinfo=None)
     return dt
 
@@ -3105,8 +3110,8 @@ def _build_barangay_overview_data(db: Session) -> dict:
             )
             existing = admin_map[key]
             # Keep the one with the more recent last_login_at
-            existing_login = existing.last_login_at or datetime.min
-            new_login = u.last_login_at or datetime.min
+            existing_login = _to_naive_utc(existing.last_login_at) or datetime.min
+            new_login = _to_naive_utc(u.last_login_at) or datetime.min
             if new_login > existing_login:
                 admin_map[key] = u
         else:
@@ -3176,12 +3181,27 @@ def _build_barangay_overview_data(db: Session) -> dict:
         # "current window" = resolved_at in [7d ago, now)
         # "prior window"   = resolved_at in [14d ago, 7d ago)
         resolved_reports = [r for r in bar_reports if r.status == models.ReportStatus.RESOLVED and r.resolved_at]
-        current_resolved = [r for r in resolved_reports if seven_days_ago <= _to_naive_utc(r.resolved_at) <= now]
-        prior_resolved = [r for r in resolved_reports if fourteen_days_ago <= _to_naive_utc(r.resolved_at) < seven_days_ago]
+        current_resolved = []
+        prior_resolved = []
+        for r in resolved_reports:
+            r_resolved = _to_naive_utc(r.resolved_at)
+            if r_resolved:
+                if seven_days_ago <= r_resolved <= now:
+                    current_resolved.append(r)
+                elif fourteen_days_ago <= r_resolved < seven_days_ago:
+                    prior_resolved.append(r)
 
         # Denominator: all non-rejected reports created in each window
-        current_window_total = [r for r in bar_reports if r.created_at and seven_days_ago <= _to_naive_utc(r.created_at) <= now and r.status != models.ReportStatus.REJECTED]
-        prior_window_total = [r for r in bar_reports if r.created_at and fourteen_days_ago <= _to_naive_utc(r.created_at) < seven_days_ago and r.status != models.ReportStatus.REJECTED]
+        current_window_total = []
+        prior_window_total = []
+        for r in bar_reports:
+            if r.status != models.ReportStatus.REJECTED and r.created_at:
+                r_created = _to_naive_utc(r.created_at)
+                if r_created:
+                    if seven_days_ago <= r_created <= now:
+                        current_window_total.append(r)
+                    elif fourteen_days_ago <= r_created < seven_days_ago:
+                        prior_window_total.append(r)
 
         cur_rate = (len(current_resolved) / len(current_window_total) * 100) if current_window_total else 0.0
         prior_rate = (len(prior_resolved) / len(prior_window_total) * 100) if prior_window_total else 0.0
@@ -3415,18 +3435,26 @@ def _compute_sla_compliance(db: Session) -> dict:
         if wo.status in TERMINAL_WO_STATUSES and wo.completed_at:
             total_completed += 1
             bs["total_completed"] += 1
-            delta = (_to_naive_utc(wo.completed_at) - _to_naive_utc(wo.created_at)).total_seconds()
+            
+            completed_utc = _to_naive_utc(wo.completed_at)
+            created_utc = _to_naive_utc(wo.created_at) or completed_utc
+            delta = (completed_utc - created_utc).total_seconds() if completed_utc and created_utc else 0
+            
             resolution_seconds_total += delta
             bs["resolution_seconds_total"] += delta
-            if _to_naive_utc(wo.completed_at) <= _to_naive_utc(wo.sla_deadline):
+            
+            sla_deadline_utc = _to_naive_utc(wo.sla_deadline)
+            if completed_utc and sla_deadline_utc and completed_utc <= sla_deadline_utc:
                 on_time_completed += 1
                 bs["on_time"] += 1
         elif wo.status in ACTIVE_WO_STATUSES:
-            if _to_naive_utc(wo.sla_deadline) < now:
-                active_breaches += 1
-                bs["active_breaches"] += 1
-            elif _to_naive_utc(wo.sla_deadline) <= horizon_24h:
-                at_risk_24h += 1
+            sla_deadline_utc = _to_naive_utc(wo.sla_deadline)
+            if sla_deadline_utc:
+                if sla_deadline_utc < now:
+                    active_breaches += 1
+                    bs["active_breaches"] += 1
+                elif sla_deadline_utc <= horizon_24h:
+                    at_risk_24h += 1
 
     city_compliance_rate = (on_time_completed / total_completed * 100) if total_completed > 0 else 0.0
     avg_resolution_days = (
