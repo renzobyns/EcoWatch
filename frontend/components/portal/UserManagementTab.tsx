@@ -27,7 +27,7 @@ const BARANGAYS = [
     "Santa Cruz I", "Santa Cruz II", "Santa Cruz III", "Santa Cruz IV", "Santa Cruz V",
     "Santo Cristo", "Kaypian", "Gaya-gaya", "Graceville",
     "Maharlika", "Muzon", "Poblacion", "Poblacion I", "San Isidro", "San Manuel",
-    "San Roque", "Tungkong Mangga", "Graceville",
+    "San Roque", "Tungkong Mangga",
     "Minuyan Proper", "San Pedro", "San Rafael I", "San Rafael II", "San Rafael III",
     "San Rafael IV", "San Rafael V", "Lawang Pari", "Kaybanban",
 ];
