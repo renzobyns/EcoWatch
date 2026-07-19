@@ -471,7 +471,7 @@ function BarangayRowCard({
             className="bg-card rounded-lg border border-border cursor-pointer hover:border-primary/50 hover:shadow-md transition-all duration-200 p-5 flex flex-col gap-3 relative shadow-sm"
         >
             {/* Header: name + status pill */}
-            <div className="flex items-start justify-between gap-2 relative z-10">
+            <div className="flex items-start justify-between gap-2 relative z-20">
                 <div className="min-w-0">
                     <h3 className="font-bold text-foreground text-sm leading-tight truncate">{row.barangay}</h3>
                     <div className="text-xs text-muted-foreground mt-0.5">San Jose del Monte</div>
@@ -486,7 +486,7 @@ function BarangayRowCard({
                         {statusLabel}
                         {/* Hover tooltip */}
                         <span 
-                            className="pointer-events-none absolute z-[9999] right-0 top-full mt-2 w-60 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#0f1410] p-3 text-left text-[11px] leading-relaxed text-foreground/90 shadow-2xl shadow-black/40 opacity-0 group-hover/status:opacity-100 transition-opacity duration-150"
+                            className="pointer-events-none absolute z-[9999] right-0 bottom-full mb-2 w-60 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#0f1410] p-3 text-left text-[11px] leading-relaxed text-foreground/90 shadow-2xl shadow-black/40 opacity-0 group-hover/status:opacity-100 transition-opacity duration-150"
                         >
                             {row.status_reason}
                         </span>
