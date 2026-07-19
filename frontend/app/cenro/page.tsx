@@ -208,6 +208,7 @@ function CenroDashboardInner() {
     const [barangayError, setBarangayError] = useState<string | null>(null);
     const [barangayExporting, setBarangayExporting] = useState(false);
     const [selectedBarangayRow, setSelectedBarangayRow] = useState<BarangayOverviewRow | null>(null);
+    const [barangayDateRange, setBarangayDateRange] = useState<DateRange | undefined>({ from: subDays(new Date(), 30), to: new Date() });
 
     const [unreadCount] = useUnreadNotificationCount(user?.id);
 
@@ -307,12 +308,12 @@ function CenroDashboardInner() {
         }
     }, [activeTab, user, insightsDateRange]);
 
-    // Fetch Barangay Management overview when tab becomes active
+    // Fetch Barangay Management overview when tab becomes active OR date range changes
     useEffect(() => {
         if (activeTab !== 'barangay_management' || !user) return;
-        fetchBarangayOverview();
+        fetchBarangayOverview(barangayDateRange);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeTab, user]);
+    }, [activeTab, user, barangayDateRange]);
 
     const handleAssignBarangayAdmin = (barangayName: string) => {
         userManagementRef.current?.openCreateForBarangay(barangayName);
@@ -333,7 +334,7 @@ function CenroDashboardInner() {
             await api(`/users/${adminUserId}/disable`, { method: "PUT" });
             toast.success(`${admin.full_name} disabled.`);
             setSelectedBarangayRow(null);
-            fetchBarangayOverview();
+            fetchBarangayOverview(barangayDateRange);
         } catch (err) {
             toast.error(err instanceof ApiError ? err.message : "Failed to disable admin.");
         } finally {
@@ -439,11 +440,19 @@ function CenroDashboardInner() {
         }
     };
 
-    const fetchBarangayOverview = async () => {
+    const fetchBarangayOverview = async (dateRange?: DateRange) => {
         setBarangayLoading(true);
         setBarangayError(null);
         try {
-            const data = await api("/analytics/barangay-overview");
+            const params = new URLSearchParams();
+            if (dateRange?.from) params.set("start", dateRange.from.toISOString());
+            if (dateRange?.to) {
+                const end = new Date(dateRange.to);
+                end.setHours(23, 59, 59, 999);
+                params.set("end", end.toISOString());
+            }
+            const qs = params.toString();
+            const data = await api(`/analytics/barangay-overview${qs ? `?${qs}` : ""}`);
             setBarangayCityWide(data.city_wide ?? null);
             setBarangayOverview(Array.isArray(data.barangays) ? data.barangays : []);
         } catch (err) {
@@ -705,7 +714,9 @@ function CenroDashboardInner() {
                             cityWide={barangayCityWide}
                             barangays={barangayOverview}
                             exporting={barangayExporting}
-                            onRefresh={fetchBarangayOverview}
+                            dateRange={barangayDateRange}
+                            onDateRangeChange={setBarangayDateRange}
+                            onRefresh={() => fetchBarangayOverview(barangayDateRange)}
                             onExport={handleExportBarangayPerformance}
                             onSelectBarangay={setSelectedBarangayRow}
                             onAssignAdmin={handleAssignBarangayAdmin}
@@ -1179,7 +1190,7 @@ function CenroDashboardInner() {
                 {activeTab === 'users' && (
                     <UserManagementTab 
                         ref={userManagementRef}
-                        onBarangayAdminChange={fetchBarangayOverview}
+                        onBarangayAdminChange={() => fetchBarangayOverview(barangayDateRange)}
                     />
                 )}
             </div>

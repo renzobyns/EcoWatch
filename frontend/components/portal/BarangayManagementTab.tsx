@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { formatRelative } from "@/lib/date-utils";
 import { KpiCard } from "@/components/portal/KpiCard";
+import { DateRangePicker, DateRange } from "@/components/ui/DateRangePicker";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,6 +43,8 @@ interface Props {
     cityWide: BarangayCityWide | null;
     barangays: BarangayOverviewRow[];
     exporting: boolean;
+    dateRange: DateRange | undefined;
+    onDateRangeChange: (r: DateRange | undefined) => void;
     onRefresh: () => void;
     onExport: () => void;
     onSelectBarangay: (row: BarangayOverviewRow) => void;
@@ -56,6 +59,8 @@ export function BarangayManagementTab({
     cityWide,
     barangays,
     exporting,
+    dateRange,
+    onDateRangeChange,
     onRefresh,
     onExport,
     onSelectBarangay,
@@ -105,7 +110,11 @@ export function BarangayManagementTab({
                     <h1 className="text-2xl font-bold text-foreground tracking-tight">Barangay Management</h1>
                     <p className="text-sm text-foreground/50 mt-1">Oversee all 59 barangays — assign admins, monitor performance, and intervene on SLA breaches.</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap items-center">
+                    <DateRangePicker
+                        value={dateRange}
+                        onChange={onDateRangeChange}
+                    />
                     <button
                         onClick={onRefresh}
                         disabled={loading}

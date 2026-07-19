@@ -3085,7 +3085,7 @@ def _load_barangay_names() -> list:
     return sorted(set(feat["properties"]["ADM4_EN"] for feat in gj["features"]))
 
 
-def _build_barangay_overview_data(db: Session) -> dict:
+def _build_barangay_overview_data(db: Session, start: datetime | None = None, end: datetime | None = None) -> dict:
     """Build the full barangay overview dataset (shared by GET and CSV export)."""
     import logging as _logging
     _logger = _logging.getLogger(__name__)
@@ -3117,12 +3117,13 @@ def _build_barangay_overview_data(db: Session) -> dict:
         else:
             admin_map[key] = u
 
-    # All non-rejected reports with a barangay assigned
-    all_reports = (
-        db.query(models.Report)
-        .filter(models.Report.barangay.isnot(None))
-        .all()
-    )
+    # All reports with a barangay assigned, optionally filtered by date range
+    report_q = db.query(models.Report).filter(models.Report.barangay.isnot(None))
+    if start:
+        report_q = report_q.filter(models.Report.created_at >= start)
+    if end:
+        report_q = report_q.filter(models.Report.created_at < end)
+    all_reports = report_q.all()
     # Group by barangay for O(1) lookup
     reports_by_barangay: dict = {}
     for r in all_reports:
@@ -3263,12 +3264,22 @@ def _build_barangay_overview_data(db: Session) -> dict:
 
 @app.get("/analytics/barangay-overview")
 async def get_barangay_overview(
+    start: str | None = None,
+    end: str | None = None,
     db: Session = Depends(get_db),
     _user: models.User = Depends(require_role("cenro")),
 ):
-    """City-wide + per-barangay admin, report, and SLA overview. CENRO-only."""
+    """City-wide + per-barangay admin, report, and SLA overview. CENRO-only.
+    
+    Optional query params:
+      - start: ISO datetime string (e.g. 2026-01-01T00:00:00)
+      - end: ISO datetime string (e.g. 2026-07-19T23:59:59)
+    When provided, report counts are filtered to reports created within [start, end).
+    """
     try:
-        return _build_barangay_overview_data(db)
+        start_dt = datetime.fromisoformat(start.replace("Z", "+00:00")).replace(tzinfo=None) if start else None
+        end_dt = datetime.fromisoformat(end.replace("Z", "+00:00")).replace(tzinfo=None) if end else None
+        return _build_barangay_overview_data(db, start=start_dt, end=end_dt)
     except Exception as e:
         import traceback
         from fastapi import HTTPException
