@@ -7,7 +7,8 @@ import {
 } from "lucide-react";
 import { formatRelative } from "@/lib/date-utils";
 import { KpiCard } from "@/components/portal/KpiCard";
-import { DateRangePicker, DateRange } from "@/components/ui/DateRangePicker";
+import { DateRangePicker } from "@/components/ui/DateRangePicker";
+import type { DateRange } from "react-day-picker";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -112,8 +113,8 @@ export function BarangayManagementTab({
                 </div>
                 <div className="flex gap-2 flex-wrap items-center">
                     <DateRangePicker
-                        value={dateRange}
-                        onChange={onDateRangeChange}
+                        date={dateRange}
+                        onDateChange={onDateRangeChange}
                     />
                     <button
                         onClick={onRefresh}
