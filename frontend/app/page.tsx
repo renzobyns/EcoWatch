@@ -23,32 +23,42 @@ export default function LandingPage() {
     const [isQRModalOpen, setQRModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isMapReady, setIsMapReady] = useState(false);
+    const [user, setUser] = useState<{ id: number; role: string } | null>(null);
+    const [feedMode, setFeedMode] = useState<"city" | "my">("city");
 
     useEffect(() => {
-        // Fetch reports
-        const fetchReports = fetch(`${API_URL}/reports/recent`)
-            .then(res => res.json())
-            .then(data => {
-                if (Array.isArray(data)) setReports(data);
-            })
-            .catch(err => console.error("Failed to load reports", err));
+        try {
+            const raw = localStorage.getItem("ecowatch_user");
+            if (raw) setUser(JSON.parse(raw));
+        } catch (e) {}
 
-        // Fetch heatmaps
-        const fetchHeatmaps = fetch(`${API_URL}/spatial/heatmaps`)
+        // Fetch heatmaps once
+        fetch(`${API_URL}/spatial/heatmaps`)
             .then(res => res.json())
             .then(data => {
                 if (data && Array.isArray(data.hotspots)) setHeatmaps(data.hotspots);
             })
             .catch(err => console.error("Failed to load heatmaps", err));
-            
-        Promise.all([fetchReports, fetchHeatmaps]).finally(() => {
-            setIsLoading(false);
-        });
 
         // Open sidebar slightly delayed for effect
         const timer = setTimeout(() => setSidebarOpen(true), 1000);
         return () => clearTimeout(timer);
     }, []);
+
+    useEffect(() => {
+        setIsLoading(true);
+        const reportUrl = feedMode === "my" && user?.id 
+            ? `${API_URL}/reports/recent?reporter_id=${user.id}` 
+            : `${API_URL}/reports/recent`;
+
+        fetch(reportUrl)
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data)) setReports(data);
+            })
+            .catch(err => console.error("Failed to load reports", err))
+            .finally(() => setIsLoading(false));
+    }, [feedMode, user?.id]);
 
     const filteredReports = focusedBarangay 
         ? reports.filter(r => r.barangay === focusedBarangay)
@@ -132,22 +142,40 @@ export default function LandingPage() {
             {/* Collapsible Side Panel (Live Feed) */}
             <div className={`absolute top-22 bottom-4 right-0 md:right-4 h-[calc(100vh-6.5rem)] w-full md:w-96 z-30 transition-all duration-500 ease-in-out ${isSidebarOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}`}>
                 <div className="h-full glass border border-border/50 rounded-2xl flex flex-col shadow-2xl">
-                    <div className="px-5 py-4 border-b border-border flex items-center justify-between shrink-0">
-                        <div>
-                            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2 tracking-wider">
-                                <span className="relative flex h-2.5 w-2.5">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
-                                </span>
-                                LIVE FEED
-                            </h2>
-                            <p className="text-xs text-foreground/50 font-medium tracking-wide mt-0.5">
-                                {focusedBarangay ? `Showing reports in ${focusedBarangay}` : 'City-wide active reports'}
-                            </p>
+                    <div className="px-5 py-4 border-b border-border flex flex-col gap-3 shrink-0">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h2 className="text-sm font-semibold text-foreground flex items-center gap-2 tracking-wider">
+                                    <span className="relative flex h-2.5 w-2.5">
+                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                                    </span>
+                                    LIVE FEED
+                                </h2>
+                                <p className="text-xs text-foreground/50 font-medium tracking-wide mt-0.5">
+                                    {focusedBarangay ? `Showing reports in ${focusedBarangay}` : (feedMode === "my" ? 'Your reports' : 'City-wide active reports')}
+                                </p>
+                            </div>
+                            <button onClick={() => setSidebarOpen(false)} aria-label="Close live feed" className="md:hidden text-foreground/50 hover:text-foreground cursor-pointer">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
                         </div>
-                        <button onClick={() => setSidebarOpen(false)} aria-label="Close live feed" className="md:hidden text-foreground/50 hover:text-foreground cursor-pointer">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                        </button>
+                        {user?.role === 'citizen' && (
+                            <div className="flex bg-muted/50 p-1 rounded-lg">
+                                <button 
+                                    onClick={() => setFeedMode('city')}
+                                    className={`flex-1 text-xs font-semibold py-1.5 rounded-md transition-colors cursor-pointer ${feedMode === 'city' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                                >
+                                    City Feed
+                                </button>
+                                <button 
+                                    onClick={() => setFeedMode('my')}
+                                    className={`flex-1 text-xs font-semibold py-1.5 rounded-md transition-colors cursor-pointer ${feedMode === 'my' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                                >
+                                    My Reports
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide">

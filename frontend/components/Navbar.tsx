@@ -134,6 +134,12 @@ export default function Navbar() {
                                     My Jobs
                                 </Link>
                             )}
+                            {user.role === 'citizen' && (
+                                <Link href="/profile" onClick={() => setProfileOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-foreground/5 transition-colors cursor-pointer text-emerald-500 font-medium text-sm">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                    My Profile
+                                </Link>
+                            )}
 
                             {user.role !== 'citizen' && (
                                 <div className="h-px bg-border/50 my-2 mx-2"></div>

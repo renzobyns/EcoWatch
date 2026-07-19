@@ -2156,11 +2156,15 @@ def _apply_report_filters(
     date_from: Optional[datetime],
     date_to: Optional[datetime],
     search: Optional[str],
+    reporter_id: Optional[int] = None,
 ):
     """Shared filter logic for /reports/recent and /reports/barangay/{name}."""
+    if reporter_id:
+        query = query.filter(models.Report.reporter_id == reporter_id)
+
     if status:
         query = query.filter(models.Report.status == status.lower())
-    else:
+    elif not reporter_id:
         # Hide rejected and confirmed-duplicate reports from active queues by default.
         query = query.filter(models.Report.status.notin_([
             models.ReportStatus.REJECTED,
@@ -2185,6 +2189,7 @@ async def get_recent_reports(
     date_from: Optional[datetime] = None,
     date_to: Optional[datetime] = None,
     search: Optional[str] = None,
+    reporter_id: Optional[int] = None,
     limit: int = 50,
     offset: int = 0,
     db: Session = Depends(get_db),
@@ -2194,7 +2199,7 @@ async def get_recent_reports(
     offset = max(offset, 0)
     query = _apply_report_filters(
         db.query(models.Report).options(joinedload(models.Report.report_photos)),
-        status, date_from, date_to, search
+        status, date_from, date_to, search, reporter_id
     )
     reports = (
         query.order_by(models.Report.created_at.desc())

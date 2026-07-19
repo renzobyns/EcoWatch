@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import {
     UserCircle, Mail, Calendar, MapPin, Building2, Shield, LogOut,
@@ -85,6 +86,11 @@ const CLEANER_NAV_PROFILE: PortalNavItem[] = [
     { key: "history", label: "History", icon: History, sectionBreakBefore: true },
     { key: "help", label: "Help", icon: HelpCircle },
     { key: "profile", label: "Profile View", icon: UserCircle, sectionBreakBefore: true },
+];
+
+const CITIZEN_NAV_PROFILE: PortalNavItem[] = [
+    { key: "map", label: "Interactive Map", icon: Map },
+    { key: "profile", label: "My Profile", icon: UserCircle },
 ];
 
 const PORTAL_ROUTES: Record<string, string> = {
@@ -427,7 +433,7 @@ export default function ProfilePage() {
             if (raw) {
                 const u = JSON.parse(raw);
                 const navMap: Record<string, PortalNavItem[]> = {
-                    cenro: CENRO_NAV_PROFILE, barangay: BARANGAY_NAV_PROFILE, cleaner: CLEANER_NAV_PROFILE,
+                    cenro: CENRO_NAV_PROFILE, barangay: BARANGAY_NAV_PROFILE, cleaner: CLEANER_NAV_PROFILE, citizen: CITIZEN_NAV_PROFILE,
                 };
                 skeletonNav = navMap[u.role] ?? BARANGAY_NAV_PROFILE;
                 skeletonRole = (u.role ?? "barangay").toUpperCase();
@@ -435,6 +441,7 @@ export default function ProfilePage() {
                     cenro: { name: "EcoWatch", suffix: "CJSDM" },
                     barangay: { name: "Barangay Ops", suffix: u.barangay_assignment ?? "" },
                     cleaner: { name: "EcoWatch", suffix: "Cleaner" },
+                    citizen: { name: "EcoWatch", suffix: "Citizen" },
                 };
                 skeletonBrand = brandMap[u.role] ?? skeletonBrand;
             }
@@ -533,13 +540,15 @@ export default function ProfilePage() {
         cenro: CENRO_NAV_PROFILE,
         barangay: BARANGAY_NAV_PROFILE,
         cleaner: CLEANER_NAV_PROFILE,
+        citizen: CITIZEN_NAV_PROFILE,
     };
-    const portalNav = navMap[profileData.role];
+    const portalNav = navMap[profileData.role] ?? CITIZEN_NAV_PROFILE;
 
     const brandMap: Record<string, { name: string; suffix: string }> = {
         cenro: { name: "EcoWatch", suffix: "CJSDM" },
         barangay: { name: "Barangay Ops", suffix: profileData.barangay_assignment ?? "" },
         cleaner: { name: "EcoWatch", suffix: "Cleaner" },
+        citizen: { name: "EcoWatch", suffix: "Citizen" },
     };
 
     const identityHeader = (
@@ -684,19 +693,38 @@ export default function ProfilePage() {
                                     </div>
                                 </div>
                             ))
-                            : paginatedHistory.map((entry: any, idx: number) => (
-                                <div key={idx} className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/20">
-                                    <div className="min-w-0 flex-1">
-                                        <p className="text-sm font-bold text-foreground truncate">
-                                            {entry.tracking_id ?? entry.report_tracking_id ?? `WO-${entry.id}`}
-                                        </p>
-                                        <p className="text-xs font-medium text-muted-foreground mt-0.5">{formatDate(entry.created_at)}</p>
+                            : paginatedHistory.map((entry: any, idx: number) => {
+                                const trackingId = entry.tracking_id ?? entry.report_tracking_id;
+                                const content = (
+                                    <>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-bold text-foreground truncate group-hover:text-primary transition-colors">
+                                                {trackingId ?? `WO-${entry.id}`}
+                                            </p>
+                                            <p className="text-xs font-medium text-muted-foreground mt-0.5">{formatDate(entry.created_at)}</p>
+                                        </div>
+                                        <div className="shrink-0 ml-3">
+                                            <StatusBadge status={entry.status} />
+                                        </div>
+                                    </>
+                                );
+                                const className = `flex items-center justify-between p-3 rounded-lg border border-border bg-muted/20 group ${
+                                    trackingId ? "hover:bg-foreground/5 transition-colors cursor-pointer" : ""
+                                }`;
+
+                                if (trackingId) {
+                                    return (
+                                        <Link href={`/track/${trackingId}`} key={idx} className={className}>
+                                            {content}
+                                        </Link>
+                                    );
+                                }
+                                return (
+                                    <div key={idx} className={className}>
+                                        {content}
                                     </div>
-                                    <div className="shrink-0 ml-3">
-                                        <StatusBadge status={entry.status} />
-                                    </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                     </div>
                 )}
 
