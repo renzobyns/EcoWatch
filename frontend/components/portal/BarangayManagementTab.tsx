@@ -359,7 +359,7 @@ export function BarangayManagementTab({
                                                          "Action Needed"}
                                                     </span>
                                                     {/* Hover tooltip */}
-                                                    <span className="pointer-events-none absolute z-[9999] right-full mr-2 top-1/2 -translate-y-1/2 w-56 rounded-xl border border-border bg-background/95 backdrop-blur-xl p-3 text-left text-[11px] leading-relaxed text-foreground/80 shadow-2xl opacity-0 group-hover/status:opacity-100 transition-opacity duration-150">
+                                                    <span className="pointer-events-none absolute z-[9999] right-full mr-2 top-1/2 -translate-y-1/2 w-60 rounded-xl border-2 border-border bg-card p-3 text-left text-[11px] leading-relaxed text-foreground/90 shadow-2xl shadow-black/30 opacity-0 group-hover/status:opacity-100 transition-opacity duration-150">
                                                         {row.status_reason}
                                                     </span>
                                                 </div>
@@ -466,7 +466,7 @@ function BarangayRowCard({
     return (
         <div
             onClick={onSelect}
-            className="bg-card rounded-lg border border-border cursor-pointer hover:border-primary/50 hover:shadow-md transition-all duration-200 p-5 flex flex-col gap-3 relative overflow-hidden shadow-sm"
+            className="bg-card rounded-lg border border-border cursor-pointer hover:border-primary/50 hover:shadow-md transition-all duration-200 p-5 flex flex-col gap-3 relative shadow-sm"
         >
             {/* Header: name + status pill */}
             <div className="flex items-start justify-between gap-2 relative z-10">
@@ -483,7 +483,7 @@ function BarangayRowCard({
                         <div className={`w-1.5 h-1.5 rounded-full ${statusDot}`} />
                         {statusLabel}
                         {/* Hover tooltip */}
-                        <span className="pointer-events-none absolute z-[9999] right-0 top-full mt-2 w-56 rounded-xl border border-border bg-background/95 backdrop-blur-xl p-3 text-left text-[11px] leading-relaxed text-foreground/80 shadow-2xl opacity-0 group-hover/status:opacity-100 transition-opacity duration-150">
+                        <span className="pointer-events-none absolute z-[9999] right-0 top-full mt-2 w-60 rounded-xl border-2 border-border bg-card p-3 text-left text-[11px] leading-relaxed text-foreground/90 shadow-2xl shadow-black/30 opacity-0 group-hover/status:opacity-100 transition-opacity duration-150">
                             {row.status_reason}
                         </span>
                 </div>
