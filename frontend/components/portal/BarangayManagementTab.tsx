@@ -9,6 +9,7 @@ import { formatRelative } from "@/lib/date-utils";
 import { KpiCard } from "@/components/portal/KpiCard";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import type { DateRange } from "react-day-picker";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,6 +29,7 @@ export type BarangayOverviewRow = {
     last_report_at: string | null;
     trend_7d_resolution_rate_delta: number;
     status: "healthy" | "at_risk" | "breached" | "unassigned";
+    status_reason: string;
 };
 
 export type BarangayCityWide = {
@@ -339,25 +341,27 @@ export function BarangayManagementTab({
                                                 )}
                                             </td>
                                             <td className="py-4 px-4">
-                                                <div className="flex items-center justify-center gap-1.5">
-                                                    <div className={`w-2 h-2 rounded-full ${
-                                                        row.status === "healthy" ? "bg-emerald-500" :
-                                                        row.status === "at_risk" ? "bg-yellow-500" :
-                                                        row.status === "breached" ? "bg-destructive" :
-                                                        "bg-orange-500"
-                                                    }`} />
-                                                    <span className={`text-sm font-medium ${
-                                                        row.status === "healthy" ? "text-emerald-600 dark:text-emerald-400" :
-                                                        row.status === "at_risk" ? "text-yellow-600 dark:text-yellow-400" :
-                                                        row.status === "breached" ? "text-destructive" :
-                                                        "text-orange-600 dark:text-orange-400"
-                                                    }`}>
-                                                        {row.status === "healthy" ? "Healthy" :
-                                                         row.status === "at_risk" ? "At Risk" :
-                                                         row.status === "breached" ? "Breached" :
-                                                         "Action Needed"}
-                                                    </span>
-                                                </div>
+                                                <InfoTooltip content={row.status_reason} side="left">
+                                                    <div className="flex items-center justify-center gap-1.5 cursor-help w-fit mx-auto">
+                                                        <div className={`w-2 h-2 rounded-full ${
+                                                            row.status === "healthy" ? "bg-emerald-500" :
+                                                            row.status === "at_risk" ? "bg-yellow-500" :
+                                                            row.status === "breached" ? "bg-destructive" :
+                                                            "bg-orange-500"
+                                                        }`} />
+                                                        <span className={`text-sm font-medium ${
+                                                            row.status === "healthy" ? "text-emerald-600 dark:text-emerald-400" :
+                                                            row.status === "at_risk" ? "text-yellow-600 dark:text-yellow-400" :
+                                                            row.status === "breached" ? "text-destructive" :
+                                                            "text-orange-600 dark:text-orange-400"
+                                                        }`}>
+                                                            {row.status === "healthy" ? "Healthy" :
+                                                             row.status === "at_risk" ? "At Risk" :
+                                                             row.status === "breached" ? "Breached" :
+                                                             "Action Needed"}
+                                                        </span>
+                                                    </div>
+                                                </InfoTooltip>
                                             </td>
                                             <td className="py-4 px-4" onClick={e => e.stopPropagation()}>
                                                 <button
@@ -469,15 +473,17 @@ function BarangayRowCard({
                     <h3 className="font-bold text-foreground text-sm leading-tight truncate">{row.barangay}</h3>
                     <div className="text-xs text-muted-foreground mt-0.5">San Jose del Monte</div>
                 </div>
-                <div className={`flex items-center gap-1.5 shrink-0 px-2 py-1 rounded-md border text-xs font-medium ${
-                    row.status === "healthy" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400" :
-                    row.status === "at_risk" ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-600 dark:text-yellow-400" :
-                    row.status === "breached" ? "bg-destructive/10 border-destructive/30 text-destructive" :
-                    "bg-orange-500/10 border-orange-500/30 text-orange-600 dark:text-orange-400"
-                }`}>
-                    <div className={`w-1.5 h-1.5 rounded-full ${statusDot}`} />
-                    {statusLabel}
-                </div>
+                <InfoTooltip content={row.status_reason} side="left">
+                    <div className={`flex items-center gap-1.5 shrink-0 px-2 py-1 rounded-md border text-xs font-medium cursor-help ${
+                        row.status === "healthy" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400" :
+                        row.status === "at_risk" ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-600 dark:text-yellow-400" :
+                        row.status === "breached" ? "bg-destructive/10 border-destructive/30 text-destructive" :
+                        "bg-orange-500/10 border-orange-500/30 text-orange-600 dark:text-orange-400"
+                    }`}>
+                        <div className={`w-1.5 h-1.5 rounded-full ${statusDot}`} />
+                        {statusLabel}
+                    </div>
+                </InfoTooltip>
             </div>
 
             {/* Admin row */}

@@ -3209,14 +3209,34 @@ def _build_barangay_overview_data(db: Session, start: datetime | None = None, en
         trend_7d = round(cur_rate - prior_rate, 1) if (current_window_total or prior_window_total) else 0.0
 
         # Derive status
+        # A barangay with zero actionable (non-rejected) reports has nothing to breach
+        # so compliance_rate = 0.0 must not falsely flag it as at_risk.
+        non_rejected_count = total - rejected
         if admin_user is None:
             status = "unassigned"
+            status_reason = "No barangay admin has been assigned yet. Incoming reports will not be managed."
         elif active_breaches > 0:
             status = "breached"
+            status_reason = (
+                f"{active_breaches} active work order{'s' if active_breaches != 1 else ''} "
+                f"exceeded the SLA deadline. Immediate action is required."
+            )
+        elif non_rejected_count == 0:
+            # No real reports in this period — cannot compute a meaningful compliance rate.
+            status = "healthy"
+            status_reason = "No reports were submitted in this period, so there is nothing to breach."
         elif compliance_rate < sla_target:
             status = "at_risk"
+            status_reason = (
+                f"SLA compliance is {compliance_rate:.1f}%, which is below the "
+                f"{sla_target:.0f}% city target. Some reports may miss their resolution deadlines."
+            )
         else:
             status = "healthy"
+            status_reason = (
+                f"SLA compliance is {compliance_rate:.1f}%, meeting or exceeding the "
+                f"{sla_target:.0f}% city target."
+            )
 
         rows.append({
             "barangay": name,
@@ -3241,6 +3261,7 @@ def _build_barangay_overview_data(db: Session, start: datetime | None = None, en
             "last_report_at": last_report_at,
             "trend_7d_resolution_rate_delta": trend_7d,
             "status": status,
+            "status_reason": status_reason,
         })
 
     barangays_with_admin = sum(1 for r in rows if r["admin"] is not None)
