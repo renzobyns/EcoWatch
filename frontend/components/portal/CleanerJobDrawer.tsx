@@ -133,7 +133,7 @@ export function CleanerJobDrawer({
                             {workOrder.report_tracking_id ?? `WO #${workOrder.id}`}
                         </p>
                         <span
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-widest border ${priorityClass}`}
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${priorityClass}`}
                         >
                             {workOrder.priority}
                         </span>
@@ -152,14 +152,14 @@ export function CleanerJobDrawer({
                 <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
                     {/* Citizen evidence */}
                     <section>
-                        <h3 className="text-[11px] uppercase tracking-[0.2em] font-bold text-foreground/50 mb-2 flex items-center gap-2">
+                        <h3 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
                             <FileText className="size-3.5" />
                             {isReadOnly ? "Before / After" : "Citizen Evidence"}
                         </h3>
                         {isReadOnly && workOrder.report_cleanup_image_url ? (
                             <div className="grid grid-cols-2 gap-2">
-                                <div className="rounded-xl overflow-hidden bg-black/30 border border-border">
-                                    <div className="text-[10px] uppercase tracking-widest font-bold text-foreground/50 p-2 border-b border-border bg-black/20">Before</div>
+                                <div className="rounded-lg overflow-hidden bg-muted/20 border border-border">
+                                    <div className="text-xs font-semibold text-muted-foreground p-2 border-b border-border bg-muted/40">Before</div>
                                     {workOrder.report_image_url ? (
                                         <img
                                             src={`${API_URL}${workOrder.report_image_url}`}
@@ -170,8 +170,8 @@ export function CleanerJobDrawer({
                                         <div className="w-full h-32 flex items-center justify-center text-xs text-foreground/40">No photo</div>
                                     )}
                                 </div>
-                                <div className="rounded-xl overflow-hidden bg-black/30 border border-border">
-                                    <div className="text-[10px] uppercase tracking-widest font-bold text-foreground/50 p-2 border-b border-border bg-black/20">After</div>
+                                <div className="rounded-lg overflow-hidden bg-muted/20 border border-border">
+                                    <div className="text-xs font-semibold text-muted-foreground p-2 border-b border-border bg-muted/40">After</div>
                                     <img
                                         src={`${API_URL}${workOrder.report_cleanup_image_url}`}
                                         alt="Cleanup verification"
@@ -196,7 +196,7 @@ export function CleanerJobDrawer({
 
                     {/* Location */}
                     <section>
-                        <h3 className="text-[11px] uppercase tracking-[0.2em] font-bold text-foreground/50 mb-2 flex items-center gap-2">
+                        <h3 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
                             <MapPin className="size-3.5" />
                             Location
                         </h3>
@@ -229,7 +229,7 @@ export function CleanerJobDrawer({
 
                     {/* SLA */}
                     <section>
-                        <h3 className="text-[11px] uppercase tracking-[0.2em] font-bold text-foreground/50 mb-2 flex items-center gap-2">
+                        <h3 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
                             <Clock className="size-3.5" />
                             SLA
                         </h3>
@@ -270,18 +270,18 @@ export function CleanerJobDrawer({
                     {/* Notes */}
                     {(workOrder.notes || workOrder.report_notes) && (
                         <section>
-                            <h3 className="text-[11px] uppercase tracking-[0.2em] font-bold text-foreground/50 mb-2">
+                            <h3 className="text-sm font-medium text-muted-foreground mb-2">
                                 Notes
                             </h3>
                             {workOrder.notes && (
                                 <div className="mb-2">
-                                    <p className="text-[10px] uppercase tracking-widest font-bold text-primary/80 mb-1">Barangay</p>
+                                    <p className="text-xs font-semibold text-primary/80 mb-1">Barangay</p>
                                     <p className="text-sm text-foreground/80 whitespace-pre-wrap">{workOrder.notes}</p>
                                 </div>
                             )}
                             {workOrder.report_notes && (
                                 <div>
-                                    <p className="text-[10px] uppercase tracking-widest font-bold text-primary/80 mb-1">Citizen</p>
+                                    <p className="text-xs font-semibold text-primary/80 mb-1">Citizen</p>
                                     <p className="text-sm text-foreground/80 whitespace-pre-wrap">{workOrder.report_notes}</p>
                                 </div>
                             )}
@@ -297,7 +297,7 @@ export function CleanerJobDrawer({
                                 type="button"
                                 onClick={() => onStart(workOrder.id)}
                                 disabled={actionLoading}
-                                className="w-full px-4 py-3 eco-gradient text-white text-sm font-bold rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+                                className="w-full px-4 py-2.5 bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
                                 {actionLoading ? "Starting…" : "Start Work"}
                             </button>
@@ -307,7 +307,7 @@ export function CleanerJobDrawer({
                                 type="button"
                                 onClick={() => setPhotoModalOpen(true)}
                                 disabled={actionLoading}
-                                className="w-full px-4 py-3 eco-gradient text-white text-sm font-bold rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                                className="w-full px-4 py-2.5 bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center justify-center gap-2"
                             >
                                 <Camera className="size-4" />
                                 Upload Cleanup Photo
@@ -318,7 +318,7 @@ export function CleanerJobDrawer({
                                 type="button"
                                 onClick={() => setPhotoModalOpen(true)}
                                 disabled={actionLoading}
-                                className="w-full px-4 py-3 bg-yellow-500/20 border border-yellow-500/50 text-yellow-400 text-sm font-bold rounded-xl hover:bg-yellow-500/30 transition-colors disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                                className="w-full px-4 py-2.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 text-amber-800 dark:text-amber-300 text-sm font-medium rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center justify-center gap-2"
                             >
                                 <Upload className="size-4" />
                                 Re-attempt Upload
@@ -331,9 +331,9 @@ export function CleanerJobDrawer({
             {/* Nested photo upload modal */}
             {photoModalOpen && (
                 <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="glass p-6 max-w-lg w-full rounded-2xl border border-border shadow-2xl animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
-                        <h3 className="text-lg font-bold text-foreground mb-1">Upload Cleanup Photo</h3>
-                        <p className="text-sm text-foreground/60 mb-4">
+                    <div className="bg-card p-6 max-w-lg w-full rounded-xl border border-border shadow-2xl animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
+                        <h3 className="text-lg font-semibold text-foreground mb-1">Upload Cleanup Photo</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
                             {status === "needs_redo"
                                 ? "Please clean more thoroughly and upload a new photo."
                                 : "Take a clear photo showing the cleaned area."}
@@ -341,8 +341,8 @@ export function CleanerJobDrawer({
 
                         <div className="grid grid-cols-2 gap-3 mb-4">
                             {/* BEFORE */}
-                            <div className="rounded-xl overflow-hidden border border-border bg-black/30">
-                                <div className="text-[10px] uppercase tracking-widest font-bold text-foreground/50 p-2 border-b border-border bg-black/20">Before</div>
+                            <div className="rounded-lg overflow-hidden border border-border bg-muted/20">
+                                <div className="text-xs font-semibold text-muted-foreground p-2 border-b border-border bg-muted/40">Before</div>
                                 {workOrder.report_image_url ? (
                                     <img
                                         src={`${API_URL}${workOrder.report_image_url}`}
@@ -350,39 +350,39 @@ export function CleanerJobDrawer({
                                         className="w-full h-32 object-cover"
                                     />
                                 ) : (
-                                    <div className="w-full h-32 flex items-center justify-center text-xs text-foreground/40">No photo</div>
+                                    <div className="w-full h-32 flex items-center justify-center text-xs text-muted-foreground">No photo</div>
                                 )}
                             </div>
 
                             {/* AFTER — multi-photo */}
-                            <div className="rounded-xl overflow-hidden border border-border bg-black/30">
-                                <div className="text-[10px] uppercase tracking-widest font-bold text-foreground/50 p-2 border-b border-border bg-black/20">
+                            <div className="rounded-lg overflow-hidden border border-border bg-muted/20">
+                                <div className="text-xs font-semibold text-muted-foreground p-2 border-b border-border bg-muted/40">
                                     After ({cleanupImages.length}/5)
                                 </div>
                                 {cleanupPreviews.length === 0 ? (
-                                    <label className="w-full h-32 flex items-center justify-center cursor-pointer group">
+                                    <label className="w-full h-32 flex items-center justify-center cursor-pointer group bg-muted/10 hover:bg-muted/20 transition-colors">
                                         <input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={handlePickImages} />
                                         <div className="text-center">
-                                            <Camera className="size-6 mx-auto mb-1 text-foreground/40 group-hover:text-primary transition-colors" />
-                                            <p className="text-[10px] font-bold text-foreground/50">Tap to capture</p>
+                                            <Camera className="size-6 mx-auto mb-1 text-muted-foreground group-hover:text-primary transition-colors" />
+                                            <p className="text-xs text-muted-foreground font-medium">Tap to capture</p>
                                         </div>
                                     </label>
                                 ) : (
-                                    <div className="flex gap-1 overflow-x-auto p-1">
+                                    <div className="flex gap-1 overflow-x-auto p-1 h-32 items-center">
                                         {cleanupPreviews.map((url, i) => (
-                                            <div key={url} className="relative shrink-0 w-20 h-20 rounded-lg overflow-hidden group">
+                                            <div key={url} className="relative shrink-0 w-20 h-20 rounded-md overflow-hidden group border border-border">
                                                 <img src={url} alt={`After ${i + 1}`} className="w-full h-full object-cover" />
                                                 <button
                                                     type="button"
                                                     onClick={() => removeCleanupImage(i)}
-                                                    className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold"
+                                                    className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-medium"
                                                 >
                                                     Remove
                                                 </button>
                                             </div>
                                         ))}
                                         {cleanupImages.length < 5 && (
-                                            <label className="shrink-0 w-20 h-20 rounded-lg border-2 border-dashed border-foreground/20 hover:border-primary/50 cursor-pointer flex items-center justify-center text-foreground/40 hover:text-primary transition-colors">
+                                            <label className="shrink-0 w-20 h-20 rounded-md border border-dashed border-border hover:border-primary/50 cursor-pointer flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-muted/10 transition-all">
                                                 <input type="file" accept="image/*" multiple className="hidden" onChange={handlePickImages} />
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                                             </label>
@@ -392,7 +392,7 @@ export function CleanerJobDrawer({
                             </div>
                         </div>
 
-                        <p className="text-[11px] text-foreground/50 mb-4 text-center">
+                        <p className="text-xs text-muted-foreground mb-4 text-center italic">
                             Tip: frame the SAME area from the same angle.
                         </p>
 
@@ -401,7 +401,7 @@ export function CleanerJobDrawer({
                                 type="button"
                                 onClick={closePhotoModal}
                                 disabled={actionLoading}
-                                className="flex-1 px-4 py-2.5 glass border border-border text-foreground text-sm font-bold rounded-xl hover:bg-foreground/10 transition-colors disabled:opacity-50"
+                                className="flex-1 px-4 py-2 border border-border text-foreground bg-background text-sm font-medium rounded-lg hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Cancel
                             </button>
@@ -409,7 +409,7 @@ export function CleanerJobDrawer({
                                 type="button"
                                 onClick={handleSubmitPhoto}
                                 disabled={cleanupImages.length === 0 || actionLoading}
-                                className="flex-1 px-4 py-2.5 eco-gradient text-white text-sm font-bold rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+                                className="flex-1 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {actionLoading ? "Uploading…" : "Submit"}
                             </button>
