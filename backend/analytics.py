@@ -144,7 +144,7 @@ def _summarize_window(reports, wo_compliance_records, start, end):
     and SLA compliance based on completed work orders.
     """
     in_window = [r for r in reports if r.created_at and start <= r.created_at < end]
-    submitted = sum(1 for r in in_window if r.status != "rejected")
+    submitted = len(in_window)
 
     denom = sum(1 for r in in_window if r.status in _RESOLUTION_DENOM_STATUSES)
     resolved = sum(1 for r in in_window if r.status == "resolved")
@@ -181,6 +181,8 @@ def _build_trend(reports, start, end, granularity):
     buckets = defaultdict(lambda: {"submitted": 0, "resolved": 0, "rejected": 0, "conf_sum": 0.0, "conf_n": 0})
 
     cursor = start
+    if granularity == "month":
+        cursor = cursor.replace(day=1)
     while cursor < end:
         key = _bucket_key(cursor, granularity)
         _ = buckets[key]
@@ -386,7 +388,7 @@ def compute_drilldown(reports, work_orders, metric, key=None, start=None, end=No
 
     # ---- KPI: total reports (excludes rejected, mirrors _summarize_window L79) ----
     if metric == "reports":
-        rows = [r for r in in_window if r.status != "rejected"]
+        rows = in_window
         return {
             "kind": "reports",
             "title": "Reports",
@@ -574,12 +576,18 @@ def compute_drilldown(reports, work_orders, metric, key=None, start=None, end=No
     raise ValueError(f"Unknown drilldown metric: {metric!r}")
 
 
-def compute_insights(reports, work_orders, days, now=None):
+def compute_insights(reports, work_orders, days=30, now=None, start=None, end=None):
     """Pure aggregation - produces all data the Analytics tab needs."""
     now = now or datetime.utcnow()
-    end = now
-    start = now - timedelta(days=days)
-    prior_start = start - timedelta(days=days)
+    
+    if start and end:
+        delta = end - start
+        days = max(1, delta.days)
+        prior_start = start - delta
+    else:
+        end = now
+        start = now - timedelta(days=days)
+        prior_start = start - timedelta(days=days)
 
     granularity = _granularity_for_window(days)
 

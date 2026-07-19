@@ -43,3 +43,4 @@ When building, auditing, or modifying any frontend page or component, Antigravit
    - Always verify TypeScript/Syntax by running `npm run lint` or `npm run build` after modifications.
    - Run the backend test scripts (`test_analytics.py`, etc.) if backend logic was changed.
    - Provide a clear manual testing checklist to the user to visually verify the frontend changes in their browser.
+6. **Data Clarity & Tooltips**: Ensure all data and metrics presented to the user are easily understandable. If a metric or record might be unfamiliar or its origin unclear, add a tooltip explaining exactly what the data means and where it was sourced from.

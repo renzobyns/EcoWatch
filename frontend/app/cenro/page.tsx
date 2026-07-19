@@ -31,6 +31,7 @@ import { TrustBadge } from "@/components/TrustBadge";
 import { useUnreadNotificationCount } from "@/lib/notification-poll";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { DateRange } from "react-day-picker";
+import { subDays } from "date-fns";
 
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -192,7 +193,7 @@ function CenroDashboardInner() {
     const [insightsData, setInsightsData] = useState<InsightsData | null>(null);
     const [insightsLoading, setInsightsLoading] = useState(false);
     const [insightsExporting, setInsightsExporting] = useState(false);
-    const [insightsWindowDays, setInsightsWindowDays] = useState(30);
+    const [insightsDateRange, setInsightsDateRange] = useState<DateRange | undefined>({ from: subDays(new Date(), 30), to: new Date() });
     const [insightsLastUpdated, setInsightsLastUpdated] = useState<Date | null>(null);
     // Drilldown modal state
     const [drilldownOpen, setDrilldownOpen] = useState(false);
@@ -301,10 +302,10 @@ function CenroDashboardInner() {
 
     // Fetch Analytics insights when tab active OR window changes
     useEffect(() => {
-        if (activeTab !== 'analytics' || !user) return;
-        fetchInsights(insightsWindowDays);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeTab, user, insightsWindowDays]);
+        if (activeTab === 'analytics' && user) {
+            fetchInsights(insightsDateRange);
+        }
+    }, [activeTab, user, insightsDateRange]);
 
     // Fetch Barangay Management overview when tab becomes active
     useEffect(() => {
@@ -506,10 +507,17 @@ function CenroDashboardInner() {
         }
     };
 
-    const fetchInsights = async (days: number) => {
+    const fetchInsights = async (dateRange: DateRange | undefined) => {
         setInsightsLoading(true);
         try {
-            const data = await api(`/analytics/insights?days=${days}`);
+            const params = new URLSearchParams();
+            if (dateRange?.from && dateRange?.to) {
+                params.set("start", dateRange.from.toISOString());
+                params.set("end", dateRange.to.toISOString());
+            } else {
+                params.set("days", "30"); // fallback
+            }
+            const data = await api(`/analytics/insights?${params.toString()}`);
             setInsightsData(data);
             setInsightsLastUpdated(new Date());
         } catch (err) {
@@ -525,10 +533,14 @@ function CenroDashboardInner() {
         setDrilldownData(null);
         setDrilldownError(null);
         try {
-            const params = new URLSearchParams({ metric, days: String(insightsWindowDays) });
+            const params = new URLSearchParams({ metric });
+            if (insightsDateRange?.from && insightsDateRange?.to) {
+                params.set("start", insightsDateRange.from.toISOString());
+                params.set("end", insightsDateRange.to.toISOString());
+            } else {
+                params.set("days", "30");
+            }
             if (key) params.set("key", key);
-            if (insightsData?.window.start) params.set("start", insightsData.window.start);
-            if (insightsData?.window.end) params.set("end", insightsData.window.end);
             const data = await api(`/analytics/insights/drilldown?${params.toString()}`);
             setDrilldownData(data);
         } catch (err) {
@@ -543,7 +555,14 @@ function CenroDashboardInner() {
         try {
             const storedUser = localStorage.getItem("ecowatch_user");
             const userId = storedUser ? JSON.parse(storedUser).id : null;
-            const res = await fetch(`${API_URL}/analytics/insights-export?days=${insightsWindowDays}`, {
+            const params = new URLSearchParams();
+            if (insightsDateRange?.from && insightsDateRange?.to) {
+                params.set("start", insightsDateRange.from.toISOString());
+                params.set("end", insightsDateRange.to.toISOString());
+            } else {
+                params.set("days", "30");
+            }
+            const res = await fetch(`${API_URL}/analytics/insights-export?${params.toString()}`, {
                 headers: { "X-User-Id": String(userId) },
             });
             if (!res.ok) throw new Error("Export failed");
@@ -607,8 +626,9 @@ function CenroDashboardInner() {
         resolved: reports.filter(r => r.status === 'resolved').length,
         active: reports.filter(r => r.status === 'assigned' || r.status === 'in_progress').length,
         failed: reports.filter(r => r.status === 'failed_cleanup').length,
+        pending: reports.filter(r => r.status === 'pending' || r.status === 'verified').length,
     };
-    const pending = stats.total - stats.resolved - stats.active - stats.failed;
+    const pending = stats.pending;
     const successRate = stats.total > 0 ? Number(((stats.resolved / stats.total) * 100).toFixed(1)) : 0;
 
     const barangayStats = BARANGAYS.map(b => {
@@ -666,11 +686,11 @@ function CenroDashboardInner() {
                     <AnalyticsTab
                         loading={insightsLoading}
                         data={insightsData}
-                        windowDays={insightsWindowDays}
-                        onWindowChange={setInsightsWindowDays}
+                        dateRange={insightsDateRange}
+                        onDateRangeChange={setInsightsDateRange}
                         exporting={insightsExporting}
                         onExport={handleExportInsights}
-                        onRefresh={() => fetchInsights(insightsWindowDays)}
+                        onRefresh={() => fetchInsights(insightsDateRange)}
                         lastUpdated={insightsLastUpdated}
                         onDrilldown={handleDrilldown}
                     />
@@ -780,7 +800,7 @@ function CenroDashboardInner() {
                                 </div>
                                 <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex items-center justify-between gap-4">
                                     <div className="min-w-0">
-                                        <div className="text-sm font-medium text-muted-foreground mb-1.5 truncate">Active/Pending</div>
+                                        <div className="text-sm font-medium text-muted-foreground mb-1.5 truncate">Pending / Verified</div>
                                         <div className="flex items-baseline gap-2">
                                             <span className="text-3xl font-extrabold text-foreground tracking-tight leading-none">{pending}</span>
                                             {pending > 0 && (

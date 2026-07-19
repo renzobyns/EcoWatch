@@ -3644,6 +3644,8 @@ async def export_sla_report(
 @app.get("/analytics/insights")
 async def get_analytics_insights(
     days: int = 30,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
     db: Session = Depends(get_db),
     _user: models.User = Depends(require_role("cenro")),
 ):
@@ -3653,10 +3655,19 @@ async def get_analytics_insights(
     barangay leaderboard, lifecycle funnel, AI verification quality stats,
     and response-time breakdown by priority. CENRO-only.
     """
-    if days < 1 or days > 365:
-        raise HTTPException(status_code=400, detail="days must be between 1 and 365")
+    parsed_start = None
+    parsed_end = None
+    if start and end:
+        parsed_start = datetime.fromisoformat(start.replace("Z", "+00:00")).replace(tzinfo=None)
+        parsed_end = datetime.fromisoformat(end.replace("Z", "+00:00")).replace(tzinfo=None)
+        # Fetch twice the delta + 1 day to cover the prior window
+        delta = parsed_end - parsed_start
+        horizon_start = parsed_start - delta - timedelta(days=1)
+    else:
+        if days < 1 or days > 365:
+            raise HTTPException(status_code=400, detail="days must be between 1 and 365")
+        horizon_start = _utcnow() - timedelta(days=days * 2 + 1)
 
-    horizon_start = _utcnow() - timedelta(days=days * 2 + 1)
     reports = (
         db.query(models.Report)
         .filter(models.Report.created_at >= horizon_start)
@@ -3668,7 +3679,7 @@ async def get_analytics_insights(
         .all()
     )
 
-    return analytics.compute_insights(reports, work_orders, days=days)
+    return analytics.compute_insights(reports, work_orders, days=days, start=parsed_start, end=parsed_end)
 
 
 @app.get("/analytics/insights/drilldown")
@@ -3781,15 +3792,25 @@ async def get_analytics_drilldown(
 @app.get("/analytics/insights-export")
 async def export_analytics_insights(
     days: int = 30,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
     db: Session = Depends(get_db),
     _user: models.User = Depends(require_role("cenro")),
 ):
     """CSV export of the Analytics tab snapshot. CENRO-only."""
-    if days < 1 or days > 365:
-        raise HTTPException(status_code=400, detail="days must be between 1 and 365")
-
     now = _utcnow()
-    horizon_start = now - timedelta(days=days * 2 + 1)
+    parsed_start = None
+    parsed_end = None
+    if start and end:
+        parsed_start = datetime.fromisoformat(start.replace("Z", "+00:00")).replace(tzinfo=None)
+        parsed_end = datetime.fromisoformat(end.replace("Z", "+00:00")).replace(tzinfo=None)
+        delta = parsed_end - parsed_start
+        horizon_start = parsed_start - delta - timedelta(days=1)
+    else:
+        if days < 1 or days > 365:
+            raise HTTPException(status_code=400, detail="days must be between 1 and 365")
+        horizon_start = now - timedelta(days=days * 2 + 1)
+
     reports = (
         db.query(models.Report)
         .filter(models.Report.created_at >= horizon_start)
@@ -3800,7 +3821,7 @@ async def export_analytics_insights(
         .filter(models.WorkOrder.created_at >= horizon_start)
         .all()
     )
-    data = analytics.compute_insights(reports, work_orders, days=days, now=now)
+    data = analytics.compute_insights(reports, work_orders, days=days, now=now, start=parsed_start, end=parsed_end)
 
     buffer = io.StringIO()
     writer = csv.writer(buffer)

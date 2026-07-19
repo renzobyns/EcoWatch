@@ -84,7 +84,7 @@ function StatusPill({ value }: { value: string }) {
     };
     const cls = map[value] ?? "bg-foreground/10 text-foreground/60 border-border";
     return (
-        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest border ${cls}`}>
+        <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${cls}`}>
             {value.replace(/_/g, " ")}
         </span>
     );
@@ -120,7 +120,7 @@ export function AnalyticsDrilldownModal({ open, loading, error, data, onClose, o
 
     return (
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className="glass max-w-3xl w-full rounded-2xl border border-border overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="bg-card max-w-3xl w-full rounded-xl border border-border overflow-hidden flex flex-col max-h-[85vh]">
 
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
@@ -129,7 +129,7 @@ export function AnalyticsDrilldownModal({ open, loading, error, data, onClose, o
                             {data?.title ?? "Drill-down"}
                         </h2>
                         {data?.headline && (
-                            <span className="text-3xl font-bold text-emerald-300 tracking-tight">
+                            <span className="text-2xl font-bold text-foreground tracking-tight">
                                 {data.headline}
                             </span>
                         )}
@@ -144,8 +144,8 @@ export function AnalyticsDrilldownModal({ open, loading, error, data, onClose, o
 
                 {/* Formula + breakdown chips */}
                 {data && (
-                    <div className="px-6 py-3 border-b border-border bg-foreground/3 shrink-0 space-y-2">
-                        <p className="text-xs text-foreground/50 font-mono">{data.formula}</p>
+                    <div className="px-6 py-3 border-b border-border bg-muted/50 shrink-0 space-y-2">
+                        <p className="text-sm text-muted-foreground">{data.formula}</p>
                         <div className="flex flex-wrap gap-2">
                             {data.breakdown.map((chip) => (
                                 <span
@@ -210,12 +210,12 @@ export function AnalyticsDrilldownModal({ open, loading, error, data, onClose, o
 
                     {!loading && !error && data && data.rows.length > 0 && (
                         <table className="w-full text-left text-sm">
-                            <thead className="sticky top-0 bg-[#0a0f0a] border-b border-border z-10">
+                            <thead className="sticky top-0 bg-card border-b border-border z-10">
                                 <tr>
                                     {visibleCols.map((col) => (
                                         <th
                                             key={col}
-                                            className="py-3 px-4 text-[10px] text-foreground/40 uppercase tracking-widest font-bold"
+                                            className="py-3 px-4 text-sm font-medium text-muted-foreground"
                                         >
                                             {COL_LABEL[col] ?? col}
                                         </th>
@@ -253,7 +253,7 @@ export function AnalyticsDrilldownModal({ open, loading, error, data, onClose, o
                 <div className="px-6 py-3 border-t border-border shrink-0 flex items-center justify-end">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 glass border border-border text-foreground/70 text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-foreground/10 transition-colors"
+                        className="px-4 py-2 bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border rounded-lg text-sm font-medium transition-colors"
                     >
                         Close
                     </button>

@@ -8,6 +8,9 @@ import {
     Activity, AlertTriangle, ArrowDownRight, ArrowUpRight, Award, BarChart3, Brain, CheckCircle2,
     ChevronRight, Clock, FileDown, Filter, Minus, RefreshCw, Sparkles, Target, TrendingDown, TrendingUp, Zap,
 } from "lucide-react";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
+import { DateRangePicker } from "@/components/ui/DateRangePicker";
+import { DateRange } from "react-day-picker";
 
 type WindowMeta = {
     days: number;
@@ -97,8 +100,8 @@ export type InsightsData = {
 interface Props {
     loading: boolean;
     data: InsightsData | null;
-    windowDays: number;
-    onWindowChange: (days: number) => void;
+    dateRange: DateRange | undefined;
+    onDateRangeChange: (r: DateRange | undefined) => void;
     exporting: boolean;
     onExport: () => void;
     onRefresh: () => void;
@@ -106,13 +109,7 @@ interface Props {
     onDrilldown?: (metric: string, key?: string) => void;
 }
 
-const WINDOW_PRESETS: Array<{ days: number; label: string }> = [
-    { days: 7, label: "7d" },
-    { days: 30, label: "30d" },
-    { days: 90, label: "90d" },
-    { days: 180, label: "180d" },
-    { days: 365, label: "1y" },
-];
+
 
 const PRIORITY_TONE: Record<string, { text: string; bg: string; border: string; dot: string }> = {
     high: { text: "text-red-600 dark:text-red-400", bg: "bg-red-500/10", border: "border-red-500/20", dot: "bg-red-400" },
@@ -183,7 +180,7 @@ function DeltaArrow({ value, higherIsBetter = true, suffix = "%" }: { value: num
 }
 
 function HeroKpi({
-    label, value, suffix, icon, delta, deltaSuffix, higherIsBetter, priorLabel, onClick,
+    label, value, suffix, icon, delta, deltaSuffix, higherIsBetter, priorLabel, onClick, tooltipText
 }: {
     label: string;
     value: string;
@@ -194,6 +191,7 @@ function HeroKpi({
     higherIsBetter?: boolean;
     priorLabel: string;
     onClick?: () => void;
+    tooltipText?: string;
 }) {
     return (
         <div
@@ -201,7 +199,10 @@ function HeroKpi({
             onClick={onClick}
         >
             <div className="flex items-center justify-between">
-                <div className="text-sm font-medium text-muted-foreground truncate">{label}</div>
+                <div className="text-sm font-medium text-muted-foreground truncate flex items-center gap-1.5">
+                    {label}
+                    {tooltipText && <InfoTooltip content={tooltipText} />}
+                </div>
                 <div className={`w-9 h-9 rounded-md flex items-center justify-center bg-primary/10 text-primary`}>{icon}</div>
             </div>
             <div className="flex items-baseline gap-1.5">
@@ -249,7 +250,7 @@ function TrendArrow({ trend }: { trend: "up" | "down" | "flat" | "new" }) {
     return <Minus size={14} className="text-foreground/30" />;
 }
 export function AnalyticsTab({
-    loading, data, windowDays, onWindowChange, exporting, onExport, onRefresh, lastUpdated, onDrilldown,
+    loading, data, dateRange, onDateRangeChange, exporting, onExport, onRefresh, lastUpdated, onDrilldown,
 }: Props) {
     const trendChartData = useMemo(() => {
         if (!data) return [];
@@ -299,21 +300,10 @@ export function AnalyticsTab({
                     </p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                    <div className="flex items-center gap-1 bg-card border border-border rounded-lg p-1 shadow-sm">
-                        <Filter size={14} className="text-muted-foreground ml-2 mr-1" />
-                        {WINDOW_PRESETS.map((p) => {
-                            const active = p.days === windowDays;
-                            return (
-                                <button
-                                    key={p.days}
-                                    onClick={() => onWindowChange(p.days)}
-                                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
-                                >
-                                    {p.label}
-                                </button>
-                            );
-                        })}
-                    </div>
+                    <DateRangePicker
+                        date={dateRange}
+                        onDateChange={onDateRangeChange}
+                    />
                     <button
                         onClick={onRefresh}
                         disabled={loading}
@@ -340,7 +330,7 @@ export function AnalyticsTab({
                 ) : data ? (
                     <>
                         <HeroKpi
-                            label={`Reports - last ${windowDays}d`}
+                            label={`Reports - last ${data.window.days}d`}
                             value={data.kpis.current.reports.toString()}
                             icon={<Activity size={18} />}
                             accent="blue"
@@ -360,6 +350,7 @@ export function AnalyticsTab({
                             higherIsBetter
                             priorLabel={`Prior: ${data.kpis.prior.resolution_rate.toFixed(1)}%`}
                             onClick={onDrilldown ? () => onDrilldown("resolution_rate") : undefined}
+                            tooltipText="Calculated as Resolved / (All Verified + Actionable Reports)"
                         />
                         <HeroKpi
                             label="Avg Time to Resolve"
@@ -383,6 +374,7 @@ export function AnalyticsTab({
                             higherIsBetter
                             priorLabel={data.kpis.prior.sla_compliance != null ? `Prior: ${data.kpis.prior.sla_compliance.toFixed(1)}%` : "Prior: N/A"}
                             onClick={onDrilldown ? () => onDrilldown("sla_compliance") : undefined}
+                            tooltipText="Percentage of reports resolved within their priority SLA deadline"
                         />
                     </>
                 ) : null}
@@ -461,7 +453,7 @@ export function AnalyticsTab({
                                 <PvpRow label="Resolve Time" current={data.kpis.current.avg_resolve_days} prior={data.kpis.prior.avg_resolve_days} delta={data.kpis.delta.avg_resolve_days_pct} suffix="d" deltaSuffix="%" higherIsBetter={false} />
                                 <PvpRow label="SLA" current={data.kpis.current.sla_compliance} prior={data.kpis.prior.sla_compliance} delta={data.kpis.delta.sla_compliance_pts} suffix="%" deltaSuffix="pts" higherIsBetter />
                                 <div className="text-[10px] text-foreground/40 italic pt-2 border-t border-border">
-                                    Comparison: prior {windowDays}-day window
+                                    Comparison: prior {data.window.days}-day window
                                 </div>
                             </>
                         ) : null}

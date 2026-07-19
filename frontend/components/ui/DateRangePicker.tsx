@@ -41,6 +41,7 @@ export function DateRangePicker({ date, onDateChange, className }: DateRangePick
         { label: "This month", getValue: () => ({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }) },
         { label: "Last month", getValue: () => ({ from: startOfMonth(subMonths(new Date(), 1)), to: endOfMonth(subMonths(new Date(), 1)) }) },
         { label: "This year", getValue: () => ({ from: startOfYear(new Date()), to: new Date() }) },
+        { label: "All time", getValue: () => ({ from: new Date(2026, 0, 1), to: new Date() }) },
     ];
 
     return (
