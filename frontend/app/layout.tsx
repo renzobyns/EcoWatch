@@ -3,6 +3,7 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { GoogleOAuthProvider } from '@react-oauth/google';
 
 export const metadata: Metadata = {
   title: "EcoWatch SJDM | Sustainable Environmental Monitoring",
@@ -33,13 +34,15 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="antialiased min-h-screen">
-        <ThemeProvider>
-          <Navbar />
-          <main className="pt-20">
-            {children}
-          </main>
-          <Toaster richColors position="top-right" theme="system" />
-        </ThemeProvider>
+        <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""}>
+          <ThemeProvider>
+            <Navbar />
+            <main className="pt-20">
+              {children}
+            </main>
+            <Toaster richColors position="top-right" theme="system" />
+          </ThemeProvider>
+        </GoogleOAuthProvider>
       </body>
     </html>
   );

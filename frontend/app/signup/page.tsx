@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Eye, EyeOff, ArrowLeft, ShieldCheck, Leaf, Map, BarChart3, User, Mail, CheckCircle2 } from "lucide-react";
+import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -18,6 +20,40 @@ export default function SignUpPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+
+    const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+        if (!credentialResponse.credential) return;
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await fetch(`${API_URL}/auth/google`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ credential: credentialResponse.credential }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                localStorage.setItem("ecowatch_user", JSON.stringify(data.user));
+                
+                const params = new URLSearchParams(window.location.search);
+                const redirect = params.get("redirect");
+                const safeRedirect = redirect && redirect.startsWith("/") && !redirect.startsWith("//") && !redirect.startsWith("/\\") ? redirect : null;
+                
+                if (data.user.role === "barangay") window.location.href = "/barangay";
+                else if (data.user.role === "cenro") window.location.href = "/cenro";
+                else if (data.user.role === "cleaner") window.location.href = "/cleaner";
+                else if (safeRedirect) window.location.href = safeRedirect;
+                else window.location.href = "/";
+            } else {
+                setError(data.detail || "Google login failed");
+            }
+        } catch (err) {
+            console.error(err);
+            setError("Server error during Google signup.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleSignUp = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -227,6 +263,26 @@ export default function SignUpPage() {
                     </form>
 
                     <div className="mt-7 space-y-5">
+                        <div className="relative">
+                            <div className="absolute inset-0 flex items-center">
+                                <div className="w-full border-t border-border"></div>
+                            </div>
+                            <div className="relative flex justify-center text-[10px] uppercase tracking-widest">
+                                <span className="bg-background px-4 text-foreground/40 font-semibold">Or continue with</span>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-center w-full">
+                            <GoogleLogin
+                                onSuccess={handleGoogleSuccess}
+                                onError={() => setError("Google login was canceled or failed.")}
+                                theme="filled_black"
+                                shape="pill"
+                                text="continue_with"
+                                width="300px"
+                            />
+                        </div>
+
                         <p className="text-center text-xs text-foreground/50">
                             Already have an account?{" "}
                             <Link href="/login" className="text-primary font-semibold hover:underline underline-offset-4">

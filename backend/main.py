@@ -2,6 +2,8 @@ from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, Hea
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 from pydantic import BaseModel
 from typing import Optional, List, Tuple
 import asyncio
@@ -233,6 +235,9 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+class GoogleLoginRequest(BaseModel):
+    credential: str
 
 class ForgotPasswordRequest(BaseModel):
     email: str
@@ -711,6 +716,66 @@ async def login(req: LoginRequest, db: Session = Depends(get_db)):
 
     user.last_login_at = _utcnow()
     db.commit()
+
+    return {
+        "success": True,
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "role": user.role,
+            "barangay_assignment": user.barangay_assignment
+        }
+    }
+
+@app.post("/auth/google")
+async def google_login(req: GoogleLoginRequest, db: Session = Depends(get_db)):
+    """Login or Register using Google Identity Services credential."""
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    if not client_id:
+        raise HTTPException(status_code=500, detail="Google authentication is not configured on the server")
+    
+    try:
+        # Verify the JWT token sent by the frontend
+        idinfo = id_token.verify_oauth2_token(
+            req.credential, 
+            google_requests.Request(), 
+            client_id
+        )
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid Google token")
+
+    email = idinfo.get("email")
+    full_name = idinfo.get("name")
+    
+    if not email:
+        raise HTTPException(status_code=400, detail="Google account did not provide an email address")
+
+    # Check if user already exists
+    user = db.query(models.User).filter(models.User.email == email).first()
+    
+    if not user:
+        # Create a new user instantly verified
+        user = models.User(
+            email=email,
+            password_hash=hash_password(uuid.uuid4().hex), # Random unguessable password since they use Google
+            full_name=full_name or "Google User",
+            role="citizen", # Default role
+            is_verified=True,
+            is_active=True
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    else:
+        # If user exists but is not verified, auto-verify them since Google verified the email!
+        if not user.is_verified:
+            user.is_verified = True
+        if not user.is_active:
+            raise HTTPException(status_code=403, detail="Account disabled. Contact CENRO administrator.")
+            
+        user.last_login_at = _utcnow()
+        db.commit()
 
     return {
         "success": True,

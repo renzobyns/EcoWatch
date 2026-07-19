@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Eye, EyeOff, ArrowLeft, Chrome, ShieldCheck, Leaf, Map, BarChart3 } from "lucide-react";
+import { ArrowLeft, Leaf, Eye, EyeOff, ShieldCheck, Map, BarChart3, Chrome } from "lucide-react";
+import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -79,6 +81,40 @@ export default function LoginPage() {
         } catch (err) {
             console.error(err);
             setError("Server error. Please try again later.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+        if (!credentialResponse.credential) return;
+        setLoading(true);
+        setError("");
+        try {
+            const res = await fetch(`${API_URL}/auth/google`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ credential: credentialResponse.credential }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                localStorage.setItem("ecowatch_user", JSON.stringify(data.user));
+                
+                const params = new URLSearchParams(window.location.search);
+                const redirect = params.get("redirect");
+                const safeRedirect = redirect && redirect.startsWith("/") && !redirect.startsWith("//") && !redirect.startsWith("/\\") ? redirect : null;
+                
+                if (data.user.role === "barangay") window.location.href = "/barangay";
+                else if (data.user.role === "cenro") window.location.href = "/cenro";
+                else if (data.user.role === "cleaner") window.location.href = "/cleaner";
+                else if (safeRedirect) window.location.href = safeRedirect;
+                else window.location.href = "/";
+            } else {
+                setError(data.detail || "Google login failed");
+            }
+        } catch (err) {
+            console.error(err);
+            setError("Server error during Google login.");
         } finally {
             setLoading(false);
         }
@@ -226,10 +262,16 @@ export default function LoginPage() {
                             </div>
                         </div>
 
-                        <Button variant="outline" className="w-full group">
-                            <Chrome className="text-foreground/40 group-hover:text-primary transition-colors" size={16} />
-                            Sign in with Google
-                        </Button>
+                        <div className="flex justify-center w-full">
+                            <GoogleLogin
+                                onSuccess={handleGoogleSuccess}
+                                onError={() => setError("Google login was canceled or failed.")}
+                                theme="filled_black"
+                                shape="pill"
+                                text="continue_with"
+                                width="300px"
+                            />
+                        </div>
 
                         <p className="text-center text-xs text-foreground/50">
                             Don&apos;t have an account?{" "}
