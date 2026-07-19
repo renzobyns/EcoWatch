@@ -290,7 +290,7 @@ export function EvidenceGalleryTab({ reports, barangays, onReportClick, loading 
                                         ) : (
                                             <div className="flex items-center justify-center h-full text-[10px] text-muted-foreground">No original</div>
                                         )}
-                                        <div className="absolute bottom-0 inset-x-0 bg-background/80 text-[9px] font-medium p-1 text-center backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="absolute bottom-0 inset-x-0 bg-background/80 text-[9px] font-medium p-1 text-center backdrop-blur-sm">
                                             Original <span className="text-muted-foreground/80 font-normal">({formatBytes(report.image_size_bytes)})</span>
                                         </div>
                                     </div>
@@ -302,7 +302,7 @@ export function EvidenceGalleryTab({ reports, barangays, onReportClick, loading 
                                         ) : (
                                             <div className="flex items-center justify-center h-full text-[10px] text-muted-foreground">No mask</div>
                                         )}
-                                        <div className="absolute bottom-0 inset-x-0 bg-background/80 text-[9px] font-medium p-1 text-center backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="absolute bottom-0 inset-x-0 bg-background/80 text-[9px] font-medium p-1 text-center backdrop-blur-sm">
                                             AI Mask <span className="text-muted-foreground/80 font-normal">({formatBytes(report.ai_mask_size_bytes)})</span>
                                         </div>
                                     </div>
@@ -315,7 +315,7 @@ export function EvidenceGalleryTab({ reports, barangays, onReportClick, loading 
                                         ) : (
                                             <div className="flex items-center justify-center h-full text-[10px] text-muted-foreground">Pending</div>
                                         )}
-                                        <div className="absolute bottom-0 inset-x-0 bg-background/80 text-[9px] font-medium p-1 text-center backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="absolute bottom-0 inset-x-0 bg-background/80 text-[9px] font-medium p-1 text-center backdrop-blur-sm">
                                             Cleanup <span className="text-muted-foreground/80 font-normal">({formatBytes(report.cleanup_size_bytes)})</span>
                                         </div>
                                     </div>
