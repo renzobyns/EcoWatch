@@ -1,9 +1,10 @@
 "use client";
 
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useCallback, useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { PortalSidebar } from "./PortalSidebar";
 import { PortalTopbar } from "./PortalTopbar";
+import { SettingsModal } from "@/components/settings/SettingsModal";
 
 export type PortalNavItem = {
     key: string;
@@ -44,10 +45,18 @@ export function PortalShell({
     children,
 }: PortalShellProps) {
     const [collapsed, setCollapsed] = useState(false);
+    const [settingsOpen, setSettingsOpen] = useState(false);
 
     useEffect(() => {
         const stored = localStorage.getItem(COLLAPSED_STORAGE_KEY);
         if (stored === "1") setCollapsed(true);
+    }, []);
+
+    // Listen for the custom event from ProfileDropdown to open settings modal
+    useEffect(() => {
+        const handler = () => setSettingsOpen(true);
+        window.addEventListener("ecowatch:open-settings", handler);
+        return () => window.removeEventListener("ecowatch:open-settings", handler);
     }, []);
 
     const toggleCollapsed = () => {
@@ -57,6 +66,8 @@ export function PortalShell({
             return next;
         });
     };
+
+    const handleSettingsClose = useCallback(() => setSettingsOpen(false), []);
 
     const pageBadge = nav.find((n) => n.key === activeKey)?.label ?? "";
 
@@ -109,6 +120,9 @@ export function PortalShell({
                     })}
                 </div>
             </div>
+
+            {/* Floating Settings Modal */}
+            <SettingsModal open={settingsOpen} onClose={handleSettingsClose} />
         </div>
     );
 }

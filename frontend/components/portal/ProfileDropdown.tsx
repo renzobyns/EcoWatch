@@ -115,14 +115,17 @@ export function ProfileDropdown() {
                             <User className="size-4" />
                             Profile
                         </Link>
-                        <Link
-                            href="/settings"
-                            onClick={() => setOpen(false)}
-                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground/80 hover:bg-foreground/5 hover:text-foreground transition-colors"
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setOpen(false);
+                                window.dispatchEvent(new CustomEvent("ecowatch:open-settings"));
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground/80 hover:bg-foreground/5 hover:text-foreground transition-colors"
                         >
                             <Settings className="size-4" />
                             Settings
-                        </Link>
+                        </button>
                     </div>
                     <div className="border-t border-border py-1">
                         <button
