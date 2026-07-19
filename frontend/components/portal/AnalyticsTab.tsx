@@ -163,7 +163,7 @@ function deltaTone(value: number | null, higherIsBetter = true): "emerald" | "re
     return value > 0 ? "red" : "emerald";
 }
 
-function DeltaArrow({ value, higherIsBetter = true, suffix = "%" }: { value: number | null; higherIsBetter?: boolean; suffix?: string }) {
+function DeltaArrow({ value, higherIsBetter = true, suffix = "%", tooltip, tooltipAlign = "center" }: { value: number | null; higherIsBetter?: boolean; suffix?: string; tooltip?: string; tooltipAlign?: "left" | "center" | "right" }) {
     if (value === null) {
         return <span className="inline-flex items-center gap-1 text-muted-foreground text-xs font-medium"><Minus size={12} /> n/a</span>;
     }
@@ -172,15 +172,26 @@ function DeltaArrow({ value, higherIsBetter = true, suffix = "%" }: { value: num
     const Icon = value === 0 ? Minus : value > 0 ? ArrowUpRight : ArrowDownRight;
     const sign = value > 0 ? "+" : "";
     return (
-        <span className={`inline-flex items-center gap-1 text-xs font-medium ${cls}`}>
-            <Icon size={12} />
-            {sign}{value.toFixed(1)}{suffix}
+        <span className="relative inline-block group/delta">
+            <span className={`inline-flex items-center gap-1 text-xs font-medium ${cls} cursor-help`}>
+                <Icon size={12} />
+                {sign}{value.toFixed(1)}{suffix}
+            </span>
+            {tooltip && (
+                <span className={`pointer-events-none absolute bottom-full mb-2 z-[9999] w-52 rounded-lg border border-border bg-background/95 backdrop-blur-xl p-2 text-center text-[10px] leading-snug text-foreground/80 shadow-xl opacity-0 group-hover/delta:opacity-100 transition-opacity duration-150 ${
+                    tooltipAlign === "left" ? "left-0 translate-x-0" :
+                    tooltipAlign === "right" ? "right-0 translate-x-0" :
+                    "left-1/2 -translate-x-1/2"
+                }`}>
+                    {tooltip}
+                </span>
+            )}
         </span>
     );
 }
 
 function HeroKpi({
-    label, value, suffix, icon, delta, deltaSuffix, higherIsBetter, priorLabel, onClick, tooltipText
+    label, value, suffix, icon, delta, deltaSuffix, higherIsBetter, priorLabel, onClick, tooltipText, deltaTooltip, tooltipAlign
 }: {
     label: string;
     value: string;
@@ -192,6 +203,8 @@ function HeroKpi({
     priorLabel: string;
     onClick?: () => void;
     tooltipText?: string;
+    deltaTooltip?: string;
+    tooltipAlign?: "left" | "center" | "right";
 }) {
     return (
         <div
@@ -199,8 +212,8 @@ function HeroKpi({
             onClick={onClick}
         >
             <div className="flex items-center justify-between">
-                <div className="text-sm font-medium text-muted-foreground truncate flex items-center gap-1.5">
-                    {label}
+                <div className="text-sm font-medium text-muted-foreground flex items-center gap-1.5 min-w-0">
+                    <span className="truncate">{label}</span>
                     {tooltipText && <InfoTooltip content={tooltipText} />}
                 </div>
                 <div className={`w-9 h-9 rounded-md flex items-center justify-center bg-primary/10 text-primary`}>{icon}</div>
@@ -210,7 +223,13 @@ function HeroKpi({
                 {suffix && <span className={`text-base font-medium text-muted-foreground`}>{suffix}</span>}
             </div>
             <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
-                <DeltaArrow value={delta} higherIsBetter={higherIsBetter} suffix={deltaSuffix || "%"} />
+                <DeltaArrow
+                    value={delta}
+                    higherIsBetter={higherIsBetter}
+                    suffix={deltaSuffix || "%"}
+                    tooltip={deltaTooltip}
+                    tooltipAlign={tooltipAlign}
+                />
                 <span className="text-xs text-muted-foreground truncate">{onClick ? "View breakdown →" : priorLabel}</span>
             </div>
         </div>
@@ -280,6 +299,13 @@ export function AnalyticsTab({
 
     const showSkeleton = loading && !data;
 
+    const getTooltipText = (metricDelta: number | null, priorVal: string, suffix: string = "%") => {
+        if (metricDelta === null || !data) return undefined;
+        const sign = metricDelta > 0 ? "+" : "";
+        const dayStr = data.window.days === 1 ? "day" : `${data.window.days} days`;
+        return `${sign}${metricDelta.toFixed(1)}${suffix} compared to the previous ${dayStr} (prior value: ${priorVal})`;
+    };
+
     return (
         <div className="flex-1 flex flex-col gap-6 min-h-0 overflow-y-auto scrollbar-hide pb-8">
 
@@ -338,6 +364,8 @@ export function AnalyticsTab({
                             higherIsBetter={false}
                             priorLabel={`Prior: ${data.kpis.prior.reports}`}
                             onClick={onDrilldown ? () => onDrilldown("reports") : undefined}
+                            tooltipAlign="left"
+                            deltaTooltip={getTooltipText(data.kpis.delta.reports_pct, data.kpis.prior.reports.toString())}
                         />
                         <HeroKpi
                             label="Resolution Rate"
@@ -351,17 +379,21 @@ export function AnalyticsTab({
                             priorLabel={`Prior: ${data.kpis.prior.resolution_rate.toFixed(1)}%`}
                             onClick={onDrilldown ? () => onDrilldown("resolution_rate") : undefined}
                             tooltipText="Calculated as Resolved / (All Verified + Actionable Reports)"
+                            tooltipAlign="center"
+                            deltaTooltip={getTooltipText(data.kpis.delta.resolution_rate_pts, `${data.kpis.prior.resolution_rate.toFixed(1)}%`, "pts")}
                         />
                         <HeroKpi
                             label="Avg Time to Resolve"
-                            value={data.kpis.current.avg_resolve_days.toFixed(1)}
-                            suffix="d"
+                            value={(data.kpis.current.avg_resolve_days * 24).toFixed(1)}
+                            suffix="h"
                             icon={<Clock size={18} />}
                             accent="yellow"
                             delta={data.kpis.delta.avg_resolve_days_pct}
                             higherIsBetter={false}
-                            priorLabel={`Prior: ${data.kpis.prior.avg_resolve_days.toFixed(1)}d`}
+                            priorLabel={`Prior: ${(data.kpis.prior.avg_resolve_days * 24).toFixed(1)}h`}
                             onClick={onDrilldown ? () => onDrilldown("avg_resolve_days") : undefined}
+                            tooltipAlign="center"
+                            deltaTooltip={getTooltipText(data.kpis.delta.avg_resolve_days_pct, `${(data.kpis.prior.avg_resolve_days * 24).toFixed(1)}h`)}
                         />
                         <HeroKpi
                             label="SLA Compliance"
@@ -375,6 +407,8 @@ export function AnalyticsTab({
                             priorLabel={data.kpis.prior.sla_compliance != null ? `Prior: ${data.kpis.prior.sla_compliance.toFixed(1)}%` : "Prior: N/A"}
                             onClick={onDrilldown ? () => onDrilldown("sla_compliance") : undefined}
                             tooltipText="Percentage of reports resolved within their priority SLA deadline"
+                            tooltipAlign="right"
+                            deltaTooltip={getTooltipText(data.kpis.delta.sla_compliance_pts, data.kpis.prior.sla_compliance != null ? `${data.kpis.prior.sla_compliance.toFixed(1)}%` : "N/A", "pts")}
                         />
                     </>
                 ) : null}
@@ -442,16 +476,17 @@ export function AnalyticsTab({
                     <div className="flex items-center gap-2 mb-4 text-foreground">
                         <Zap size={18} className="text-muted-foreground" />
                         <h2 className="text-base font-semibold">Period vs Period</h2>
+                        <InfoTooltip content="Compares metrics from your selected date range against the immediately preceding period of the same length." />
                     </div>
                     <div className="relative z-10 space-y-3">
                         {showSkeleton ? (
                             <KpiSkeleton count={4} small />
                         ) : data ? (
                             <>
-                                <PvpRow label="Reports" current={data.kpis.current.reports} prior={data.kpis.prior.reports} delta={data.kpis.delta.reports_pct} suffix="" deltaSuffix="%" higherIsBetter={false} />
-                                <PvpRow label="Resolution" current={data.kpis.current.resolution_rate} prior={data.kpis.prior.resolution_rate} delta={data.kpis.delta.resolution_rate_pts} suffix="%" deltaSuffix="pts" higherIsBetter />
-                                <PvpRow label="Resolve Time" current={data.kpis.current.avg_resolve_days} prior={data.kpis.prior.avg_resolve_days} delta={data.kpis.delta.avg_resolve_days_pct} suffix="d" deltaSuffix="%" higherIsBetter={false} />
-                                <PvpRow label="SLA" current={data.kpis.current.sla_compliance} prior={data.kpis.prior.sla_compliance} delta={data.kpis.delta.sla_compliance_pts} suffix="%" deltaSuffix="pts" higherIsBetter />
+                                <PvpRow label="Reports" current={data.kpis.current.reports} prior={data.kpis.prior.reports} delta={data.kpis.delta.reports_pct} suffix="" deltaSuffix="%" higherIsBetter={false} tooltipAlign="right" deltaTooltip={getTooltipText(data.kpis.delta.reports_pct, data.kpis.prior.reports.toString())} />
+                                <PvpRow label="Resolution" current={data.kpis.current.resolution_rate} prior={data.kpis.prior.resolution_rate} delta={data.kpis.delta.resolution_rate_pts} suffix="%" deltaSuffix="pts" higherIsBetter tooltipAlign="right" deltaTooltip={getTooltipText(data.kpis.delta.resolution_rate_pts, `${data.kpis.prior.resolution_rate.toFixed(1)}%`, "pts")} />
+                                <PvpRow label="Resolve Time" current={data.kpis.current.avg_resolve_days * 24} prior={data.kpis.prior.avg_resolve_days * 24} delta={data.kpis.delta.avg_resolve_days_pct} suffix="h" deltaSuffix="%" higherIsBetter={false} tooltipAlign="right" deltaTooltip={getTooltipText(data.kpis.delta.avg_resolve_days_pct, `${(data.kpis.prior.avg_resolve_days * 24).toFixed(1)}h`)} />
+                                <PvpRow label="SLA" current={data.kpis.current.sla_compliance} prior={data.kpis.prior.sla_compliance} delta={data.kpis.delta.sla_compliance_pts} suffix="%" deltaSuffix="pts" higherIsBetter tooltipAlign="right" deltaTooltip={getTooltipText(data.kpis.delta.sla_compliance_pts, data.kpis.prior.sla_compliance != null ? `${data.kpis.prior.sla_compliance.toFixed(1)}%` : "N/A", "pts")} />
                                 <div className="text-[10px] text-foreground/40 italic pt-2 border-t border-border">
                                     Comparison: prior {data.window.days}-day window
                                 </div>
@@ -528,8 +563,9 @@ export function AnalyticsTab({
                             <h2 className="text-base font-semibold">AI Verification Quality</h2>
                         </div>
                         {data && (
-                            <span className="text-xs text-muted-foreground font-medium">
+                            <span className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
                                 Threshold {Math.round((data.ai_quality.ai_threshold || 0.5) * 100)}%
+                                <InfoTooltip content="The minimum confidence score required from the Mask R-CNN model. Reports below this threshold are automatically rejected." />
                             </span>
                         )}
                     </div>
@@ -540,7 +576,7 @@ export function AnalyticsTab({
                             <>
                                 <div className="grid grid-cols-3 gap-2">
                                     <AiStat label="Analyzed" value={data.ai_quality.total_analyzed.toString()} tone="violet" />
-                                    <AiStat label="Mean conf." value={data.ai_quality.mean_confidence !== null ? `${Math.round(data.ai_quality.mean_confidence * 100)}%` : "-"} tone="emerald" />
+                                    <AiStat label="Mean conf." value={data.ai_quality.mean_confidence !== null ? `${Math.round(data.ai_quality.mean_confidence * 100)}%` : "-"} tone="emerald" tooltipText="The average AI confidence score of all reports processed during this period." />
                                     <AiStat label="Rejected" value={data.ai_quality.rejected_count.toString()} tone="red" />
                                 </div>
                                 <div className="h-40 -mx-2">
@@ -613,7 +649,7 @@ export function AnalyticsTab({
                                         <th className="py-3 pr-3 text-right">Reports</th>
                                         <th className="py-3 pr-3 text-right">Resolved</th>
                                         <th className="py-3 pr-3 text-right">Resolution</th>
-                                        <th className="py-3 pr-3 text-right">Avg Days</th>
+                                        <th className="py-3 pr-3 text-right">Avg Hours</th>
                                         <th className="py-3 text-right">vs Prior</th>
                                     </tr>
                                 </thead>
@@ -637,7 +673,7 @@ export function AnalyticsTab({
                                                     {row.resolution_rate.toFixed(1)}%
                                                 </span>
                                             </td>
-                                            <td className="py-3 pr-3 text-right text-muted-foreground">{row.avg_resolve_days > 0 ? `${row.avg_resolve_days}d` : "-"}</td>
+                                            <td className="py-3 pr-3 text-right text-muted-foreground">{row.avg_resolve_days > 0 ? `${(row.avg_resolve_days * 24).toFixed(1)}h` : "-"}</td>
                                             <td className="py-3 text-right">
                                                 <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                                                     <TrendArrow trend={row.trend} />
@@ -710,9 +746,17 @@ export function AnalyticsTab({
 }
 
 function PvpRow({
-    label, current, prior, delta, suffix, deltaSuffix, higherIsBetter,
+    label, current, prior, delta, suffix, deltaSuffix, higherIsBetter, deltaTooltip, tooltipAlign
 }: {
-    label: string; current: number | null; prior: number | null; delta: number | null; suffix: string; deltaSuffix: string; higherIsBetter: boolean;
+    label: string;
+    current: number | null;
+    prior: number | null;
+    delta: number | null;
+    suffix: string;
+    deltaSuffix: string;
+    higherIsBetter: boolean;
+    deltaTooltip?: string;
+    tooltipAlign?: "left" | "center" | "right";
 }) {
     const fmt = (v: number | null) => v != null ? `${v.toFixed(label === "Reports" ? 0 : 1)}${suffix}` : "N/A";
     return (
@@ -722,17 +766,26 @@ function PvpRow({
                 <div className="text-lg font-bold text-foreground">{fmt(current)}</div>
                 <div className="text-xs text-muted-foreground mt-0.5">vs {fmt(prior)}</div>
             </div>
-            <DeltaArrow value={delta} higherIsBetter={higherIsBetter} suffix={deltaSuffix} />
+            <DeltaArrow
+                value={delta}
+                higherIsBetter={higherIsBetter}
+                suffix={deltaSuffix}
+                tooltip={deltaTooltip}
+                tooltipAlign={tooltipAlign}
+            />
         </div>
     );
 }
 
-function AiStat({ label, value, tone }: { label: string; value: string; tone: "emerald" | "violet" | "red" }) {
+function AiStat({ label, value, tone, tooltipText }: { label: string; value: string; tone: "emerald" | "violet" | "red", tooltipText?: string }) {
     const text = tone === "emerald" ? "text-emerald-600 dark:text-emerald-400" : tone === "violet" ? "text-violet-600 dark:text-violet-400" : "text-red-600 dark:text-red-400";
     const bg = "bg-muted/50 border-border";
     return (
-        <div className={`p-4 rounded-lg border ${bg} text-center`}>
-            <div className="text-xs font-medium text-muted-foreground mb-2">{label}</div>
+        <div className={`p-4 rounded-lg border ${bg} text-center relative group flex flex-col justify-center items-center`}>
+            <div className="flex justify-center items-center gap-1.5 mb-2">
+                <div className="text-xs font-medium text-muted-foreground">{label}</div>
+                {tooltipText && <InfoTooltip content={tooltipText} />}
+            </div>
             <div className={`text-xl font-bold ${text}`}>{value}</div>
         </div>
     );

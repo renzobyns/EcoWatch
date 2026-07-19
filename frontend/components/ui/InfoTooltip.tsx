@@ -6,7 +6,9 @@ import { cn } from "@/lib/utils";
 
 export interface InfoTooltipProps {
   /** Tooltip body — plain text or rich JSX. */
-  children: React.ReactNode;
+  children?: React.ReactNode;
+  /** Tooltip content prop fallback. */
+  content?: React.ReactNode;
   /** Which side of the trigger the panel opens toward. Default "bottom". */
   side?: "top" | "bottom" | "right" | "left";
   /** Horizontal anchoring of the panel (for top/bottom sides). Default "left". */
@@ -25,6 +27,7 @@ export interface InfoTooltipProps {
  */
 export function InfoTooltip({
   children,
+  content,
   side = "bottom",
   align = "left",
   label = "More info",
@@ -56,7 +59,7 @@ export function InfoTooltip({
           panelClassName
         )}
       >
-        {children}
+        {children || content}
       </span>
     </span>
   );

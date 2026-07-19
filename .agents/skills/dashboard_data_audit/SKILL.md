@@ -27,7 +27,13 @@ Carefully analyze the frontend math against the backend schema. Check for the fo
 - **Pagination & Limits**: Is the frontend calculating totals based on a paginated array (e.g., `limit=200`) instead of asking the backend for the true aggregate total?
 - **Type Mismatches**: Are numbers being compared as strings, or vice versa?
 
-### 4. Output the Audit Report
+### 4. Perform the UX & Clarity Audit
+Check the user interface for maximum clarity:
+- **Tooltips for Unfamiliar Terms**: Ensure every specialized metric, acronym, or calculation (e.g., "Mean count", "Threshold 50%", "Resolution Rate", "Period vs Period") has an `InfoTooltip` that explicitly explains what it means and how it's calculated.
+- **Sensible Units**: Check if time-based metrics are using the most granular and sensible unit (e.g., if "Avg Time to Resolve" is typically 0.5 days, it should be converted and displayed as "12 hours" for better readability).
+- **Clear Comparisons**: Ensure any "delta", "trend", or percentage change explicitly states what it is being compared to (e.g., "+100% from last month" rather than just "+100%"). Provide hover details to clarify comparison periods.
+
+### 5. Output the Audit Report
 Create an artifact named `[tab_name]_data_audit.md` (e.g., `cenro_dashboard_data_audit.md`) with the following format:
 
 ```markdown
@@ -47,5 +53,5 @@ List the backend endpoints supplying this data.
 - Provide the exact code changes needed to fix any issues found.
 ```
 
-### 5. Ask to Apply Fixes
+### 6. Ask to Apply Fixes
 After presenting the audit artifact, ask the user if they would like you to apply the proposed fixes to the codebase.
