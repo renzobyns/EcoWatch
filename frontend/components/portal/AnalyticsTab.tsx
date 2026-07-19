@@ -214,7 +214,7 @@ function HeroKpi({
             <div className="flex items-center justify-between">
                 <div className="text-sm font-medium text-muted-foreground flex items-center gap-1.5 min-w-0">
                     <span className="truncate">{label}</span>
-                    {tooltipText && <InfoTooltip content={tooltipText} />}
+                    {tooltipText && <InfoTooltip content={tooltipText} align={tooltipAlign === "right" ? "right" : "left"} />}
                 </div>
                 <div className={`w-9 h-9 rounded-md flex items-center justify-center bg-primary/10 text-primary`}>{icon}</div>
             </div>
@@ -565,7 +565,7 @@ export function AnalyticsTab({
                         {data && (
                             <span className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
                                 Threshold {Math.round((data.ai_quality.ai_threshold || 0.5) * 100)}%
-                                <InfoTooltip content="The minimum confidence score required from the Mask R-CNN model. Reports below this threshold are automatically rejected." />
+                                <InfoTooltip content="The minimum confidence score required from the Mask R-CNN model. Reports below this threshold are automatically rejected." align="right" />
                             </span>
                         )}
                     </div>
@@ -576,7 +576,7 @@ export function AnalyticsTab({
                             <>
                                 <div className="grid grid-cols-3 gap-2">
                                     <AiStat label="Analyzed" value={data.ai_quality.total_analyzed.toString()} tone="violet" />
-                                    <AiStat label="Mean conf." value={data.ai_quality.mean_confidence !== null ? `${Math.round(data.ai_quality.mean_confidence * 100)}%` : "-"} tone="emerald" tooltipText="The average AI confidence score of all reports processed during this period." />
+                                    <AiStat label="Mean conf." value={data.ai_quality.mean_confidence !== null ? `${Math.round(data.ai_quality.mean_confidence * 100)}%` : "-"} tone="emerald" tooltipText="The average AI confidence score of all reports processed during this period." tooltipAlign="right" />
                                     <AiStat label="Rejected" value={data.ai_quality.rejected_count.toString()} tone="red" />
                                 </div>
                                 <div className="h-40 -mx-2">
@@ -777,14 +777,14 @@ function PvpRow({
     );
 }
 
-function AiStat({ label, value, tone, tooltipText }: { label: string; value: string; tone: "emerald" | "violet" | "red", tooltipText?: string }) {
+function AiStat({ label, value, tone, tooltipText, tooltipAlign = "left" }: { label: string; value: string; tone: "emerald" | "violet" | "red", tooltipText?: string, tooltipAlign?: "left" | "right" }) {
     const text = tone === "emerald" ? "text-emerald-600 dark:text-emerald-400" : tone === "violet" ? "text-violet-600 dark:text-violet-400" : "text-red-600 dark:text-red-400";
     const bg = "bg-muted/50 border-border";
     return (
         <div className={`p-4 rounded-lg border ${bg} text-center relative group flex flex-col justify-center items-center`}>
             <div className="flex justify-center items-center gap-1.5 mb-2">
                 <div className="text-xs font-medium text-muted-foreground">{label}</div>
-                {tooltipText && <InfoTooltip content={tooltipText} />}
+                {tooltipText && <InfoTooltip content={tooltipText} align={tooltipAlign} />}
             </div>
             <div className={`text-xl font-bold ${text}`}>{value}</div>
         </div>
