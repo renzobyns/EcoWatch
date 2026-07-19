@@ -10,7 +10,6 @@ interface GeneralTabProps {
 export function GeneralTab({ section }: GeneralTabProps) {
     const { theme, setTheme } = useTheme();
     const [language, setLanguage] = useState("English");
-    const [dateFormat, setDateFormat] = useState("MM/DD/YYYY");
     const [showAnimations, setShowAnimations] = useState(true);
     const [compactMode, setCompactMode] = useState(false);
     
@@ -20,8 +19,6 @@ export function GeneralTab({ section }: GeneralTabProps) {
     useEffect(() => {
         const lang = localStorage.getItem("ecowatch_language");
         if (lang) setLanguage(lang);
-        const format = localStorage.getItem("ecowatch_date_format");
-        if (format) setDateFormat(format);
         const anim = localStorage.getItem("ecowatch_animations");
         if (anim) setShowAnimations(anim === "true");
         const compact = localStorage.getItem("ecowatch_compact");
@@ -49,8 +46,8 @@ export function GeneralTab({ section }: GeneralTabProps) {
     if (section === "language") {
         return (
             <div className="animate-fade-in max-w-2xl">
-                <h2 className="text-lg font-bold text-foreground mb-1">Language & Region</h2>
-                <p className="text-sm text-muted-foreground mb-8">Choose your preferred language and regional settings.</p>
+                <h2 className="text-lg font-bold text-foreground mb-1">Language</h2>
+                <p className="text-sm text-muted-foreground mb-8">Choose your preferred display language.</p>
 
                 <div className="space-y-8">
                     <div>
@@ -71,28 +68,6 @@ export function GeneralTab({ section }: GeneralTabProps) {
                         </div>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-foreground mb-3">Date Format</label>
-                        <select
-                            value={dateFormat}
-                            onChange={(e) => { setDateFormat(e.target.value); localStorage.setItem("ecowatch_date_format", e.target.value); }}
-                            className="bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
-                        >
-                            <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-                            <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-                            <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-foreground mb-3">Timezone</label>
-                        <input
-                            type="text"
-                            disabled
-                            value="Asia/Manila (UTC+8)"
-                            className="bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-muted-foreground cursor-not-allowed w-full max-w-sm"
-                        />
-                    </div>
                 </div>
             </div>
         );

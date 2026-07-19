@@ -14,6 +14,23 @@ export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const [resending, setResending] = useState(false);
+
+    const handleResend = async () => {
+        setResending(true);
+        try {
+            await fetch(`${API_URL}/auth/resend-verification`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email }),
+            });
+            setError("Verification email resent. Please check your inbox.");
+        } catch (err) {
+            setError("Failed to resend email. Please try again.");
+        } finally {
+            setResending(false);
+        }
+    };
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -136,8 +153,18 @@ export default function LoginPage() {
                     </div>
 
                     {error && (
-                        <div className="mb-5 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs font-medium text-red-500">
-                            {error}
+                        <div className="mb-5 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs font-medium text-red-500 flex flex-col gap-2">
+                            <span>{error}</span>
+                            {error.includes("verify") && (
+                                <button
+                                    type="button"
+                                    onClick={handleResend}
+                                    disabled={resending}
+                                    className="text-left font-bold hover:underline"
+                                >
+                                    {resending ? "Resending..." : "Resend verification email"}
+                                </button>
+                            )}
                         </div>
                     )}
 

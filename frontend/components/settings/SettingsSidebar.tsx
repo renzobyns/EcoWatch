@@ -1,11 +1,12 @@
 "use client";
 
-import { Settings, HardDrive, Wifi, Download, ShieldCheck, Bell, ChevronDown } from "lucide-react";
+import { Settings, HardDrive, Wifi, Download, ShieldCheck, Bell, Wrench, ChevronDown } from "lucide-react";
 import { useState } from "react";
 
 interface SettingsSidebarProps {
     activeTab: string;
     onTabChange: (tab: string) => void;
+    role?: "cenro" | "barangay" | "cleaner" | "citizen" | "guest";
 }
 
 type SettingsCategory = {
@@ -13,6 +14,7 @@ type SettingsCategory = {
     label: string;
     icon: any;
     subItems?: { key: string; label: string }[];
+    roles?: string[];
 };
 
 const SETTINGS_CATEGORIES: SettingsCategory[] = [
@@ -20,20 +22,22 @@ const SETTINGS_CATEGORIES: SettingsCategory[] = [
         key: "general",
         label: "General",
         icon: Settings,
+        roles: ["cenro", "barangay", "cleaner", "citizen", "guest"],
         subItems: [
-            { key: "language", label: "Language & Region" },
+            { key: "language", label: "Language" },
             { key: "appearance", label: "Appearance" },
             { key: "shortcuts", label: "Keyboard Shortcuts" },
         ],
     },
-    { key: "storage", label: "Storage Settings", icon: HardDrive },
-    { key: "connectivity", label: "Connectivity", icon: Wifi },
-    { key: "export", label: "Data Export Hub", icon: Download },
-    { key: "ai_policy", label: "AI Policy", icon: ShieldCheck },
-    { key: "notifications", label: "Notifications", icon: Bell },
+    { key: "storage", label: "Storage Settings", icon: HardDrive, roles: ["cenro"] },
+    { key: "connectivity", label: "Connectivity", icon: Wifi, roles: ["cenro"] },
+    { key: "export", label: "Data Export Hub", icon: Download, roles: ["cenro", "barangay"] },
+    { key: "ai_policy", label: "AI Policy", icon: ShieldCheck, roles: ["cenro"] },
+    { key: "developer", label: "Developer Options", icon: Wrench, roles: ["cenro"] },
+    { key: "notifications", label: "Notifications", icon: Bell, roles: ["cenro", "barangay", "cleaner", "citizen"] },
 ];
 
-export function SettingsSidebar({ activeTab, onTabChange }: SettingsSidebarProps) {
+export function SettingsSidebar({ activeTab, onTabChange, role = "cenro" }: SettingsSidebarProps) {
     const [expandedAccordion, setExpandedAccordion] = useState<string | null>("general");
 
     const handleCategoryClick = (category: SettingsCategory) => {
@@ -44,13 +48,30 @@ export function SettingsSidebar({ activeTab, onTabChange }: SettingsSidebarProps
         }
     };
 
+    // Filter categories and subItems based on role
+    const normalizedRole = role.toLowerCase();
+    const filteredCategories = SETTINGS_CATEGORIES.filter(cat => !cat.roles || cat.roles.includes(normalizedRole)).map(cat => {
+        if (cat.key === "general") {
+            return {
+                ...cat,
+                subItems: cat.subItems?.filter(sub => {
+                    if (normalizedRole === "cleaner" || normalizedRole === "citizen" || normalizedRole === "guest") {
+                        return sub.key === "language" || sub.key === "appearance";
+                    }
+                    return true; // cenro, barangay see all
+                })
+            };
+        }
+        return cat;
+    });
+
     return (
         <div className="md:w-64 border-b md:border-b-0 md:border-r border-border bg-muted/30 flex flex-col">
             <div className="p-6 hidden md:block">
                 <h1 className="text-xl font-bold text-foreground">Settings</h1>
             </div>
             <div className="flex md:hidden overflow-x-auto gap-2 p-3 hide-scrollbar">
-                {SETTINGS_CATEGORIES.map((cat) => (
+                {filteredCategories.map((cat) => (
                     <div key={cat.key} className="flex flex-col gap-1">
                         {cat.subItems ? (
                             cat.subItems.map((sub) => (
@@ -83,7 +104,7 @@ export function SettingsSidebar({ activeTab, onTabChange }: SettingsSidebarProps
             </div>
 
             <div className="hidden md:flex flex-col gap-1 p-3">
-                {SETTINGS_CATEGORIES.map((cat) => {
+                {filteredCategories.map((cat) => {
                     const isExpanded = expandedAccordion === cat.key;
                     const hasActiveSubItem = cat.subItems?.some((sub) => sub.key === activeTab);
                     const isActive = activeTab === cat.key || hasActiveSubItem;

@@ -9,14 +9,16 @@ import { StorageSettingsTab } from "@/components/settings/StorageSettingsTab";
 import { ConnectivityTab } from "@/components/settings/ConnectivityTab";
 import { DataExportTab } from "@/components/settings/DataExportTab";
 import { AiPolicyTab } from "@/components/settings/AiPolicyTab";
+import { DeveloperTab } from "@/components/settings/DeveloperTab";
 import { NotificationsTab } from "@/components/settings/NotificationsTab";
 
 interface SettingsModalProps {
     open: boolean;
     onClose: () => void;
+    role?: "cenro" | "barangay" | "cleaner" | "citizen" | "guest";
 }
 
-export function SettingsModal({ open, onClose }: SettingsModalProps) {
+export function SettingsModal({ open, onClose, role = "cenro" }: SettingsModalProps) {
     const [activeTab, setActiveTab] = useState("appearance");
 
     // Close on Escape key
@@ -61,7 +63,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 </button>
 
                 {/* Left sidebar */}
-                <SettingsSidebar activeTab={activeTab} onTabChange={setActiveTab} />
+                <SettingsSidebar activeTab={activeTab} onTabChange={setActiveTab} role={role.toLowerCase() as any} />
                 
                 {/* Right content */}
                 <div className="flex-1 overflow-y-auto p-6 md:p-8">
@@ -72,6 +74,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                     {activeTab === "connectivity" && <ConnectivityTab />}
                     {activeTab === "export" && <DataExportTab />}
                     {activeTab === "ai_policy" && <AiPolicyTab />}
+                    {activeTab === "developer" && <DeveloperTab />}
                     {activeTab === "notifications" && <NotificationsTab />}
                 </div>
             </div>

@@ -66,7 +66,8 @@ def seed():
             email="citizen@test.com",
             password_hash=hash_pw("password123"),
             full_name="Juan Dela Cruz",
-            role="citizen"
+            role="citizen",
+            is_verified=True
         ),
         models.User(
             email="barangay@test.com",
@@ -75,12 +76,14 @@ def seed():
             role="barangay",
             barangay_assignment="Muzon",
             phone_number="+63 917 123 4567",
+            is_verified=True
         ),
         models.User(
             email="cenro@test.com",
             password_hash=hash_pw("password123"),
             full_name="Carlos Reyes",
-            role="cenro"
+            role="cenro",
+            is_verified=True
         ),
         models.User(
             email="cleaner@test.com",
@@ -89,6 +92,7 @@ def seed():
             role="cleaner",
             barangay_assignment="Muzon",
             phone_number="+63 917 555 0102",
+            is_verified=True
         ),
     ]
     
@@ -124,6 +128,7 @@ def seed():
             full_name=f"{brgy_name} Barangay Officer",
             role="barangay",
             barangay_assignment=brgy_name,
+            is_verified=True
         ))
         per_brgy_users.append(models.User(
             email=f"{slug}@cleaners.com",
@@ -131,6 +136,7 @@ def seed():
             full_name=f"{brgy_name} Cleaner",
             role="cleaner",
             barangay_assignment=brgy_name,
+            is_verified=True
         ))
 
     for user in per_brgy_users:

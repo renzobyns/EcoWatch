@@ -122,7 +122,7 @@ export function PortalShell({
             </div>
 
             {/* Floating Settings Modal */}
-            <SettingsModal open={settingsOpen} onClose={handleSettingsClose} />
+            <SettingsModal open={settingsOpen} onClose={handleSettingsClose} role={role as any} />
         </div>
     );
 }

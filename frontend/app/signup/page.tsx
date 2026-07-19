@@ -2,15 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { createClient } from "@supabase/supabase-js";
-import { Eye, EyeOff, ArrowLeft, ShieldCheck, Leaf, Map, BarChart3, User, Mail, Lock, CheckCircle2 } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft, ShieldCheck, Leaf, Map, BarChart3, User, Mail, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 export default function SignUpPage() {
     const [fullName, setFullName] = useState("");
@@ -39,39 +35,45 @@ export default function SignUpPage() {
 
         setLoading(true);
 
-        const { error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-                data: {
-                    full_name: fullName,
-                    role: "citizen",
+        try {
+            const res = await fetch(`${API_URL}/auth/register`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
                 },
-                emailRedirectTo: `${window.location.origin}/auth/callback`,
+                body: JSON.stringify({
+                    email,
+                    password,
+                    full_name: fullName,
+                }),
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                setSuccess(true);
+            } else {
+                setError(data.detail || "Failed to create account. Please try again.");
             }
-        });
-
-        if (error) {
-            setError(error.message);
+        } catch (err) {
+            console.error(err);
+            setError("Server error. Please check if the backend is running.");
+        } finally {
             setLoading(false);
-            return;
         }
-
-        setSuccess(true);
-        setLoading(false);
     };
 
     if (success) {
         return (
-            <div className="h-screen h-[100dvh] -mt-16 bg-background flex items-center justify-center p-6 overflow-hidden">
+            <div className="h-[calc(100vh-5rem)] bg-background flex items-center justify-center p-6 overflow-hidden">
                 <div className="glass p-8 rounded-2xl max-w-md w-full text-center space-y-5 border border-primary/20 shadow-2xl animate-in zoom-in-95 duration-300">
                     <div className="w-16 h-16 mx-auto rounded-full eco-gradient flex items-center justify-center text-white shadow-xl shadow-primary/30">
-                        <CheckCircle2 size={32} />
+                        <Mail size={32} />
                     </div>
                     <div className="space-y-1.5">
-                        <h2 className="text-2xl font-bold text-foreground tracking-tight">Account Created!</h2>
+                        <h2 className="text-2xl font-bold text-foreground tracking-tight">Check your email</h2>
                         <p className="text-foreground/60 text-sm leading-relaxed">
-                            We've sent a confirmation link to <span className="text-primary font-semibold">{email}</span>. Please verify your email to start reporting.
+                            We've sent a verification link to <span className="text-primary font-semibold">{email}</span>. Please verify your email to activate your account.
                         </p>
                     </div>
                     <Button asChild size="lg" className="w-full">
@@ -83,23 +85,23 @@ export default function SignUpPage() {
     }
 
     return (
-        <div className="h-screen h-[100dvh] -mt-16 bg-background flex overflow-hidden">
-            {/* Left Side: Features (Desktop) — stays dark in both themes */}
-            <div className="dark hidden lg:flex w-1/2 relative overflow-hidden bg-[#051105] text-white border-r border-white/5 p-8 xl:p-12 flex-col justify-between">
+        <div className="h-[calc(100vh-5rem)] bg-background flex overflow-hidden">
+            {/* Left Side: Features (Desktop) — adapts to theme */}
+            <div className="hidden lg:flex w-1/2 relative overflow-hidden bg-emerald-50 dark:bg-[#051105] text-foreground border-r border-border p-8 xl:p-12 flex-col justify-between">
                 <div className="absolute top-[-10%] right-[-10%] w-96 h-96 bg-primary/20 rounded-full blur-[120px]"></div>
                 
                 <div className="relative z-10 flex items-center gap-3">
                     <div className="w-8 h-8 eco-gradient rounded-lg flex items-center justify-center shadow-lg shadow-primary/20">
                         <Leaf className="text-white" size={18} />
                     </div>
-                    <span className="text-lg font-semibold text-white tracking-tight">EcoWatch <span className="text-primary">SJDM</span></span>
+                    <span className="text-lg font-semibold tracking-tight">EcoWatch <span className="text-primary">SJDM</span></span>
                 </div>
 
                 <div className="relative z-10 max-w-md my-auto py-8">
-                    <h1 className="text-2xl xl:text-3xl font-bold text-white leading-tight mb-3">
+                    <h1 className="text-2xl xl:text-3xl font-bold leading-tight mb-3">
                         Join the <span className="text-primary">EcoWatch</span> Movement.
                     </h1>
-                    <p className="text-sm text-white/60 leading-relaxed mb-7">
+                    <p className="text-sm text-foreground/70 leading-relaxed mb-7">
                         Become a verified citizen reporter and help San Jose del Monte transition to a zero-waste future.
                     </p>
 
@@ -109,20 +111,20 @@ export default function SignUpPage() {
                             { icon: Map, title: "Spatial Routing", desc: "Reports are automatically routed to the nearest Barangay." },
                             { icon: ShieldCheck, title: "Secure Data", desc: "Your identity is protected while you help your community." }
                         ].map((feature, i) => (
-                            <div key={i} className="glass p-3.5 rounded-xl border border-white/5 flex items-center gap-3">
+                            <div key={i} className="glass p-3.5 rounded-xl border border-border/50 flex items-center gap-3 hover:bg-foreground/5 transition-all">
                                 <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
                                     <feature.icon size={18} />
                                 </div>
                                 <div>
-                                    <h3 className="text-[11px] font-semibold text-white uppercase tracking-wider">{feature.title}</h3>
-                                    <p className="text-[10px] text-white/40 mt-0.5">{feature.desc}</p>
+                                    <h3 className="text-[11px] font-semibold uppercase tracking-wider">{feature.title}</h3>
+                                    <p className="text-[10px] text-foreground/50 mt-0.5">{feature.desc}</p>
                                 </div>
                             </div>
                         ))}
                     </div>
                 </div>
 
-                <div className="relative z-10 flex gap-6 text-[9px] font-bold uppercase tracking-widest text-white/30">
+                <div className="relative z-10 flex gap-6 text-[9px] font-bold uppercase tracking-widest text-foreground/40 mt-4">
                     <span>© 2024 EcoWatch SJDM</span>
                 </div>
             </div>

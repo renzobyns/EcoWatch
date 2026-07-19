@@ -2,11 +2,40 @@
 
 import { FileText, Database, Image as ImageIcon, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
+import { api } from "@/lib/api";
 
 export function DataExportTab() {
-    const handleExport = (type: string) => {
+    const handleExport = async (type: string) => {
         toast.info(`Preparing ${type} export...`);
-        setTimeout(() => toast.success(`${type} downloaded successfully!`), 2000);
+        if (type === 'System Logs') {
+            try {
+                const logs = await api("/admin/audit-log?limit=1000");
+                
+                // Very basic CSV conversion
+                if (logs && logs.length > 0) {
+                    const headers = Object.keys(logs[0]).join(",");
+                    const rows = logs.map((log: any) => Object.values(log).map(val => `"${val}"`).join(",")).join("\n");
+                    const csvContent = `${headers}\n${rows}`;
+                    
+                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    link.setAttribute("href", url);
+                    link.setAttribute("download", `system_logs_${new Date().toISOString().split('T')[0]}.csv`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    toast.success(`${type} downloaded successfully!`);
+                } else {
+                    toast.info("No system logs found to export.");
+                }
+            } catch (e) {
+                toast.error(`Failed to export ${type}`);
+            }
+        } else {
+            setTimeout(() => toast.success(`${type} downloaded successfully!`), 2000);
+        }
     };
 
     return (

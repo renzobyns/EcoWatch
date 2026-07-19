@@ -5,13 +5,15 @@ import { usePathname } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Flag } from 'lucide-react';
+import { Flag, Settings } from 'lucide-react';
+import { SettingsModal } from '@/components/settings/SettingsModal';
 
 const PORTAL_PREFIXES = ['/barangay', '/cenro', '/cleaner', '/profile'];
 
 export default function Navbar() {
     const pathname = usePathname();
     const [profileOpen, setProfileOpen] = useState(false);
+    const [settingsOpen, setSettingsOpen] = useState(false);
     const [user, setUser] = useState<{ name: string; initial: string; role: string } | null>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -48,7 +50,8 @@ export default function Navbar() {
     }
 
     return (
-        <nav className="fixed top-2 sm:top-4 inset-x-2 sm:inset-x-4 max-w-7xl mx-auto z-50 flex items-start justify-between gap-3 sm:gap-4 pointer-events-none">
+        <>
+            <nav className="fixed top-2 sm:top-4 inset-x-2 sm:inset-x-4 max-w-7xl mx-auto z-50 flex items-start justify-between gap-3 sm:gap-4 pointer-events-none">
             {/* Left Pill (Main Nav) */}
             <div className={`glass bg-background/70 backdrop-blur-xl border border-border/50 shadow-2xl rounded-2xl px-4 sm:px-6 lg:px-8 pointer-events-auto transition-all duration-300 ${user ? 'flex-1' : 'w-full'}`}>
                 <div className="flex justify-between h-14 items-center gap-4">
@@ -72,22 +75,23 @@ export default function Navbar() {
                             </Link>
                         </Button>
 
-                        <div className="hidden sm:block">
-                            <ThemeToggle />
-                        </div>
-
-                        {!user && (
-                            <Button asChild variant="outline" size="sm" className="h-9 rounded-xl shadow-sm">
-                                <Link href="/login">Log In</Link>
-                            </Button>
-                        )}
-                        
-                        {/* Theme Toggle for mobile placed after Report Issue if not logged in */}
-                        {!user && (
-                            <div className="sm:hidden block">
-                                 <ThemeToggle />
+                        {user && (
+                            <div className="hidden sm:block">
+                                <ThemeToggle />
                             </div>
                         )}
+
+                        {!user && (
+                            <>
+                                <Button onClick={() => setSettingsOpen(true)} variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground">
+                                    <Settings size={18} />
+                                </Button>
+                                <Button asChild variant="outline" size="sm" className="h-9 rounded-xl shadow-sm">
+                                    <Link href="/login">Log In</Link>
+                                </Button>
+                            </>
+                        )}
+                        
                     </div>
                 </div>
             </div>
@@ -145,6 +149,17 @@ export default function Navbar() {
 
                             <button
                                 onClick={() => {
+                                    setProfileOpen(false);
+                                    setSettingsOpen(true);
+                                }}
+                                className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-foreground/5 text-foreground transition-colors cursor-pointer"
+                            >
+                                <Settings size={16} />
+                                <div className="text-sm font-medium">Settings</div>
+                            </button>
+
+                            <button
+                                onClick={() => {
                                     localStorage.removeItem('ecowatch_user');
                                     window.location.href = '/';
                                 }}
@@ -158,5 +173,12 @@ export default function Navbar() {
                 </div>
             )}
         </nav>
-    );
+        
+        <SettingsModal 
+            open={settingsOpen} 
+            onClose={() => setSettingsOpen(false)} 
+            role={user?.role as any || "guest"} 
+        />
+    </>
+);
 }

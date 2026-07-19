@@ -50,6 +50,7 @@ from ai_verifier import (
 )
 import analytics
 from notifications import emit_notification, emit_to_barangay, emit_to_cenro, sweep_sla_notifications
+import email_service
 
 # SLA config keys + defaults (CENRO-editable at runtime via /config/sla)
 SLA_CONFIG_KEYS = ("sla_low_days", "sla_medium_days", "sla_high_days", "sla_compliance_target")
@@ -232,6 +233,19 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+class EmailVerificationConfigUpdate(BaseModel):
+    enabled: bool
+
+class EmailVerificationConfigResponse(BaseModel):
+    enabled: bool
 
 class UserResponse(BaseModel):
     id: int
@@ -653,15 +667,28 @@ async def register(req: RegisterRequest, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
     
+    # Check Developer Toggle for offline testing
+    verification_disabled_row = db.query(models.SystemConfig).filter(models.SystemConfig.key == "email_verification_disabled").first()
+    verification_disabled = verification_disabled_row and verification_disabled_row.value == "true"
+    
+    is_verified = verification_disabled
+    verification_token = None if is_verified else uuid.uuid4().hex
+    
     user = models.User(
         email=req.email,
         password_hash=hash_password(req.password),
         full_name=req.full_name,
-        role="citizen"
+        role="citizen",
+        is_verified=is_verified,
+        verification_token=verification_token
     )
     db.add(user)
     db.commit()
     db.refresh(user)
+    
+    if not is_verified:
+        # BackgroundTask is better but we'll do it synchronously for simplicity in testing
+        email_service.send_verification_email(user.email, user.full_name, verification_token)
     
     return user
 
@@ -675,6 +702,11 @@ async def login(req: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=403,
             detail="Account disabled. Contact CENRO administrator.",
+        )
+    if not user.is_verified:
+        raise HTTPException(
+            status_code=403,
+            detail="Please verify your email first. Check your inbox.",
         )
 
     user.last_login_at = _utcnow()
@@ -699,6 +731,104 @@ async def list_users(
     """List all users (CENRO-only). Kept for backward compatibility — prefer GET /users."""
     return db.query(models.User).all()
 
+
+# ─────────────────────────────────────────────────────────
+# USER MANAGEMENT (CENRO-only)
+# ─────────────────────────────────────────────────────────
+
+@app.get("/auth/verify")
+async def verify_email(token: str, db: Session = Depends(get_db)):
+    """Verify an email with a token."""
+    user = db.query(models.User).filter(models.User.verification_token == token).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired verification link.")
+    
+    user.is_verified = True
+    user.verification_token = None
+    db.commit()
+    return {"success": True, "message": "Email successfully verified."}
+
+@app.post("/auth/resend-verification")
+async def resend_verification(req: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """Re-send the verification email."""
+    user = db.query(models.User).filter(models.User.email == req.email).first()
+    if not user:
+        # Don't reveal if user exists or not for security
+        return {"success": True}
+        
+    if user.is_verified:
+        return {"success": True, "message": "Already verified"}
+
+    # Generate a new token
+    user.verification_token = uuid.uuid4().hex
+    db.commit()
+
+    email_service.send_verification_email(user.email, user.full_name, user.verification_token)
+    return {"success": True}
+
+@app.post("/auth/forgot-password")
+async def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """Generate password reset token and send email."""
+    user = db.query(models.User).filter(models.User.email == req.email).first()
+    if not user:
+        return {"success": True}  # Security: don't reveal if email exists
+        
+    user.reset_token = uuid.uuid4().hex
+    user.reset_token_expires = _utcnow() + timedelta(hours=1)
+    db.commit()
+    
+    email_service.send_password_reset_email(user.email, user.full_name, user.reset_token)
+    return {"success": True}
+
+@app.post("/auth/reset-password")
+async def reset_password(req: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """Reset password using token."""
+    user = db.query(models.User).filter(
+        models.User.reset_token == req.token,
+        models.User.reset_token_expires > _utcnow()
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
+        
+    user.password_hash = hash_password(req.new_password)
+    user.reset_token = None
+    user.reset_token_expires = None
+    db.commit()
+    
+    return {"success": True, "message": "Password successfully reset."}
+
+@app.get("/config/email-verification", response_model=EmailVerificationConfigResponse)
+async def get_email_verification_config(
+    db: Session = Depends(get_db),
+    _user: models.User = Depends(require_role("cenro"))
+):
+    """CENRO-only: Check if email verification is disabled."""
+    row = db.query(models.SystemConfig).filter(models.SystemConfig.key == "email_verification_disabled").first()
+    return {"enabled": row.value == "false" if row else True}
+
+@app.put("/config/email-verification", response_model=EmailVerificationConfigResponse)
+async def update_email_verification_config(
+    req: EmailVerificationConfigUpdate,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(require_role("cenro"))
+):
+    """CENRO-only: Enable/disable email verification globally."""
+    # false in req means email_verification_disabled = true
+    disabled_str = "false" if req.enabled else "true"
+    
+    row = db.query(models.SystemConfig).filter(models.SystemConfig.key == "email_verification_disabled").first()
+    if row:
+        row.value = disabled_str
+        row.updated_by = admin.id
+        row.updated_at = _utcnow()
+    else:
+        db.add(models.SystemConfig(key="email_verification_disabled", value=disabled_str, updated_by=admin.id))
+    
+    write_audit(db, admin.id, "update_email_config", None, {"email_verification_enabled": req.enabled}, target_type="config")
+    db.commit()
+    
+    return {"enabled": req.enabled}
 
 # ─────────────────────────────────────────────────────────
 # USER MANAGEMENT (CENRO-only)

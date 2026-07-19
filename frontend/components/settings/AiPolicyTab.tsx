@@ -2,17 +2,41 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { api } from "@/lib/api";
 
 export function AiPolicyTab() {
     const [threshold, setThreshold] = useState(0.5);
     const [autoReject, setAutoReject] = useState(true);
     
     useEffect(() => {
-        const storedThreshold = localStorage.getItem("ecowatch_ai_threshold");
-        if (storedThreshold) setThreshold(parseFloat(storedThreshold));
-        const storedReject = localStorage.getItem("ecowatch_ai_autoreject");
-        if (storedReject) setAutoReject(storedReject === "true");
+        const fetchConfig = async () => {
+            try {
+                // We're just mocking the fetch for now as there's no actual GET /admin/system-config endpoint defined in the provided rules, 
+                // but the instructions ask to PATCH to it. Let's still check localStorage as fallback for the UI state.
+                const storedThreshold = localStorage.getItem("ecowatch_ai_threshold");
+                if (storedThreshold) setThreshold(parseFloat(storedThreshold));
+                const storedReject = localStorage.getItem("ecowatch_ai_autoreject");
+                if (storedReject) setAutoReject(storedReject === "true");
+            } catch (e) {
+                console.error(e);
+            }
+        };
+        fetchConfig();
     }, []);
+
+    const updateThreshold = async (val: number) => {
+        setThreshold(val);
+        localStorage.setItem("ecowatch_ai_threshold", val.toString());
+        try {
+            await api("/admin/system-config", {
+                method: "PATCH",
+                body: JSON.stringify({ key: "ai_confidence_threshold", value: val.toString() })
+            });
+            toast.success("AI threshold updated successfully!");
+        } catch (e) {
+            toast.error("Failed to update AI threshold on server");
+        }
+    };
 
     return (
         <div className="animate-fade-in max-w-2xl space-y-8">
@@ -37,8 +61,7 @@ export function AiPolicyTab() {
                         value={threshold}
                         onChange={(e) => {
                             const val = parseFloat(e.target.value);
-                            setThreshold(val);
-                            localStorage.setItem("ecowatch_ai_threshold", val.toString());
+                            updateThreshold(val);
                         }}
                         className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
                     />

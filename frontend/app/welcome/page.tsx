@@ -2,29 +2,22 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export default function WelcomePage() {
     const [name, setName] = useState<string>("there");
 
     useEffect(() => {
-        const fetchUser = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                const { data: profile } = await supabase
-                    .from("profiles")
-                    .select("full_name")
-                    .eq("id", user.id)
-                    .single();
-                if (profile?.full_name) setName(profile.full_name);
+        try {
+            const userStr = localStorage.getItem("ecowatch_user");
+            if (userStr) {
+                const user = JSON.parse(userStr);
+                if (user.full_name) {
+                    setName(user.full_name.split(" ")[0]); // First name
+                }
             }
-        };
-        fetchUser();
+        } catch (err) {
+            console.error("Error reading user from localStorage", err);
+        }
     }, []);
 
     return (

@@ -50,6 +50,16 @@ class User(Base):
     barangay_assignment = Column(String, nullable=True)  # Only for barangay/cleaner role
     phone_number = Column(String, nullable=True)
     is_active = Column(Boolean, nullable=False, default=True)
+    
+    # Email verification
+    is_verified = Column(Boolean, nullable=False, default=False)
+    verification_token = Column(String, nullable=True)
+    reset_token = Column(String, nullable=True)
+    reset_token_expires = Column(DateTime, nullable=True)
+    
+    # Google OAuth
+    google_id = Column(String, nullable=True, unique=True)
+    
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_login_at = Column(DateTime, nullable=True)
 
