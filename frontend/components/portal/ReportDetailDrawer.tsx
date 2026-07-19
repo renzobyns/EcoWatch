@@ -44,7 +44,9 @@ export interface ReportDetailPayload {
     report: QueueReport & {
         photos: Array<{
             url: string;
+            file_size_bytes?: number;
             mask_url: string | null;
+            mask_size_bytes?: number;
             ai_confidence: number | null;
             ai_verified: boolean | null;
             trust_score: string | null;
@@ -61,6 +63,7 @@ export interface ReportDetailPayload {
     cleanup_photos: Array<{
         id: number;
         url: string;
+        file_size_bytes?: number;
         ai_confidence: number | null;
         ai_verified: boolean | null;
         uploaded_at: string;

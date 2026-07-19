@@ -2,6 +2,7 @@
 
 import { TrustBadge } from "@/components/TrustBadge";
 import { formatDateTime } from "@/lib/date-utils";
+import { formatBytes } from "@/lib/format-utils";
 
 export interface PhotoEvidenceDetailProps {
     photo: {
@@ -10,6 +11,7 @@ export interface PhotoEvidenceDetailProps {
         ai_verified: boolean | null;
         trust_score: string | null;
         failing_signals: string[];
+        file_size_bytes?: number;
     };
     report: {
         lat: number;
@@ -142,6 +144,9 @@ export function PhotoEvidenceDetail({ photo, report }: PhotoEvidenceDetailProps)
                         />
                         <Row label="Report submitted" value={formatDateTime(report.created_at)} />
                         <Row label="Age" value={fmtAge(ageHours)} warn={isFuture} />
+                        {photo.file_size_bytes != null && (
+                            <Row label="File Size" value={formatBytes(photo.file_size_bytes)} />
+                        )}
                     </div>
                 </div>
 

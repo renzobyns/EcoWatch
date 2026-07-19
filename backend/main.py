@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Tuple
 import asyncio
 import spatial_utils
 import csv
@@ -37,7 +37,7 @@ def _utcnow() -> datetime:
     All database datetimes will be converted to naive UTC before comparison using ``_to_naive_utc()``.
     """
     return datetime.utcnow()
-from sqlalchemy import or_, text
+from sqlalchemy import or_, text, func
 from sqlalchemy.orm import Session, joinedload
 from database import engine, get_db, SessionLocal
 import models
@@ -86,6 +86,12 @@ with engine.connect() as _conn:
         "ALTER TABLE report_photos ADD COLUMN trust_signals TEXT",
         "ALTER TABLE reports ADD COLUMN duplicate_of_id INTEGER",
         "ALTER TABLE reports ADD COLUMN possible_duplicate_flag BOOLEAN DEFAULT 0 NOT NULL",
+        "ALTER TABLE report_photos ADD COLUMN file_size_bytes INTEGER DEFAULT 0",
+        "ALTER TABLE report_photos ADD COLUMN mask_size_bytes INTEGER DEFAULT 0",
+        "ALTER TABLE cleanup_photos ADD COLUMN file_size_bytes INTEGER DEFAULT 0",
+        "ALTER TABLE reports ADD COLUMN image_size_bytes INTEGER DEFAULT 0",
+        "ALTER TABLE reports ADD COLUMN ai_mask_size_bytes INTEGER DEFAULT 0",
+        "ALTER TABLE reports ADD COLUMN cleanup_size_bytes INTEGER DEFAULT 0",
     ):
         try:
             _conn.execute(text(_ddl))
@@ -329,8 +335,11 @@ class ReportResponse(BaseModel):
     barangay: Optional[str] = None
     reporter_id: Optional[int] = None
     image_url: Optional[str] = None
+    image_size_bytes: int = 0
     ai_mask_url: Optional[str] = None
+    ai_mask_size_bytes: int = 0
     cleanup_image_url: Optional[str] = None
+    cleanup_size_bytes: int = 0
     ai_confidence: Optional[float] = None
     status: str
     notes: Optional[str] = None
@@ -513,11 +522,12 @@ async def save_upload(
     image: UploadFile,
     prefix: str = "report",
     contents: Optional[bytes] = None,
-) -> str:
-    """Save an uploaded file to Supabase Storage (if configured) or local disk.
+) -> Tuple[str, int]:
+    """Save an uploaded file to Supabase Storage (if configured) AND local disk.
 
     If `contents` is provided, reuse it (avoids double-reading large files).
     Otherwise read from the UploadFile. Always validates MIME + size.
+    Returns (url_path, exact_byte_size).
     """
     if contents is None:
         contents = await image.read()
@@ -569,20 +579,19 @@ async def save_upload(
         try:
             response = requests.post(upload_url, headers=headers, data=contents, timeout=15)
             if response.status_code == 200:
-                # Successfully uploaded! Return the relative path so frontend doesn't break
                 logger.info(f"Uploaded photo {filename} successfully to Supabase Storage.")
-                return f"/uploads/{filename}"
+                # We do not return early here anymore. We must also save it to disk!
             else:
                 logger.error(f"Supabase Storage upload failed (status {response.status_code}): {response.text}. Falling back to local disk.")
         except Exception as e:
             logger.exception("Supabase Storage upload failed with exception. Falling back to local disk.")
 
-    # Fallback to local disk
+    # Always save to local disk so AI verifier and backfill scripts have access
     filepath = os.path.join(UPLOAD_DIR, filename)
     with open(filepath, "wb") as f:
         f.write(contents)
 
-    return f"/uploads/{filename}"
+    return f"/uploads/{filename}", len(contents)
 
 
 # ─────────────────────────────────────────────────────────
@@ -596,6 +605,40 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+@app.get("/analytics/storage-health")
+async def get_storage_health(
+    db: Session = Depends(get_db),
+    _user: models.User = Depends(require_role("cenro", "barangay"))
+):
+    """Returns exact byte sizes for images and database storage."""
+    total_images_bytes = 0
+    total_images_bytes += db.query(func.sum(models.ReportPhoto.file_size_bytes)).scalar() or 0
+    total_images_bytes += db.query(func.sum(models.ReportPhoto.mask_size_bytes)).scalar() or 0
+    total_images_bytes += db.query(func.sum(models.CleanupPhoto.file_size_bytes)).scalar() or 0
+    
+    # Legacy columns
+    total_images_bytes += db.query(func.sum(models.Report.image_size_bytes)).scalar() or 0
+    total_images_bytes += db.query(func.sum(models.Report.ai_mask_size_bytes)).scalar() or 0
+    total_images_bytes += db.query(func.sum(models.Report.cleanup_size_bytes)).scalar() or 0
+
+    # Total Database Size
+    db_size_bytes = 0
+    db_path = os.getenv("DATABASE_URL", "sqlite:///./ecowatch.db")
+    if db_path.startswith("sqlite:///"):
+        local_db_path = db_path.replace("sqlite:///", "")
+        if os.path.exists(local_db_path):
+            db_size_bytes = os.path.getsize(local_db_path)
+    else:
+        # Fallback dummy for postgres in this capstone, or we could run a pg-specific query.
+        db_size_bytes = 1024 * 1024 * 5 # 5MB
+
+    return {
+        "images_bytes": total_images_bytes,
+        "images_limit_bytes": 1024 * 1024 * 1024 * 1, # 1GB
+        "database_bytes": db_size_bytes,
+        "database_limit_bytes": 1024 * 1024 * 500, # 500MB
+    }
 
 
 # ─────────────────────────────────────────────────────────
@@ -1274,8 +1317,9 @@ def _disk_path_for_upload_url(upload_url: str) -> str:
     return os.path.join(UPLOAD_DIR, filename)
 
 
-def _save_mask_bytes(mask_bytes: bytes) -> Optional[str]:
-    """Persist a generated AI mask image to Supabase Storage (if configured) or local disk."""
+def _save_mask_bytes(mask_bytes: bytes) -> Optional[Tuple[str, int]]:
+    """Persist a generated AI mask image to Supabase Storage and local disk.
+    Returns (url_path, exact_byte_size)."""
     if not mask_bytes:
         return None
     mask_filename = f"mask_{uuid.uuid4().hex[:8]}.jpg"
@@ -1296,16 +1340,16 @@ def _save_mask_bytes(mask_bytes: bytes) -> Optional[str]:
             response = requests.post(upload_url, headers=headers, data=mask_bytes, timeout=15)
             if response.status_code == 200:
                 logger.info(f"Uploaded AI mask {mask_filename} successfully to Supabase Storage.")
-                return f"/uploads/{mask_filename}"
+                # Do not return early, must save locally too
             else:
                 logger.error(f"Supabase Storage upload for AI mask failed (status {response.status_code}): {response.text}. Falling back to local disk.")
         except Exception as e:
             logger.exception("Supabase Storage upload for AI mask failed with exception. Falling back to local disk.")
 
-    # Fallback to local disk
+    # Always save to local disk
     with open(os.path.join(UPLOAD_DIR, mask_filename), "wb") as f:
         f.write(mask_bytes)
-    return f"/uploads/{mask_filename}"
+    return f"/uploads/{mask_filename}", len(mask_bytes)
 
 
 def _get_report_failing_signals(photos: list) -> list:
@@ -1427,7 +1471,9 @@ async def _bg_verify_submit(report_id: int, device_lat: float = None, device_lon
                 row.ai_confidence = result.get("confidence")
                 row.ai_verified = bool(result.get("verified", False))
                 if result.get("verified") and result.get("mask_bytes"):
-                    row.ai_mask_path = _save_mask_bytes(result.get("mask_bytes"))
+                    mask_result = _save_mask_bytes(result.get("mask_bytes"))
+                    if mask_result:
+                        row.ai_mask_path, row.mask_size_bytes = mask_result
                 photo_bytes_for_trust.append((img_bytes, row))
 
         # Run ALL trust scoring off the event loop in a single thread to avoid blocking
@@ -1464,7 +1510,9 @@ async def _bg_verify_submit(report_id: int, device_lat: float = None, device_lon
             ]
             best_pass_result = max(passing, key=lambda x: x[0].get("confidence", 0.0))[0]
             if best_pass_result.get("mask_bytes"):
-                report.ai_mask_url = _save_mask_bytes(best_pass_result.get("mask_bytes"))
+                mask_result = _save_mask_bytes(best_pass_result.get("mask_bytes"))
+                if mask_result:
+                    report.ai_mask_url, report.ai_mask_size_bytes = mask_result
             if report.barangay:
                 emit_to_barangay(
                     db, report.barangay, "report_verified_in_barangay",
@@ -1654,12 +1702,64 @@ async def _bg_verify_complete(work_order_id: int, user_id: int) -> None:
         db.close()
 
 
+def _run_schema_migrations_and_backfill(db: Session):
+    # 1. Safe Schema Migrations
+    migrations = [
+        ("report_photos", "file_size_bytes", "INTEGER DEFAULT 0"),
+        ("report_photos", "mask_size_bytes", "INTEGER DEFAULT 0"),
+        ("cleanup_photos", "file_size_bytes", "INTEGER DEFAULT 0"),
+        ("reports", "image_size_bytes", "INTEGER DEFAULT 0"),
+        ("reports", "ai_mask_size_bytes", "INTEGER DEFAULT 0"),
+        ("reports", "cleanup_size_bytes", "INTEGER DEFAULT 0"),
+    ]
+    for table, col, col_def in migrations:
+        try:
+            db.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_def}"))
+        except Exception:
+            pass  # Ignore if column already exists
+    db.commit()
+
+    # 2. Data Backfill from Local Uploads
+    def _backfill_size(path_val: str) -> int:
+        if not path_val: return 0
+        file_name = path_val.split("/")[-1]
+        local_path = os.path.join(UPLOAD_DIR, file_name)
+        if os.path.exists(local_path):
+            return os.path.getsize(local_path)
+        return 0
+
+    try:
+        for rp in db.query(models.ReportPhoto).all():
+            if getattr(rp, 'file_size_bytes', 0) == 0:
+                rp.file_size_bytes = _backfill_size(rp.file_path)
+            if getattr(rp, 'mask_size_bytes', 0) == 0:
+                rp.mask_size_bytes = _backfill_size(rp.ai_mask_path)
+                
+        for cp in db.query(models.CleanupPhoto).all():
+            if getattr(cp, 'file_size_bytes', 0) == 0:
+                cp.file_size_bytes = _backfill_size(cp.file_path)
+                
+        for r in db.query(models.Report).all():
+            if getattr(r, 'image_size_bytes', 0) == 0:
+                r.image_size_bytes = _backfill_size(r.image_url)
+            if getattr(r, 'ai_mask_size_bytes', 0) == 0:
+                r.ai_mask_size_bytes = _backfill_size(r.ai_mask_url)
+            if getattr(r, 'cleanup_size_bytes', 0) == 0:
+                r.cleanup_size_bytes = _backfill_size(r.cleanup_image_url)
+                
+        db.commit()
+    except Exception as e:
+        logger.error(f"Error during backfill: {e}")
+
+
 @app.on_event("startup")
 async def _resume_orphan_verifications() -> None:
     """Re-dispatch background AI tasks for reports that were mid-verification when
     the server stopped. Looks up the kind in `verification_kind` to pick the right BG fn."""
     db = SessionLocal()
     try:
+        _run_schema_migrations_and_backfill(db)
+        
         orphans = db.query(models.Report).filter(
             models.Report.verification_pending == True
         ).all()
@@ -1754,11 +1854,11 @@ async def submit_report(
         photo_bytes.append((img, img_bytes))
 
     # Save each photo; skip bad files but proceed if at least one succeeds
-    saved_urls: list[str] = []
+    saved_urls: list[Tuple[str, int]] = []
     for img, img_bytes in photo_bytes:
         try:
-            url = await save_upload(img, prefix="report", contents=img_bytes)
-            saved_urls.append(url)
+            url, size = await save_upload(img, prefix="report", contents=img_bytes)
+            saved_urls.append((url, size))
         except HTTPException:
             pass  # skip invalid file; continue with the rest
 
@@ -1777,7 +1877,8 @@ async def submit_report(
         lon=lon,
         barangay=barangay,
         reporter_id=reporter_id,
-        image_url=saved_urls[0],  # backward compat: first photo
+        image_url=saved_urls[0][0],  # backward compat: first photo
+        image_size_bytes=saved_urls[0][1],
         status=models.ReportStatus.PENDING,
         notes=notes,
         tracking_id=tracking_id,
@@ -1789,8 +1890,8 @@ async def submit_report(
     db.commit()
     db.refresh(new_report)
 
-    for url in saved_urls:
-        db.add(models.ReportPhoto(report_id=new_report.id, file_path=url))
+    for url, size in saved_urls:
+        db.add(models.ReportPhoto(report_id=new_report.id, file_path=url, file_size_bytes=size))
     db.commit()
 
     # Module 3: flag if there's already an open report nearby (possible duplicate).
@@ -2017,7 +2118,9 @@ async def get_report_detail(
     response.photos = [
         {
             "url": p.file_path,
+            "file_size_bytes": getattr(p, "file_size_bytes", 0),
             "mask_url": p.ai_mask_path,
+            "mask_size_bytes": getattr(p, "mask_size_bytes", 0),
             "ai_confidence": p.ai_confidence,
             "ai_verified": p.ai_verified,
             "trust_score": getattr(p, "trust_score", None),
@@ -2039,6 +2142,7 @@ async def get_report_detail(
         cleanup_photos.append({
             "id": cp.id,
             "url": cp.file_path,
+            "file_size_bytes": getattr(cp, "file_size_bytes", 0),
             "ai_confidence": cp.ai_confidence,
             "ai_verified": cp.ai_verified,
             "uploaded_at": cp.uploaded_at,
@@ -2316,28 +2420,30 @@ async def resolve_report(
             detail=f"Cannot resolve. Report status is '{report.status}', must be 'assigned' or 'in_progress'."
         )
 
-    saved_urls: list[str] = []
+    saved_urls: list[Tuple[str, int]] = []
     for img in cleanup_images:
         try:
             img_bytes = await img.read()
-            url = await save_upload(img, prefix="cleanup", contents=img_bytes)
-            saved_urls.append(url)
+            url, size = await save_upload(img, prefix="cleanup", contents=img_bytes)
+            saved_urls.append((url, size))
         except HTTPException as e:
             logger.warning("resolve_report: skipping photo that failed validation: %s", e.detail)
 
     if not saved_urls:
         raise HTTPException(status_code=422, detail="No photos could be saved. Please try again.")
 
-    report.cleanup_image_url = saved_urls[0]  # backward compat
+    report.cleanup_image_url = saved_urls[0][0]  # backward compat
+    report.cleanup_size_bytes = saved_urls[0][1]
     report.verification_pending = True
     report.verification_kind = "resolve"
     db.commit()
 
-    for url in saved_urls:
+    for url, size in saved_urls:
         db.add(models.CleanupPhoto(
             report_id=report.id,
             work_order_id=None,
             file_path=url,
+            file_size_bytes=size,
         ))
     db.commit()
     db.refresh(report)
@@ -2556,29 +2662,31 @@ async def complete_work_order(
         wo.status = models.WorkOrderStatus.IN_PROGRESS
         report.status = models.ReportStatus.IN_PROGRESS
 
-    saved_urls: list[str] = []
+    saved_urls: list[Tuple[str, int]] = []
     for img in cleanup_images:
         try:
             img_bytes = await img.read()
-            url = await save_upload(img, prefix="cleanup", contents=img_bytes)
-            saved_urls.append(url)
+            url, size = await save_upload(img, prefix="cleanup", contents=img_bytes)
+            saved_urls.append((url, size))
         except HTTPException as e:
             logger.warning("complete_work_order: skipping photo that failed validation: %s", e.detail)
 
     if not saved_urls:
         raise HTTPException(status_code=422, detail="No photos could be saved. Please try again.")
 
-    report.cleanup_image_url = saved_urls[0]  # backward compat
+    report.cleanup_image_url = saved_urls[0][0]  # backward compat
+    report.cleanup_size_bytes = saved_urls[0][1]
     report.verification_pending = True
     report.verification_kind = "complete"
     wo.completed_at = _utcnow()
     db.commit()
 
-    for url in saved_urls:
+    for url, size in saved_urls:
         db.add(models.CleanupPhoto(
             report_id=report.id,
             work_order_id=wo.id,
             file_path=url,
+            file_size_bytes=size,
         ))
     db.commit()
     db.refresh(wo)

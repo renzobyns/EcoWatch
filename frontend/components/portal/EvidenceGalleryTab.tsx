@@ -11,6 +11,7 @@ import { formatDate } from "@/lib/date-utils";
 import { QueueReport } from "@/components/portal/ReportDetailDrawer";
 import { toast } from "sonner";
 import { KpiCard } from "@/components/portal/KpiCard";
+import { formatBytes } from "@/lib/format-utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -289,7 +290,9 @@ export function EvidenceGalleryTab({ reports, barangays, onReportClick, loading 
                                         ) : (
                                             <div className="flex items-center justify-center h-full text-[10px] text-muted-foreground">No original</div>
                                         )}
-                                        <div className="absolute bottom-0 inset-x-0 bg-background/80 text-[9px] font-medium p-1 text-center backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">Original</div>
+                                        <div className="absolute bottom-0 inset-x-0 bg-background/80 text-[9px] font-medium p-1 text-center backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                                            Original <span className="text-muted-foreground/80 font-normal">({formatBytes(report.image_size_bytes)})</span>
+                                        </div>
                                     </div>
 
                                     {/* AI Mask */}
@@ -299,7 +302,9 @@ export function EvidenceGalleryTab({ reports, barangays, onReportClick, loading 
                                         ) : (
                                             <div className="flex items-center justify-center h-full text-[10px] text-muted-foreground">No mask</div>
                                         )}
-                                        <div className="absolute bottom-0 inset-x-0 bg-background/80 text-[9px] font-medium p-1 text-center backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">AI Mask</div>
+                                        <div className="absolute bottom-0 inset-x-0 bg-background/80 text-[9px] font-medium p-1 text-center backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                                            AI Mask <span className="text-muted-foreground/80 font-normal">({formatBytes(report.ai_mask_size_bytes)})</span>
+                                        </div>
                                     </div>
 
                                     {/* Cleanup Proof */}
@@ -310,7 +315,9 @@ export function EvidenceGalleryTab({ reports, barangays, onReportClick, loading 
                                         ) : (
                                             <div className="flex items-center justify-center h-full text-[10px] text-muted-foreground">Pending</div>
                                         )}
-                                        <div className="absolute bottom-0 inset-x-0 bg-background/80 text-[9px] font-medium p-1 text-center backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">Cleanup</div>
+                                        <div className="absolute bottom-0 inset-x-0 bg-background/80 text-[9px] font-medium p-1 text-center backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                                            Cleanup <span className="text-muted-foreground/80 font-normal">({formatBytes(report.cleanup_size_bytes)})</span>
+                                        </div>
                                     </div>
                                 </div>
 

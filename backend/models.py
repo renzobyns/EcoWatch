@@ -86,6 +86,11 @@ class Report(Base):
     notes = Column(Text, nullable=True)
     deployment_notes = Column(Text, nullable=True)  # Set when barangay dispatches a team
 
+    # Legacy file sizes (tracked exactly in bytes)
+    image_size_bytes = Column(Integer, default=0)
+    ai_mask_size_bytes = Column(Integer, default=0)
+    cleanup_size_bytes = Column(Integer, default=0)
+
     # Async AI verification: True while a background task is running Mask R-CNN
     # for either the initial photo or a cleanup photo. Drives the frontend
     # "AI verifying…" spinner and is the source of truth for startup recovery.
@@ -199,6 +204,10 @@ class ReportPhoto(Base):
     ai_confidence = Column(Float, nullable=True)
     ai_verified = Column(Boolean, nullable=True)
     ai_mask_path = Column(String, nullable=True)
+    
+    file_size_bytes = Column(Integer, default=0)
+    mask_size_bytes = Column(Integer, default=0)
+    
     uploaded_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Trust scoring
@@ -218,6 +227,9 @@ class CleanupPhoto(Base):
     file_path = Column(String, nullable=False)
     ai_confidence = Column(Float, nullable=True)
     ai_verified = Column(Boolean, nullable=True)
+    
+    file_size_bytes = Column(Integer, default=0)
+    
     uploaded_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     report = relationship("Report", back_populates="cleanup_photos")
