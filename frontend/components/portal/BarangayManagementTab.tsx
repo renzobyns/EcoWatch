@@ -360,8 +360,7 @@ export function BarangayManagementTab({
                                                     </span>
                                                     {/* Hover tooltip */}
                                                     <span 
-                                                         style={{ backgroundColor: 'var(--card)' }}
-                                                         className="pointer-events-none absolute z-[9999] right-full mr-2 top-1/2 -translate-y-1/2 w-60 rounded-xl border-2 border-border p-3 text-left text-[11px] leading-relaxed text-foreground/90 shadow-2xl shadow-black/30 opacity-0 group-hover/status:opacity-100 transition-opacity duration-150"
+                                                         className="pointer-events-none absolute z-[9999] right-full mr-2 top-1/2 -translate-y-1/2 w-60 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#0f1410] p-3 text-left text-[11px] leading-relaxed text-foreground/90 shadow-2xl shadow-black/40 opacity-0 group-hover/status:opacity-100 transition-opacity duration-150"
                                                      >
                                                          {row.status_reason}
                                                      </span>
@@ -487,8 +486,7 @@ function BarangayRowCard({
                         {statusLabel}
                         {/* Hover tooltip */}
                         <span 
-                            style={{ backgroundColor: 'var(--card)' }}
-                            className="pointer-events-none absolute z-[9999] right-0 top-full mt-2 w-60 rounded-xl border-2 border-border p-3 text-left text-[11px] leading-relaxed text-foreground/90 shadow-2xl shadow-black/30 opacity-0 group-hover/status:opacity-100 transition-opacity duration-150"
+                            className="pointer-events-none absolute z-[9999] right-0 top-full mt-2 w-60 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#0f1410] p-3 text-left text-[11px] leading-relaxed text-foreground/90 shadow-2xl shadow-black/40 opacity-0 group-hover/status:opacity-100 transition-opacity duration-150"
                         >
                             {row.status_reason}
                         </span>
