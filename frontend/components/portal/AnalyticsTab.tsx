@@ -692,6 +692,7 @@ export function AnalyticsTab({
                     <div className="flex items-center gap-2 mb-5 text-foreground">
                         <Zap size={18} className="text-muted-foreground" />
                         <h2 className="text-base font-semibold">Response Time by Priority</h2>
+                        <InfoTooltip content="Tracks average hours taken at key stages of cleanup by priority. 'Create → Start' measures dispatch speed (report submission to team deployment). 'Start → Done' measures cleanup speed (deployment to resolution)." align="right" />
                     </div>
                     <div className="relative z-10 space-y-3">
                         {showSkeleton ? (
