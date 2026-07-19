@@ -849,7 +849,12 @@ function BarangayPortalInner() {
                                         {recentReports.map(r => {
                                             const sla = slaInfo(r.created_at, r.status);
                                             return (
-                                                <li key={r.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-colors border border-transparent hover:border-border">
+                                                <li key={r.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-colors border border-transparent hover:border-border cursor-pointer" onClick={() => {
+                                                    setSelectedReport(r);
+                                                    setCleanupPreview(null);
+                                                    setCleanupImage(null);
+                                                    setDeploymentNotes("");
+                                                }}>
                                                     <div className="flex items-center gap-3 min-w-0">
                                                         <span className="font-mono text-sm font-bold text-foreground truncate">{r.tracking_id}</span>
                                                         <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
@@ -1641,8 +1646,8 @@ function BarangayPortalInner() {
 
                             {/* Main View Area */}
                             {userViewMode === "table" ? (
-                                <div className="bg-card rounded-xl border border-border flex flex-col overflow-hidden animate-slide-up shadow-sm">
-                                    <div className="overflow-x-auto">
+                                <div className="bg-card rounded-xl border border-border flex flex-col animate-slide-up shadow-sm overflow-hidden md:overflow-visible">
+                                    <div className="overflow-x-auto md:overflow-visible">
                                         <table className="w-full text-left border-collapse">
                                             <thead>
                                                 <tr className="border-b border-border text-xs text-muted-foreground font-medium bg-muted/20">
@@ -1963,7 +1968,16 @@ function BarangayPortalInner() {
                                                     paginatedReports.map(report => {
                                                         const sla = slaInfo(report.created_at, report.status);
                                                         return (
-                                                            <tr key={report.id} className="border-b border-border hover:bg-muted/50 transition-colors">
+                                                            <tr 
+                                                                key={report.id} 
+                                                                className="border-b border-border hover:bg-muted/50 transition-colors cursor-pointer"
+                                                                onClick={() => {
+                                                                    setSelectedReport(report);
+                                                                    setCleanupPreview(null);
+                                                                    setCleanupImage(null);
+                                                                    setDeploymentNotes("");
+                                                                }}
+                                                            >
                                                                 <td className="p-4 font-mono text-sm font-medium text-foreground">
                                                                     {report.tracking_id}
                                                                     {report.possible_duplicate_flag && report.status !== 'duplicate' && (
@@ -2000,7 +2014,8 @@ function BarangayPortalInner() {
                                                                 </td>
                                                                 <td className="p-4 text-right">
                                                                     <button
-                                                                        onClick={() => {
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
                                                                             setSelectedReport(report);
                                                                             setCleanupPreview(null);
                                                                             setCleanupImage(null);
@@ -2073,13 +2088,19 @@ function BarangayPortalInner() {
             {/* Report Detail Modal */}
             {selectedReport && (
                 <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="glass p-0 max-w-4xl w-full max-h-[90vh] overflow-y-auto rounded-2xl border border-border shadow-2xl relative animate-in zoom-in-95 duration-300">
+                    <div className="bg-card p-0 max-w-4xl w-full max-h-[90vh] overflow-y-auto rounded-xl border border-border shadow-2xl relative animate-in zoom-in-95 duration-300">
 
                         {/* Modal Header */}
-                        <div className="sticky top-0 z-10 glass border-b border-border px-6 py-4 flex items-center justify-between">
+                        <div className="sticky top-0 z-20 bg-card border-b border-border px-6 py-4 flex items-center justify-between">
                             <div>
-                                <h2 className="text-lg font-semibold text-foreground">Report {selectedReport.tracking_id}</h2>
-                                <p className="text-xs text-foreground/50 font-bold uppercase tracking-widest">{selectedReport.status}</p>
+                                <h2 className="text-lg font-bold text-foreground">Report {selectedReport.tracking_id}</h2>
+                                <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                    selectedReport.status === 'resolved' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' :
+                                    selectedReport.status === 'pending' ? 'bg-destructive/10 text-destructive border border-destructive/20' :
+                                    'bg-muted text-foreground border border-border'
+                                }`}>
+                                    {selectedReport.status.replace(/_/g, " ")}
+                                </span>
                             </div>
                             <button
                                 onClick={() => setSelectedReport(null)}
@@ -2094,23 +2115,23 @@ function BarangayPortalInner() {
                             {/* Left Col: Info & Map */}
                             <div className="space-y-6">
                                 <div>
-                                    <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-widest mb-2">Location Map</h3>
+                                    <h3 className="text-sm font-medium text-muted-foreground mb-2">Location Map</h3>
                                     <div className="w-full h-48 rounded-xl overflow-hidden border border-border relative bg-black/50">
                                         <MiniMap lat={selectedReport.lat} lon={selectedReport.lon} />
                                     </div>
                                 </div>
 
                                 <div>
-                                    <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-widest mb-1">Citizen Notes</h3>
-                                    <p className="text-sm text-foreground/80 bg-foreground/5 p-4 rounded-xl border border-border italic">
+                                    <h3 className="text-sm font-medium text-muted-foreground mb-2">Citizen Notes</h3>
+                                    <p className="text-sm text-foreground bg-muted/50 p-4 rounded-xl border border-border italic">
                                         {selectedReport.notes || "No notes provided."}
                                     </p>
                                 </div>
 
                                 {selectedReport.deployment_notes && (
                                     <div>
-                                        <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-widest mb-1">Deployment Notes</h3>
-                                        <p className="text-sm text-foreground/80 bg-foreground/5 p-4 rounded-xl border border-border">
+                                        <h3 className="text-sm font-medium text-muted-foreground mb-2">Deployment Notes</h3>
+                                        <p className="text-sm text-foreground bg-muted/50 p-4 rounded-xl border border-border">
                                             {selectedReport.deployment_notes}
                                         </p>
                                     </div>
@@ -2118,14 +2139,20 @@ function BarangayPortalInner() {
 
                                 {/* Reporter identity (Module 2) */}
                                 <div>
-                                    <div className="text-[10px] text-foreground/40 uppercase tracking-widest font-bold mb-3">Reporter</div>
+                                    <h3 className="text-sm font-medium text-muted-foreground mb-3">Reporter</h3>
                                     {selectedReport.reporter_id === null ? (
-                                        <div className="text-[11px] text-foreground/40 italic">Anonymous (legacy report)</div>
+                                        <div className="text-sm text-muted-foreground italic">Anonymous (legacy report)</div>
                                     ) : reporterLoading && !reporterDetail ? (
-                                        <div className="text-[11px] text-foreground/40 animate-pulse">Loading reporter info…</div>
+                                        <div className="flex items-center gap-3 animate-pulse">
+                                            <div className="w-8 h-8 rounded-full bg-muted flex-shrink-0"></div>
+                                            <div className="space-y-2 flex-1">
+                                                <div className="h-4 bg-muted rounded w-24"></div>
+                                                <div className="h-3 bg-muted rounded w-32"></div>
+                                            </div>
+                                        </div>
                                     ) : reporterError && !reporterDetail ? (
-                                        <div className="text-[11px] text-foreground/40">
-                                            <span className="text-red-400">Couldn&apos;t load reporter info.</span>
+                                        <div className="text-sm text-destructive">
+                                            <span>Couldn&apos;t load reporter info.</span>
                                         </div>
                                     ) : reporterDetail ? (
                                         <div className="flex items-center gap-3">
@@ -2145,7 +2172,7 @@ function BarangayPortalInner() {
                                     )}
                                 </div>
 
-                                <div className="text-xs text-foreground/40">
+                                <div className="text-xs text-muted-foreground">
                                     Reported: {formatDateTime(selectedReport.created_at)}
                                 </div>
                             </div>
@@ -2153,11 +2180,11 @@ function BarangayPortalInner() {
                             {/* Right Col: Evidence & Actions */}
                             <div className="space-y-6">
                                 <div>
-                                    <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-widest mb-2">Evidence Photo</h3>
-                                    <div className="w-full aspect-video rounded-xl overflow-hidden border border-border bg-black/50 relative">
+                                    <h3 className="text-sm font-medium text-muted-foreground mb-2">Evidence Photo</h3>
+                                    <div className="w-full aspect-video rounded-xl overflow-hidden border border-border bg-muted relative">
                                         <img src={`${API_URL}${selectedReport.image_url}`} className="w-full h-full object-cover" alt="Evidence" />
                                         {selectedReport.ai_confidence && (
-                                            <div className="absolute bottom-2 right-2 glass px-2 py-1 rounded text-[10px] font-bold text-white inline-flex items-center gap-1.5">
+                                            <div className="absolute bottom-2 right-2 bg-black/70 backdrop-blur-sm border border-white/10 px-2 py-1 rounded text-[10px] font-bold text-white inline-flex items-center gap-1.5 shadow-sm">
                                                 <span>AI Confidence: {(selectedReport.ai_confidence * 100).toFixed(0)}%</span>
                                                 <InfoTooltip side="top" align="right" label="How is AI confidence computed?">
                                                     <ConfidenceTooltipBody />
@@ -2183,16 +2210,16 @@ function BarangayPortalInner() {
 
                                 {/* Possible Duplicates (Module 3) */}
                                 {selectedReport.possible_duplicate_flag && selectedReport.status !== 'duplicate' && duplicateMatches.length > 0 && (
-                                    <div className="bg-amber-500/5 p-5 rounded-2xl border border-amber-500/30">
-                                        <h3 className="text-xs font-semibold text-amber-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                    <div className="bg-amber-50 dark:bg-amber-950/20 p-5 rounded-xl border border-amber-200 dark:border-amber-900/50">
+                                        <h3 className="text-sm font-medium text-amber-800 dark:text-amber-400 mb-2 flex items-center gap-2">
                                             <span>⚠</span> Possible Duplicates
                                         </h3>
-                                        <p className="text-[11px] text-foreground/50 mb-3">
+                                        <p className="text-xs text-amber-700/70 dark:text-amber-400/70 mb-3">
                                             Open reports near this one. If this is the same incident, confirm it as a duplicate to remove it from the queue.
                                         </p>
                                         <div className="space-y-2">
                                             {duplicateMatches.map((m) => (
-                                                <div key={m.id} className="flex items-center justify-between gap-3 bg-foreground/5 rounded-xl px-3 py-2 border border-border">
+                                                <div key={m.id} className="flex items-center justify-between gap-3 bg-white/50 dark:bg-black/20 rounded-lg px-3 py-2 border border-amber-200/50 dark:border-amber-900/50">
                                                     <div className="min-w-0">
                                                         <div className="font-mono text-xs font-bold text-foreground">{m.tracking_id}</div>
                                                         <div className="text-[10px] text-foreground/50">
@@ -2202,7 +2229,7 @@ function BarangayPortalInner() {
                                                     <button
                                                         onClick={() => handleMarkDuplicate(m.id)}
                                                         disabled={markingDuplicate}
-                                                        className="flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 disabled:opacity-50 transition-colors"
+                                                        className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-900/60 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                                     >
                                                         {markingDuplicate ? "…" : "Confirm Duplicate"}
                                                     </button>
@@ -2213,8 +2240,8 @@ function BarangayPortalInner() {
                                 )}
 
                                 {/* Action Area */}
-                                <div className="bg-foreground/5 p-6 rounded-2xl border border-border">
-                                    <h3 className="text-xs font-semibold text-foreground uppercase tracking-widest mb-4 border-b border-border pb-2">Take Action</h3>
+                                <div className="bg-muted/40 p-6 rounded-xl border border-border">
+                                    <h3 className="text-base font-semibold text-foreground mb-4 border-b border-border pb-2">Take Action</h3>
 
                                     {selectedReport.status === 'verified' && (
                                         <div>
@@ -2222,11 +2249,11 @@ function BarangayPortalInner() {
 
                                             <div className="grid grid-cols-2 gap-3 mb-4">
                                                 <div>
-                                                    <label className="block text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-2">Priority</label>
+                                                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Priority</label>
                                                     <select
                                                         value={selectedPriority}
                                                         onChange={(e) => setSelectedPriority(e.target.value)}
-                                                        className="w-full px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:border-primary focus:outline-none"
+                                                        className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20 transition-all"
                                                     >
                                                         <option value="low">Low ({slaPolicy.low} days)</option>
                                                         <option value="medium">Medium ({slaPolicy.medium} days)</option>
@@ -2234,11 +2261,11 @@ function BarangayPortalInner() {
                                                     </select>
                                                 </div>
                                                 <div>
-                                                    <label className="block text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-2">Assign To</label>
+                                                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Assign To</label>
                                                     <select
                                                         value={selectedCleaner || ""}
                                                         onChange={(e) => setSelectedCleaner(e.target.value ? parseInt(e.target.value) : null)}
-                                                        className="w-full px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm focus:border-primary focus:outline-none"
+                                                        className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20 transition-all"
                                                     >
                                                         <option value="">Select cleaner...</option>
                                                         {cleaners.filter(c => c.is_active).map(c => (
@@ -2248,18 +2275,18 @@ function BarangayPortalInner() {
                                                 </div>
                                             </div>
 
-                                            <label className="block text-[10px] font-bold text-foreground/50 uppercase tracking-widest mb-2">Deployment Notes <span className="text-foreground/30 normal-case font-medium">(optional)</span></label>
+                                            <label className="block text-xs font-medium text-muted-foreground mb-1.5">Deployment Notes <span className="text-muted-foreground/60 normal-case">(optional)</span></label>
                                             <textarea
                                                 value={deploymentNotes}
                                                 onChange={(e) => setDeploymentNotes(e.target.value)}
                                                 placeholder="Optional: who was dispatched, ETA, contact info…"
                                                 rows={3}
-                                                className="w-full mb-4 px-3 py-2 rounded-lg bg-foreground/5 border border-border text-foreground text-sm placeholder:text-foreground/30 focus:border-primary focus:outline-none resize-none"
+                                                className="w-full mb-4 px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20 resize-none transition-all"
                                             />
                                             <button
                                                 onClick={() => handleDeploy(selectedReport.id)}
                                                 disabled={actionLoading || !selectedCleaner}
-                                                className="w-full py-3 eco-gradient text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+                                                className="w-full py-2.5 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg font-medium shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
                                                 {actionLoading ? "Processing..." : "Deploy Cleanup Team"}
                                             </button>
