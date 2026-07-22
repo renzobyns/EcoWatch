@@ -3485,6 +3485,7 @@ def _build_barangay_overview_data(db: Session, start: datetime | None = None, en
         active_breaches = sla_entry.get("active_breaches", 0)
         compliance_rate = sla_entry.get("compliance_rate", 0.0)
         avg_resolution_days = sla_entry.get("avg_resolution_days", 0.0)
+        total_completed = sla_entry.get("total_completed", 0)
 
         # 7-day resolution rate trend delta
         # "current window" = resolved_at in [7d ago, now)
@@ -3533,7 +3534,7 @@ def _build_barangay_overview_data(db: Session, start: datetime | None = None, en
             # No real reports in this period — cannot compute a meaningful compliance rate.
             status = "healthy"
             status_reason = "No reports were submitted in this period, so there is nothing to breach."
-        elif compliance_rate < sla_target:
+        elif total_completed > 0 and compliance_rate < sla_target:
             status = "at_risk"
             status_reason = (
                 f"SLA compliance is {compliance_rate:.1f}%, which is below the "

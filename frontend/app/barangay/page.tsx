@@ -916,17 +916,17 @@ function BarangayPortalInner() {
                     const kpiAtRisk = workOrders.filter(wo =>
                         activeStatuses.includes(wo.status) &&
                         wo.sla_deadline &&
-                        new Date(wo.sla_deadline).getTime() > now &&
-                        new Date(wo.sla_deadline).getTime() - now <= 86400000
+                        toUTCMs(wo.sla_deadline) > now &&
+                        toUTCMs(wo.sla_deadline) - now <= 86400000
                     ).length;
                     const kpiBreached = workOrders.filter(wo =>
                         activeStatuses.includes(wo.status) &&
                         wo.sla_deadline &&
-                        new Date(wo.sla_deadline).getTime() < now
+                        toUTCMs(wo.sla_deadline) < now
                     ).length;
                     const kpiResolved = workOrders.filter(wo =>
                         (wo.status === "verified" || wo.status === "completed") &&
-                        (woKpiWindow === "all" || (wo.completed_at && new Date(wo.completed_at).getTime() >= windowMs))
+                        (woKpiWindow === "all" || (wo.completed_at && toUTCMs(wo.completed_at) >= windowMs))
                     ).length;
 
                     const STATUS_ORDER: Record<string, number> = { assigned: 0, in_progress: 1, needs_redo: 2, completed: 3, verified: 4 };
@@ -938,14 +938,14 @@ function BarangayPortalInner() {
                         const matchStatus = woStatusFilter === "all" || wo.status === woStatusFilter;
                         const matchPriority = woPriorityFilter === "all" || wo.priority === woPriorityFilter;
                         const matchCleaner = !woCleanerFilter || wo.assigned_cleaner_id === woCleanerFilter;
-                        const matchSlaRisk = !woSlaRiskOnly || (wo.sla_deadline && new Date(wo.sla_deadline).getTime() <= now + 86400000);
+                        const matchSlaRisk = !woSlaRiskOnly || (wo.sla_deadline && toUTCMs(wo.sla_deadline) <= now + 86400000);
                         return matchSearch && matchStatus && matchPriority && matchCleaner && matchSlaRisk;
                     }).sort((a, b) => {
                         if (woSort === "oldest") {
-                            return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+                            return toUTCMs(a.created_at || "") - toUTCMs(b.created_at || "");
                         } else {
                             // newest
-                            return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+                            return toUTCMs(b.created_at || "") - toUTCMs(a.created_at || "");
                         }
                     });
 

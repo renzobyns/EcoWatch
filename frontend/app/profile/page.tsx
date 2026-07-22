@@ -89,7 +89,7 @@ const CLEANER_NAV_PROFILE: PortalNavItem[] = [
 ];
 
 const CITIZEN_NAV_PROFILE: PortalNavItem[] = [
-    { key: "map", label: "Interactive Map", icon: Map },
+    { key: "map", label: "Live Feed", icon: Map },
     { key: "profile", label: "My Profile", icon: UserCircle },
 ];
 
