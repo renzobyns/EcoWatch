@@ -733,18 +733,16 @@ async def login(req: LoginRequest, db: Session = Depends(get_db)):
 async def google_login(req: GoogleLoginRequest, db: Session = Depends(get_db)):
     """Login or Register using Google Identity Services credential."""
     client_id = os.getenv("GOOGLE_CLIENT_ID")
-    if not client_id:
-        raise HTTPException(status_code=500, detail="Google authentication is not configured on the server")
     
     try:
-        # Verify the JWT token sent by the frontend
+        # Verify the JWT token sent by the frontend (verifies signature via Google public keys)
         idinfo = id_token.verify_oauth2_token(
             req.credential, 
             google_requests.Request(), 
-            client_id
+            audience=client_id if client_id else None
         )
-    except ValueError:
-        raise HTTPException(status_code=401, detail="Invalid Google token")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Invalid Google token: {str(e)}")
 
     email = idinfo.get("email")
     full_name = idinfo.get("name")
