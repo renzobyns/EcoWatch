@@ -732,7 +732,7 @@ async def login(req: LoginRequest, db: Session = Depends(get_db)):
 @app.post("/auth/google")
 async def google_login(req: GoogleLoginRequest, db: Session = Depends(get_db)):
     """Login or Register using Google Identity Services credential."""
-    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    client_id = os.getenv("GOOGLE_CLIENT_ID", "").strip()
     if not client_id:
         raise HTTPException(status_code=500, detail="Google authentication is not configured on the server")
     
