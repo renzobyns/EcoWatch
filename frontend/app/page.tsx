@@ -13,7 +13,7 @@ const MapComponent = dynamic(() => import("@/components/MapComponent"), {
     loading: () => null
 });
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://renzobyns-ecowatch-backend.hf.space";
 
 export default function LandingPage() {
     const [reports, setReports] = useState<any[]>([]);

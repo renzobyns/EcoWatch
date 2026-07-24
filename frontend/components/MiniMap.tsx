@@ -6,7 +6,7 @@ import L from "leaflet";
 import { useEffect, useState, useMemo } from "react";
 import { useTheme } from "@/components/ThemeProvider";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://renzobyns-ecowatch-backend.hf.space";
 
 const fixLeafletIcons = () => {
     // @ts-ignore

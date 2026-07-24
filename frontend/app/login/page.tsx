@@ -8,7 +8,7 @@ import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://renzobyns-ecowatch-backend.hf.space";
 
 export default function LoginPage() {
     const [email, setEmail] = useState("");
@@ -21,14 +21,13 @@ export default function LoginPage() {
     const handleResend = async () => {
         setResending(true);
         try {
-            await fetch(`${API_URL}/auth/resend-verification`, {
+            await api("/auth/resend-verification", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email }),
             });
             setError("Verification email resent. Please check your inbox.");
-        } catch (err) {
-            setError("Failed to resend email. Please try again.");
+        } catch (err: any) {
+            setError(err?.message || "Failed to resend email. Please try again.");
         } finally {
             setResending(false);
         }
@@ -40,17 +39,12 @@ export default function LoginPage() {
         setLoading(true);
 
         try {
-            const res = await fetch(`${API_URL}/auth/login`, {
+            const data = await api("/auth/login", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
                 body: JSON.stringify({ email, password }),
             });
 
-            const data = await res.json();
-
-            if (res.ok && data.success) {
+            if (data.success) {
                 localStorage.setItem("ecowatch_user", JSON.stringify(data.user));
                 // Honor a ?redirect= target (e.g. the login-gated /report page) for citizens.
                 // Only same-origin, single-slash relative paths — reject protocol-relative
@@ -78,9 +72,9 @@ export default function LoginPage() {
             } else {
                 setError(data.detail || "Invalid email or password");
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
-            setError("Server error. Please try again later.");
+            setError(err?.message || "Server error. Please try again later.");
         } finally {
             setLoading(false);
         }
@@ -91,13 +85,11 @@ export default function LoginPage() {
         setLoading(true);
         setError("");
         try {
-            const res = await fetch(`${API_URL}/auth/google`, {
+            const data = await api("/auth/google", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ credential: credentialResponse.credential }),
             });
-            const data = await res.json();
-            if (res.ok && data.success) {
+            if (data.success) {
                 localStorage.setItem("ecowatch_user", JSON.stringify(data.user));
                 
                 const params = new URLSearchParams(window.location.search);
@@ -112,9 +104,9 @@ export default function LoginPage() {
             } else {
                 setError(data.detail || "Google login failed");
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
-            setError("Server error during Google login.");
+            setError(err?.message || "Server error during Google login.");
         } finally {
             setLoading(false);
         }

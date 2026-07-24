@@ -8,7 +8,7 @@ import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://renzobyns-ecowatch-backend.hf.space";
 
 export default function SignUpPage() {
     const [fullName, setFullName] = useState("");
@@ -26,13 +26,11 @@ export default function SignUpPage() {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch(`${API_URL}/auth/google`, {
+            const data = await api("/auth/google", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ credential: credentialResponse.credential }),
             });
-            const data = await res.json();
-            if (res.ok && data.success) {
+            if (data.success) {
                 localStorage.setItem("ecowatch_user", JSON.stringify(data.user));
                 
                 const params = new URLSearchParams(window.location.search);
@@ -47,9 +45,9 @@ export default function SignUpPage() {
             } else {
                 setError(data.detail || "Google login failed");
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
-            setError("Server error during Google signup.");
+            setError(err?.message || "Server error during Google signup.");
         } finally {
             setLoading(false);
         }

@@ -6,7 +6,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://renzobyns-ecowatch-backend.hf.space";
 
 const STATUS_STEPS = ["pending", "verified", "assigned", "in_progress", "resolved"];
 

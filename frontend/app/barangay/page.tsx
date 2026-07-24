@@ -21,7 +21,7 @@ import { DateRange } from "react-day-picker";
 
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://renzobyns-ecowatch-backend.hf.space";
 
 type BarangayView = "dashboard" | "reports" | "map_view" | "workorders" | "accounts";
 type ReportSubFilter = "pending" | "assigned" | "resolved";

@@ -34,7 +34,7 @@ import { DateRange } from "react-day-picker";
 import { subDays } from "date-fns";
 
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://renzobyns-ecowatch-backend.hf.space";
 
 const STATUS_OPTIONS = ["", "pending", "verified", "assigned", "in_progress", "resolved", "failed_cleanup", "rejected"];
 
