@@ -1,1 +1,24 @@
-慦瑳灡൩甊楶潣湲਍煳慬捬敨祭਍祰桴湯洭汵楴慰瑲਍换祲瑰਍捳歩瑩氭慥湲਍桳灡汥൹倊汩潬൷ഊ⌊䄠⁉ 慍歳删䌭乎਍整獮牯汦睯㴽⸲㘱ㄮ਍晴欭牥獡਍捳歩瑩椭慭敧਍㕨祰਍灯湥癣瀭瑹潨⵮敨摡敬獳਍畮灭㱹⸲⸰രഊ⌊䐠灥潬浹湥⁴…慄慴慢敳਍畨杧湩晧捡彥畨ൢ瀊祳潣杰ⴲ楢慮祲਍敲畱獥獴਍祰桴湯搭瑯湥൶爊獥湥൤朊漀漀最氀攀ⴀ愀甀琀栀㸀㴀㈀⸀㈀㤀⸀　ഀ਀�
+fastapi
+uvicorn
+sqlalchemy
+python-multipart
+bcrypt
+scikit-learn
+shapely
+Pillow
+
+# AI / Mask R-CNN
+tensorflow==2.16.1
+tf-keras
+scikit-image
+h5py
+opencv-python-headless
+numpy<2.0.0
+
+# Deployment & Database
+huggingface_hub
+psycopg2-binary
+requests
+python-dotenv
+resend
+google-auth>=2.29.0
