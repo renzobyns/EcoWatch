@@ -80,15 +80,15 @@ with engine.connect() as _conn:
     for _ddl in (
         "ALTER TABLE reports ADD COLUMN deployment_notes TEXT",
         "ALTER TABLE users ADD COLUMN phone_number TEXT",
-        "ALTER TABLE users ADD COLUMN last_login_at DATETIME",
-        "ALTER TABLE reports ADD COLUMN verification_pending BOOLEAN DEFAULT 0 NOT NULL",
+        "ALTER TABLE users ADD COLUMN last_login_at TIMESTAMP",
+        "ALTER TABLE reports ADD COLUMN verification_pending BOOLEAN DEFAULT FALSE NOT NULL",
         "ALTER TABLE reports ADD COLUMN verification_kind VARCHAR",
         "ALTER TABLE reports ADD COLUMN trust_score VARCHAR",
-        "ALTER TABLE reports ADD COLUMN needs_human_review BOOLEAN DEFAULT 0 NOT NULL",
+        "ALTER TABLE reports ADD COLUMN needs_human_review BOOLEAN DEFAULT FALSE NOT NULL",
         "ALTER TABLE report_photos ADD COLUMN trust_score VARCHAR",
         "ALTER TABLE report_photos ADD COLUMN trust_signals TEXT",
         "ALTER TABLE reports ADD COLUMN duplicate_of_id INTEGER",
-        "ALTER TABLE reports ADD COLUMN possible_duplicate_flag BOOLEAN DEFAULT 0 NOT NULL",
+        "ALTER TABLE reports ADD COLUMN possible_duplicate_flag BOOLEAN DEFAULT FALSE NOT NULL",
         "ALTER TABLE report_photos ADD COLUMN file_size_bytes INTEGER DEFAULT 0",
         "ALTER TABLE report_photos ADD COLUMN mask_size_bytes INTEGER DEFAULT 0",
         "ALTER TABLE cleanup_photos ADD COLUMN file_size_bytes INTEGER DEFAULT 0",
@@ -100,7 +100,8 @@ with engine.connect() as _conn:
             _conn.execute(text(_ddl))
             _conn.commit()
         except Exception:
-            pass  # column already exists
+            _conn.rollback()  # Critical for Postgres: clears the aborted transaction state
+
 
 
 def _seed_sla_config_defaults() -> None:
