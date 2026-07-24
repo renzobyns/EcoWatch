@@ -1,3 +1,11 @@
+---
+title: EcoWatch Backend
+emoji: 🌿
+colorFrom: green
+colorTo: blue
+sdk: docker
+pinned: false
+---
 # EcoWatch SJDM 🌿📍
 
 EcoWatch is a geospatial reporting and environmental monitoring system for **San Jose del Monte (SJDM), Bulacan**. Citizens submit photo reports of illegal dumping; a Mask R-CNN model verifies garbage presence; ray-casting routes the report to the correct barangay; DBSCAN clustering surfaces hotspots for CENRO.
