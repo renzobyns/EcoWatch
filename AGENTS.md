@@ -6,7 +6,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 **EcoWatch SJDM** — A geolocation-based environmental monitoring system for San Jose del Monte, Bulacan. Citizens submit photo reports of illegal dumping; AI (Mask R-CNN) verifies garbage presence; ray-casting routes the report to the correct barangay; DBSCAN clustering generates heatmap hotspots.
 
-**Defense date: May 26, 2026** (capstone project).
+**Defense date: Final defense by Midterms (current semester).** *(Note: May 26, 2026 was the initial oral defense).*
 
 ---
 
