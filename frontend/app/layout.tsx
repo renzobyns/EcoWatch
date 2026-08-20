@@ -43,8 +43,16 @@ export default function RootLayout({
           `}
         </Script>
         <style dangerouslySetInnerHTML={{ __html: `
-          .goog-te-banner-frame.skiptranslate { display: none !important; }
-          body { top: 0px !important; }
+          /* Hide old and new Google Translate banners */
+          .goog-te-banner-frame.skiptranslate, .goog-te-banner-frame { display: none !important; }
+          iframe.skiptranslate { display: none !important; }
+          body { top: 0px !important; position: static !important; }
+          
+          /* Hide newer Material-style banner */
+          .VIpgJd-Zvi9od-ORHb-OEVmcd { display: none !important; }
+          .VIpgJd-Zvi9od-aZ2wEe-wOHMyf { display: none !important; }
+          
+          /* Hide tooltip and highlight */
           #google_translate_element { display: none !important; }
           .goog-tooltip { display: none !important; }
           .goog-tooltip:hover { display: none !important; }
