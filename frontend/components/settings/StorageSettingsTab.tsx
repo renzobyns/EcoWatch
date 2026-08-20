@@ -15,12 +15,9 @@ interface StorageHealth {
 export function StorageSettingsTab() {
     const [storageHealth, setStorageHealth] = useState<StorageHealth | null>(null);
     const [loading, setLoading] = useState(true);
-    const [purgePolicy, setPurgePolicy] = useState("never");
 
     useEffect(() => {
         fetchStorageHealth();
-        const storedPolicy = localStorage.getItem("ecowatch_purge_policy");
-        if (storedPolicy) setPurgePolicy(storedPolicy);
     }, []);
 
     const fetchStorageHealth = async () => {
@@ -113,23 +110,6 @@ export function StorageSettingsTab() {
                         <div className="w-full bg-secondary rounded-full h-2.5 mt-3 mb-1 animate-pulse"></div>
                     )}
                     <p className="text-[11px] text-muted-foreground mt-1">Text data including Reports, Users, Logs, and Work Orders.</p>
-                </div>
-            </div>
-
-            <div className="bg-card rounded-xl border border-border p-6 space-y-4">
-                <h3 className="font-semibold text-sm">Data Retention Policy</h3>
-                <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-2">Auto-Purge Resolved Reports</label>
-                    <select
-                        value={purgePolicy}
-                        onChange={(e) => { setPurgePolicy(e.target.value); localStorage.setItem("ecowatch_purge_policy", e.target.value); }}
-                        className="w-full max-w-sm bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
-                    >
-                        <option value="never">Never (Keep Forever)</option>
-                        <option value="6_months">After 6 Months</option>
-                        <option value="1_year">After 1 Year</option>
-                    </select>
-                    <p className="text-[11px] text-muted-foreground mt-2">Archived reports will have their media deleted to save space, but text records will remain.</p>
                 </div>
             </div>
         </div>

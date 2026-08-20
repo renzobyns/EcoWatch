@@ -5,6 +5,9 @@ import type { LucideIcon } from "lucide-react";
 import { PortalSidebar } from "./PortalSidebar";
 import { PortalTopbar } from "./PortalTopbar";
 import { SettingsModal } from "@/components/settings/SettingsModal";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { QuickSearchModal } from "@/components/QuickSearchModal";
+import { ShortcutsOverlay } from "@/components/ShortcutsOverlay";
 
 export type PortalNavItem = {
     key: string;
@@ -46,6 +49,41 @@ export function PortalShell({
 }: PortalShellProps) {
     const [collapsed, setCollapsed] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
+    const [searchOpen, setSearchOpen] = useState(false);
+    const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
+    useKeyboardShortcuts({
+        quickSearch: () => setSearchOpen(true),
+        helpOverlay: () => setShortcutsOpen(true),
+        closeModals: () => {
+            setSearchOpen(false);
+            setShortcutsOpen(false);
+            setSettingsOpen(false);
+        },
+        goDashboard: () => onNavChange(nav[0]?.key),
+        goReports: () => onNavChange(nav.find(n => n.key === 'reports' || n.label.includes('Reports'))?.key || nav[1]?.key),
+        goSettings: () => setSettingsOpen(true),
+    });
+
+    // Hardcoded Alt + 1-9 to jump to sidebar tabs by index
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName)) return;
+            if (e.altKey && !e.ctrlKey && !e.shiftKey) {
+                const num = parseInt(e.key);
+                if (!isNaN(num) && num >= 1 && num <= 9) {
+                    const idx = num - 1;
+                    const item = nav.filter(n => !n.sectionBreakBefore || n.sectionBreakBefore)[idx]; // just get the index
+                    if (item) {
+                        e.preventDefault();
+                        onNavChange(item.key);
+                    }
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [nav, onNavChange]);
 
     useEffect(() => {
         const stored = localStorage.getItem(COLLAPSED_STORAGE_KEY);
@@ -123,6 +161,16 @@ export function PortalShell({
 
             {/* Floating Settings Modal */}
             <SettingsModal open={settingsOpen} onClose={handleSettingsClose} role={role as any} />
+
+            {/* Shortcut Overlays */}
+            <QuickSearchModal 
+                isOpen={searchOpen} 
+                onClose={() => setSearchOpen(false)} 
+                nav={nav}
+                onNavChange={onNavChange}
+                onOpenSettings={() => setSettingsOpen(true)}
+            />
+            <ShortcutsOverlay isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
         </div>
     );
 }

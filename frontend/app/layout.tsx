@@ -3,7 +3,9 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { ShortcutsProvider } from "@/contexts/ShortcutsContext";
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import Script from "next/script";
 
 export const metadata: Metadata = {
   title: "EcoWatch SJDM | Sustainable Environmental Monitoring",
@@ -32,15 +34,34 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <Script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" strategy="afterInteractive" />
+        <Script id="google-translate-init" strategy="afterInteractive">
+          {`
+            function googleTranslateElementInit() {
+              new google.translate.TranslateElement({pageLanguage: 'en', includedLanguages: 'tl'}, 'google_translate_element');
+            }
+          `}
+        </Script>
+        <style dangerouslySetInnerHTML={{ __html: `
+          .goog-te-banner-frame.skiptranslate { display: none !important; }
+          body { top: 0px !important; }
+          #google_translate_element { display: none !important; }
+          .goog-tooltip { display: none !important; }
+          .goog-tooltip:hover { display: none !important; }
+          .goog-text-highlight { background-color: transparent !important; border: none !important; box-shadow: none !important; }
+        `}} />
       </head>
-      <body className="antialiased min-h-screen">
+      <body className="antialiased min-h-screen" suppressHydrationWarning>
         <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""}>
           <ThemeProvider>
-            <Navbar />
-            <main className="pt-20">
-              {children}
-            </main>
-            <Toaster richColors position="top-right" theme="system" />
+            <ShortcutsProvider>
+              <div id="google_translate_element" suppressHydrationWarning></div>
+              <Navbar />
+              <main className="pt-20">
+                {children}
+              </main>
+              <Toaster richColors position="top-right" theme="system" />
+            </ShortcutsProvider>
           </ThemeProvider>
         </GoogleOAuthProvider>
       </body>

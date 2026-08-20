@@ -626,6 +626,55 @@ async def root():
 async def health_check():
     return {"status": "healthy"}
 
+@app.get("/health/full")
+async def health_check_full(db: Session = Depends(get_db)):
+    import time
+    import os
+    import requests
+    from sqlalchemy import text
+    
+    # 1. Backend API
+    backend_status = {"status": "ok", "latency_ms": 0}
+    
+    # 2. Database
+    db_status = {"status": "error", "message": "Connection failed"}
+    try:
+        start = time.time()
+        db.execute(text("SELECT 1"))
+        latency = int((time.time() - start) * 1000)
+        db_status = {"status": "ok", "latency_ms": latency}
+    except Exception as e:
+        db_status["message"] = str(e)
+        
+    # 3. Supabase
+    supabase_status = {"status": "warning", "message": "Not configured"}
+    supabase_url = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
+    supabase_key = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+    if supabase_url and supabase_key:
+        try:
+            start = time.time()
+            response = requests.get(f"{supabase_url.rstrip('/')}/rest/v1/", headers={"apikey": supabase_key}, timeout=3.0)
+            latency = int((time.time() - start) * 1000)
+            if response.status_code in (200, 401, 404):
+                supabase_status = {"status": "ok", "latency_ms": latency}
+            else:
+                supabase_status = {"status": "error", "message": f"HTTP {response.status_code}"}
+        except Exception as e:
+            supabase_status = {"status": "error", "message": str(e)}
+
+    # 4. AI Model
+    ai_status = {"status": "warning", "message": "Fallback mock mode"}
+    model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models", "mask_rcnn_garbage.h5")
+    if os.path.exists(model_path):
+        ai_status = {"status": "ok", "message": "Mask R-CNN active"}
+        
+    return {
+        "backend": backend_status,
+        "database": db_status,
+        "supabase": supabase_status,
+        "ai": ai_status
+    }
+
 @app.get("/analytics/storage-health")
 async def get_storage_health(
     db: Session = Depends(get_db),
@@ -1654,7 +1703,9 @@ async def _bg_verify_submit(report_id: int, device_lat: float = None, device_lon
             db.commit()
             return
 
-        results = await verify_images_async([b for b, _ in pairs])
+        conf = db.query(models.SystemConfig).filter(models.SystemConfig.key == "ai_confidence_threshold").first()
+        threshold = float(conf.value) if conf else 0.5
+        results = await verify_images_async([b for b, _ in pairs], threshold)
 
         # ANY-wins: if any photo passes the threshold, the report is verified
         any_verified = any(r.get("verified") for r in results)
@@ -1775,7 +1826,9 @@ async def _bg_verify_resolve(report_id: int, user_id: int) -> None:
             db.commit()
             return
 
-        results = await verify_images_async([b for b, _ in pairs])
+        conf = db.query(models.SystemConfig).filter(models.SystemConfig.key == "ai_confidence_threshold").first()
+        threshold = float(conf.value) if conf else 0.5
+        results = await verify_images_async([b for b, _ in pairs], threshold)
         # ANY photo still showing waste = cleanup failed (inverted: waste detected = bad)
         any_waste_detected = any(r.get("verified") for r in results)
 
@@ -1841,7 +1894,9 @@ async def _bg_verify_complete(work_order_id: int, user_id: int) -> None:
             db.commit()
             return
 
-        results = await verify_images_async([b for b, _ in pairs])
+        conf = db.query(models.SystemConfig).filter(models.SystemConfig.key == "ai_confidence_threshold").first()
+        threshold = float(conf.value) if conf else 0.5
+        results = await verify_images_async([b for b, _ in pairs], threshold)
         any_waste_detected = any(r.get("verified") for r in results)
 
         for (_, row), result in zip(pairs, results):
@@ -4129,6 +4184,85 @@ async def get_analytics_drilldown(
         "rows": serialized_rows,
         "total": len(result["report_rows"]) if result["kind"] == "reports" else len(result["wo_rows"]),
     }
+
+@app.get("/admin/database-dump")
+async def get_database_dump(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role != "cenro":
+        raise HTTPException(status_code=403, detail="Only CENRO can download database dump")
+    
+    import json
+    import tempfile
+    import os
+    from datetime import datetime
+    
+    users = [u.__dict__ for u in db.query(models.User).all()]
+    for u in users: u.pop('_sa_instance_state', None)
+    
+    reports = [r.__dict__ for r in db.query(models.Report).all()]
+    for r in reports:
+        r.pop('_sa_instance_state', None)
+        if isinstance(r.get('created_at'), datetime): r['created_at'] = r['created_at'].isoformat()
+        if isinstance(r.get('updated_at'), datetime): r['updated_at'] = r['updated_at'].isoformat()
+        
+    dump_data = {"users": users, "reports": reports}
+    
+    fd, path = tempfile.mkstemp(suffix=".json")
+    with os.fdopen(fd, 'w') as f:
+        json.dump(dump_data, f)
+        
+    return FileResponse(path, media_type="application/json", filename=f"ecowatch_db_dump_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+
+@app.get("/admin/export-images-zip")
+async def get_export_images_zip(current_user: models.User = Depends(get_current_user)):
+    if current_user.role != "cenro":
+        raise HTTPException(status_code=403, detail="Only CENRO can export images")
+    
+    import zipfile
+    import tempfile
+    import os
+    from datetime import datetime
+    
+    uploads_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
+    if not os.path.exists(uploads_dir):
+        raise HTTPException(status_code=404, detail="Uploads directory not found")
+        
+    fd, path = tempfile.mkstemp(suffix=".zip")
+    with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, _, files in os.walk(uploads_dir):
+            for file in files:
+                file_path = os.path.join(root, file)
+                arcname = os.path.relpath(file_path, uploads_dir)
+                zipf.write(file_path, arcname)
+                
+    return FileResponse(path, media_type="application/zip", filename=f"ecowatch_images_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip")
+
+class SystemConfigUpdate(BaseModel):
+    ai_confidence_threshold: float
+
+@app.get("/admin/system-config")
+async def get_system_config(db: Session = Depends(get_db)):
+    conf = db.query(models.SystemConfig).filter(models.SystemConfig.key == "ai_confidence_threshold").first()
+    return {"ai_confidence_threshold": float(conf.value) if conf else 0.5}
+
+@app.patch("/admin/system-config")
+async def update_system_config(
+    update: SystemConfigUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    if current_user.role != "cenro":
+        raise HTTPException(status_code=403, detail="Only CENRO can update system config")
+    
+    conf = db.query(models.SystemConfig).filter(models.SystemConfig.key == "ai_confidence_threshold").first()
+    if not conf:
+        conf = models.SystemConfig(key="ai_confidence_threshold", value=str(update.ai_confidence_threshold), updated_by=current_user.id)
+        db.add(conf)
+    else:
+        conf.value = str(update.ai_confidence_threshold)
+        conf.updated_by = current_user.id
+    
+    db.commit()
+    return {"message": "System configuration updated successfully", "ai_confidence_threshold": update.ai_confidence_threshold}
 
 
 @app.get("/analytics/insights-export")

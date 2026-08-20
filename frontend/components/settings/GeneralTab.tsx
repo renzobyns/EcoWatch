@@ -2,35 +2,133 @@
 
 import { useState, useEffect } from "react";
 import { useTheme } from "@/components/ThemeProvider";
+import { useShortcutsContext, ACTION_DESCRIPTIONS, ShortcutAction } from "@/contexts/ShortcutsContext";
+import { RotateCcw } from "lucide-react";
 
 interface GeneralTabProps {
     section: "language" | "appearance" | "shortcuts";
 }
 
+function KeybindingRow({ 
+    action, 
+    combo, 
+    onUpdate 
+}: { 
+    action: ShortcutAction; 
+    combo: string; 
+    onUpdate: (action: ShortcutAction, newCombo: string) => void;
+}) {
+    const [recording, setRecording] = useState(false);
+
+    const formatCombo = (c: string) => c.split('+').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' + ');
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        e.preventDefault();
+        
+        // Ignore modifier-only keypresses
+        if (["Control", "Shift", "Alt", "Meta"].includes(e.key)) return;
+
+        let newCombo = '';
+        if (e.ctrlKey || e.metaKey) newCombo += 'ctrl+';
+        if (e.altKey) newCombo += 'alt+';
+        if (e.shiftKey) newCombo += 'shift+';
+        
+        let key = e.key.toLowerCase();
+        // Standardize some keys
+        if (key === ' ') key = 'space';
+        if (key === 'escape') key = 'escape';
+        
+        newCombo += key;
+        
+        onUpdate(action, newCombo);
+        setRecording(false);
+    };
+
+    return (
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border last:border-0 hover:bg-secondary/10 transition-colors">
+            <span className="text-sm font-medium text-foreground">{ACTION_DESCRIPTIONS[action]}</span>
+            {recording ? (
+                <input
+                    autoFocus
+                    type="text"
+                    onKeyDown={handleKeyDown}
+                    onBlur={() => setRecording(false)}
+                    placeholder="Press keys..."
+                    className="w-32 bg-primary/10 border border-primary text-primary px-3 py-1.5 rounded-md text-xs font-mono text-center outline-none ring-2 ring-primary/20"
+                    readOnly
+                />
+            ) : (
+                <button
+                    onClick={() => setRecording(true)}
+                    className="px-3 py-1.5 bg-secondary hover:bg-secondary/80 border border-border rounded-md text-xs font-mono font-semibold text-muted-foreground hover:text-foreground transition-all cursor-pointer min-w-[80px] text-center"
+                >
+                    {formatCombo(combo)}
+                </button>
+            )}
+        </div>
+    );
+}
+
+
 export function GeneralTab({ section }: GeneralTabProps) {
     const { theme, setTheme } = useTheme();
     const [language, setLanguage] = useState("English");
-    const [showAnimations, setShowAnimations] = useState(true);
-    const [compactMode, setCompactMode] = useState(false);
-    
-    // Custom state for system theme preference if we support it via local storage
     const [displayTheme, setDisplayTheme] = useState<"light" | "dark" | "system">("system");
+    const { shortcuts, updateShortcut, resetShortcuts } = useShortcutsContext();
 
     useEffect(() => {
-        const lang = localStorage.getItem("ecowatch_language");
-        if (lang) setLanguage(lang);
-        const anim = localStorage.getItem("ecowatch_animations");
-        if (anim) setShowAnimations(anim === "true");
-        const compact = localStorage.getItem("ecowatch_compact");
-        if (compact) setCompactMode(compact === "true");
-        
         const storedThemePref = localStorage.getItem("ecowatch_theme_preference");
         if (storedThemePref) {
             setDisplayTheme(storedThemePref as any);
         } else {
             setDisplayTheme(theme);
         }
+
+        const lang = localStorage.getItem("ecowatch_language");
+        if (lang) {
+            setLanguage(lang);
+            if (lang === "Filipino") {
+                triggerTranslation("tl");
+            }
+        }
     }, [theme]);
+
+    const triggerTranslation = (targetLangCode: string) => {
+        setTimeout(() => {
+            const googSelect = document.querySelector('.goog-te-combo') as HTMLSelectElement;
+            if (googSelect) {
+                googSelect.value = targetLangCode;
+                googSelect.dispatchEvent(new Event('change'));
+            }
+        }, 500); // Give widget time to load
+    };
+
+    const restoreEnglish = () => {
+        const iframe = document.querySelector('.goog-te-banner-frame') as HTMLIFrameElement;
+        if (iframe) {
+            const innerDoc = iframe.contentDocument || iframe.contentWindow?.document;
+            if (innerDoc) {
+                const restoreBtn = innerDoc.querySelector('button[id*="restore"]') as HTMLButtonElement | null;
+                if (restoreBtn) restoreBtn.click();
+                return;
+            }
+        }
+        
+        document.cookie = "googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+        document.cookie = "googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=" + location.hostname + ";";
+        window.location.reload();
+    };
+
+    const handleLanguageSelect = (lang: "English" | "Filipino") => {
+        setLanguage(lang);
+        localStorage.setItem("ecowatch_language", lang);
+        
+        if (lang === "Filipino") {
+            triggerTranslation("tl");
+        } else {
+            restoreEnglish();
+        }
+    };
 
     const handleThemeSelect = (t: "light" | "dark" | "system") => {
         setDisplayTheme(t);
@@ -54,13 +152,13 @@ export function GeneralTab({ section }: GeneralTabProps) {
                         <label className="block text-sm font-medium text-foreground mb-3">Display Language</label>
                         <div className="p-1 bg-secondary rounded-lg inline-flex">
                             <button
-                                onClick={() => { setLanguage("English"); localStorage.setItem("ecowatch_language", "English"); }}
+                                onClick={() => handleLanguageSelect("English")}
                                 className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${language === "English" ? "bg-background shadow-sm border border-border" : "text-muted-foreground hover:text-foreground"}`}
                             >
                                 English
                             </button>
                             <button
-                                onClick={() => { setLanguage("Filipino"); localStorage.setItem("ecowatch_language", "Filipino"); }}
+                                onClick={() => handleLanguageSelect("Filipino")}
                                 className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${language === "Filipino" ? "bg-background shadow-sm border border-border" : "text-muted-foreground hover:text-foreground"}`}
                             >
                                 Filipino
@@ -154,34 +252,6 @@ export function GeneralTab({ section }: GeneralTabProps) {
                         </div>
                     </div>
 
-                    <div className="py-4 border-y border-border/50 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm font-medium text-foreground">Show Animations</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">Enable or disable UI micro-animations</p>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" className="sr-only peer" checked={showAnimations} onChange={() => {
-                                setShowAnimations(!showAnimations);
-                                localStorage.setItem("ecowatch_animations", String(!showAnimations));
-                            }} />
-                            <div className="w-9 h-5 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-                        </label>
-                    </div>
-
-                    <div className="pb-4 border-b border-border/50 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm font-medium text-foreground">Compact Mode</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">Reduce padding and spacing across dashboards</p>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" className="sr-only peer" checked={compactMode} onChange={() => {
-                                setCompactMode(!compactMode);
-                                localStorage.setItem("ecowatch_compact", String(!compactMode));
-                            }} />
-                            <div className="w-9 h-5 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-                        </label>
-                    </div>
-
                 </div>
             </div>
         );
@@ -190,21 +260,34 @@ export function GeneralTab({ section }: GeneralTabProps) {
     if (section === "shortcuts") {
         return (
             <div className="animate-fade-in max-w-2xl">
-                <h2 className="text-lg font-bold text-foreground mb-1">Keyboard Shortcuts</h2>
-                <p className="text-sm text-muted-foreground mb-8">Quick reference for available keyboard shortcuts.</p>
+                <div className="flex items-start justify-between mb-8">
+                    <div>
+                        <h2 className="text-lg font-bold text-foreground mb-1">Keyboard Shortcuts</h2>
+                        <p className="text-sm text-muted-foreground">Customize your keyboard shortcuts. Click a key combination to record a new one.</p>
+                    </div>
+                    <button 
+                        onClick={resetShortcuts}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground text-sm font-medium rounded-md transition-colors border border-border"
+                    >
+                        <RotateCcw size={14} />
+                        Reset Defaults
+                    </button>
+                </div>
 
                 <div className="bg-card rounded-xl border border-border overflow-hidden">
-                    {[
-                        { key: "Ctrl + K", desc: "Quick Search" },
-                        { key: "Alt + 1–9", desc: "Jump to sidebar tab" },
-                        { key: "Ctrl + E", desc: "Export current view" },
-                        { key: "Escape", desc: "Close modal or drawer" },
-                        { key: "Ctrl + /", desc: "Toggle shortcuts reference" },
-                    ].map((shortcut, i) => (
-                        <div key={i} className="flex items-center justify-between px-6 py-4 border-b border-border last:border-0 hover:bg-secondary/20 transition-colors">
-                            <kbd className="px-2 py-1 bg-secondary border border-border rounded text-xs font-mono font-semibold text-foreground">{shortcut.key}</kbd>
-                            <span className="text-sm text-muted-foreground">{shortcut.desc}</span>
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-border last:border-0 hover:bg-secondary/10 transition-colors opacity-70">
+                        <span className="text-sm font-medium text-foreground">Jump to sidebar tab by index</span>
+                        <div className="px-3 py-1.5 bg-secondary border border-border rounded-md text-xs font-mono font-semibold text-muted-foreground min-w-[80px] text-center cursor-not-allowed">
+                            Alt + 1-9
                         </div>
+                    </div>
+                    {(Object.keys(shortcuts) as ShortcutAction[]).map((action) => (
+                        <KeybindingRow 
+                            key={action}
+                            action={action}
+                            combo={shortcuts[action]}
+                            onUpdate={updateShortcut}
+                        />
                     ))}
                 </div>
             </div>

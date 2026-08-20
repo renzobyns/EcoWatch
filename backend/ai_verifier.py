@@ -103,7 +103,7 @@ class AIVerifier:
         self.is_loaded = True
         logger.info("Mask R-CNN model loaded successfully!")
 
-    def verify_image(self, image_bytes: bytes) -> dict:
+    def verify_image(self, image_bytes: bytes, threshold: float = 0.5) -> dict:
         """
         Run Mask R-CNN detection on an uploaded image.
         
@@ -146,7 +146,7 @@ class AIVerifier:
             avg_confidence = float(np.mean(scores)) if scores else 0.0
             max_confidence = float(np.max(scores)) if scores else 0.0
 
-            is_waste = num_detections > 0 and max_confidence >= 0.5
+            is_waste = num_detections > 0 and max_confidence >= threshold
 
             # Store results for mask generation
             self._last_results = r
@@ -221,18 +221,13 @@ class AIVerifier:
         
         return buffer.tobytes()
 
-    def verify_images(self, images_bytes: list) -> list:
+    def verify_images(self, images_bytes: list, threshold: float = 0.5) -> list:
         """
         Run Mask R-CNN on multiple images for a single report.
-
-        v1: loops verify_image() — safe on CPU, no extra memory pressure.
-        v2 (future): true batch forward pass with IMAGES_PER_GPU > 1.
-        Also returns the mask bytes per image (since generate_mask_image
-        is stateful on the verifier and would otherwise be clobbered).
         """
         out = []
         for img_bytes in images_bytes:
-            result = self.verify_image(img_bytes)
+            result = self.verify_image(img_bytes, threshold)
             mask_bytes = None
             if result.get("verified") and self.is_loaded:
                 mask_bytes = self.generate_mask_image()
@@ -240,15 +235,17 @@ class AIVerifier:
             out.append(result)
         return out
 
-    def _mock_verify(self):
+    def _mock_verify(self, threshold: float = 0.5):
         """Fallback mock verification when model is not available."""
         import random
         import time
 
-        # Fall back to quick mock verification
         time.sleep(0.5)
-        is_waste = random.random() > 0.2
-        confidence = round(random.uniform(0.70, 0.99), 2) if is_waste else round(random.uniform(0.10, 0.45), 2)
+        # Mock mode simulates varying confidence
+        raw_conf = random.random()
+        # Ensure we sometimes pass and sometimes fail the threshold
+        confidence = round(0.5 + random.random() * 0.49, 2) if raw_conf > 0.2 else round(random.random() * 0.49, 2)
+        is_waste = confidence >= threshold
 
         return {
             "verified": is_waste,
@@ -268,14 +265,14 @@ verifier = AIVerifier()
 INFERENCE_LOCK = asyncio.Lock()
 
 
-async def verify_images_async(images_bytes: list) -> list:
+async def verify_images_async(images_bytes: list, threshold: float = 0.5) -> list:
     """
     Async-safe entry point used by background tasks.
     Acquires the global inference lock, then runs the (CPU/GPU-bound)
     Mask R-CNN call in a worker thread so other endpoints stay responsive.
     """
     async with INFERENCE_LOCK:
-        return await asyncio.to_thread(verifier.verify_images, images_bytes)
+        return await asyncio.to_thread(verifier.verify_images, images_bytes, threshold)
 
 
 def _haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
