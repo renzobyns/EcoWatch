@@ -40,13 +40,49 @@ export default function RootLayout({
             function googleTranslateElementInit() {
               new google.translate.TranslateElement({pageLanguage: 'en', includedLanguages: 'tl'}, 'google_translate_element');
             }
+
+            // MutationObserver: fight Google Translate's inline margin-top injection on <html>
+            (function() {
+              function stripGTMargin() {
+                var html = document.documentElement;
+                var body = document.body;
+                if (html && html.style.marginTop) html.style.marginTop = '';
+                if (html && html.style.top) html.style.top = '';
+                if (body && body.style.marginTop) body.style.marginTop = '';
+                if (body && body.style.top) body.style.top = '';
+              }
+
+              var observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(m) {
+                  if (m.attributeName === 'style') stripGTMargin();
+                });
+              });
+
+              function startObserver() {
+                stripGTMargin();
+                observer.observe(document.documentElement, { attributes: true, attributeFilter: ['style'] });
+                if (document.body) {
+                  observer.observe(document.body, { attributes: true, attributeFilter: ['style'] });
+                }
+              }
+
+              if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', startObserver);
+              } else {
+                startObserver();
+              }
+            })();
           `}
         </Script>
         <style dangerouslySetInnerHTML={{ __html: `
           /* Hide old and new Google Translate banners */
           .goog-te-banner-frame.skiptranslate, .goog-te-banner-frame { display: none !important; }
           iframe.skiptranslate { display: none !important; }
-          body { top: 0px !important; position: static !important; }
+          html, body { 
+              top: 0px !important; 
+              position: static !important; 
+              margin-top: 0px !important; 
+          }
           
           /* Hide newer Material-style banner */
           .VIpgJd-Zvi9od-ORHb-OEVmcd { display: none !important; }
