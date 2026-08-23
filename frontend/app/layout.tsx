@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { ShortcutsProvider } from "@/contexts/ShortcutsContext";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import Script from "next/script";
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
   title: "EcoWatch SJDM | Sustainable Environmental Monitoring",
@@ -108,6 +109,7 @@ export default function RootLayout({
             </ShortcutsProvider>
           </ThemeProvider>
         </GoogleOAuthProvider>
+        <Analytics />
       </body>
     </html>
   );
