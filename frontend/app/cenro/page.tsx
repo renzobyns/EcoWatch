@@ -1205,7 +1205,7 @@ function CenroDashboardInner() {
                 onClose={() => setSelectedReport(null)}
                 onReassign={() => selectedReport && handleReassign(selectedReport.id)}
                 onForceClose={() => selectedReport && handleForceClose(selectedReport.id)}
-                onUpdated={() => fetchQueueData()}
+                onUpdated={() => fetchOverviewData()}
                 userRole={user?.role}
             />
 
