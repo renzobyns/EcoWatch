@@ -629,8 +629,8 @@ function EvidenceTab({
             await api(`/report/${report.id}/reverify`, { method: "POST" });
             toast.success(`Re-verification started for ${report.tracking_id}`);
             if (onUpdated) onUpdated();
-        } catch (err) {
-            toast.error(err instanceof ApiError ? err.message : "Failed to re-verify");
+        } catch (err: any) {
+            toast.error(err?.message || "Failed to re-verify");
         } finally {
             setReverifyLoading(false);
         }

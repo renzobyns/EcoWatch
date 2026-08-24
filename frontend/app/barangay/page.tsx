@@ -475,8 +475,8 @@ function BarangayPortalInner() {
             toast.success(`Re-verification started for report.`);
             // Fetch updated list to reflect verification_pending state
             fetchQueueData();
-        } catch (err) {
-            toast.error(err instanceof ApiError ? err.message : "Failed to re-verify.");
+        } catch (err: any) {
+            toast.error(err?.message || "Failed to re-verify.");
         } finally {
             setActionLoading(false);
         }
