@@ -473,8 +473,9 @@ function BarangayPortalInner() {
         try {
             await api(`/report/${reportId}/reverify`, { method: "POST" });
             toast.success(`Re-verification started for report.`);
-            // Fetch updated list to reflect verification_pending state
-            fetchQueueData();
+            // Update local state instead of doing a heavy refetch
+            setReports(prev => prev.map(r => r.id === reportId ? { ...r, verification_pending: true } : r));
+            setSelectedReport((prev: any) => prev ? { ...prev, verification_pending: true } : prev);
         } catch (err: any) {
             toast.error(err?.message || "Failed to re-verify.");
         } finally {

@@ -242,8 +242,9 @@ function CenroDashboardInner() {
             if (heatData && Array.isArray(heatData.hotspots)) {
                 setHeatmaps(heatData.hotspots);
             }
-        } catch (err) {
-            toast.error(err instanceof ApiError ? err.message : "Failed to load CENRO data");
+        } catch (err: any) {
+            console.error("fetchOverviewData error:", err);
+            toast.error(err?.message || "Failed to load CENRO data");
         } finally {
             setLoading(false);
         }
@@ -1205,7 +1206,12 @@ function CenroDashboardInner() {
                 onClose={() => setSelectedReport(null)}
                 onReassign={() => selectedReport && handleReassign(selectedReport.id)}
                 onForceClose={() => selectedReport && handleForceClose(selectedReport.id)}
-                onUpdated={() => fetchOverviewData()}
+                onUpdated={() => {
+                    if (selectedReport) {
+                        setReports(prev => prev.map(r => r.id === selectedReport.id ? { ...r, verification_pending: true } : r));
+                        setSelectedReport((prev: any) => prev ? { ...prev, verification_pending: true } : null);
+                    }
+                }}
                 userRole={user?.role}
             />
 
