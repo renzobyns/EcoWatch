@@ -468,6 +468,20 @@ function BarangayPortalInner() {
         }
     };
 
+    const handleReverify = async (reportId: number) => {
+        setActionLoading(true);
+        try {
+            await api(`/report/${reportId}/reverify`, { method: "POST" });
+            toast.success(`Re-verification started for report.`);
+            // Fetch updated list to reflect verification_pending state
+            fetchQueueData();
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Failed to re-verify.");
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     // Fetch accounts when sidebar switches to that view
     useEffect(() => {
         if (activeView === 'accounts') fetchBrgyUsers();
@@ -2180,10 +2194,20 @@ function BarangayPortalInner() {
                             {/* Right Col: Evidence & Actions */}
                             <div className="space-y-6">
                                 <div>
-                                    <h3 className="text-sm font-medium text-muted-foreground mb-2">Evidence Photo</h3>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h3 className="text-sm font-medium text-muted-foreground">Evidence Photo</h3>
+                                        <button
+                                            onClick={() => handleReverify(selectedReport.id)}
+                                            disabled={actionLoading || selectedReport.verification_pending}
+                                            className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-[11px] font-bold disabled:opacity-50"
+                                        >
+                                            <RefreshCw size={12} className={actionLoading ? "animate-spin" : ""} />
+                                            {actionLoading ? "Re-verifying..." : "Re-verify"}
+                                        </button>
+                                    </div>
                                     <div className="w-full aspect-video rounded-xl overflow-hidden border border-border bg-muted relative">
                                         <img src={`${API_URL}${selectedReport.image_url}`} className="w-full h-full object-cover" alt="Evidence" />
-                                        {selectedReport.ai_confidence && (
+                                        {selectedReport.ai_confidence !== null && (
                                             <div className="absolute bottom-2 right-2 bg-black/70 backdrop-blur-sm border border-white/10 px-2 py-1 rounded text-[10px] font-bold text-white inline-flex items-center gap-1.5 shadow-sm">
                                                 <span>AI Confidence: {(selectedReport.ai_confidence * 100).toFixed(0)}%</span>
                                                 <InfoTooltip side="top" align="right" label="How is AI confidence computed?">

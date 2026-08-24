@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, FileText, Camera, Shield, Clock, MapPin, User, Mail, Phone, ExternalLink, ClipboardList } from "lucide-react";
+import { X, FileText, Camera, Shield, Clock, MapPin, User, Mail, Phone, ExternalLink, ClipboardList, RefreshCw } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { TrustBadge } from "@/components/TrustBadge";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { ConfidenceTooltipBody } from "@/components/ConfidenceTooltipBody";
 import { formatRelative, formatDate } from "@/lib/date-utils";
 import { PhotoEvidenceDetail } from "@/components/PhotoEvidenceDetail";
+import { toast } from "sonner";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://renzobyns-ecowatch-backend.hf.space";
 
@@ -106,6 +107,7 @@ interface Props {
     onReassign: () => void;
     onForceClose: () => void;
     onUpdated?: () => void;
+    userRole?: string;
 }
 
 // ─── Pill maps ────────────────────────────────────────────────────────────────
@@ -186,7 +188,7 @@ function TabEmpty({ message }: { message: string }) {
 
 export function ReportDetailDrawer({
     open, report, barangays, newBarangay, setNewBarangay,
-    actionLoading, onClose, onReassign, onForceClose, onUpdated,
+    actionLoading, onClose, onReassign, onForceClose, onUpdated, userRole,
 }: Props) {
     const [activeTab, setActiveTab] = useState<DrawerTab>("overview");
 
@@ -337,6 +339,8 @@ export function ReportDetailDrawer({
                             loading={detailLoading}
                             error={detailError}
                             onRetry={fetchDetail}
+                            userRole={userRole}
+                            onUpdated={onUpdated}
                         />
                     )}
                     {activeTab === "work_orders" && (
@@ -606,15 +610,31 @@ function OverviewTab({ report, detail, loading, error, onRetry, onDuplicateConfi
 }
 
 function EvidenceTab({
-    report, detail, loading, error, onRetry,
+    report, detail, loading, error, onRetry, userRole, onUpdated
 }: {
     report: QueueReport;
     detail: ReportDetailPayload | null;
     loading: boolean;
     error: string | null;
     onRetry: () => void;
+    userRole?: string;
+    onUpdated?: () => void;
 }) {
     const [lightbox, setLightbox] = useState<string | null>(null);
+    const [reverifyLoading, setReverifyLoading] = useState(false);
+
+    const handleReverify = async () => {
+        setReverifyLoading(true);
+        try {
+            await api(`/report/${report.id}/reverify`, { method: "POST" });
+            toast.success(`Re-verification started for ${report.tracking_id}`);
+            if (onUpdated) onUpdated();
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Failed to re-verify");
+        } finally {
+            setReverifyLoading(false);
+        }
+    };
 
     useEffect(() => {
         if (!lightbox) return;
@@ -657,7 +677,19 @@ function EvidenceTab({
         <div className="flex flex-col gap-5">
             {citizenPhotos.length > 0 && (
                 <div>
-                    <div className="text-sm font-semibold tracking-tight text-foreground mb-2">Citizen Evidence</div>
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="text-sm font-semibold tracking-tight text-foreground">Citizen Evidence</div>
+                        {(userRole === "cenro" || userRole === "barangay") && (
+                            <button
+                                onClick={handleReverify}
+                                disabled={reverifyLoading || report.verification_pending}
+                                className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-[11px] font-bold disabled:opacity-50"
+                            >
+                                <RefreshCw size={12} className={reverifyLoading ? "animate-spin" : ""} />
+                                {reverifyLoading ? "Re-verifying..." : "Re-verify"}
+                            </button>
+                        )}
+                    </div>
                     <div className="flex flex-col gap-4">
                         {citizenPhotos.map((p, i) => (
                             <div key={i} className="bg-card rounded-lg border border-border shadow-sm p-3">

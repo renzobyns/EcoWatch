@@ -44,6 +44,3 @@ When building, auditing, or modifying any frontend page or component, Antigravit
    - Run the backend test scripts (`test_analytics.py`, etc.) if backend logic was changed.
    - Provide a clear manual testing checklist to the user to visually verify the frontend changes in their browser.
 6. **Data Clarity & Tooltips**: Ensure all data and metrics presented to the user are easily understandable. If a metric or record might be unfamiliar or its origin unclear, add a tooltip explaining exactly what the data means and where it was sourced from.
-
-## Pending Deployment Fixes
-- **Hugging Face Backend Update**: The live Vercel site is hitting an old backend. The latest code cannot be pushed to Hugging Face Spaces because `mask_r_cnn_TF_2_16.ipynb` is larger than 10MB. Before the final defense, we MUST run Git LFS migration on the `.ipynb` files and force-push to GitHub and Hugging Face to sync the backend API!

@@ -1206,6 +1206,7 @@ function CenroDashboardInner() {
                 onReassign={() => selectedReport && handleReassign(selectedReport.id)}
                 onForceClose={() => selectedReport && handleForceClose(selectedReport.id)}
                 onUpdated={() => fetchQueueData()}
+                userRole={user?.role}
             />
 
             {/* Analytics Drill-down Modal */}

@@ -1562,6 +1562,46 @@ def _disk_path_for_upload_url(upload_url: str) -> str:
     return os.path.join(UPLOAD_DIR, filename)
 
 
+def _read_upload_bytes(upload_url: str) -> bytes:
+    """Read image bytes from local disk, falling back to Supabase Storage.
+
+    After a container restart on Hugging Face Spaces, local files in
+    ``backend/uploads/`` are wiped. This helper transparently downloads
+    the file from the Supabase ``report-photos`` bucket when the local
+    copy is missing, then caches it on disk so subsequent operations
+    (AI verification, trust scoring) can work with a local path.
+    """
+    filename = os.path.basename(upload_url)
+    local_path = os.path.join(UPLOAD_DIR, filename)
+
+    # 1. Try local disk first (fastest)
+    if os.path.exists(local_path):
+        with open(local_path, "rb") as f:
+            return f.read()
+
+    # 2. Fallback: download from Supabase Storage public URL
+    supabase_url = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
+    if supabase_url:
+        supabase_url = supabase_url.rstrip("/")
+        bucket_name = "report-photos"
+        public_url = f"{supabase_url}/storage/v1/object/public/{bucket_name}/{filename}"
+        try:
+            resp = requests.get(public_url, timeout=15)
+            if resp.status_code == 200 and len(resp.content) > 0:
+                logger.info("Downloaded %s from Supabase Storage (%d bytes), caching locally.",
+                            filename, len(resp.content))
+                os.makedirs(UPLOAD_DIR, exist_ok=True)
+                with open(local_path, "wb") as f:
+                    f.write(resp.content)
+                return resp.content
+            else:
+                logger.warning("Supabase download for %s returned status %s", filename, resp.status_code)
+        except Exception as e:
+            logger.error("Supabase download failed for %s: %s", filename, e)
+
+    raise FileNotFoundError(f"Image not found locally or in Supabase: {filename}")
+
+
 def _save_mask_bytes(mask_bytes: bytes) -> Optional[Tuple[str, int]]:
     """Persist a generated AI mask image to Supabase Storage and local disk.
     Returns (url_path, exact_byte_size)."""
@@ -1684,15 +1724,15 @@ async def _bg_verify_submit(report_id: int, device_lat: float = None, device_lon
         if photo_rows:
             for row in photo_rows:
                 try:
-                    with open(_disk_path_for_upload_url(row.file_path), "rb") as f:
-                        pairs.append((f.read(), row))
+                    img_bytes = _read_upload_bytes(row.file_path)
+                    pairs.append((img_bytes, row))
                 except FileNotFoundError:
                     logger.warning("BG submit: missing file %s for report %s", row.file_path, report_id)
         elif report.image_url:
             # Legacy record — no photo table rows; fall back to image_url
             try:
-                with open(_disk_path_for_upload_url(report.image_url), "rb") as f:
-                    pairs.append((f.read(), None))
+                img_bytes = _read_upload_bytes(report.image_url)
+                pairs.append((img_bytes, None))
             except FileNotFoundError:
                 logger.exception("BG submit: legacy image missing for report %s", report_id)
 
@@ -1809,14 +1849,14 @@ async def _bg_verify_resolve(report_id: int, user_id: int) -> None:
         if cleanup_rows:
             for row in cleanup_rows:
                 try:
-                    with open(_disk_path_for_upload_url(row.file_path), "rb") as f:
-                        pairs.append((f.read(), row))
+                    img_bytes = _read_upload_bytes(row.file_path)
+                    pairs.append((img_bytes, row))
                 except FileNotFoundError:
                     logger.warning("BG resolve: missing file %s", row.file_path)
         elif report.cleanup_image_url:
             try:
-                with open(_disk_path_for_upload_url(report.cleanup_image_url), "rb") as f:
-                    pairs.append((f.read(), None))
+                img_bytes = _read_upload_bytes(report.cleanup_image_url)
+                pairs.append((img_bytes, None))
             except FileNotFoundError:
                 logger.exception("BG resolve: legacy cleanup image missing for report %s", report_id)
 
@@ -1877,14 +1917,14 @@ async def _bg_verify_complete(work_order_id: int, user_id: int) -> None:
         if cleanup_rows:
             for row in cleanup_rows:
                 try:
-                    with open(_disk_path_for_upload_url(row.file_path), "rb") as f:
-                        pairs.append((f.read(), row))
+                    img_bytes = _read_upload_bytes(row.file_path)
+                    pairs.append((img_bytes, row))
                 except FileNotFoundError:
                     logger.warning("BG complete: missing file %s", row.file_path)
         elif report.cleanup_image_url:
             try:
-                with open(_disk_path_for_upload_url(report.cleanup_image_url), "rb") as f:
-                    pairs.append((f.read(), None))
+                img_bytes = _read_upload_bytes(report.cleanup_image_url)
+                pairs.append((img_bytes, None))
             except FileNotFoundError:
                 logger.exception("BG complete: legacy cleanup image missing for WO %s", work_order_id)
 
@@ -3300,6 +3340,171 @@ async def retry_report(
     db.refresh(report)
 
     return {"success": True, "message": "Report reassigned for retry."}
+
+
+# ─────────────────────────────────────────────────────────
+# AI RE-VERIFICATION (regenerate broken masks)
+# ─────────────────────────────────────────────────────────
+
+@app.post("/report/{report_id}/reverify", status_code=202)
+async def reverify_report(
+    report_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("cenro", "barangay")),
+):
+    """Re-run Mask R-CNN AI verification on a report to regenerate broken/missing masks.
+
+    Resets AI fields on the report and its photos, then kicks off background
+    verification. Useful after a Hugging Face Space restart when mask images
+    stored on ephemeral local disk are lost.
+    """
+    report = db.query(models.Report).filter(models.Report.id == report_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    if report.verification_pending:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Report {report.tracking_id} already has verification in progress."
+        )
+
+    # Barangay users can only re-verify reports in their jurisdiction
+    if user.role == "barangay" and report.barangay != user.barangay:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only re-verify reports in your barangay."
+        )
+
+    # Reset AI fields on report
+    previous_mask = report.ai_mask_url
+    previous_confidence = report.ai_confidence
+    report.ai_mask_url = None
+    report.ai_mask_size_bytes = None
+    report.ai_confidence = None
+    report.verification_pending = True
+    report.verification_kind = "submit"
+
+    # Reset AI fields on all evidence photos so _bg_verify_submit picks them up
+    photo_rows = db.query(models.ReportPhoto).filter(
+        models.ReportPhoto.report_id == report_id
+    ).all()
+    for row in photo_rows:
+        row.ai_mask_path = None
+        row.mask_size_bytes = None
+        row.ai_confidence = None
+        row.ai_verified = None
+
+    write_audit(db, user.id, "reverify", report.id, {
+        "tracking_id": report.tracking_id,
+        "previous_mask_url": previous_mask,
+        "previous_confidence": previous_confidence,
+    })
+    db.commit()
+
+    # Kick off background AI verification
+    background_tasks.add_task(_bg_verify_submit, report.id)
+
+    return {
+        "success": True,
+        "message": f"Re-verification started for {report.tracking_id}. AI mask will regenerate shortly.",
+        "report_id": report.id,
+        "tracking_id": report.tracking_id,
+    }
+
+
+@app.post("/reports/reverify-all", status_code=202)
+async def reverify_all_reports(
+    background_tasks: BackgroundTasks,
+    status: Optional[str] = "verified",
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("cenro")),
+):
+    """Batch re-verify all reports with missing or broken AI masks.
+
+    Finds verified reports that have no mask URL or whose mask file is missing,
+    resets their AI fields, and queues background re-verification for each.
+    CENRO-only. Use this after creating the Supabase Storage bucket to fix
+    all historically broken masks in one shot.
+    """
+    query = db.query(models.Report).filter(
+        models.Report.verification_pending == False,
+    )
+    if status:
+        query = query.filter(models.Report.status == status)
+
+    candidates = query.all()
+
+    # Find reports with missing masks (no mask URL, or mask file doesn't exist)
+    to_reverify = []
+    for report in candidates:
+        # Skip if already queued
+        if report.verification_pending:
+            continue
+        # Re-verify if mask is missing entirely
+        if not report.ai_mask_url:
+            to_reverify.append(report)
+            continue
+        # Re-verify if mask file is broken (not on local disk and Supabase download fails)
+        mask_filename = os.path.basename(report.ai_mask_url)
+        local_mask = os.path.join(UPLOAD_DIR, mask_filename)
+        if not os.path.exists(local_mask):
+            # Check if it exists in Supabase
+            supabase_url = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
+            if supabase_url:
+                supabase_url = supabase_url.rstrip("/")
+                public_url = f"{supabase_url}/storage/v1/object/public/report-photos/{mask_filename}"
+                try:
+                    resp = requests.head(public_url, timeout=5)
+                    if resp.status_code != 200:
+                        to_reverify.append(report)
+                except Exception:
+                    to_reverify.append(report)
+            else:
+                to_reverify.append(report)
+
+    if not to_reverify:
+        return {
+            "success": True,
+            "message": "All reports already have valid AI masks.",
+            "count": 0,
+        }
+
+    # Reset and queue each report
+    for report in to_reverify:
+        report.ai_mask_url = None
+        report.ai_mask_size_bytes = None
+        report.ai_confidence = None
+        report.verification_pending = True
+        report.verification_kind = "submit"
+
+        # Reset photo rows
+        photo_rows = db.query(models.ReportPhoto).filter(
+            models.ReportPhoto.report_id == report.id
+        ).all()
+        for row in photo_rows:
+            row.ai_mask_path = None
+            row.mask_size_bytes = None
+            row.ai_confidence = None
+            row.ai_verified = None
+
+    write_audit(db, user.id, "reverify_all", None, {
+        "count": len(to_reverify),
+        "report_ids": [r.id for r in to_reverify],
+        "tracking_ids": [r.tracking_id for r in to_reverify],
+    })
+    db.commit()
+
+    # Stagger background tasks to avoid overwhelming the AI model
+    for report in to_reverify:
+        background_tasks.add_task(_bg_verify_submit, report.id)
+
+    return {
+        "success": True,
+        "message": f"Batch re-verification started for {len(to_reverify)} reports.",
+        "count": len(to_reverify),
+        "tracking_ids": [r.tracking_id for r in to_reverify],
+    }
 
 
 # ─────────────────────────────────────────────────────────
