@@ -267,7 +267,9 @@ export default function TrackReportPage() {
                                                     src={`${API_URL}${showAiMask && activeMaskUrl ? activeMaskUrl : activeImageUrl}`}
                                                     alt="Report Evidence"
                                                     className="w-full h-full object-cover transition-transform duration-300 group-hover/evidence:scale-105"
+                                                    onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
                                                 />
+                                                <div className="hidden absolute inset-0 flex items-center justify-center text-foreground/30 uppercase tracking-widest text-sm bg-black/20">Image unavailable</div>
                                             ) : (
                                                 <div className="absolute inset-0 flex items-center justify-center text-foreground/30">No Image</div>
                                             )}
@@ -344,7 +346,9 @@ export default function TrackReportPage() {
                                                                 src={`${API_URL}${photo.url}`}
                                                                 alt={`Evidence ${i + 1}`}
                                                                 className="w-full h-full object-cover"
+                                                                onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
                                                             />
+                                                            <div className="hidden absolute inset-0 flex items-center justify-center text-[8px] text-foreground/40 uppercase text-center px-1">Img NA</div>
                                                             {photo.ai_verified != null && (
                                                                 <div className={`absolute bottom-0 inset-x-0 text-center text-[9px] font-bold py-0.5 ${photo.ai_verified ? 'bg-primary/80 text-white' : 'bg-red-500/80 text-white'}`}>
                                                                     {photo.ai_verified ? "✓ Pass" : "✕ Fail"}
@@ -375,7 +379,9 @@ export default function TrackReportPage() {
                                             src={`${API_URL}${report.cleanup_image_url}`} 
                                             alt="Cleanup" 
                                             className="w-full h-full object-cover transition-transform duration-300 group-hover/cleanup:scale-105" 
+                                            onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
                                         />
+                                        <div className="hidden absolute inset-0 flex items-center justify-center text-xs text-foreground/40 uppercase tracking-widest text-center px-4 bg-muted border border-border">Image unavailable</div>
                                     </div>
                                 </div>
                             )}

@@ -286,7 +286,16 @@ export function EvidenceGalleryTab({ reports, barangays, onReportClick, loading 
                                     {/* Original */}
                                     <div className="aspect-square bg-muted relative overflow-hidden group">
                                         {report.image_url ? (
-                                            <img src={`${API_URL}${report.image_url}`} alt="Original" className="w-full h-full object-cover" loading="lazy" />
+                                            <>
+                                                <img 
+                                                    src={`${API_URL}${report.image_url}`} 
+                                                    alt="Original" 
+                                                    className="w-full h-full object-cover" 
+                                                    loading="lazy" 
+                                                    onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
+                                                />
+                                                <div className="hidden absolute inset-0 flex items-center justify-center text-[10px] text-foreground/40 uppercase tracking-widest text-center px-1">Img NA</div>
+                                            </>
                                         ) : (
                                             <div className="flex items-center justify-center h-full text-[10px] text-muted-foreground">No original</div>
                                         )}
@@ -298,7 +307,16 @@ export function EvidenceGalleryTab({ reports, barangays, onReportClick, loading 
                                     {/* AI Mask */}
                                     <div className="aspect-square bg-muted relative overflow-hidden group">
                                         {report.ai_mask_url ? (
-                                            <img src={`${API_URL}${report.ai_mask_url}`} alt="AI Detection" className="w-full h-full object-cover" loading="lazy" />
+                                            <>
+                                                <img 
+                                                    src={`${API_URL}${report.ai_mask_url}`} 
+                                                    alt="AI Detection" 
+                                                    className="w-full h-full object-cover" 
+                                                    loading="lazy" 
+                                                    onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
+                                                />
+                                                <div className="hidden absolute inset-0 flex items-center justify-center text-[10px] text-foreground/40 uppercase tracking-widest text-center px-1">Img NA</div>
+                                            </>
                                         ) : (
                                             <div className="flex items-center justify-center h-full text-[10px] text-muted-foreground">No mask</div>
                                         )}
@@ -310,8 +328,17 @@ export function EvidenceGalleryTab({ reports, barangays, onReportClick, loading 
                                     {/* Cleanup Proof */}
                                     <div className="aspect-square bg-muted relative overflow-hidden group">
                                         {report.cleanup_image_url ? (
-                                            // eslint-disable-next-line @next/next/no-img-element
-                                            <img src={`${API_URL}${report.cleanup_image_url}`} alt="Cleanup Proof" className="w-full h-full object-cover" loading="lazy" />
+                                            <>
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img 
+                                                    src={`${API_URL}${report.cleanup_image_url}`} 
+                                                    alt="Cleanup Proof" 
+                                                    className="w-full h-full object-cover" 
+                                                    loading="lazy" 
+                                                    onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
+                                                />
+                                                <div className="hidden absolute inset-0 flex items-center justify-center text-[10px] text-foreground/40 uppercase tracking-widest text-center px-1">Img NA</div>
+                                            </>
                                         ) : (
                                             <div className="flex items-center justify-center h-full text-[10px] text-muted-foreground">Pending</div>
                                         )}

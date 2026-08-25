@@ -95,6 +95,7 @@ with engine.connect() as _conn:
         "ALTER TABLE reports ADD COLUMN image_size_bytes INTEGER DEFAULT 0",
         "ALTER TABLE reports ADD COLUMN ai_mask_size_bytes INTEGER DEFAULT 0",
         "ALTER TABLE reports ADD COLUMN cleanup_size_bytes INTEGER DEFAULT 0",
+        "ALTER TABLE reports ADD COLUMN verification_error TEXT",
     ):
         try:
             _conn.execute(text(_ddl))
@@ -584,9 +585,10 @@ async def save_upload(
     except Exception as e:
         logger.error(f"Image compression failed: {e}. Defaulting to original file bytes.")
 
-    # Try uploading to Supabase first if keys are configured in environment variables
+    # Try uploading to Supabase first if keys are configured in environment variables.
+    # Prefer service_role key (bypasses RLS) over anon key for server-side uploads.
     supabase_url = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-    supabase_key = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+    supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
     if supabase_url and supabase_key:
         import requests
         supabase_url = supabase_url.rstrip("/")
@@ -1609,9 +1611,10 @@ def _save_mask_bytes(mask_bytes: bytes) -> Optional[Tuple[str, int]]:
         return None
     mask_filename = f"mask_{uuid.uuid4().hex[:8]}.jpg"
 
-    # Try uploading to Supabase first if keys are configured in environment variables
+    # Try uploading to Supabase first if keys are configured in environment variables.
+    # Prefer service_role key (bypasses RLS) over anon key for server-side uploads.
     supabase_url = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-    supabase_key = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+    supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
     if supabase_url and supabase_key:
         import requests
         supabase_url = supabase_url.rstrip("/")
@@ -1740,6 +1743,7 @@ async def _bg_verify_submit(report_id: int, device_lat: float = None, device_lon
             report.status = models.ReportStatus.REJECTED
             report.verification_pending = False
             report.verification_kind = None
+            report.verification_error = "Original photo not found in storage. Please re-submit the report."
             db.commit()
             return
 
@@ -3384,6 +3388,7 @@ async def reverify_report(
     report.ai_confidence = None
     report.verification_pending = True
     report.verification_kind = "submit"
+    report.verification_error = None  # Clear any previous error
 
     # Reset AI fields on all evidence photos so _bg_verify_submit picks them up
     photo_rows = db.query(models.ReportPhoto).filter(
@@ -3410,6 +3415,50 @@ async def reverify_report(
         "message": f"Re-verification started for {report.tracking_id}. AI mask will regenerate shortly.",
         "report_id": report.id,
         "tracking_id": report.tracking_id,
+    }
+
+
+@app.get("/report/{report_id}/verification-status")
+async def get_verification_status(
+    report_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("cenro", "barangay")),
+):
+    """Poll for live re-verification progress on a specific report.
+
+    The frontend polls this endpoint every 3 seconds after clicking 'Re-verify'
+    to update the progress bar. When `verification_pending` becomes false, the
+    frontend knows the task finished (success or failure).
+    """
+    report = db.query(models.Report).filter(models.Report.id == report_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    # Barangay users can only check their own jurisdiction
+    if user.role == "barangay" and report.barangay != user.barangay:
+        raise HTTPException(status_code=403, detail="Access denied.")
+
+    photo_rows = db.query(models.ReportPhoto).filter(
+        models.ReportPhoto.report_id == report_id
+    ).all()
+
+    return {
+        "report_id": report.id,
+        "tracking_id": report.tracking_id,
+        "verification_pending": report.verification_pending,
+        "ai_confidence": report.ai_confidence,
+        "ai_mask_url": report.ai_mask_url,
+        "status": report.status,
+        "verification_error": getattr(report, "verification_error", None),
+        "photos": [
+            {
+                "url": p.file_path,
+                "mask_url": p.ai_mask_path,
+                "ai_confidence": p.ai_confidence,
+                "ai_verified": p.ai_verified,
+            }
+            for p in photo_rows
+        ],
     }
 
 

@@ -106,6 +106,7 @@ class Report(Base):
     # "AI verifying…" spinner and is the source of truth for startup recovery.
     verification_pending = Column(Boolean, nullable=False, default=False, index=True)
     verification_kind = Column(String, nullable=True)  # submit | resolve | complete
+    verification_error = Column(String, nullable=True)  # set when background task fails
 
     # Tracking (for anonymous access)
     tracking_id = Column(String, unique=True, nullable=True)  # e.g. "EW-0042"

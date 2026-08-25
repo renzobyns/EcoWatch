@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, Suspense } from "react";
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -122,6 +122,10 @@ function BarangayPortalInner() {
 
     // Action States
     const [actionLoading, setActionLoading] = useState(false);
+    const [reverifyStatus, setReverifyStatus] = useState<"pending" | "done" | "failed" | null>(null);
+    const [reverifyError, setReverifyError] = useState<string | null>(null);
+    const [reverifyPolledData, setReverifyPolledData] = useState<any>(null);
+    const reverifyPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const [cleanupImage, setCleanupImage] = useState<File | null>(null);
     const [cleanupPreview, setCleanupPreview] = useState<string | null>(null);
     const [deploymentNotes, setDeploymentNotes] = useState("");
@@ -468,17 +472,59 @@ function BarangayPortalInner() {
         }
     };
 
+    const stopReverifyPolling = () => {
+        if (reverifyPollRef.current) {
+            clearInterval(reverifyPollRef.current);
+            reverifyPollRef.current = null;
+        }
+    };
+
+    // Cleanup interval on unmount
+    useEffect(() => { return () => stopReverifyPolling(); }, []);
+
     const handleReverify = async (reportId: number) => {
         setActionLoading(true);
+        setReverifyStatus(null);
+        setReverifyError(null);
+        setReverifyPolledData(null);
         try {
             await api(`/report/${reportId}/reverify`, { method: "POST" });
             toast.success(`Re-verification started for report.`);
-            // Update local state instead of doing a heavy refetch
             setReports(prev => prev.map(r => r.id === reportId ? { ...r, verification_pending: true } : r));
             setSelectedReport((prev: any) => prev ? { ...prev, verification_pending: true } : prev);
+            
+            // Start polling
+            setReverifyStatus("pending");
+            setActionLoading(false);
+            reverifyPollRef.current = setInterval(async () => {
+                try {
+                    const statusData = await api(`/report/${reportId}/verification-status`);
+                    if (!statusData.verification_pending) {
+                        stopReverifyPolling();
+                        setReverifyPolledData(statusData);
+                        if (statusData.ai_mask_url || statusData.photos?.some((p: any) => p.mask_url)) {
+                            setReverifyStatus("done");
+                            // Update local reports list to reflect verified status
+                            setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: statusData.status, verification_pending: false, ai_mask_url: statusData.ai_mask_url, ai_confidence: statusData.ai_confidence } : r));
+                            setSelectedReport((prev: any) => prev ? { ...prev, status: statusData.status, verification_pending: false, ai_mask_url: statusData.ai_mask_url, ai_confidence: statusData.ai_confidence } : prev);
+                            // Also update reportPhotos so UI doesn't show broken masks
+                            setReportPhotos(statusData.photos);
+                        } else {
+                            setReverifyStatus("failed");
+                            setReverifyError(statusData.verification_error || "AI could not process the photo. The original image may be missing.");
+                            setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: statusData.status, verification_pending: false } : r));
+                            setSelectedReport((prev: any) => prev ? { ...prev, status: statusData.status, verification_pending: false } : prev);
+                        }
+                    }
+                } catch {
+                    stopReverifyPolling();
+                    setReverifyStatus("failed");
+                    setReverifyError("Could not check verification status.");
+                }
+            }, 3000);
+
         } catch (err: any) {
             toast.error(err?.message || "Failed to re-verify.");
-        } finally {
             setActionLoading(false);
         }
     };
@@ -2206,8 +2252,48 @@ function BarangayPortalInner() {
                                             {actionLoading ? "Re-verifying..." : "Re-verify"}
                                         </button>
                                     </div>
+                                    
+                                    {reverifyStatus && (
+                                        <div className="mb-4 p-3 rounded-lg border text-sm flex flex-col gap-2 bg-card">
+                                            <div className="flex items-center gap-2">
+                                                {reverifyStatus === "pending" && (
+                                                    <>
+                                                        <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                                        <span className="font-semibold text-primary">AI is analyzing the photo...</span>
+                                                    </>
+                                                )}
+                                                {reverifyStatus === "done" && (
+                                                    <>
+                                                        <div className="h-4 w-4 bg-green-500 rounded-full flex items-center justify-center text-white text-[10px]">✓</div>
+                                                        <span className="font-semibold text-green-600">Re-verification complete!</span>
+                                                    </>
+                                                )}
+                                                {reverifyStatus === "failed" && (
+                                                    <>
+                                                        <div className="h-4 w-4 bg-destructive rounded-full flex items-center justify-center text-white text-[10px]">✕</div>
+                                                        <span className="font-semibold text-destructive">Re-verification failed</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                            {reverifyStatus === "failed" && reverifyError && (
+                                                <p className="text-xs text-muted-foreground ml-6">{reverifyError}</p>
+                                            )}
+                                            {reverifyStatus === "pending" && (
+                                                <div className="h-1.5 w-full bg-primary/20 rounded-full overflow-hidden mt-1">
+                                                    <div className="h-full bg-primary w-1/2 rounded-full animate-[pulse_1s_ease-in-out_infinite]" style={{ animationDuration: '1.5s' }} />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
                                     <div className="w-full aspect-video rounded-xl overflow-hidden border border-border bg-muted relative">
-                                        <img src={`${API_URL}${selectedReport.image_url}`} className="w-full h-full object-cover" alt="Evidence" />
+                                        <img 
+                                            src={`${API_URL}${selectedReport.image_url}`} 
+                                            className="w-full h-full object-cover" 
+                                            alt="Evidence" 
+                                            onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
+                                        />
+                                        <div className="hidden absolute inset-0 flex items-center justify-center text-xs text-foreground/40 uppercase tracking-widest text-center px-4 bg-muted border border-border">Image unavailable</div>
                                         {selectedReport.ai_confidence !== null && (
                                             <div className="absolute bottom-2 right-2 bg-black/70 backdrop-blur-sm border border-white/10 px-2 py-1 rounded text-[10px] font-bold text-white inline-flex items-center gap-1.5 shadow-sm">
                                                 <span>AI Confidence: {(selectedReport.ai_confidence * 100).toFixed(0)}%</span>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, FileText, Camera, Shield, Clock, MapPin, User, Mail, Phone, ExternalLink, ClipboardList, RefreshCw } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { TrustBadge } from "@/components/TrustBadge";
@@ -622,19 +622,58 @@ function EvidenceTab({
 }) {
     const [lightbox, setLightbox] = useState<string | null>(null);
     const [reverifyLoading, setReverifyLoading] = useState(false);
+    // Progress state: null = idle, "pending" = polling, "done" = success, "failed" = error
+    const [reverifyStatus, setReverifyStatus] = useState<"pending" | "done" | "failed" | null>(null);
+    const [reverifyError, setReverifyError] = useState<string | null>(null);
+    const [polledData, setPolledData] = useState<any>(null);
+    const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    const stopPolling = () => {
+        if (pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+        }
+    };
 
     const handleReverify = async () => {
         setReverifyLoading(true);
+        setReverifyStatus(null);
+        setReverifyError(null);
+        setPolledData(null);
         try {
             await api(`/report/${report.id}/reverify`, { method: "POST" });
             toast.success(`Re-verification started for ${report.tracking_id}`);
             if (onUpdated) onUpdated();
+            // Start polling
+            setReverifyStatus("pending");
+            setReverifyLoading(false);
+            pollRef.current = setInterval(async () => {
+                try {
+                    const statusData = await api(`/report/${report.id}/verification-status`);
+                    if (!statusData.verification_pending) {
+                        stopPolling();
+                        setPolledData(statusData);
+                        if (statusData.ai_mask_url || statusData.photos?.some((p: any) => p.mask_url)) {
+                            setReverifyStatus("done");
+                        } else {
+                            setReverifyStatus("failed");
+                            setReverifyError(statusData.verification_error || "AI could not process the photo. The original image may be missing.");
+                        }
+                    }
+                } catch {
+                    stopPolling();
+                    setReverifyStatus("failed");
+                    setReverifyError("Could not check verification status.");
+                }
+            }, 3000);
         } catch (err: any) {
             toast.error(err?.message || "Failed to re-verify");
-        } finally {
             setReverifyLoading(false);
         }
     };
+
+    // Cleanup interval on unmount
+    useEffect(() => { return () => stopPolling(); }, []);
 
     useEffect(() => {
         if (!lightbox) return;
@@ -690,23 +729,69 @@ function EvidenceTab({
                             </button>
                         )}
                     </div>
+                    {reverifyStatus && (
+                        <div className="mb-4 p-3 rounded-lg border text-sm flex flex-col gap-2 bg-card">
+                            <div className="flex items-center gap-2">
+                                {reverifyStatus === "pending" && (
+                                    <>
+                                        <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                        <span className="font-semibold text-primary">AI is analyzing the photo...</span>
+                                    </>
+                                )}
+                                {reverifyStatus === "done" && (
+                                    <>
+                                        <div className="h-4 w-4 bg-green-500 rounded-full flex items-center justify-center text-white text-[10px]">✓</div>
+                                        <span className="font-semibold text-green-600">Re-verification complete!</span>
+                                    </>
+                                )}
+                                {reverifyStatus === "failed" && (
+                                    <>
+                                        <div className="h-4 w-4 bg-destructive rounded-full flex items-center justify-center text-white text-[10px]">✕</div>
+                                        <span className="font-semibold text-destructive">Re-verification failed</span>
+                                    </>
+                                )}
+                            </div>
+                            {reverifyStatus === "failed" && reverifyError && (
+                                <p className="text-xs text-muted-foreground ml-6">{reverifyError}</p>
+                            )}
+                            {reverifyStatus === "pending" && (
+                                <div className="h-1.5 w-full bg-primary/20 rounded-full overflow-hidden mt-1">
+                                    <div className="h-full bg-primary w-1/2 rounded-full animate-[pulse_1s_ease-in-out_infinite]" style={{ animationDuration: '1.5s' }} />
+                                </div>
+                            )}
+                        </div>
+                    )}
                     <div className="flex flex-col gap-4">
                         {citizenPhotos.map((p, i) => (
                             <div key={i} className="bg-card rounded-lg border border-border shadow-sm p-3">
                                 <div className="grid grid-cols-2 gap-2">
                                     <button
                                         onClick={() => setLightbox(`${API_URL}${p.url}`)}
-                                        className="aspect-square rounded-lg overflow-hidden bg-foreground/5 border border-border hover:border-primary/40 transition-colors"
+                                        className="aspect-square rounded-lg overflow-hidden bg-foreground/5 border border-border hover:border-primary/40 transition-colors relative"
                                     >
-                                        <img src={`${API_URL}${p.url}`} alt="Citizen photo" className="w-full h-full object-cover" />
+                                        <img 
+                                            src={`${API_URL}${p.url}`} 
+                                            alt="Citizen photo" 
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
+                                        />
+                                        <div className="hidden absolute inset-0 flex items-center justify-center text-[10px] text-foreground/40 uppercase tracking-widest text-center px-2">Image unavailable</div>
                                     </button>
                                     <button
                                         onClick={() => p.mask_url && setLightbox(`${API_URL}${p.mask_url}`)}
                                         disabled={!p.mask_url}
-                                        className="aspect-square rounded-lg overflow-hidden bg-foreground/5 border border-border hover:border-primary/40 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
+                                        className="aspect-square rounded-lg overflow-hidden bg-foreground/5 border border-border hover:border-primary/40 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center relative"
                                     >
                                         {p.mask_url ? (
-                                            <img src={`${API_URL}${p.mask_url}`} alt="AI mask" className="w-full h-full object-cover" />
+                                            <>
+                                                <img 
+                                                    src={polledData && polledData.photos?.[i]?.mask_url ? `${API_URL}${polledData.photos[i].mask_url}` : `${API_URL}${p.mask_url}`} 
+                                                    alt="AI mask" 
+                                                    className="w-full h-full object-cover"
+                                                    onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
+                                                />
+                                                <div className="hidden absolute inset-0 flex items-center justify-center text-[10px] text-foreground/40 uppercase tracking-widest text-center px-2">Image unavailable</div>
+                                            </>
                                         ) : (
                                             <span className="text-[10px] text-foreground/40 uppercase tracking-widest">No mask</span>
                                         )}
