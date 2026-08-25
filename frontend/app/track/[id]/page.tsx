@@ -263,13 +263,15 @@ export default function TrackReportPage() {
                                                 </button>
                                             )}
                                             {activeImageUrl ? (
-                                                <img
-                                                    src={`${API_URL}${showAiMask && activeMaskUrl ? activeMaskUrl : activeImageUrl}`}
-                                                    alt="Report Evidence"
-                                                    className="w-full h-full object-cover transition-transform duration-300 group-hover/evidence:scale-105"
-                                                    onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
-                                                />
-                                                <div className="hidden absolute inset-0 flex items-center justify-center text-foreground/30 uppercase tracking-widest text-sm bg-black/20">Image unavailable</div>
+                                                <>
+                                                    <img
+                                                        src={`${API_URL}${showAiMask && activeMaskUrl ? activeMaskUrl : activeImageUrl}`}
+                                                        alt="Report Evidence"
+                                                        className="w-full h-full object-cover transition-transform duration-300 group-hover/evidence:scale-105"
+                                                        onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
+                                                    />
+                                                    <div className="hidden absolute inset-0 flex items-center justify-center text-foreground/30 uppercase tracking-widest text-sm bg-black/20">Image unavailable</div>
+                                                </>
                                             ) : (
                                                 <div className="absolute inset-0 flex items-center justify-center text-foreground/30">No Image</div>
                                             )}
