@@ -73,6 +73,14 @@
 - [ ] Fix dead footer link → `/terms`
 - [ ] Fix dead footer link → `/privacy`
 
+### Account Management (see `production readiness.md` §14)
+- [ ] **Backend**: Add `role` field to `UpdateUserRequest` (CENRO-only permission)
+- [ ] **Backend**: Validate role transitions (require `barangay_assignment` for barangay/cleaner roles)
+- [ ] **Backend**: Audit-log role changes (old_role → new_role, changed_by, timestamp)
+- [ ] **Frontend (CENRO)**: Add "Edit User" modal with role dropdown + barangay assignment
+- [ ] **Frontend (CENRO)**: Add confirmation dialog for role changes
+- [ ] **Frontend (Barangay)**: Add "Edit Cleaner" functionality in Accounts tab
+
 ---
 
 ## 🟢 Phase 3 — Polish & Compliance

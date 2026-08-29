@@ -21,6 +21,7 @@
 11. [Nice-to-Have Features](#11-nice-to-have-features)
 12. [Prioritized Action Plan](#12-prioritized-action-plan)
 13. [Suggestions to Improve the System](#13-suggestions-to-improve-the-system)
+14. [Account Management](#14-account-management)
 
 ---
 
@@ -529,6 +530,57 @@ Priority-ordered:
 | 8 | Social sharing on tracking page | 🟡 Medium | 1 hr | Citizens |
 | 9 | Barangay health scoring (Red/Yellow/Green) | 🟡 Medium | 2 hr | CENRO |
 | 10 | Executive summary one-pager for CENRO | 🟡 Medium | 3 hr | CENRO |
+
+---
+
+## 14. Account Management
+
+### Current State
+The backend has a `PUT /users/{user_id}` endpoint that allows CENRO/barangay admins to edit `full_name`, `email`, `phone_number`, and `barangay_assignment`. However, **there is no way to change a user's role** through the admin interface.
+
+### The Problem
+- A citizen who becomes a barangay officer cannot have their role updated — they'd need a new account.
+- CENRO cannot promote/demote users (e.g., citizen → barangay, barangay → cleaner, or revoking officer status back to citizen).
+- There is no UI in the CENRO "User Management" tab to edit user details or roles.
+- Barangay admins can only manage cleaners in their own jurisdiction — but there's no interface to do even that beyond what the "Accounts" tab shows.
+
+### What's Needed
+
+#### Backend
+1. **Add `role` field to `UpdateUserRequest`** — Allow CENRO to change a user's role between `citizen`, `barangay`, `cleaner`, `cenro`.
+   - Only CENRO should be allowed to change roles (not barangay admins).
+   - When changing to `barangay` or `cleaner`, require `barangay_assignment` to be set.
+   - When changing from `barangay`/`cleaner` to `citizen`, clear `barangay_assignment`.
+   - Log the change in the audit trail (who changed what, old role → new role).
+2. **Validate role transitions** — Prevent invalid states (e.g., a cleaner with no barangay assignment).
+3. **Consider adding a `PUT /users/{user_id}/role` dedicated endpoint** — Separate from general profile edits for clearer RBAC and audit logging.
+
+#### Frontend — CENRO User Management Tab
+4. **Add "Edit User" modal/drawer** — When CENRO clicks a user in the User Management tab, show an edit form with:
+   - Full name (editable)
+   - Email (editable)
+   - Phone number (editable)
+   - **Role dropdown** (citizen / barangay / cleaner / cenro)
+   - **Barangay assignment dropdown** (shown only when role is `barangay` or `cleaner`)
+   - Disable/reactivate toggle
+   - Reset password button
+5. **Add role badge in user list** — Show the user's current role clearly in the table with colored badges.
+6. **Add confirmation dialog for role changes** — "Are you sure you want to change [User Name] from Citizen to Barangay Officer assigned to Muzon?" with audit reason.
+
+#### Frontend — Barangay Accounts Tab
+7. **Add "Edit Cleaner" functionality** — Barangay admins should be able to edit their cleaners' names, emails, and phone numbers directly from the Accounts tab.
+8. **Show cleaner status** — Active vs disabled, last login date, number of completed jobs.
+
+#### Security Considerations
+- Role changes MUST be audit-logged with old_role → new_role, changed_by, and timestamp.
+- Only CENRO can change roles — this is a **hard rule**.
+- Changing a user's role should NOT affect their existing reports or work orders.
+- Consider adding a "reason" field for role changes for accountability.
+
+### Impact
+- **Who benefits**: CENRO admins (proper user governance), barangay admins (cleaner management)
+- **Effort estimate**: ~4-5 hours (backend role endpoint + frontend edit modal + validation)
+- **Priority**: 🟡 High — needed for proper account governance before production
 
 ---
 
