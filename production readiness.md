@@ -297,6 +297,7 @@ Priority-ordered:
 - `docker-compose.yml` for one-command local dev
 - `.editorconfig` / `.prettierrc` for code formatting
 - Gamification (badges/points for citizen reporters)
+- **Citizen eKYC & "Verified Resident" Badge** — Upload City ID / PhilSys / Barangay ID + live facial selfie to earn a verified trust badge (✓ 🛡️) and high-priority report weighting
 
 ---
 
@@ -463,65 +464,72 @@ Priority-ordered:
    - **Social sharing buttons** (Facebook, Twitter, copy link) on the tracking page
    - **Shareable report cards** — a nice image preview with the report photo, status, and tracking link for easy sharing on social media
 
+6. **"Can I verify my identity for higher credibility?" (Citizen eKYC & Verified Badge)** — Add:
+   - **Citizen ID Verification Flow** on `/profile`: Citizens upload an official Government/City ID (PhilSys National ID, City Resident ID, Barangay ID, Voter's ID) and take a live camera facial selfie for liveness verification.
+   - **Identity Data Captured**: Citizen ID Number, Full Legal Name, Home Barangay, Address, ID Photos, and Live Facial Selfie Portrait.
+   - **"Verified Resident" Badge (`✓ 🛡️`)**: Displayed next to their name across reports, track views, and leaderboards.
+   - **Anti-Spam & Trust Weighting**: Reports submitted by verified citizens automatically receive a **High Trust score** in the AI evaluation engine and expedited dispatch priority in the barangay queue.
+   - **LGU Accountability**: Allows CENRO and Barangay officials to confirm reporters are real SJDM residents while complying fully with RA 10173 (Data Privacy Act) encryption standards.
+
 #### For Barangay Admins
-6. **"I need to report to my superiors"** — Barangay captains need to present to their council. Add:
+7. **"I need to report to my superiors"** — Barangay captains need to present to their council. Add:
    - **PDF report generation** — Monthly summary with charts, resolution stats, before/after photos
    - **Print-friendly views** for the dashboard and report tables
    - **Exportable charts** (the Recharts data should be downloadable as images)
 
-7. **"I have too many reports to manage"** — Add:
+8. **"I have too many reports to manage"** — Add:
    - **Bulk actions** — select multiple reports and batch-assign to a cleaner, batch-close, batch-export
    - **Priority queue view** — auto-sorted by SLA urgency (breached first, then at-risk, then normal)
    - **Smart assignment suggestions** — "Cleaner A has 2 active jobs, Cleaner B has 0. Assign to B?"
 
-8. **"When did my cleaners last work?"** — The cleaner accounts tab is basic. Add:
+9. **"When did my cleaners last work?"** — The cleaner accounts tab is basic. Add:
    - **Cleaner performance dashboard** — completion rate, average response time, SLA compliance per cleaner
    - **Cleaner workload view** — calendar/timeline showing each cleaner's assignments and availability
    - **Cleaner location on map** (if they opt in) — see where your team is right now
 
-9. **"I need to talk to CENRO"** — Add:
-   - **Inter-role messaging** or at minimum an **escalation button** that notifies CENRO with a message
-   - **Announcement system** — CENRO can broadcast messages to all barangay admins
+10. **"I need to talk to CENRO"** — Add:
+    - **Inter-role messaging** or at minimum an **escalation button** that notifies CENRO with a message
+    - **Announcement system** — CENRO can broadcast messages to all barangay admins
 
 #### For CENRO Officials
-10. **"I need this for my presentation to the mayor"** — Add:
+11. **"I need this for my presentation to the mayor"** — Add:
     - **Executive summary dashboard** — a single-page view with the 5 most important KPIs, a trend chart, and top 3 problem barangays
     - **PDF report generation** — monthly/quarterly city-wide report with all analytics
     - **Comparative analytics** — month-over-month, quarter-over-quarter trends with percentage changes
     - **Exportable charts** as images for PowerPoint presentations
 
-11. **"Which barangays need intervention?"** — The barangay management tab exists but enhance with:
+12. **"Which barangays need intervention?"** — The barangay management tab exists but enhance with:
     - **Health scoring system** — Red/Yellow/Green barangay health based on resolution rate, SLA compliance, and trend direction
     - **Automated alerts** — "Barangay X has dropped below 50% resolution rate" pushed to CENRO notification
     - **Barangay comparison view** — side-by-side comparison of any 2-3 barangays
 
-12. **"I want to see the big picture"** — Add:
+13. **"I want to see the big picture"** — Add:
     - **Waste type classification** — If the AI can detect waste types (plastic, organic, hazardous), show distribution charts
     - **Seasonal trends** — Are there more reports during rainy season? After fiestas?
     - **Prediction module** — Based on historical data, predict which areas are likely to have new dump sites
 
 #### For Cleanup Teams
-13. **"I need directions to the dump site"** — Add:
+14. **"I need directions to the dump site"** — Add:
     - **"Open in Google Maps" button** on job cards — one-tap navigation to the GPS coordinates
     - **Optimized route view** — if cleaner has multiple jobs, show the most efficient route order
 
-14. **"I want to see my performance"** — Add:
+15. **"I want to see my performance"** — Add:
     - **Personal stats dashboard** — total cleanups, success rate, average completion time, SLA compliance
     - **Streak/achievement system** — "5 cleanups in a row!", "100% SLA compliance this month!"
     - **Monthly summary** — how many jobs completed, average time, comparison to team average
 
-15. **"The help section is too basic"** — Expand the Help tab:
+16. **"The help section is too basic"** — Expand the Help tab:
     - **Photo guidelines** — examples of what makes a good cleanup proof photo
     - **Common rejection reasons** — why AI might reject a cleanup (waste still visible)
     - **Troubleshooting guide** — camera not working, GPS inaccurate, upload failing
     - **Video tutorials** — short clips showing the workflow
 
 #### For Everyone
-16. **"Dark mode looks off in some places"** — Do a thorough dark mode audit on every page and component. Test every tab, modal, and drawer in both themes
-17. **"The loading takes too long"** — Add skeleton loaders to all pages (not just spinners). Users should see the page structure immediately with placeholder content
-18. **"I accidentally navigated away"** — Add unsaved changes warnings on forms (report submission, profile edit, settings)
-19. **"Announcements and news"** — Add a system-wide announcement banner that CENRO can use to broadcast maintenance windows, new features, or important notices
-20. **"Make it feel like a real app"** — PWA support with "Add to Home Screen", offline caching for the map tiles, and push notifications would make this feel professional
+17. **"Dark mode looks off in some places"** — Do a thorough dark mode audit on every page and component. Test every tab, modal, and drawer in both themes
+18. **"The loading takes too long"** — Add skeleton loaders to all pages (not just spinners). Users should see the page structure immediately with placeholder content
+19. **"I accidentally navigated away"** — Add unsaved changes warnings on forms (report submission, profile edit, settings)
+20. **"Announcements and news"** — Add a system-wide announcement banner that CENRO can use to broadcast maintenance windows, new features, or important notices
+21. **"Make it feel like a real app"** — PWA support with "Add to Home Screen", offline caching for the map tiles, and push notifications would make this feel professional
 
 ---
 
