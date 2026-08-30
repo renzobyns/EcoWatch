@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, Leaf, Eye, EyeOff, ShieldCheck, Map, BarChart3 } from "lucide-react";
+import { ArrowLeft, Leaf, Eye, EyeOff, ShieldCheck, Map, BarChart3, Clock } from "lucide-react";
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,16 @@ export default function LoginPage() {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const [resending, setResending] = useState(false);
+    const [sessionExpiredNotice, setSessionExpiredNotice] = useState(false);
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get("expired") === "1" || params.get("session_expired") === "true") {
+                setSessionExpiredNotice(true);
+            }
+        }
+    }, []);
 
     const handleResend = async () => {
         setResending(true);
@@ -175,6 +185,13 @@ export default function LoginPage() {
                         <h2 className="text-xl lg:text-2xl font-bold text-foreground mb-1">Log in to your account</h2>
                         <p className="text-sm text-foreground/50">Welcome back! Please enter your details.</p>
                     </div>
+
+                    {sessionExpiredNotice && (
+                        <div className="mb-5 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs font-medium text-amber-600 dark:text-amber-400 flex items-start gap-2.5 animate-in fade-in-50 duration-200">
+                            <Clock size={16} className="shrink-0 mt-0.5" />
+                            <span>Your session has expired due to inactivity. Please sign in again to continue.</span>
+                        </div>
+                    )}
 
                     {error && (
                         <div className="mb-5 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs font-medium text-red-500 flex flex-col gap-2">

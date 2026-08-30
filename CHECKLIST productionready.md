@@ -26,12 +26,12 @@
 ## 🟡 Phase 2 — High Priority
 
 ### 🔴 Mini-Phase 2.1 — Security & Abuse Protection
-- [ ] Install and configure `slowapi` for rate limiting
-- [ ] Add rate limit on `POST /auth/login` (max 5/min)
-- [ ] Add rate limit on `POST /auth/register` (max 3/min)
-- [ ] Add rate limit on `POST /report/submit` (max 10/min)
-- [ ] Enforce password strength on `/auth/register` (min 8 chars, 1 uppercase, 1 number) + client UI indicator
-- [ ] Add client-side session timeout (auto-logout after configurable inactivity)
+- [x] Install and configure `slowapi` for rate limiting (with proxy-aware IP resolver)
+- [x] Add rate limit on `POST /auth/login` (15/min)
+- [x] Add rate limit on `POST /auth/register` (5/min)
+- [x] Add rate limit on `POST /report/submit` (15/min)
+- [x] Enforce password strength on `/auth/register` & `/auth/reset-password` (min 8 chars, 1 uppercase, 1 number) + live visual checklist in signup UI
+- [x] Add client-side session timeout & inactivity monitor (auto-logout after 4 hours of inactivity)
 
 ### 👥 Mini-Phase 2.2 — Account Governance & User Roles (see `production readiness.md` §14)
 - [ ] **Backend**: Add `role` field to `UpdateUserRequest` (CENRO-only permission)

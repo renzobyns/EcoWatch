@@ -6,6 +6,7 @@ bcrypt
 scikit-learn
 shapely
 Pillow
+slowapi>=0.1.9
 
 # AI / Mask R-CNN
 tensorflow==2.16.1

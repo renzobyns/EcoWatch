@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Eye, EyeOff, ArrowLeft, ShieldCheck, Leaf, Map, BarChart3, User, Mail } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft, ShieldCheck, Leaf, Map, BarChart3, User, Mail, Check } from "lucide-react";
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,13 @@ export default function SignUpPage() {
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+
+    // Real-time password criteria
+    const hasMinLength = password.length >= 8;
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
+    const isPasswordValid = hasMinLength && hasUppercase && hasNumber && passwordsMatch;
 
     const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
         if (!credentialResponse.credential) return;
@@ -58,13 +65,11 @@ export default function SignUpPage() {
         e.preventDefault();
         setError(null);
 
-        if (password !== confirmPassword) {
-            setError("Passwords do not match.");
-            return;
-        }
-
-        if (password.length < 6) {
-            setError("Password must be at least 6 characters.");
+        if (!isPasswordValid) {
+            if (!hasMinLength) setError("Password must be at least 8 characters long.");
+            else if (!hasUppercase) setError("Password must contain at least one uppercase letter (A-Z).");
+            else if (!hasNumber) setError("Password must contain at least one number (0-9).");
+            else if (!passwordsMatch) setError("Passwords do not match.");
             return;
         }
 
@@ -254,6 +259,33 @@ export default function SignUpPage() {
                             </div>
                         </div>
 
+                        {/* Password Requirements Live Checklist */}
+                        {password.length > 0 && (
+                            <div className="p-3 rounded-xl bg-card/60 border border-border/50 text-[11px] space-y-1.5 animate-in fade-in-50 duration-200">
+                                <span className="text-foreground/50 font-semibold uppercase tracking-wider text-[10px] block mb-1">
+                                    Password Requirements:
+                                </span>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                    <div className={`flex items-center gap-1.5 transition-colors ${hasMinLength ? "text-emerald-500 font-medium" : "text-foreground/40"}`}>
+                                        {hasMinLength ? <Check size={12} className="shrink-0 text-emerald-500" /> : <div className="w-1.5 h-1.5 rounded-full bg-foreground/30 mx-0.5 shrink-0" />}
+                                        <span>8+ characters</span>
+                                    </div>
+                                    <div className={`flex items-center gap-1.5 transition-colors ${hasUppercase ? "text-emerald-500 font-medium" : "text-foreground/40"}`}>
+                                        {hasUppercase ? <Check size={12} className="shrink-0 text-emerald-500" /> : <div className="w-1.5 h-1.5 rounded-full bg-foreground/30 mx-0.5 shrink-0" />}
+                                        <span>1+ uppercase letter</span>
+                                    </div>
+                                    <div className={`flex items-center gap-1.5 transition-colors ${hasNumber ? "text-emerald-500 font-medium" : "text-foreground/40"}`}>
+                                        {hasNumber ? <Check size={12} className="shrink-0 text-emerald-500" /> : <div className="w-1.5 h-1.5 rounded-full bg-foreground/30 mx-0.5 shrink-0" />}
+                                        <span>1+ number (0-9)</span>
+                                    </div>
+                                    <div className={`flex items-center gap-1.5 transition-colors ${passwordsMatch ? "text-emerald-500 font-medium" : "text-foreground/40"}`}>
+                                        {passwordsMatch ? <Check size={12} className="shrink-0 text-emerald-500" /> : <div className="w-1.5 h-1.5 rounded-full bg-foreground/30 mx-0.5 shrink-0" />}
+                                        <span>Passwords match</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Consent Checkbox for RA 10173 & Terms */}
                         <div className="flex items-start gap-2.5 pt-1 px-0.5">
                             <input
@@ -277,7 +309,7 @@ export default function SignUpPage() {
                             </label>
                         </div>
 
-                        <Button type="submit" disabled={loading || !agreedToTerms} size="lg" className="w-full mt-2">
+                        <Button type="submit" disabled={loading || !agreedToTerms || !isPasswordValid} size="lg" className="w-full mt-2">
                             {loading ? (
                                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                             ) : (

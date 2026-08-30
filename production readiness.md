@@ -313,10 +313,10 @@ Priority-ordered:
 
 ### 🟡 Phase 2 — High Priority — ~8-9 hours
 
-#### 🔴 Mini-Phase 2.1 — Security & Abuse Protection (~1.5 hrs)
-- Rate limiting on `/auth/login`, `/auth/register`, `/report/submit` via `slowapi`
-- Password strength enforcement on registration (min 8 chars, 1 uppercase, 1 number) + UI checklist
-- Client-side session timeout (auto-logout on inactivity)
+#### 🔴 Mini-Phase 2.1 — Security & Abuse Protection (~1.5 hrs) — ✅ COMPLETED
+- [x] Rate limiting on `/auth/login`, `/auth/register`, `/report/submit` via proxy-aware `slowapi`
+- [x] Password strength enforcement on registration & reset (min 8 chars, 1 uppercase, 1 number) + live visual checklist in signup UI
+- [x] Client-side session timeout & inactivity monitor (auto-logout on 4h inactivity)
 
 #### 👥 Mini-Phase 2.2 — Account Governance & User Roles (~2.5 hrs)
 - Backend: Role update API `PUT /users/{user_id}` (CENRO only) + audit logs + barangay validation

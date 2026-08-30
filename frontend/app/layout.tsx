@@ -7,6 +7,7 @@ import { ShortcutsProvider } from "@/contexts/ShortcutsContext";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import Script from "next/script";
 import { Analytics } from '@vercel/analytics/next';
+import SessionManager from "@/components/SessionManager";
 
 export const metadata: Metadata = {
   title: "EcoWatch SJDM | Sustainable Environmental Monitoring",
@@ -100,6 +101,7 @@ export default function RootLayout({
         <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""}>
           <ThemeProvider>
             <ShortcutsProvider>
+              <SessionManager />
               <div id="google_translate_element" suppressHydrationWarning></div>
               <Navbar />
               <main className="pt-20">

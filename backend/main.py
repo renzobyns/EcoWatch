@@ -1,7 +1,10 @@
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, Header, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, Header, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+import re
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from pydantic import BaseModel
@@ -191,6 +194,49 @@ UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 app = FastAPI(title="EcoWatch SJDM API", version="1.0.0")
+
+# ─────────────────────────────────────────────────────────
+# RATE LIMITING & PROXY-AWARE CLIENT IP RESOLUTION
+# ─────────────────────────────────────────────────────────
+
+def get_client_ip(request: Request) -> str:
+    """Extract real client IP handling reverse proxies (Hugging Face Spaces, Vercel, Cloudflare)."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        # First IP in comma-separated list is the original client
+        return forwarded.split(",")[0].strip()
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip:
+        return real_ip.strip()
+    return request.client.host if request.client else "127.0.0.1"
+
+# Check if rate limiting is explicitly disabled (e.g. for rapid automated integration tests)
+rate_limiting_enabled = os.getenv("RATE_LIMITING_DISABLED", "false").lower() != "true"
+
+limiter = Limiter(
+    key_func=get_client_ip,
+    default_limits=["120/minute"],
+    enabled=rate_limiting_enabled,
+)
+app.state.limiter = limiter
+
+@app.exception_handler(RateLimitExceeded)
+async def custom_rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={
+            "detail": "Too many requests. You have exceeded the rate limit. Please wait before trying again."
+        }
+    )
+
+def validate_password_strength(password: str) -> None:
+    """Enforce minimum 8 characters, at least 1 uppercase letter, and at least 1 number."""
+    if not password or len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters long.")
+    if not re.search(r"[A-Z]", password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one uppercase letter (A-Z).")
+    if not re.search(r"[0-9]", password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one number (0-9).")
 
 # Configure CORS origins
 raw_origins = os.getenv(
@@ -725,8 +771,12 @@ async def get_storage_health(
 # ─────────────────────────────────────────────────────────
 
 @app.post("/auth/register", response_model=UserResponse)
-async def register(req: RegisterRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+async def register(request: Request, req: RegisterRequest, db: Session = Depends(get_db)):
     """Register a new citizen account."""
+    # Enforce password complexity
+    validate_password_strength(req.password)
+
     # Check if email already exists
     existing = db.query(models.User).filter(models.User.email == req.email).first()
     if existing:
@@ -758,7 +808,8 @@ async def register(req: RegisterRequest, db: Session = Depends(get_db)):
     return user
 
 @app.post("/auth/login")
-async def login(req: LoginRequest, db: Session = Depends(get_db)):
+@limiter.limit("15/minute")
+async def login(request: Request, req: LoginRequest, db: Session = Depends(get_db)):
     """Login and get user details + role."""
     user = db.query(models.User).filter(models.User.email == req.email).first()
     if not user or not verify_password(req.password, user.password_hash):
@@ -892,7 +943,8 @@ async def resend_verification(req: ForgotPasswordRequest, db: Session = Depends(
     return {"success": True}
 
 @app.post("/auth/forgot-password")
-async def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+async def forgot_password(request: Request, req: ForgotPasswordRequest, db: Session = Depends(get_db)):
     """Generate password reset token and send email."""
     user = db.query(models.User).filter(models.User.email == req.email).first()
     if not user:
@@ -906,8 +958,12 @@ async def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_
     return {"success": True}
 
 @app.post("/auth/reset-password")
-async def reset_password(req: ResetPasswordRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+async def reset_password(request: Request, req: ResetPasswordRequest, db: Session = Depends(get_db)):
     """Reset password using token."""
+    # Enforce password complexity
+    validate_password_strength(req.new_password)
+
     user = db.query(models.User).filter(
         models.User.reset_token == req.token,
         models.User.reset_token_expires > _utcnow()
@@ -2101,7 +2157,9 @@ async def _resume_orphan_verifications() -> None:
 # ─────────────────────────────────────────────────────────
 
 @app.post("/report/submit", status_code=202)
+@limiter.limit("15/minute")
 async def submit_report(
+    request: Request,
     background_tasks: BackgroundTasks,
     lat: float = Form(...),
     lon: float = Form(...),
