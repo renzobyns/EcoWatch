@@ -311,17 +311,28 @@ Priority-ordered:
 | 4 | Create Terms of Service page (`/terms`) | 1 hr |
 | 5 | Fix dead legal links on login/signup | 15 min |
 
-### 🟡 Phase 2 — High Priority — ~8 hours
-| # | Task | Time |
-|---|------|------|
-| 7 | Add rate limiting (`slowapi`) | 1 hr |
-| 8 | Clean up Settings modal (remove or implement stubs) | 3 hr |
-| 9 | Create About page | 1 hr |
-| 10 | Create Team page | 1 hr |
-| 11 | Create custom 404 + error pages | 1 hr |
-| 12 | Add consent checkbox to signup | 15 min |
-| 13 | Fix duplicate Graceville bug | 5 min |
-| 14 | Add `loading.tsx` to all routes | 30 min |
+### 🟡 Phase 2 — High Priority — ~8-9 hours
+
+#### 🔴 Mini-Phase 2.1 — Security & Abuse Protection (~1.5 hrs)
+- Rate limiting on `/auth/login`, `/auth/register`, `/report/submit` via `slowapi`
+- Password strength enforcement on registration (min 8 chars, 1 uppercase, 1 number) + UI checklist
+- Client-side session timeout (auto-logout on inactivity)
+
+#### 👥 Mini-Phase 2.2 — Account Governance & User Roles (~2.5 hrs)
+- Backend: Role update API `PUT /users/{user_id}` (CENRO only) + audit logs + barangay validation
+- Frontend: CENRO "Edit User" modal with role dropdown & confirmation
+- Frontend: Barangay "Edit Cleaner" functionality in Accounts tab
+
+#### 📄 Mini-Phase 2.3 — Subpages, Error Boundaries & Loading UX (~2.5 hrs)
+- Create `/about` page (mission, AI workflow, SJDM context)
+- Create `/team` page (researchers, adviser, institution)
+- Create custom 404 (`not-found.tsx`) & error boundaries (`error.tsx`, `global-error.tsx`)
+- Add `loading.tsx` skeleton screens across all 8 route folders
+- Fix duplicate "Graceville" bug in CENRO barangays list
+
+#### ⚙️ Mini-Phase 2.4 — Settings Modal Cleanup & Navigation (~2 hrs)
+- Clean up all 9 settings tabs (remove fake stubs, wire real health/log features)
+- Fix all remaining navigation & footer links
 
 ### 🟢 Phase 3 — Polish & Compliance — ~8 hours
 | # | Task | Time |

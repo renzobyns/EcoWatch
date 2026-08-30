@@ -25,26 +25,24 @@
 
 ## 🟡 Phase 2 — High Priority
 
-### Security (continued)
+### 🔴 Mini-Phase 2.1 — Security & Abuse Protection
 - [ ] Install and configure `slowapi` for rate limiting
-- [ ] Add rate limit on `POST /auth/login`
-- [ ] Add rate limit on `POST /auth/register`
-- [ ] Add rate limit on `POST /report/submit`
-- [ ] Enforce password strength on `/auth/register` (min 8 chars, at least 1 uppercase, 1 number)
-- [ ] Add client-side session timeout (auto-logout after configurable hours)
+- [ ] Add rate limit on `POST /auth/login` (max 5/min)
+- [ ] Add rate limit on `POST /auth/register` (max 3/min)
+- [ ] Add rate limit on `POST /report/submit` (max 10/min)
+- [ ] Enforce password strength on `/auth/register` (min 8 chars, 1 uppercase, 1 number) + client UI indicator
+- [ ] Add client-side session timeout (auto-logout after configurable inactivity)
 
-### Settings Modal Cleanup
-- [ ] **General → Language**: Decide — implement basic Filipino toggle OR remove selector entirely
-- [ ] **General → Shortcuts**: Decide — implement keyboard listeners OR remove the reference table
-- [ ] **General → Appearance**: Wire "Compact Mode" and "Show Animations" to actual UI changes OR remove toggles
-- [ ] **Connectivity Tab**: Wire "Database", "Supabase Storage", "AI Model" to real health checks OR remove fake status badges
-- [ ] **Data Export Hub**: Wire "Analytics Report", "Database Dump", "Export Images" to real endpoints OR remove fake buttons
-- [ ] **Notifications Tab**: Wire to backend storage OR remove the toggles
-- [ ] **AI Policy Tab**: Replace hardcoded model status strings with real data from backend
-- [ ] **Storage Settings**: Wire "Auto-Purge" to backend persistence OR remove dropdown
+### 👥 Mini-Phase 2.2 — Account Governance & User Roles (see `production readiness.md` §14)
+- [ ] **Backend**: Add `role` field to `UpdateUserRequest` (CENRO-only permission)
+- [ ] **Backend**: Validate role transitions (require `barangay_assignment` for barangay/cleaner roles)
+- [ ] **Backend**: Audit-log role changes (old_role → new_role, changed_by, timestamp)
+- [ ] **Frontend (CENRO)**: Add "Edit User" modal with role dropdown + barangay assignment in User Management tab
+- [ ] **Frontend (CENRO)**: Add confirmation dialog for role changes
+- [ ] **Frontend (Barangay)**: Add "Edit Cleaner" functionality in Accounts tab
 
-### Missing Subpages
-- [ ] Create `/about` page — mission, vision, project background, how it works
+### 📄 Mini-Phase 2.3 — Subpages, Error Boundaries & Loading UX
+- [ ] Create `/about` page — mission, vision, project background, AI workflow
 - [ ] Create `/team` page — team members, roles, photos, advisers, institution
 - [ ] Create `app/not-found.tsx` — custom branded 404 page
 - [ ] Create `app/error.tsx` — custom error boundary with retry
@@ -58,22 +56,21 @@
 - [ ] Add `loading.tsx` to `app/profile/`
 - [ ] Add `loading.tsx` to `app/login/`
 - [ ] Add `loading.tsx` to `app/signup/`
-- [ ] Add consent checkbox to signup form
 - [ ] Fix duplicate "Graceville" in `frontend/app/cenro/page.tsx` barangays array
 
-### Footer & Navigation
+### ⚙️ Mini-Phase 2.4 — Settings Modal Cleanup & Navigation
+- [ ] **General → Language**: Decide — implement basic Filipino toggle OR remove selector entirely
+- [ ] **General → Shortcuts**: Decide — implement keyboard listeners OR remove the reference table
+- [ ] **General → Appearance**: Wire "Compact Mode" and "Show Animations" to actual UI changes OR remove toggles
+- [ ] **Connectivity Tab**: Wire "Database", "Supabase Storage", "AI Model" to real health checks OR remove fake status badges
+- [ ] **Data Export Hub**: Wire "Analytics Report", "Database Dump", "Export Images" to real endpoints OR remove fake buttons
+- [ ] **Notifications Tab**: Wire to backend storage OR remove the toggles
+- [ ] **AI Policy Tab**: Replace hardcoded model status strings with real data from backend
+- [ ] **Storage Settings**: Wire "Auto-Purge" to backend persistence OR remove dropdown
 - [ ] Fix dead footer link → `/about`
 - [ ] Fix dead footer link → `/contact`
 - [ ] Fix dead footer link → `/terms`
 - [ ] Fix dead footer link → `/privacy`
-
-### Account Management (see `production readiness.md` §14)
-- [ ] **Backend**: Add `role` field to `UpdateUserRequest` (CENRO-only permission)
-- [ ] **Backend**: Validate role transitions (require `barangay_assignment` for barangay/cleaner roles)
-- [ ] **Backend**: Audit-log role changes (old_role → new_role, changed_by, timestamp)
-- [ ] **Frontend (CENRO)**: Add "Edit User" modal with role dropdown + barangay assignment
-- [ ] **Frontend (CENRO)**: Add confirmation dialog for role changes
-- [ ] **Frontend (Barangay)**: Add "Edit Cleaner" functionality in Accounts tab
 
 ---
 
