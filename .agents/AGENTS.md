@@ -209,9 +209,8 @@ Always verify layout across these breakpoints:
 ### 🔴 High-Priority Reminders
 > Items the agent has flagged as urgent. Review these first.
 
-- **Account Management**: CENRO has no way to edit user roles (citizen/barangay/cleaner/cenro). The `PUT /users/{user_id}` endpoint is missing the `role` field. See `production readiness.md` §14.
-- **No rate limiting**: Auth and report submission endpoints have zero rate limiting — vulnerable to brute force (Phase 2).
-- **Settings Modal Stubs**: Multiple tabs in settings modal are stubs — need cleanup or implementation (Phase 2).
+- **Settings Modal Stubs**: Multiple tabs in settings modal are stubs — need cleanup or implementation (Mini-Phase 2.4).
+- **Missing Subpages**: Custom 404, error boundaries, `/about`, `/team`, and loading skeletons needed (Mini-Phase 2.3).
 
 ---
 

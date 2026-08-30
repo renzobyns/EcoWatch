@@ -318,10 +318,10 @@ Priority-ordered:
 - [x] Password strength enforcement on registration & reset (min 8 chars, 1 uppercase, 1 number) + live visual checklist in signup UI
 - [x] Client-side session timeout & inactivity monitor (auto-logout on 4h inactivity)
 
-#### 👥 Mini-Phase 2.2 — Account Governance & User Roles (~2.5 hrs)
-- Backend: Role update API `PUT /users/{user_id}` (CENRO only) + audit logs + barangay validation
-- Frontend: CENRO "Edit User" modal with role dropdown & confirmation
-- Frontend: Barangay "Edit Cleaner" functionality in Accounts tab
+#### 👥 Mini-Phase 2.2 — Account Governance & User Roles (~2.5 hrs) — ✅ COMPLETED
+- [x] Backend: Role update API `PUT /users/{user_id}` (CENRO only) + audit logs + barangay validation
+- [x] Frontend: CENRO "Edit User" modal with role dropdown & confirmation
+- [x] Frontend: Barangay "Edit Cleaner" functionality in Accounts tab
 
 #### 📄 Mini-Phase 2.3 — Subpages, Error Boundaries & Loading UX (~2.5 hrs)
 - Create `/about` page (mission, AI workflow, SJDM context)

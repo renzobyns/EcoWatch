@@ -336,6 +336,7 @@ class UpdateUserRequest(BaseModel):
     email: Optional[str] = None
     phone_number: Optional[str] = None
     barangay_assignment: Optional[str] = None
+    role: Optional[str] = None  # citizen | barangay | cleaner | cenro (CENRO only)
 
 
 class CreateBarangayUserResponse(BaseModel):
@@ -1176,6 +1177,8 @@ async def reactivate_user(
     return {"success": True, "message": f"User {target.email} reactivated."}
 
 
+ALLOWED_USER_ROLES = {"citizen", "barangay", "cleaner", "cenro"}
+
 @app.put("/users/{user_id}", response_model=UserResponse)
 async def update_user(
     user_id: int,
@@ -1183,14 +1186,48 @@ async def update_user(
     db: Session = Depends(get_db),
     admin: models.User = Depends(require_role("cenro", "barangay")),
 ):
-    """Admin edit of a user profile (name, email, phone, barangay)."""
+    """Admin edit of a user profile (name, email, phone, barangay, role)."""
     target = db.query(models.User).filter(models.User.id == user_id).first()
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
     if admin.role == "barangay":
         if target.role != "cleaner" or target.barangay_assignment != admin.barangay_assignment:
             raise HTTPException(status_code=403, detail="Can only edit cleaners in your own barangay")
+        if req.role is not None and req.role != "cleaner":
+            raise HTTPException(status_code=403, detail="Barangay officers cannot change user roles")
+
     changed = []
+    role_changed = False
+    old_role = target.role
+
+    # Handle Role Change (CENRO only)
+    if req.role is not None and req.role != target.role:
+        if admin.role != "cenro":
+            raise HTTPException(status_code=403, detail="Only CENRO administrators can change user roles")
+        if admin.id == target.id:
+            raise HTTPException(status_code=400, detail="Cannot change your own role to prevent administrator lockout")
+        if req.role not in ALLOWED_USER_ROLES:
+            raise HTTPException(status_code=422, detail=f"Invalid role '{req.role}'. Allowed: {', '.join(sorted(ALLOWED_USER_ROLES))}")
+        
+        target.role = req.role
+        role_changed = True
+        changed.append("role")
+
+    # Handle Barangay Assignment
+    if req.barangay_assignment is not None:
+        if admin.role == "cenro":
+            target.barangay_assignment = req.barangay_assignment.strip() or None
+            changed.append("barangay_assignment")
+
+    # Validate mandatory barangay assignment for barangay & cleaner roles
+    if target.role in ["barangay", "cleaner"]:
+        if not target.barangay_assignment:
+            raise HTTPException(status_code=400, detail=f"Barangay assignment is required for '{target.role}' role")
+    elif target.role in ["citizen", "cenro"] and role_changed:
+        # Clean up barangay assignment when moving to citizen/cenro unless explicitly set
+        if req.barangay_assignment is None:
+            target.barangay_assignment = None
+
     if req.full_name is not None:
         name = req.full_name.strip()
         if len(name) < 2 or len(name) > 100:
@@ -1209,10 +1246,16 @@ async def update_user(
     if req.phone_number is not None:
         target.phone_number = req.phone_number.strip() or None
         changed.append("phone_number")
-    if req.barangay_assignment is not None and admin.role == "cenro":
-        target.barangay_assignment = req.barangay_assignment or None
-        changed.append("barangay_assignment")
-    write_audit(db, admin.id, "edit_user", target.id, {"fields_changed": changed}, target_type="user")
+
+    if role_changed:
+        write_audit(
+            db, admin.id, "change_user_role", target.id,
+            {"old_role": old_role, "new_role": target.role, "barangay_assignment": target.barangay_assignment},
+            target_type="user"
+        )
+    elif changed:
+        write_audit(db, admin.id, "edit_user", target.id, {"fields_changed": changed}, target_type="user")
+
     db.commit()
     db.refresh(target)
     return target

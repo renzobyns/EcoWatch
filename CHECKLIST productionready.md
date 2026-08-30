@@ -34,12 +34,12 @@
 - [x] Add client-side session timeout & inactivity monitor (auto-logout after 4 hours of inactivity)
 
 ### 👥 Mini-Phase 2.2 — Account Governance & User Roles (see `production readiness.md` §14)
-- [ ] **Backend**: Add `role` field to `UpdateUserRequest` (CENRO-only permission)
-- [ ] **Backend**: Validate role transitions (require `barangay_assignment` for barangay/cleaner roles)
-- [ ] **Backend**: Audit-log role changes (old_role → new_role, changed_by, timestamp)
-- [ ] **Frontend (CENRO)**: Add "Edit User" modal with role dropdown + barangay assignment in User Management tab
-- [ ] **Frontend (CENRO)**: Add confirmation dialog for role changes
-- [ ] **Frontend (Barangay)**: Add "Edit Cleaner" functionality in Accounts tab
+- [x] **Backend**: Add `role` field to `UpdateUserRequest` (CENRO-only permission)
+- [x] **Backend**: Validate role transitions (require `barangay_assignment` for barangay/cleaner roles)
+- [x] **Backend**: Audit-log role changes (old_role → new_role, changed_by, timestamp)
+- [x] **Frontend (CENRO)**: Add "Edit User" modal with role dropdown + barangay assignment in User Management tab
+- [x] **Frontend (CENRO)**: Add confirmation dialog for role changes
+- [x] **Frontend (Barangay)**: Add "Edit Cleaner" functionality in Accounts tab
 
 ### 📄 Mini-Phase 2.3 — Subpages, Error Boundaries & Loading UX
 - [ ] Create `/about` page — mission, vision, project background, AI workflow

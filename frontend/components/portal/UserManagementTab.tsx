@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useMemo, forwardRef, useImperativeHandle, useRef } from "react";
-import { Search, UserPlus, Upload, Download, MoreVertical, ShieldCheck, FileText, AlertCircle, Users, Copy, Key, X, Eye, Edit2, Shield, List, LayoutGrid, ShieldAlert, FileMinus } from "lucide-react";
+import { useState, useEffect, useMemo, forwardRef, useImperativeHandle } from "react";
+import { Search, UserPlus, Upload, Download, MoreVertical, ShieldCheck, FileText, AlertCircle, Users, Shield, List, LayoutGrid, ShieldAlert, FileMinus } from "lucide-react";
 import { api, ApiError, API_URL } from "@/lib/api";
 import { toast } from "sonner";
 import { formatDateTime } from "@/lib/date-utils";
 import { KpiCard } from "@/components/portal/KpiCard";
+import { BARANGAYS } from "@/lib/barangays";
 
 export interface BarangayUser {
     id: number;
@@ -18,19 +19,6 @@ export interface BarangayUser {
     created_at: string | null;
     last_login_at: string | null;
 }
-
-const BARANGAYS = [
-    "Assumption", "Bagong Buhay I", "Bagong Buhay II", "Bagong Buhay III",
-    "Citrus", "Ciudad Real", "Dulong Bayan", "Fatima I", "Fatima II", "Fatima III",
-    "Minuyan I", "Minuyan II", "Minuyan III", "Minuyan IV", "Minuyan V",
-    "San Martin I", "San Martin II", "San Martin III", "San Martin IV",
-    "Santa Cruz I", "Santa Cruz II", "Santa Cruz III", "Santa Cruz IV", "Santa Cruz V",
-    "Santo Cristo", "Kaypian", "Gaya-gaya", "Graceville",
-    "Maharlika", "Muzon", "Poblacion", "Poblacion I", "San Isidro", "San Manuel",
-    "San Roque", "Tungkong Mangga",
-    "Minuyan Proper", "San Pedro", "San Rafael I", "San Rafael II", "San Rafael III",
-    "San Rafael IV", "San Rafael V", "Lawang Pari", "Kaybanban",
-];
 
 
 interface UserManagementTabProps {
@@ -78,8 +66,9 @@ export const UserManagementTab = forwardRef<UserManagementRef, UserManagementTab
 
     const [showEditUserModal, setShowEditUserModal] = useState(false);
     const [editTarget, setEditTarget] = useState<BarangayUser | null>(null);
-    const [editForm, setEditForm] = useState({ full_name: "", email: "", phone_number: "", barangay_assignment: "" });
+    const [editForm, setEditForm] = useState({ full_name: "", email: "", phone_number: "", barangay_assignment: "", role: "citizen" });
     const [editPending, setEditPending] = useState(false);
+    const [showRoleConfirmModal, setShowRoleConfirmModal] = useState(false);
 
     const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
     const [resetTarget, setResetTarget] = useState<BarangayUser | null>(null);
@@ -96,21 +85,22 @@ export const UserManagementTab = forwardRef<UserManagementRef, UserManagementTab
         },
         openEditForBarangay: (admin: BarangayUser | Record<string, unknown>, barangay: string) => {
             setEditTarget({
-                id: admin.id,
-                email: admin.email,
-                full_name: admin.full_name,
+                id: admin.id as number,
+                email: admin.email as string,
+                full_name: admin.full_name as string,
                 role: "barangay",
                 barangay_assignment: barangay,
-                phone_number: admin.phone_number,
+                phone_number: (admin.phone_number as string) || null,
                 is_active: true,
                 created_at: null,
-                last_login_at: admin.last_login_at,
+                last_login_at: (admin.last_login_at as string) || null,
             });
             setEditForm({
-                full_name: admin.full_name,
-                email: admin.email,
-                phone_number: admin.phone_number || "",
+                full_name: (admin.full_name as string) || "",
+                email: (admin.email as string) || "",
+                phone_number: (admin.phone_number as string) || "",
                 barangay_assignment: barangay,
+                role: "barangay",
             });
             setShowEditUserModal(true);
         }
@@ -172,10 +162,15 @@ export const UserManagementTab = forwardRef<UserManagementRef, UserManagementTab
         }
     };
 
-    const handleEditUser = async () => {
+    const executeEditUser = async () => {
         if (!editTarget) return;
         if (!editForm.full_name.trim() || !editForm.email.trim()) {
             toast.error("Name and email are required.");
+            return;
+        }
+        const needsBarangay = ["barangay", "cleaner"].includes(editForm.role);
+        if (needsBarangay && !editForm.barangay_assignment) {
+            toast.error(`Barangay assignment is required for ${editForm.role === "barangay" ? "Barangay Admin" : "Cleaner"} role.`);
             return;
         }
         setEditPending(true);
@@ -184,20 +179,39 @@ export const UserManagementTab = forwardRef<UserManagementRef, UserManagementTab
                 full_name: editForm.full_name.trim(),
                 email: editForm.email.trim(),
                 phone_number: editForm.phone_number.trim() || null,
+                role: editForm.role,
+                barangay_assignment: needsBarangay ? (editForm.barangay_assignment || null) : null,
             };
-            const needsBarangay = ["barangay", "cleaner"].includes(editTarget.role);
-            if (needsBarangay) payload.barangay_assignment = editForm.barangay_assignment || null;
             const updated = await api(`/users/${editTarget.id}`, { method: "PUT", body: JSON.stringify(payload) });
             setBarangayUsers((prev) => prev.map((u) => (u.id === editTarget.id ? { ...u, ...updated } : u)));
+            setShowRoleConfirmModal(false);
             setShowEditUserModal(false);
-            toast.success("Account updated.");
-            if (editTarget.role === "barangay" && onBarangayAdminChange) {
+            toast.success("Account updated successfully.");
+            if (onBarangayAdminChange) {
                 onBarangayAdminChange();
             }
         } catch (err) {
             toast.error(err instanceof ApiError ? err.message : "Failed to update account");
         } finally {
             setEditPending(false);
+        }
+    };
+
+    const handleEditUser = () => {
+        if (!editTarget) return;
+        if (!editForm.full_name.trim() || !editForm.email.trim()) {
+            toast.error("Name and email are required.");
+            return;
+        }
+        const needsBarangay = ["barangay", "cleaner"].includes(editForm.role);
+        if (needsBarangay && !editForm.barangay_assignment) {
+            toast.error(`Barangay assignment is required for ${editForm.role === "barangay" ? "Barangay Admin" : "Cleaner"} role.`);
+            return;
+        }
+        if (editForm.role !== editTarget.role) {
+            setShowRoleConfirmModal(true);
+        } else {
+            executeEditUser();
         }
     };
 
@@ -235,7 +249,13 @@ export const UserManagementTab = forwardRef<UserManagementRef, UserManagementTab
 
     const openEditUser = (u: BarangayUser) => {
         setEditTarget(u);
-        setEditForm({ full_name: u.full_name, email: u.email, phone_number: u.phone_number || "", barangay_assignment: u.barangay_assignment || "" });
+        setEditForm({
+            full_name: u.full_name,
+            email: u.email,
+            phone_number: u.phone_number || "",
+            barangay_assignment: u.barangay_assignment || "",
+            role: u.role || "citizen",
+        });
         setShowEditUserModal(true);
         setUserActionsMenu(null);
     };
@@ -692,14 +712,45 @@ export const UserManagementTab = forwardRef<UserManagementRef, UserManagementTab
                             </div>
                             <div>
                                 <label className="text-xs font-semibold text-muted-foreground uppercase mb-1 block">Phone Number (Optional)</label>
-                                <input type="tel" value={editForm.phone_number} onChange={e => setEditForm({ ...editForm, phone_number: e.target.value })} className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+                                <input type="tel" value={editForm.phone_number} onChange={e => setEditForm({ ...editForm, phone_number: e.target.value })} placeholder="+63 912 345 6789" className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
                             </div>
-                            {editTarget && ["barangay", "cleaner"].includes(editTarget.role) && (
+                            <div>
+                                <label className="text-xs font-semibold text-muted-foreground uppercase mb-1 block">
+                                    Account Role <span className="text-destructive">*</span>
+                                </label>
+                                <select
+                                    value={editForm.role}
+                                    onChange={(e) => {
+                                        const newRole = e.target.value;
+                                        setEditForm((prev) => ({
+                                            ...prev,
+                                            role: newRole,
+                                            barangay_assignment: ["barangay", "cleaner"].includes(newRole) ? prev.barangay_assignment : "",
+                                        }));
+                                    }}
+                                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                                >
+                                    <option value="citizen">Citizen (Public Reporter)</option>
+                                    <option value="barangay">Barangay Admin (Jurisdictional)</option>
+                                    <option value="cleaner">Cleanup Personnel (Field Team)</option>
+                                    <option value="cenro">CENRO Administrator (City-wide)</option>
+                                </select>
+                            </div>
+                            {["barangay", "cleaner"].includes(editForm.role) && (
                                 <div>
-                                    <label className="text-xs font-semibold text-muted-foreground uppercase mb-1 block">Assigned Barangay <span className="text-destructive">*</span></label>
-                                    <select value={editForm.barangay_assignment} onChange={e => setEditForm({ ...editForm, barangay_assignment: e.target.value })} className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors">
+                                    <label className="text-xs font-semibold text-muted-foreground uppercase mb-1 block">
+                                        Assigned Barangay <span className="text-destructive">*</span>
+                                    </label>
+                                    <select
+                                        value={editForm.barangay_assignment}
+                                        onChange={(e) => setEditForm({ ...editForm, barangay_assignment: e.target.value })}
+                                        className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                                        required
+                                    >
                                         <option value="">Select Barangay</option>
-                                        {BARANGAYS.map(b => <option key={b} value={b}>{b}</option>)}
+                                        {BARANGAYS.map((b) => (
+                                            <option key={b} value={b}>{b}</option>
+                                        ))}
                                     </select>
                                 </div>
                             )}
@@ -708,6 +759,46 @@ export const UserManagementTab = forwardRef<UserManagementRef, UserManagementTab
                             <button onClick={() => setShowEditUserModal(false)} className="px-4 py-2 bg-transparent text-muted-foreground hover:text-foreground text-sm font-medium rounded-lg transition-colors">Cancel</button>
                             <button onClick={handleEditUser} disabled={editPending || !editForm.email || !editForm.full_name} className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50">
                                 {editPending ? "Saving..." : "Save Changes"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ROLE CHANGE CONFIRMATION MODAL */}
+            {showRoleConfirmModal && editTarget && (
+                <div className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-card w-full max-w-sm rounded-2xl border border-border shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-200">
+                        <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center mx-auto">
+                            <ShieldAlert size={24} />
+                        </div>
+                        <div className="text-center space-y-1.5">
+                            <h3 className="text-lg font-bold text-foreground">Confirm Role Change</h3>
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                                You are changing <strong>{editTarget.full_name || editTarget.email}&apos;s</strong> role from{" "}
+                                <span className="capitalize font-semibold text-foreground">{editTarget.role}</span> to{" "}
+                                <span className="capitalize font-semibold text-primary">{editForm.role}</span>.
+                            </p>
+                            {["barangay", "cleaner"].includes(editForm.role) && editForm.barangay_assignment && (
+                                <p className="text-xs text-muted-foreground">
+                                    Assigned jurisdiction: <strong>{editForm.barangay_assignment}</strong>
+                                </p>
+                            )}
+                        </div>
+                        <div className="flex gap-2.5 pt-2">
+                            <button
+                                onClick={() => setShowRoleConfirmModal(false)}
+                                disabled={editPending}
+                                className="flex-1 px-3 py-2 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={executeEditUser}
+                                disabled={editPending}
+                                className="flex-1 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold shadow-sm hover:bg-primary/90 transition-colors"
+                            >
+                                {editPending ? "Updating..." : "Confirm & Save"}
                             </button>
                         </div>
                     </div>
