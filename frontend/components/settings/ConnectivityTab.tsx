@@ -29,7 +29,7 @@ export function ConnectivityTab() {
             setHealth(data);
             setLastChecked(new Date().toLocaleTimeString());
             toast.success("Health check completed");
-        } catch (e) {
+        } catch {
             toast.error("Failed to perform health check");
         } finally {
             setLoading(false);

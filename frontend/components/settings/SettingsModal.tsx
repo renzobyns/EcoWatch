@@ -88,7 +88,7 @@ export function SettingsModal({ open, onClose, role = "cenro" }: SettingsModalPr
                 </button>
 
                 {/* Left sidebar (desktop) + Horizontal tabs (mobile) */}
-                <SettingsSidebar activeTab={activeTab} onTabChange={setActiveTab} role={role.toLowerCase() as any} />
+                <SettingsSidebar activeTab={activeTab} onTabChange={setActiveTab} role={role.toLowerCase() as "cenro" | "barangay" | "cleaner" | "citizen" | "guest"} />
                 
                 {/* Right content */}
                 <div className="flex-1 overflow-y-auto p-5 pb-12 md:p-8">

@@ -53,7 +53,7 @@ export function StorageSettingsTab() {
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-lg font-bold text-foreground mb-1">Storage Health</h2>
-                    <p className="text-sm text-muted-foreground">Monitor your system's storage usage across media and database.</p>
+                    <p className="text-sm text-muted-foreground">Monitor your system&apos;s storage usage across media and database.</p>
                 </div>
                 <button 
                     onClick={fetchStorageHealth}

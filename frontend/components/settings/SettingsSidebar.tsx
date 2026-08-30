@@ -12,7 +12,7 @@ interface SettingsSidebarProps {
 type SettingsCategory = {
     key: string;
     label: string;
-    icon: any;
+    icon: React.ComponentType<{ size?: number; className?: string }>;
     subItems?: { key: string; label: string }[];
     roles?: string[];
 };

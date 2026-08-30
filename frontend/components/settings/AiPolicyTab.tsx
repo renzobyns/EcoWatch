@@ -6,7 +6,6 @@ import { api } from "@/lib/api";
 
 export function AiPolicyTab() {
     const [threshold, setThreshold] = useState(0.5);
-    const [autoReject, setAutoReject] = useState(true);
     const [loading, setLoading] = useState(true);
     
     useEffect(() => {
@@ -16,14 +15,11 @@ export function AiPolicyTab() {
                 if (data && typeof data.ai_confidence_threshold === "number") {
                     setThreshold(data.ai_confidence_threshold);
                 }
-            } catch (e) {
-                console.error("Failed to fetch system config", e);
+            } catch (err) {
+                console.error("Failed to fetch system config", err);
             } finally {
                 setLoading(false);
             }
-            
-            const storedReject = localStorage.getItem("ecowatch_ai_autoreject");
-            if (storedReject) setAutoReject(storedReject === "true");
         };
         fetchConfig();
     }, []);
@@ -36,7 +32,7 @@ export function AiPolicyTab() {
                 body: JSON.stringify({ ai_confidence_threshold: val })
             });
             toast.success("AI threshold updated successfully!");
-        } catch (e) {
+        } catch {
             toast.error("Failed to update AI threshold on server");
         }
     };

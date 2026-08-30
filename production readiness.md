@@ -274,8 +274,8 @@ Priority-ordered:
 
 ## 10. Known Bugs & Cleanup
 
-- [ ] Fix duplicate "Graceville" in `cenro/page.tsx` barangays array
-- [ ] Replace `alert()` with Sonner toast in `QRCodeModal.tsx:55`
+- [x] Fix duplicate "Graceville" in `cenro/page.tsx` barangays array (uses canonical `@/lib/barangays`)
+- [x] Replace `alert()` with Sonner toast in `QRCodeModal.tsx:55`
 - [ ] Remove dead components: `LocationPickerMap.tsx`, `PinpointFullscreen.tsx`
 - [ ] Remove `console.log` debug statements from frontend
 - [ ] Fix hardcoded DB size fallback (`main.py:654`) — use `pg_database_size()` for PostgreSQL
@@ -331,9 +331,10 @@ Priority-ordered:
 - [x] Add `loading.tsx` skeleton screens across all route folders
 - [x] Fix duplicate "Graceville" bug in CENRO barangays list
 
-#### ⚙️ Mini-Phase 2.4 — Settings Modal Cleanup & Navigation (~2 hrs)
-- Clean up all 9 settings tabs (remove fake stubs, wire real health/log features)
-- Fix all remaining navigation & footer links
+#### ⚙️ Mini-Phase 2.4 — Settings Modal Cleanup & Navigation (~2 hrs) — ✅ COMPLETED
+- [x] Clean up all 9 settings tabs (remove fake stubs, wire real health/log features)
+- [x] Fix all remaining navigation & footer links
+- [x] Full ESLint & production build verification on all modal tabs
 
 ### 🟢 Phase 3 — Polish & Compliance — ~8 hours
 | # | Task | Time |

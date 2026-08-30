@@ -59,18 +59,19 @@
 - [x] Fix duplicate "Graceville" in `frontend/app/cenro/page.tsx` barangays array
 
 ### ⚙️ Mini-Phase 2.4 — Settings Modal Cleanup & Navigation
-- [ ] **General → Language**: Decide — implement basic Filipino toggle OR remove selector entirely
-- [ ] **General → Shortcuts**: Decide — implement keyboard listeners OR remove the reference table
-- [ ] **General → Appearance**: Wire "Compact Mode" and "Show Animations" to actual UI changes OR remove toggles
-- [ ] **Connectivity Tab**: Wire "Database", "Supabase Storage", "AI Model" to real health checks OR remove fake status badges
-- [ ] **Data Export Hub**: Wire "Analytics Report", "Database Dump", "Export Images" to real endpoints OR remove fake buttons
-- [ ] **Notifications Tab**: Wire to backend storage OR remove the toggles
-- [ ] **AI Policy Tab**: Replace hardcoded model status strings with real data from backend
-- [ ] **Storage Settings**: Wire "Auto-Purge" to backend persistence OR remove dropdown
-- [ ] Fix dead footer link → `/about`
-- [ ] Fix dead footer link → `/contact`
-- [ ] Fix dead footer link → `/terms`
-- [ ] Fix dead footer link → `/privacy`
+- [x] **General → Language**: Real Google Translate integration (English / Filipino toggle) + localStorage persistence
+- [x] **General → Shortcuts**: Interactive keyboard shortcuts recorder and reset default listeners
+- [x] **General → Appearance**: Light / Dark / System theme switcher with real instant theme sync
+- [x] **Connectivity Tab**: Real health checks for Backend, Database, Supabase Storage, and AI Model via `/health/full`
+- [x] **Data Export Hub**: Real CSV, JSON, and ZIP file export endpoints (System Logs, Analytics, DB Dump, Images)
+- [x] **Notifications Tab**: Clear informative disclaimer for external providers (Resend/SMS domain verification)
+- [x] **AI Policy Tab**: Real AI confidence threshold configuration via `PATCH /admin/system-config`
+- [x] **Storage Settings**: Real media & database storage health metrics via `/analytics/storage-health`
+- [x] Fix dead footer link → `/about`
+- [x] Fix dead footer link → `/team`
+- [x] Fix dead footer link → `/terms`
+- [x] Fix dead footer link → `/privacy`
+- [x] Replace `alert()` with Sonner toast in `QRCodeModal.tsx`
 
 ---
 

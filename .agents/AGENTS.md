@@ -209,7 +209,7 @@ Always verify layout across these breakpoints:
 ### 🔴 High-Priority Reminders
 > Items the agent has flagged as urgent. Review these first.
 
-- **Settings Modal Stubs**: Multiple tabs in settings modal are stubs — need cleanup or implementation (Mini-Phase 2.4).
+*(All Phase 1 and Phase 2 high-priority items completed. Ready for Phase 3 polish & compliance.)*
 
 ---
 

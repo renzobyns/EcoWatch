@@ -26,7 +26,7 @@ export function DataExportTab() {
                 const logs = await api("/audit-log?limit=1000");
                 if (logs && logs.length > 0) {
                     const headers = Object.keys(logs[0]).join(",");
-                    const rows = logs.map((log: any) => Object.values(log).map(val => `"${val}"`).join(",")).join("\n");
+                    const rows = logs.map((log: Record<string, unknown>) => Object.values(log).map(val => `"${val}"`).join(",")).join("\n");
                     downloadBlob(new Blob([`${headers}\n${rows}`], { type: 'text/csv;charset=utf-8;' }), `system_logs_${new Date().toISOString().split('T')[0]}.csv`);
                     toast.success(`${type} downloaded successfully!`);
                 } else {

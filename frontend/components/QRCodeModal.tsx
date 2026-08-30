@@ -1,6 +1,8 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 export default function QRCodeModal({ onClose }: { onClose: () => void }) {
     const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
@@ -18,20 +20,15 @@ export default function QRCodeModal({ onClose }: { onClose: () => void }) {
                     onClick={onClose}
                     className="absolute top-3 right-3 p-1.5 text-foreground/50 hover:text-foreground transition-colors rounded-md hover:bg-foreground/10"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    ✕
                 </button>
 
                 <div className="text-center mb-6">
-                    <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary mx-auto mb-4">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><rect x="7" y="7" width="3" height="3"/><rect x="14" y="7" width="3" height="3"/><rect x="7" y="14" width="3" height="3"/><rect x="14" y="14" width="3" height="3"/></svg>
-                    </div>
-                    <h2 className="text-xl font-bold text-foreground mb-1.5">Share EcoWatch</h2>
-                    <p className="text-sm text-foreground/60 font-medium">
-                        Print or save this QR code. Citizens can scan it to quickly report environmental issues in your barangay.
-                    </p>
+                    <h3 className="text-xl font-bold text-gradient">Scan to Report</h3>
+                    <p className="text-foreground/70 text-sm mt-1">Open camera app and scan this code to submit a new illegal dumping report on mobile.</p>
                 </div>
 
-                <div className="bg-white p-4 rounded-xl flex items-center justify-center mb-5 shadow-inner mx-auto w-fit">
+                <div className="bg-white p-4 rounded-xl flex items-center justify-center shadow-inner mb-6 mx-auto w-fit border border-emerald-900/10">
                     {qrCodeUrl ? (
                         <img src={qrCodeUrl} alt="Report QR Code" className="w-44 h-44" />
                     ) : (
@@ -52,9 +49,9 @@ export default function QRCodeModal({ onClose }: { onClose: () => void }) {
                     <button
                         onClick={() => {
                             navigator.clipboard.writeText(reportUrl);
-                            alert("Link copied to clipboard!");
+                            toast.success("Report link copied to clipboard!");
                         }}
-                        className="flex-1 h-10 inline-flex items-center justify-center glass border border-border text-foreground rounded-lg text-sm font-semibold hover:bg-foreground/5 transition-colors"
+                        className="flex-1 h-10 inline-flex items-center justify-center glass border border-border text-foreground rounded-lg text-sm font-semibold hover:bg-foreground/5 transition-colors cursor-pointer"
                     >
                         Copy Link
                     </button>

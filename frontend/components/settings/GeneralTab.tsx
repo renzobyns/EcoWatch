@@ -72,26 +72,20 @@ function KeybindingRow({
 
 export function GeneralTab({ section }: GeneralTabProps) {
     const { theme, setTheme } = useTheme();
-    const [language, setLanguage] = useState("English");
-    const [displayTheme, setDisplayTheme] = useState<"light" | "dark" | "system">("system");
+    const [language, setLanguage] = useState<string>(() => {
+        if (typeof window !== "undefined") {
+            return localStorage.getItem("ecowatch_language") || "English";
+        }
+        return "English";
+    });
+    const [displayTheme, setDisplayTheme] = useState<"light" | "dark" | "system">(() => {
+        if (typeof window !== "undefined") {
+            const stored = localStorage.getItem("ecowatch_theme_preference");
+            if (stored === "light" || stored === "dark" || stored === "system") return stored;
+        }
+        return theme;
+    });
     const { shortcuts, updateShortcut, resetShortcuts } = useShortcutsContext();
-
-    useEffect(() => {
-        const storedThemePref = localStorage.getItem("ecowatch_theme_preference");
-        if (storedThemePref) {
-            setDisplayTheme(storedThemePref as any);
-        } else {
-            setDisplayTheme(theme);
-        }
-
-        const lang = localStorage.getItem("ecowatch_language");
-        if (lang) {
-            setLanguage(lang);
-            if (lang === "Filipino") {
-                triggerTranslation("tl");
-            }
-        }
-    }, [theme]);
 
     const triggerTranslation = (targetLangCode: string) => {
         setTimeout(() => {
@@ -118,6 +112,13 @@ export function GeneralTab({ section }: GeneralTabProps) {
         document.cookie = "googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=" + location.hostname + ";";
         window.location.reload();
     };
+
+    useEffect(() => {
+        const lang = localStorage.getItem("ecowatch_language");
+        if (lang === "Filipino") {
+            triggerTranslation("tl");
+        }
+    }, []);
 
     const handleLanguageSelect = (lang: "English" | "Filipino") => {
         setLanguage(lang);
