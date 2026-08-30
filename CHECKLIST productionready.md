@@ -9,17 +9,17 @@
 ## 🔴 Phase 1 — Critical (Must Do First)
 
 ### Security
-- [ ] Lock CORS to Vercel domain — change `allow_origins=["*"]` in `backend/main.py:197`
-- [ ] Remove traceback exposure — replace `traceback.format_exc()` at `backend/main.py:3617` with generic error message
-- [ ] Remove `bcryptjs` from `frontend/package.json` (password hashing = backend only)
+- [x] Lock CORS to Vercel domain — change `allow_origins=["*"]` in `backend/main.py:197`
+- [x] Remove traceback exposure — replace `traceback.format_exc()` at `backend/main.py:3926` with generic error message
+- [x] Remove `bcryptjs` from `frontend/package.json` (verified: backend-only hashing via bcrypt)
 
 ### Legal Pages
-- [ ] Create `/privacy` page — Privacy Policy compliant with RA 10173
-- [ ] Create `/terms` page — Terms of Service
-- [ ] Fix dead `<a href="#">Terms</a>` link on `frontend/app/login/page.tsx:160-161`
-- [ ] Fix dead `<a href="#">Privacy</a>` link on `frontend/app/login/page.tsx:160-161`
-- [ ] Add consent checkbox on signup form (`frontend/app/signup/page.tsx`)
-- [ ] Replace vague disclaimer at `frontend/app/signup/page.tsx:292` with proper legal text
+- [x] Create `/privacy` page — Privacy Policy compliant with RA 10173
+- [x] Create `/terms` page — Terms of Service
+- [x] Fix dead `<a href="#">Terms</a>` link on `frontend/app/login/page.tsx:160-161`
+- [x] Fix dead `<a href="#">Privacy</a>` link on `frontend/app/login/page.tsx:160-161`
+- [x] Add consent checkbox on signup form (`frontend/app/signup/page.tsx`)
+- [x] Replace vague disclaimer at `frontend/app/signup/page.tsx:292` with proper legal text
 
 ---
 

@@ -210,9 +210,8 @@ Always verify layout across these breakpoints:
 > Items the agent has flagged as urgent. Review these first.
 
 - **Account Management**: CENRO has no way to edit user roles (citizen/barangay/cleaner/cenro). The `PUT /users/{user_id}` endpoint is missing the `role` field. See `production readiness.md` §14.
-- **CORS wide open**: `allow_origins=["*"]` in `main.py` — must be locked to Vercel domain before any public demo.
-- **Traceback exposure**: `main.py:3617` leaks stack traces to clients — security risk.
-- **No rate limiting**: Auth and report submission endpoints have zero rate limiting — vulnerable to brute force.
+- **No rate limiting**: Auth and report submission endpoints have zero rate limiting — vulnerable to brute force (Phase 2).
+- **Settings Modal Stubs**: Multiple tabs in settings modal are stubs — need cleanup or implementation (Phase 2).
 
 ---
 

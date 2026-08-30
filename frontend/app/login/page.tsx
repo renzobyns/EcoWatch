@@ -2,13 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Leaf, Eye, EyeOff, ShieldCheck, Map, BarChart3, Chrome } from "lucide-react";
+import { ArrowLeft, Leaf, Eye, EyeOff, ShieldCheck, Map, BarChart3 } from "lucide-react";
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://renzobyns-ecowatch-backend.hf.space";
 
 export default function LoginPage() {
     const [email, setEmail] = useState("");
@@ -26,8 +24,8 @@ export default function LoginPage() {
                 body: JSON.stringify({ email }),
             });
             setError("Verification email resent. Please check your inbox.");
-        } catch (err: any) {
-            setError(err?.message || "Failed to resend email. Please try again.");
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Failed to resend email. Please try again.");
         } finally {
             setResending(false);
         }
@@ -46,9 +44,7 @@ export default function LoginPage() {
 
             if (data.success) {
                 localStorage.setItem("ecowatch_user", JSON.stringify(data.user));
-                // Honor a ?redirect= target (e.g. the login-gated /report page) for citizens.
-                // Only same-origin, single-slash relative paths — reject protocol-relative
-                // ("//evil.com") and backslash ("/\evil.com") forms that escape our origin.
+                
                 const params = new URLSearchParams(window.location.search);
                 const redirect = params.get("redirect");
                 const safeRedirect =
@@ -72,9 +68,9 @@ export default function LoginPage() {
             } else {
                 setError(data.detail || "Invalid email or password");
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error(err);
-            setError(err?.message || "Server error. Please try again later.");
+            setError(err instanceof Error ? err.message : "Server error. Please try again later.");
         } finally {
             setLoading(false);
         }
@@ -104,9 +100,9 @@ export default function LoginPage() {
             } else {
                 setError(data.detail || "Google login failed");
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error(err);
-            setError(err?.message || "Server error during Google login.");
+            setError(err instanceof Error ? err.message : "Server error during Google login.");
         } finally {
             setLoading(false);
         }
@@ -157,9 +153,9 @@ export default function LoginPage() {
 
                 {/* Footer Links */}
                 <div className="relative z-10 flex gap-6 text-[9px] font-bold uppercase tracking-widest text-foreground/40 mt-4">
-                    <a href="#" className="hover:text-primary transition-colors">Privacy</a>
-                    <a href="#" className="hover:text-primary transition-colors">Terms</a>
-                    <span>© 2024 EcoWatch SJDM</span>
+                    <Link href="/privacy" className="hover:text-primary transition-colors">Privacy</Link>
+                    <Link href="/terms" className="hover:text-primary transition-colors">Terms</Link>
+                    <span>© 2026 EcoWatch SJDM</span>
                 </div>
             </div>
 

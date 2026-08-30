@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Eye, EyeOff, ArrowLeft, ShieldCheck, Leaf, Map, BarChart3, User, Mail, CheckCircle2 } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft, ShieldCheck, Leaf, Map, BarChart3, User, Mail } from "lucide-react";
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ export default function SignUpPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
@@ -45,9 +46,9 @@ export default function SignUpPage() {
             } else {
                 setError(data.detail || "Google login failed");
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error(err);
-            setError(err?.message || "Server error during Google signup.");
+            setError(err instanceof Error ? err.message : "Server error during Google signup.");
         } finally {
             setLoading(false);
         }
@@ -107,7 +108,7 @@ export default function SignUpPage() {
                     <div className="space-y-1.5">
                         <h2 className="text-2xl font-bold text-foreground tracking-tight">Check your email</h2>
                         <p className="text-foreground/60 text-sm leading-relaxed">
-                            We've sent a verification link to <span className="text-primary font-semibold">{email}</span>. Please verify your email to activate your account.
+                            We&apos;ve sent a verification link to <span className="text-primary font-semibold">{email}</span>. Please verify your email to activate your account.
                         </p>
                     </div>
                     <Button asChild size="lg" className="w-full">
@@ -159,7 +160,9 @@ export default function SignUpPage() {
                 </div>
 
                 <div className="relative z-10 flex gap-6 text-[9px] font-bold uppercase tracking-widest text-foreground/40 mt-4">
-                    <span>© 2024 EcoWatch SJDM</span>
+                    <Link href="/privacy" className="hover:text-primary transition-colors">Privacy</Link>
+                    <Link href="/terms" className="hover:text-primary transition-colors">Terms</Link>
+                    <span>© 2026 EcoWatch SJDM</span>
                 </div>
             </div>
 
@@ -251,7 +254,30 @@ export default function SignUpPage() {
                             </div>
                         </div>
 
-                        <Button type="submit" disabled={loading} size="lg" className="w-full mt-1">
+                        {/* Consent Checkbox for RA 10173 & Terms */}
+                        <div className="flex items-start gap-2.5 pt-1 px-0.5">
+                            <input
+                                id="terms-consent"
+                                type="checkbox"
+                                checked={agreedToTerms}
+                                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                                className="mt-0.5 h-4 w-4 rounded border-border text-primary focus:ring-primary accent-primary cursor-pointer shrink-0"
+                                required
+                            />
+                            <label htmlFor="terms-consent" className="text-[11px] text-foreground/70 leading-relaxed cursor-pointer select-none">
+                                I agree to the{" "}
+                                <Link href="/terms" target="_blank" className="text-primary font-medium hover:underline underline-offset-2">
+                                    Terms of Service
+                                </Link>{" "}
+                                and acknowledge the{" "}
+                                <Link href="/privacy" target="_blank" className="text-primary font-medium hover:underline underline-offset-2">
+                                    Privacy Policy
+                                </Link>{" "}
+                                in accordance with RA 10173.
+                            </label>
+                        </div>
+
+                        <Button type="submit" disabled={loading || !agreedToTerms} size="lg" className="w-full mt-2">
                             {loading ? (
                                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                             ) : (
@@ -288,8 +314,8 @@ export default function SignUpPage() {
                             </Link>
                         </p>
 
-                        <p className="text-[10px] text-foreground/30 text-center leading-relaxed">
-                            By signing up, you agree to help keep SJDM clean and report environmental issues responsibly.
+                        <p className="text-[10px] text-foreground/40 text-center leading-relaxed">
+                            Protected by the Philippine Data Privacy Act of 2012 (RA 10173). Your reports help keep the City of San Jose del Monte clean.
                         </p>
                     </div>
                 </div>

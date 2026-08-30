@@ -159,12 +159,12 @@ The **Philippine Data Privacy Act (RA 10173)** requires privacy policy disclosur
 - [x] Graceful AI degradation (mock fallback)
 
 ### 4.6 Security
-- [ ] 🔴 Lock CORS to Vercel domain (currently `allow_origins=["*"]`)
+- [x] 🔴 Lock CORS to Vercel domain and allowed origins
 - [ ] 🔴 Add rate limiting (`slowapi`) on auth + submit endpoints
-- [ ] 🔴 Remove traceback exposure at `main.py:3617`
+- [x] 🔴 Remove traceback exposure at `main.py:3926`
 - [ ] 🟡 Enforce password strength on `/auth/register`
 - [ ] 🟡 Add client-side session timeout
-- [ ] Remove `bcryptjs` from frontend `package.json`
+- [x] Remove `bcryptjs` from frontend `package.json` (verified: backend-only hashing via bcrypt)
 - [x] SQL injection protection (SQLAlchemy ORM)
 - [x] CSV injection protection
 - [x] Bcrypt password hashing

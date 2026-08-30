@@ -192,10 +192,18 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 app = FastAPI(title="EcoWatch SJDM API", version="1.0.0")
 
-# Enable CORS for the frontend
+# Configure CORS origins
+raw_origins = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000,http://127.0.0.1:8000"
+)
+allowed_origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+
+# Enable CORS for the frontend (explicit origins + all Vercel deployments)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust in production
+    allow_origins=allowed_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -3921,9 +3929,11 @@ async def get_barangay_overview(
         end_dt = datetime.fromisoformat(end.replace("Z", "+00:00")).replace(tzinfo=None) if end else None
         return _build_barangay_overview_data(db, start=start_dt, end=end_dt)
     except Exception as e:
-        import traceback
-        from fastapi import HTTPException
-        raise HTTPException(status_code=400, detail=traceback.format_exc())
+        logger.error(f"Error generating barangay overview: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=400,
+            detail="Failed to generate barangay overview analytics. Please check input parameters."
+        )
 
 
 def _csv_safe(value: str) -> str:
