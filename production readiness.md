@@ -324,12 +324,12 @@ Priority-ordered:
 - [x] Frontend: CENRO "Edit User" modal with role dropdown & confirmation
 - [x] Frontend: Barangay "Edit Cleaner" functionality in Accounts tab
 
-#### 📄 Mini-Phase 2.3 — Subpages, Error Boundaries & Loading UX (~2.5 hrs)
-- Create `/about` page (mission, AI workflow, SJDM context)
-- Create `/team` page (researchers, adviser, institution)
-- Create custom 404 (`not-found.tsx`) & error boundaries (`error.tsx`, `global-error.tsx`)
-- Add `loading.tsx` skeleton screens across all 8 route folders
-- Fix duplicate "Graceville" bug in CENRO barangays list
+#### 📄 Mini-Phase 2.3 — Subpages, Error Boundaries & Loading UX (~2.5 hrs) — ✅ COMPLETED
+- [x] Create `/about` page (mission, AI workflow, SJDM context)
+- [x] Create `/team` page (researchers, adviser, institution)
+- [x] Create custom 404 (`not-found.tsx`) & error boundaries (`error.tsx`, `global-error.tsx`)
+- [x] Add `loading.tsx` skeleton screens across all route folders
+- [x] Fix duplicate "Graceville" bug in CENRO barangays list
 
 #### ⚙️ Mini-Phase 2.4 — Settings Modal Cleanup & Navigation (~2 hrs)
 - Clean up all 9 settings tabs (remove fake stubs, wire real health/log features)

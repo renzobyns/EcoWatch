@@ -38,6 +38,12 @@ export default function Footer() {
                                 <Link href="/" className="hover:text-primary transition-colors">Home & Map</Link>
                             </li>
                             <li>
+                                <Link href="/about" className="hover:text-primary transition-colors">About Project</Link>
+                            </li>
+                            <li>
+                                <Link href="/team" className="hover:text-primary transition-colors">Research Team</Link>
+                            </li>
+                            <li>
                                 <Link href="/report" className="hover:text-primary transition-colors">Report Violation</Link>
                             </li>
                             <li>

@@ -42,21 +42,21 @@
 - [x] **Frontend (Barangay)**: Add "Edit Cleaner" functionality in Accounts tab
 
 ### 📄 Mini-Phase 2.3 — Subpages, Error Boundaries & Loading UX
-- [ ] Create `/about` page — mission, vision, project background, AI workflow
-- [ ] Create `/team` page — team members, roles, photos, advisers, institution
-- [ ] Create `app/not-found.tsx` — custom branded 404 page
-- [ ] Create `app/error.tsx` — custom error boundary with retry
-- [ ] Create `app/global-error.tsx` — root-level error boundary
-- [ ] Add `loading.tsx` to `app/` (root)
-- [ ] Add `loading.tsx` to `app/barangay/`
-- [ ] Add `loading.tsx` to `app/cenro/`
-- [ ] Add `loading.tsx` to `app/cleaner/`
-- [ ] Add `loading.tsx` to `app/report/`
-- [ ] Add `loading.tsx` to `app/track/[id]/`
-- [ ] Add `loading.tsx` to `app/profile/`
-- [ ] Add `loading.tsx` to `app/login/`
-- [ ] Add `loading.tsx` to `app/signup/`
-- [ ] Fix duplicate "Graceville" in `frontend/app/cenro/page.tsx` barangays array
+- [x] Create `/about` page — mission, vision, project background, AI workflow
+- [x] Create `/team` page — team members, roles, photos, advisers, institution
+- [x] Create `app/not-found.tsx` — custom branded 404 page
+- [x] Create `app/error.tsx` — custom error boundary with retry
+- [x] Create `app/global-error.tsx` — root-level error boundary
+- [x] Add `loading.tsx` to `app/` (root)
+- [x] Add `loading.tsx` to `app/barangay/`
+- [x] Add `loading.tsx` to `app/cenro/`
+- [x] Add `loading.tsx` to `app/cleaner/`
+- [x] Add `loading.tsx` to `app/report/`
+- [x] Add `loading.tsx` to `app/track/[id]/`
+- [x] Add `loading.tsx` to `app/profile/`
+- [x] Add `loading.tsx` to `app/login/`
+- [x] Add `loading.tsx` to `app/signup/`
+- [x] Fix duplicate "Graceville" in `frontend/app/cenro/page.tsx` barangays array
 
 ### ⚙️ Mini-Phase 2.4 — Settings Modal Cleanup & Navigation
 - [ ] **General → Language**: Decide — implement basic Filipino toggle OR remove selector entirely
