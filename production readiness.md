@@ -230,7 +230,6 @@ Priority-ordered:
 
 ## 7. Deployment & DevOps
 
-- 🔴 **Fix Git LFS blocker** — `mask_r_cnn_TF_2_16.ipynb` (12.5 MB) blocks push to HF Spaces
 - **Sync live backend** — Vercel frontend hitting old HF Spaces backend
 - **Set up CI/CD** — GitHub Actions for lint, build, test, auto-deploy
 - **Add `vercel.json`** — security headers, redirects, regions
@@ -303,7 +302,7 @@ Priority-ordered:
 
 ## 12. Prioritized Action Plan
 
-### 🔴 Phase 1 — Critical (Do Immediately) — ~3 hours
+### 🔴 Phase 1 — Critical (Do Immediately) — ~2.5 hours
 | # | Task | Time |
 |---|------|------|
 | 1 | Lock CORS to Vercel domain | 5 min |
@@ -311,7 +310,6 @@ Priority-ordered:
 | 3 | Create Privacy Policy page (`/privacy`) | 1.5 hr |
 | 4 | Create Terms of Service page (`/terms`) | 1 hr |
 | 5 | Fix dead legal links on login/signup | 15 min |
-| 6 | Fix Git LFS blocker and sync HF Spaces | 30 min |
 
 ### 🟡 Phase 2 — High Priority — ~8 hours
 | # | Task | Time |

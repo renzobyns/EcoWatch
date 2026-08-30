@@ -21,12 +21,6 @@
 - [ ] Add consent checkbox on signup form (`frontend/app/signup/page.tsx`)
 - [ ] Replace vague disclaimer at `frontend/app/signup/page.tsx:292` with proper legal text
 
-### Deployment Blocker
-- [ ] Run Git LFS migration on `.ipynb` files
-- [ ] Force-push to GitHub
-- [ ] Force-push to Hugging Face Spaces
-- [ ] Verify live backend is synced with latest code
-
 ---
 
 ## 🟡 Phase 2 — High Priority
