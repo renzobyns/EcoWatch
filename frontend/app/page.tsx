@@ -75,6 +75,7 @@ export default function LandingPage() {
                     focusedBarangay={focusedBarangay}
                     onBarangayClick={setFocusedBarangay}
                     onMapReady={() => setIsMapReady(true)}
+                    filterClassName="top-[84px] right-4 sm:right-6"
                 />
             </div>
 

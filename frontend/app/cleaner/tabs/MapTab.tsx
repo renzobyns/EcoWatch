@@ -50,6 +50,7 @@ export function MapTab({ user, workOrders, onOpenWO }: MapTabProps) {
                     pinColorBy="priority"
                     focusedBarangay={user?.barangay_assignment ?? null}
                     onPinClick={onOpenWO}
+                    filterClassName="top-[60px] right-4"
                 />
             </div>
         </div>

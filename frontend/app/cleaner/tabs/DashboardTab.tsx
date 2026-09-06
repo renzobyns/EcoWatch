@@ -197,6 +197,7 @@ export function DashboardTab({ user, workOrders, onOpenWO, onJump, loading = fal
                             pinColorBy="priority"
                             focusedBarangay={user?.barangay_assignment ?? null}
                             onPinClick={onOpenWO}
+                            showDateFilter={false}
                         />
                     </div>
                 </div>

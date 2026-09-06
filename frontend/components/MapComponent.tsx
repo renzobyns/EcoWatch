@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { MapContainer, TileLayer, GeoJSON, Marker, Popup, CircleMarker, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import Link from "next/link";
 import { useTheme } from "@/components/ThemeProvider";
 import { formatDate } from "@/lib/date-utils";
-import SJDMLoader from "@/components/SJDMLoader";
+import { Filter, Calendar, X, ChevronDown, RefreshCw } from "lucide-react";
 
 // Fix for default leaflet icons
 const fixLeafletIcons = () => {
@@ -82,6 +82,11 @@ function MapController({ focusedBarangay, geoData }: { focusedBarangay: string |
 }
 
 
+const EMPTY_REPORTS: any[] = [];
+const EMPTY_HEATMAPS: any[] = [];
+
+export type DateFilterType = "all" | "1w" | "1m" | "6m" | "1y" | "custom";
+
 interface MapProps {
     height?: string;
     reports?: any[];
@@ -94,12 +99,15 @@ interface MapProps {
     onPinClick?: (item: any) => void;    // called with the clicked WO or report
     loading?: boolean;                   // manually control the loading state (e.g. for demo/testing)
     onMapReady?: () => void;             // notify parent that map geo data has loaded
+    showDateFilter?: boolean;            // default true
+    filterClassName?: string;            // custom position/classes for filter control
+    onDateFilterChange?: (filter: { preset: DateFilterType; days?: number; startDate?: string; endDate?: string }) => void;
 }
 
 export default function SJDMMap({
     height = "100vh",
-    reports = [],
-    heatmaps = [],
+    reports = EMPTY_REPORTS,
+    heatmaps = EMPTY_HEATMAPS,
     focusedBarangay = null,
     onBarangayClick,
     workOrders,
@@ -107,11 +115,28 @@ export default function SJDMMap({
     onPinClick,
     loading: externalLoading,
     onMapReady,
+    showDateFilter = true,
+    filterClassName,
+    onDateFilterChange,
 }: MapProps) {
     const { theme } = useTheme();
     const [geoData, setGeoData] = useState<any>(null);
     const [internalLoading, setInternalLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // Date Filter State
+    const [dateFilter, setDateFilter] = useState<DateFilterType>("all");
+    const [customStartDate, setCustomStartDate] = useState<string>("");
+    const [customEndDate, setCustomEndDate] = useState<string>("");
+    const [isFilterExpanded, setIsFilterExpanded] = useState<boolean>(false);
+    const [isCustomOpen, setIsCustomOpen] = useState<boolean>(false);
+    const [filteredHeatmaps, setFilteredHeatmaps] = useState<any[] | null>(null);
+    const [isHeatmapLoading, setIsHeatmapLoading] = useState<boolean>(false);
+    const filterRef = useRef<HTMLDivElement>(null);
+    const onDateFilterChangeRef = useRef(onDateFilterChange);
+    onDateFilterChangeRef.current = onDateFilterChange;
+
+    const activeHeatmaps = (dateFilter === "all" || !filteredHeatmaps) ? heatmaps : filteredHeatmaps;
 
     const loading = externalLoading !== undefined ? externalLoading : internalLoading;
 
@@ -171,6 +196,151 @@ export default function SJDMMap({
         });
     };
 
+    // Re-fetch DBSCAN heatmap clusters dynamically when date filter changes
+    useEffect(() => {
+        if (workOrders || dateFilter === "all") {
+            setFilteredHeatmaps(null);
+            if (onDateFilterChangeRef.current) {
+                onDateFilterChangeRef.current({ preset: "all" });
+            }
+            return;
+        }
+
+        let isCancelled = false;
+        let queryParam = "";
+        let days: number | undefined;
+
+        if (dateFilter === "1w") {
+            days = 7;
+            queryParam = "?days=7";
+        } else if (dateFilter === "1m") {
+            days = 30;
+            queryParam = "?days=30";
+        } else if (dateFilter === "6m") {
+            days = 180;
+            queryParam = "?days=180";
+        } else if (dateFilter === "1y") {
+            days = 365;
+            queryParam = "?days=365";
+        } else if (dateFilter === "custom") {
+            if (!customStartDate) return;
+            queryParam = `?date_from=${customStartDate}${customEndDate ? `&date_to=${customEndDate}` : ""}`;
+        } else {
+            return;
+        }
+
+        setIsHeatmapLoading(true);
+        fetch(`${API_URL}/spatial/heatmaps${queryParam}`)
+            .then((res) => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.json();
+            })
+            .then((data) => {
+                if (!isCancelled && data && Array.isArray(data.hotspots)) {
+                    setFilteredHeatmaps(data.hotspots);
+                }
+            })
+            .catch((err) => {
+                console.error("Failed to fetch filtered heatmaps:", err);
+            })
+            .finally(() => {
+                if (!isCancelled) setIsHeatmapLoading(false);
+            });
+
+        if (onDateFilterChangeRef.current) {
+            onDateFilterChangeRef.current({
+                preset: dateFilter,
+                days,
+                startDate: customStartDate || undefined,
+                endDate: customEndDate || undefined,
+            });
+        }
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [dateFilter, customStartDate, customEndDate, workOrders]);
+
+    // Dismiss expanded filter on click outside
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
+                setIsFilterExpanded(false);
+                setIsCustomOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
+
+    // Filter reports based on created_at and selected timeframe
+    const filteredReports = useMemo(() => {
+        let result = reports;
+        if (focusedBarangay) {
+            result = result.filter((r) => r.barangay === focusedBarangay);
+        }
+        if (dateFilter === "all") return result;
+
+        const now = Date.now();
+        let cutoffMs = 0;
+        if (dateFilter === "1w") cutoffMs = now - 7 * 86400000;
+        else if (dateFilter === "1m") cutoffMs = now - 30 * 86400000;
+        else if (dateFilter === "6m") cutoffMs = now - 180 * 86400000;
+        else if (dateFilter === "1y") cutoffMs = now - 365 * 86400000;
+        else if (dateFilter === "custom" && customStartDate) {
+            const startMs = new Date(customStartDate).getTime();
+            const endMs = customEndDate ? new Date(customEndDate).getTime() + 86400000 : Infinity;
+            return result.filter((r) => {
+                if (!r.created_at) return false;
+                const t = new Date(r.created_at).getTime();
+                return !isNaN(t) && t >= startMs && t <= endMs;
+            });
+        }
+
+        return result.filter((r) => {
+            if (!r.created_at) return false;
+            const t = new Date(r.created_at).getTime();
+            return !isNaN(t) && t >= cutoffMs;
+        });
+    }, [reports, focusedBarangay, dateFilter, customStartDate, customEndDate]);
+
+    // Filter workOrders for cleaner map view
+    const filteredWorkOrders = useMemo(() => {
+        if (!workOrders) return [];
+        if (dateFilter === "all") return workOrders;
+
+        const now = Date.now();
+        let cutoffMs = 0;
+        if (dateFilter === "1w") cutoffMs = now - 7 * 86400000;
+        else if (dateFilter === "1m") cutoffMs = now - 30 * 86400000;
+        else if (dateFilter === "6m") cutoffMs = now - 180 * 86400000;
+        else if (dateFilter === "1y") cutoffMs = now - 365 * 86400000;
+        else if (dateFilter === "custom" && customStartDate) {
+            const startMs = new Date(customStartDate).getTime();
+            const endMs = customEndDate ? new Date(customEndDate).getTime() + 86400000 : Infinity;
+            return workOrders.filter((w) => {
+                const raw = w.created_at || w.assigned_at;
+                if (!raw) return false;
+                const t = new Date(raw).getTime();
+                return !isNaN(t) && t >= startMs && t <= endMs;
+            });
+        }
+
+        return workOrders.filter((w) => {
+            const raw = w.created_at || w.assigned_at;
+            if (!raw) return false;
+            const t = new Date(raw).getTime();
+            return !isNaN(t) && t >= cutoffMs;
+        });
+    }, [workOrders, dateFilter, customStartDate, customEndDate]);
+
+    const visibleCount = workOrders ? filteredWorkOrders.length : filteredReports.length;
+    const totalCount = workOrders
+        ? workOrders.length
+        : (focusedBarangay ? reports.filter((r) => r.barangay === focusedBarangay).length : reports.length);
+
     const tileUrl = theme === "dark"
         ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
@@ -216,9 +386,9 @@ export default function SJDMMap({
                 )}
 
                 {/* Heatmap Clusters */}
-                {heatmaps.map((cluster, idx) => (
+                {activeHeatmaps.map((cluster, idx) => (
                     <CircleMarker
-                        key={`heat-${idx}`}
+                        key={`heat-${idx}-${dateFilter}`}
                         center={[cluster.lat, cluster.lon]}
                         radius={cluster.intensity * 15}
                         pathOptions={{
@@ -230,7 +400,7 @@ export default function SJDMMap({
                 ))}
 
                 {/* Work-Order Pins (Cleaner Map View) — takes precedence over report pins */}
-                {workOrders && workOrders.map((wo) => {
+                {workOrders && filteredWorkOrders.map((wo) => {
                     if (wo.report_lat == null || wo.report_lon == null) return null;
                     const colorMode = pinColorBy ?? "priority";
                     let icon;
@@ -285,7 +455,7 @@ export default function SJDMMap({
                 })}
 
                 {/* Report Pins (only when workOrders is NOT provided) */}
-                {!workOrders && reports.map((report) => {
+                {!workOrders && filteredReports.map((report) => {
                     // Skip showing reports that aren't in the focused barangay
                     if (focusedBarangay && report.barangay !== focusedBarangay) return null;
 
@@ -336,6 +506,177 @@ export default function SJDMMap({
                     );
                 })}
             </MapContainer>
+
+            {/* Floating Animated Date Filter Control */}
+            {showDateFilter && (
+                <div
+                    ref={filterRef}
+                    className={`absolute z-[1000] ${
+                        filterClassName || "top-4 right-4 sm:top-4 sm:right-6"
+                    } select-none transition-all duration-300 ease-out`}
+                >
+                    {!isFilterExpanded ? (
+                        /* Collapsed Filter Pill — Premium Glass Companion */
+                        <button
+                            type="button"
+                            onClick={() => setIsFilterExpanded(true)}
+                            className="glass-pro px-3.5 py-2 rounded-2xl flex items-center gap-3 text-foreground transition-all shadow-xl hover:shadow-2xl hover:border-primary/40 group cursor-pointer active:scale-95 select-none"
+                            title="Filter reports by date range"
+                        >
+                            <div className="relative w-8 h-8 rounded-xl bg-primary/15 text-primary flex items-center justify-center transition-transform group-hover:scale-105 shadow-sm border border-primary/20">
+                                <Filter className="w-4 h-4" />
+                                {dateFilter !== "all" && (
+                                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary rounded-full ring-2 ring-background animate-pulse" />
+                                )}
+                            </div>
+                            <div className="text-left hidden xs:block pr-0.5">
+                                <div className="text-[9px] text-primary font-bold uppercase tracking-[0.16em] flex items-center gap-1">
+                                    <span>Timeframe</span>
+                                    {dateFilter !== "all" && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
+                                </div>
+                                <div className="text-xs font-bold text-foreground/90">
+                                    {dateFilter === "all" && "All Time"}
+                                    {dateFilter === "1w" && "Past 7 Days"}
+                                    {dateFilter === "1m" && "Past 30 Days"}
+                                    {dateFilter === "6m" && "Past 6 Months"}
+                                    {dateFilter === "1y" && "Past 1 Year"}
+                                    {dateFilter === "custom" && "Custom Range"}
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 pl-1">
+                                <span className="px-2 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-extrabold border border-primary/20">
+                                    {visibleCount}
+                                </span>
+                                <div className="w-5 h-5 rounded-full bg-foreground/5 group-hover:bg-foreground/10 flex items-center justify-center transition-colors">
+                                    <ChevronDown className="w-3.5 h-3.5 text-foreground/70 group-hover:text-foreground transition-transform duration-200" />
+                                </div>
+                            </div>
+                        </button>
+                    ) : (
+                        /* Expanded Animated Filter Container — Modern Floating Dock */
+                        <div className="glass-pro p-3.5 rounded-2xl shadow-2xl border border-primary/25 bg-background/90 dark:bg-zinc-950/90 backdrop-blur-2xl flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-200 max-w-[94vw] sm:max-w-md">
+                            {/* Header Row */}
+                            <div className="flex items-center justify-between gap-3 pb-2 border-b border-border/60">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-7 h-7 rounded-lg bg-primary/15 text-primary flex items-center justify-center">
+                                        <Calendar className="w-4 h-4" />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-xs font-bold text-foreground leading-none">Date Range Filter</h4>
+                                        <p className="text-[10px] text-muted-foreground mt-1">
+                                            Showing <span className="font-bold text-primary">{visibleCount}</span> of {totalCount} {workOrders ? "jobs" : "reports"}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    {isHeatmapLoading && (
+                                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold border border-primary/20">
+                                            <RefreshCw className="w-3 h-3 animate-spin" />
+                                            <span className="hidden sm:inline">Clustering...</span>
+                                        </div>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsFilterExpanded(false);
+                                            setIsCustomOpen(false);
+                                        }}
+                                        className="w-7 h-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/10 transition-colors flex items-center justify-center cursor-pointer"
+                                        title="Close filter"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Segmented Preset Chips */}
+                            <div className="bg-muted/60 dark:bg-zinc-900/80 p-1 rounded-xl grid grid-cols-3 sm:grid-cols-6 gap-1 border border-border/40">
+                                {[
+                                    { id: "all", label: "All Time", short: "All" },
+                                    { id: "1w", label: "1 Week", short: "7D" },
+                                    { id: "1m", label: "1 Month", short: "30D" },
+                                    { id: "6m", label: "6 Mos", short: "6M" },
+                                    { id: "1y", label: "1 Year", short: "1Y" },
+                                    { id: "custom", label: "Custom", short: "📅" },
+                                ].map((item) => {
+                                    const isActive = dateFilter === item.id;
+                                    return (
+                                        <button
+                                            key={item.id}
+                                            type="button"
+                                            onClick={() => {
+                                                setDateFilter(item.id as DateFilterType);
+                                                if (item.id === "custom") {
+                                                    setIsCustomOpen(true);
+                                                } else {
+                                                    setIsCustomOpen(false);
+                                                }
+                                            }}
+                                            className={`py-2 px-2.5 rounded-lg text-xs font-semibold transition-all duration-200 text-center flex items-center justify-center gap-1 cursor-pointer select-none ${
+                                                isActive
+                                                    ? "eco-gradient text-white shadow-md shadow-primary/25 scale-[1.02] border border-white/20"
+                                                    : "text-foreground/70 hover:text-foreground hover:bg-background/80 dark:hover:bg-zinc-800/80"
+                                            }`}
+                                        >
+                                            <span className="hidden sm:inline">{item.label}</span>
+                                            <span className="sm:hidden">{item.short}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Custom Date Range Tray */}
+                            {isCustomOpen && (
+                                <div className="p-2.5 rounded-xl bg-muted/40 dark:bg-zinc-900/50 border border-border/60 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-150">
+                                    <div className="flex-1 flex flex-col gap-1">
+                                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">From</label>
+                                        <input
+                                            type="date"
+                                            value={customStartDate}
+                                            onChange={(e) => setCustomStartDate(e.target.value)}
+                                            className="w-full px-2.5 py-1.5 rounded-lg bg-background border border-border text-foreground text-xs focus:ring-2 focus:ring-primary/40 focus:outline-none"
+                                        />
+                                    </div>
+                                    <div className="flex-1 flex flex-col gap-1">
+                                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">To</label>
+                                        <input
+                                            type="date"
+                                            value={customEndDate}
+                                            onChange={(e) => setCustomEndDate(e.target.value)}
+                                            className="w-full px-2.5 py-1.5 rounded-lg bg-background border border-border text-foreground text-xs focus:ring-2 focus:ring-primary/40 focus:outline-none"
+                                        />
+                                    </div>
+                                    {(customStartDate || customEndDate) && (
+                                        <div className="sm:self-end flex items-center pt-1 sm:pt-0">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setCustomStartDate("");
+                                                    setCustomEndDate("");
+                                                    setDateFilter("all");
+                                                    setIsCustomOpen(false);
+                                                }}
+                                                className="w-full sm:w-auto px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-foreground/10 transition-colors cursor-pointer"
+                                            >
+                                                Reset
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Micro Footer Note */}
+                            <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-0.5 px-0.5">
+                                <span className="flex items-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    Live DBSCAN clustering active
+                                </span>
+                                <span>Click outside to close</span>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Back to City View Button */}
             {focusedBarangay && onBarangayClick && (

@@ -978,7 +978,7 @@ function CenroDashboardInner() {
                                     </span>
                                     Live City Map
                                 </div>
-                                <MapComponent height="100%" reports={reports} heatmaps={heatmaps} focusedBarangay={null} onBarangayClick={() => {}} />
+                                <MapComponent height="100%" reports={reports} heatmaps={heatmaps} focusedBarangay={null} onBarangayClick={() => {}} filterClassName="top-3 right-3" />
                             </div>
                         </div>
 
@@ -1192,6 +1192,7 @@ function CenroDashboardInner() {
                                     heatmaps={heatmaps}
                                     focusedBarangay={null}
                                     onBarangayClick={() => {}}
+                                    filterClassName="top-3 right-3"
                                 />
                             </div>
                         </div>

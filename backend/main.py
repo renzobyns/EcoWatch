@@ -3736,17 +3736,32 @@ async def get_audit_log(
 # ─────────────────────────────────────────────────────────
 
 @app.get("/spatial/heatmaps")
-async def get_heatmaps(db: Session = Depends(get_db)):
-    """Runs DBSCAN clustering on current active reports to find hotspots."""
-    reports = db.query(models.Report).filter(
+async def get_heatmaps(
+    days: Optional[int] = None,
+    date_from: Optional[datetime] = None,
+    date_to: Optional[datetime] = None,
+    db: Session = Depends(get_db),
+):
+    """Runs DBSCAN clustering on current active reports to find hotspots, with optional date filtering."""
+    query = db.query(models.Report).filter(
         models.Report.status.in_([
             models.ReportStatus.PENDING,
             models.ReportStatus.VERIFIED,
             models.ReportStatus.ASSIGNED,
             models.ReportStatus.IN_PROGRESS,
         ])
-    ).all()
+    )
     
+    if days is not None and days > 0:
+        cutoff = _utcnow() - timedelta(days=days)
+        query = query.filter(models.Report.created_at >= cutoff)
+    else:
+        if date_from:
+            query = query.filter(models.Report.created_at >= _to_naive_utc(date_from))
+        if date_to:
+            query = query.filter(models.Report.created_at <= _to_naive_utc(date_to))
+
+    reports = query.all()
     clusters = analytics.get_heatmap_clusters(reports)
     return {
         "total_active_reports": len(reports),

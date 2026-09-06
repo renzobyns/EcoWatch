@@ -962,6 +962,7 @@ function BarangayPortalInner() {
                             heatmaps={[]}
                             focusedBarangay={user.barangay_assignment}
                             onBarangayClick={() => {}}
+                            filterClassName="top-6 right-6"
                         />
                     </div>
                 )}
