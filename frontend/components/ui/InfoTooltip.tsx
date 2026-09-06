@@ -35,7 +35,7 @@ export function InfoTooltip({
   panelClassName,
 }: InfoTooltipProps) {
   return (
-    <span className={cn("relative inline-flex group/info align-middle", className)}>
+    <span className={cn("relative inline-flex group/info align-middle group-hover/info:z-[9999] focus-within:z-[9999]", className)}>
       <button
         type="button"
         aria-label={label}

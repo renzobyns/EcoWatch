@@ -800,21 +800,43 @@ function CenroDashboardInner() {
                         {/* Left: Main Content */}
                         <div className="flex flex-col gap-4 min-h-0">
                             {/* Top Stats Bar */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0 animate-slide-up stagger-1 w-full">
-                                <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex items-center justify-between gap-4">
-                                    <div className="min-w-0">
-                                        <div className="text-sm font-medium text-muted-foreground mb-1.5 truncate">Total Reports</div>
-                                        <div className="text-3xl font-extrabold text-foreground tracking-tight leading-none">{stats.total}</div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0 animate-slide-up stagger-1 w-full relative z-30">
+                                <div className="rounded-xl border border-border bg-card p-4 xl:p-5 shadow-sm flex items-center justify-between gap-3 relative hover:z-40 focus-within:z-40">
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-1.5 text-xs xl:text-sm font-medium text-muted-foreground mb-1.5">
+                                            <span className="whitespace-nowrap">Total Reports</span>
+                                            <InfoTooltip
+                                                label="Total Reports info"
+                                                side="bottom"
+                                                align="left"
+                                                content="All illegal dumping reports submitted across San Jose del Monte regardless of current status."
+                                            />
+                                        </div>
+                                        <div className="text-2xl xl:text-3xl font-extrabold text-foreground tracking-tight leading-none">{stats.total}</div>
                                     </div>
-                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-primary/10 text-primary">
-                                        <FileText size={22} />
+                                    <div className="w-10 h-10 xl:w-12 xl:h-12 rounded-xl flex items-center justify-center shrink-0 bg-primary/10 text-primary">
+                                        <FileText size={20} className="xl:w-[22px] xl:h-[22px]" />
                                     </div>
                                 </div>
-                                <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex items-center justify-between gap-4">
-                                    <div className="min-w-0">
-                                        <div className="text-sm font-medium text-muted-foreground mb-1.5 truncate">Pending / Verified</div>
+                                <div className="rounded-xl border border-border bg-card p-4 xl:p-5 shadow-sm flex items-center justify-between gap-3 relative hover:z-40 focus-within:z-40">
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-1.5 text-xs xl:text-sm font-medium text-muted-foreground mb-1.5">
+                                            <span className="whitespace-nowrap">Pending / Verified</span>
+                                            <InfoTooltip
+                                                label="Pending / Verified info"
+                                                side="bottom"
+                                                align="left"
+                                            >
+                                                <div className="space-y-1">
+                                                    <p className="font-semibold text-foreground text-xs">Pending / Verified</p>
+                                                    <p className="text-[11px] text-muted-foreground leading-normal">
+                                                        Reports awaiting administrative review or cleanup crew dispatch (<strong className="text-foreground">pending</strong> + <strong className="text-foreground">verified</strong>).
+                                                    </p>
+                                                </div>
+                                            </InfoTooltip>
+                                        </div>
                                         <div className="flex items-baseline gap-2">
-                                            <span className="text-3xl font-extrabold text-foreground tracking-tight leading-none">{pending}</span>
+                                            <span className="text-2xl xl:text-3xl font-extrabold text-foreground tracking-tight leading-none">{pending}</span>
                                             {pending > 0 && (
                                                 <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-destructive/10 text-destructive border border-destructive/20 flex items-center gap-1.5 self-center animate-pulse">
                                                     <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
@@ -823,120 +845,132 @@ function CenroDashboardInner() {
                                             )}
                                         </div>
                                     </div>
-                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-destructive/10 text-destructive">
-                                        <AlertCircle size={22} />
+                                    <div className="w-10 h-10 xl:w-12 xl:h-12 rounded-xl flex items-center justify-center shrink-0 bg-destructive/10 text-destructive">
+                                        <AlertCircle size={20} className="xl:w-[22px] xl:h-[22px]" />
                                     </div>
                                 </div>
-                                <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex items-center justify-between gap-4">
-                                    <div className="min-w-0">
-                                        <div className="text-sm font-medium text-muted-foreground mb-1.5 truncate">Active Cleanups</div>
-                                        <div className="text-3xl font-extrabold text-foreground tracking-tight leading-none">{stats.active}</div>
+                                <div className="rounded-xl border border-border bg-card p-4 xl:p-5 shadow-sm flex items-center justify-between gap-3 relative hover:z-40 focus-within:z-40">
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-1.5 text-xs xl:text-sm font-medium text-muted-foreground mb-1.5">
+                                            <span className="whitespace-nowrap">Active Cleanups</span>
+                                            <InfoTooltip
+                                                label="Active Cleanups info"
+                                                side="bottom"
+                                                align="left"
+                                            >
+                                                <div className="space-y-1.5">
+                                                    <p className="font-semibold text-foreground text-xs">Active Cleanups</p>
+                                                    <p className="text-[11px] text-muted-foreground leading-normal">
+                                                        Reports currently undergoing cleanup operations:
+                                                    </p>
+                                                    <ul className="list-disc pl-3.5 text-[11px] space-y-0.5 text-muted-foreground">
+                                                        <li><strong className="text-foreground">assigned:</strong> Work order dispatched to a cleanup crew</li>
+                                                        <li><strong className="text-foreground">in_progress:</strong> Crew is actively working on-site</li>
+                                                    </ul>
+                                                    <p className="text-[10px] text-muted-foreground/80 pt-1 border-t border-border">
+                                                        Excludes unassigned (pending/verified) and finished (resolved) reports.
+                                                    </p>
+                                                </div>
+                                            </InfoTooltip>
+                                        </div>
+                                        <div className="text-2xl xl:text-3xl font-extrabold text-foreground tracking-tight leading-none">{stats.active}</div>
                                     </div>
-                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-primary/10 text-primary">
-                                        <Activity size={22} />
+                                    <div className="w-10 h-10 xl:w-12 xl:h-12 rounded-xl flex items-center justify-center shrink-0 bg-primary/10 text-primary">
+                                        <Activity size={20} className="xl:w-[22px] xl:h-[22px]" />
                                     </div>
                                 </div>
-                                <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex items-center justify-between gap-4">
-                                    <div className="min-w-0">
-                                        <div className="text-sm font-medium text-muted-foreground mb-1.5 truncate">Success Rate</div>
-                                        <div className="text-3xl font-extrabold text-foreground tracking-tight leading-none">{successRate}%</div>
+                                <div className="rounded-xl border border-border bg-card p-4 xl:p-5 shadow-sm flex items-center justify-between gap-3 relative hover:z-40 focus-within:z-40">
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-1.5 text-xs xl:text-sm font-medium text-muted-foreground mb-1.5">
+                                            <span className="whitespace-nowrap">Success Rate</span>
+                                            <InfoTooltip
+                                                label="Success Rate info"
+                                                side="bottom"
+                                                align="right"
+                                            >
+                                                <div className="space-y-1">
+                                                    <p className="font-semibold text-foreground text-xs">Success Rate</p>
+                                                    <p className="text-[11px] text-muted-foreground leading-normal">
+                                                        Percentage of total reports that have been completely resolved and verified with after-cleanup photos.
+                                                    </p>
+                                                    <p className="text-[10px] font-mono text-muted-foreground/80 pt-1 border-t border-border">
+                                                        (Resolved ÷ Total Reports) × 100
+                                                    </p>
+                                                </div>
+                                            </InfoTooltip>
+                                        </div>
+                                        <div className="text-2xl xl:text-3xl font-extrabold text-foreground tracking-tight leading-none">{successRate}%</div>
                                     </div>
-                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-primary/10 text-primary">
-                                        <CheckCircle2 size={22} />
+                                    <div className="w-10 h-10 xl:w-12 xl:h-12 rounded-xl flex items-center justify-center shrink-0 bg-primary/10 text-primary">
+                                        <CheckCircle2 size={20} className="xl:w-[22px] xl:h-[22px]" />
                                     </div>
                                 </div>
                             </div>
 
                             {/* Merged SLA bar */}
-                            <div className="rounded-xl border border-border bg-card p-5 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-0 divide-y md:divide-y-0 md:divide-x divide-border/60 animate-slide-up stagger-2 overflow-hidden shrink-0">
+                            <div className="rounded-xl border border-border bg-card p-5 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-0 divide-y md:divide-y-0 md:divide-x divide-border/60 animate-slide-up stagger-2 overflow-hidden shrink-0 relative z-10">
                                 {/* SLA Breaches Section */}
-                                <div className="flex items-center justify-between gap-4 pb-4 md:pb-0 md:pr-6">
-                                    <div className="flex items-center gap-4 min-w-0">
-                                        {/* Breach icon */}
-                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all ${slaBreaches.length > 0 ? 'bg-destructive/10 text-destructive' : 'bg-muted/50 text-muted-foreground'}`}>
-                                            <AlertTriangle size={18} />
-                                        </div>
-
-                                        {/* Breach info */}
-                                        <div className="min-w-0">
-                                            <div className="text-xs font-semibold text-muted-foreground mb-0.5">SLA Breaches</div>
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                <span className="text-2xl font-extrabold text-foreground tracking-tight leading-none">
-                                                    {slaBreaches.length}
-                                                </span>
-                                                {slaBreaches.length > 0 ? (
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {slaBreaches.slice(0, 3).map((r) => {
-                                                            const sla = slaInfo(r.created_at, r.status);
-                                                            return (
-                                                                <span
-                                                                    key={r.id}
-                                                                    title={sla ? `Breached by ${sla.days} days` : undefined}
-                                                                    className="group inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-destructive/10 text-destructive border border-destructive/20 cursor-help transition-all duration-300 whitespace-nowrap"
-                                                                >
-                                                                    {r.tracking_id}
-                                                                    {sla && (
-                                                                        <span className="max-w-0 overflow-hidden group-hover:max-w-[40px] group-hover:ml-1.5 transition-all duration-300 ease-in-out inline-block whitespace-nowrap text-destructive/80">
-                                                                            {sla.days}d
-                                                                        </span>
-                                                                    )}
-                                                                </span>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-xs text-muted-foreground">All on schedule</span>
-                                                )}
-                                            </div>
-                                        </div>
+                                <div className="flex items-center gap-4 pb-4 md:pb-0 md:pr-6 min-w-0">
+                                    {/* Breach icon */}
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all ${slaBreaches.length > 0 ? 'bg-destructive/10 text-destructive' : 'bg-muted/50 text-muted-foreground'}`}>
+                                        <AlertTriangle size={18} />
                                     </div>
 
-                                    {slaBreaches.length > 0 && (
-                                        <button
-                                            onClick={() => {
-                                                setOversightStatus("");
-                                                setOversightSearch("");
-                                                setOversightDateRange(undefined);
-                                                setOversightBarangay("");
-                                                setActiveTab('oversight');
-                                            }}
-                                            className="px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-semibold hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-1 shrink-0 shadow-sm whitespace-nowrap"
-                                        >
-                                            <span className="hidden xl:inline">View </span>Queue →
-                                        </button>
-                                    )}
+                                    {/* Breach info */}
+                                    <div className="min-w-0">
+                                        <div className="text-xs font-semibold text-muted-foreground mb-0.5">SLA Breaches</div>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="text-2xl font-extrabold text-foreground tracking-tight leading-none">
+                                                {slaBreaches.length}
+                                            </span>
+                                            {slaBreaches.length > 0 ? (
+                                                <div className="flex flex-wrap gap-1">
+                                                    {slaBreaches.slice(0, 3).map((r) => {
+                                                        const sla = slaInfo(r.created_at, r.status);
+                                                        return (
+                                                            <span
+                                                                key={r.id}
+                                                                title={sla ? `Breached by ${sla.days} days` : undefined}
+                                                                className="group inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-destructive/10 text-destructive border border-destructive/20 cursor-help transition-all duration-300 whitespace-nowrap"
+                                                            >
+                                                                {r.tracking_id}
+                                                                {sla && (
+                                                                    <span className="max-w-0 overflow-hidden group-hover:max-w-[40px] group-hover:ml-1.5 transition-all duration-300 ease-in-out inline-block whitespace-nowrap text-destructive/80">
+                                                                        {sla.days}d
+                                                                    </span>
+                                                                )}
+                                                            </span>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <span className="text-xs text-muted-foreground">All on schedule</span>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
 
                                 {/* SLA Policy Section */}
-                                <div className="flex items-center justify-between gap-4 pt-4 md:pt-0 md:pl-6">
-                                    <div className="flex items-center gap-4 min-w-0">
-                                        {/* Policy icon */}
-                                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-primary/10 text-primary">
-                                            <ShieldCheck size={18} />
-                                        </div>
-
-                                        {/* Policy info */}
-                                        <div className="min-w-0">
-                                            <div className="text-xs font-semibold text-muted-foreground mb-0.5">SLA Policy</div>
-                                            <div className="flex items-center gap-1.5 flex-wrap">
-                                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 border border-emerald-500/15 whitespace-nowrap">Low {slaPolicy.low}d</span>
-                                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-yellow-500/5 text-yellow-600 dark:text-yellow-400 border border-yellow-500/15 whitespace-nowrap">Med {slaPolicy.medium}d</span>
-                                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-destructive/5 text-destructive border border-destructive/15 whitespace-nowrap">High {slaPolicy.high}d</span>
-                                            </div>
-                                        </div>
+                                <div className="flex items-center gap-4 pt-4 md:pt-0 md:pl-6 min-w-0">
+                                    {/* Policy icon */}
+                                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-primary/10 text-primary">
+                                        <ShieldCheck size={18} />
                                     </div>
 
-                                    <button
-                                        onClick={() => setShowSlaModal(true)}
-                                        className="px-3 py-1.5 bg-secondary hover:bg-secondary/80 text-foreground/80 hover:text-foreground border border-border rounded-lg text-xs font-medium transition-all shrink-0 whitespace-nowrap"
-                                    >
-                                        Edit Policy
-                                    </button>
+                                    {/* Policy info */}
+                                    <div className="min-w-0">
+                                        <div className="text-xs font-semibold text-muted-foreground mb-0.5">SLA Policy</div>
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 border border-emerald-500/15 whitespace-nowrap">Low {slaPolicy.low}d</span>
+                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-yellow-500/5 text-yellow-600 dark:text-yellow-400 border border-yellow-500/15 whitespace-nowrap">Med {slaPolicy.medium}d</span>
+                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-destructive/5 text-destructive border border-destructive/15 whitespace-nowrap">High {slaPolicy.high}d</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
                             {/* Map hero */}
-                            <div className="flex-1 rounded-lg border border-border bg-card text-card-foreground shadow-sm overflow-hidden relative min-h-[300px] animate-slide-up stagger-3">
+                            <div className="flex-1 rounded-lg border border-border bg-card text-card-foreground shadow-sm overflow-hidden relative min-h-[300px] animate-slide-up stagger-3 z-0">
                                 <div className="absolute top-3 left-3 z-[1000] bg-background/80 backdrop-blur-md px-2 py-1 rounded text-[11px] font-medium text-foreground border border-border pointer-events-none shadow-sm flex items-center gap-1.5">
                                     <span className="relative flex h-2 w-2">
                                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
