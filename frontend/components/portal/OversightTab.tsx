@@ -190,30 +190,86 @@ export function OversightTab({ user, barangays, onReportClick }: OversightTabPro
             </div>
 
             {/* KPI Strip */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 shrink-0 animate-slide-up">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 shrink-0 animate-slide-up relative z-20">
                 <KpiCard
                     label="Total Found (Current Filters)"
                     value={totalReports}
                     icon={<ListChecks size={22} />}
                     tone="blue"
+                    tooltipAlign="left"
+                    tooltip={
+                        <div className="space-y-1">
+                            <p className="font-semibold text-foreground text-xs">Total Found</p>
+                            <p className="text-[11px] text-muted-foreground leading-normal">
+                                Total count of illegal dumping reports matching the active search query, status, barangay, and date filters across San Jose del Monte.
+                            </p>
+                            <p className="text-[10px] text-muted-foreground/80 pt-1 border-t border-border">
+                                Sourced live from the reports queue.
+                            </p>
+                        </div>
+                    }
                 />
                 <KpiCard
                     label="Pending / Verified"
                     value={pendingCount}
                     icon={<AlertTriangle size={22} />}
                     tone={pendingCount > 0 ? "yellow" : "emerald"}
+                    tooltipAlign="left"
+                    tooltip={
+                        <div className="space-y-1.5">
+                            <p className="font-semibold text-foreground text-xs">Pending / Verified</p>
+                            <p className="text-[11px] text-muted-foreground leading-normal">
+                                Reports awaiting administrative review or cleanup crew dispatch:
+                            </p>
+                            <ul className="list-disc pl-3.5 text-[11px] space-y-0.5 text-muted-foreground">
+                                <li><strong className="text-foreground">pending:</strong> New citizen report awaiting verification</li>
+                                <li><strong className="text-foreground">verified:</strong> Garbage confirmed by AI or CENRO, ready for dispatch</li>
+                            </ul>
+                            <p className="text-[10px] text-muted-foreground/80 pt-1 border-t border-border">
+                                Requires action before SLA deadline expires.
+                            </p>
+                        </div>
+                    }
                 />
                 <KpiCard
                     label="Active Cleanups"
                     value={activeCount}
                     icon={<Hourglass size={22} />}
                     tone="neutral"
+                    tooltipAlign="left"
+                    tooltip={
+                        <div className="space-y-1.5">
+                            <p className="font-semibold text-foreground text-xs">Active Cleanups</p>
+                            <p className="text-[11px] text-muted-foreground leading-normal">
+                                Reports currently undergoing field cleanup operations across SJDM:
+                            </p>
+                            <ul className="list-disc pl-3.5 text-[11px] space-y-0.5 text-muted-foreground">
+                                <li><strong className="text-foreground">assigned:</strong> Work order dispatched to a cleanup crew</li>
+                                <li><strong className="text-foreground">in_progress:</strong> Crew is actively working on-site</li>
+                            </ul>
+                            <p className="text-[10px] text-muted-foreground/80 pt-1 border-t border-border">
+                                Excludes unassigned (pending/verified) and resolved reports.
+                            </p>
+                        </div>
+                    }
                 />
                 <KpiCard
                     label="Resolution Rate"
                     value={`${resRate}%`}
                     icon={<CheckCircle2 size={22} />}
                     tone={resRate >= 80 ? "emerald" : resRate >= 50 ? "yellow" : "red"}
+                    tooltipAlign="right"
+                    tooltip={
+                        <div className="space-y-1">
+                            <p className="font-semibold text-foreground text-xs">Resolution Rate</p>
+                            <p className="text-[11px] text-muted-foreground leading-normal">
+                                Percentage of total filtered reports that have been completely resolved and cleared.
+                            </p>
+                            <p className="text-[10px] font-mono text-muted-foreground/80 pt-1 border-t border-border">
+                                (Resolved Reports ÷ Total Found) × 100
+                            </p>
+                        </div>
+                    }
                 />
             </div>
 

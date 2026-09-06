@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 
 export function KpiCard({
     label,
@@ -8,12 +9,18 @@ export function KpiCard({
     icon,
     tone = "neutral",
     loading = false,
+    tooltip,
+    tooltipSide = "bottom",
+    tooltipAlign = "left",
 }: {
     label?: string;
     value?: string | number;
     icon?: React.ReactNode;
     tone?: "red" | "yellow" | "emerald" | "blue" | "neutral";
     loading?: boolean;
+    tooltip?: React.ReactNode;
+    tooltipSide?: "top" | "bottom" | "left" | "right";
+    tooltipAlign?: "left" | "right";
 }) {
     const toneClasses = {
         red: "bg-destructive/10 text-destructive",
@@ -36,9 +43,24 @@ export function KpiCard({
     }
 
     return (
-        <div className="bg-card p-4 sm:p-5 rounded-xl border border-border shadow-sm flex items-center justify-between gap-3 sm:gap-4">
+        <div className="bg-card p-4 sm:p-5 rounded-xl border border-border shadow-sm flex items-center justify-between gap-3 sm:gap-4 relative hover:z-40 focus-within:z-40">
             <div className="min-w-0 flex-1">
-                <div className="text-xs sm:text-sm font-medium text-muted-foreground mb-1 sm:mb-1.5 leading-tight line-clamp-2">{label}</div>
+                {tooltip ? (
+                    <div className="text-xs sm:text-sm font-medium text-muted-foreground mb-1 sm:mb-1.5 leading-tight flex items-center gap-1.5 min-w-0">
+                        <span className="truncate">{label}</span>
+                        <InfoTooltip
+                            className="shrink-0"
+                            label={label ? `${label} info` : "More info"}
+                            side={tooltipSide}
+                            align={tooltipAlign}
+                            content={typeof tooltip === "string" ? tooltip : undefined}
+                        >
+                            {typeof tooltip !== "string" ? tooltip : undefined}
+                        </InfoTooltip>
+                    </div>
+                ) : (
+                    <div className="text-xs sm:text-sm font-medium text-muted-foreground mb-1 sm:mb-1.5 leading-tight line-clamp-2">{label}</div>
+                )}
                 <div className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">{value}</div>
             </div>
             <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0 ${toneClasses[tone]}`}>

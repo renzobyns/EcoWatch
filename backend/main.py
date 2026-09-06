@@ -15,6 +15,7 @@ import csv
 import io
 import json
 import logging
+import math
 import os
 import secrets
 import uuid
@@ -3039,6 +3040,8 @@ async def complete_work_order(
     work_order_id: int,
     background_tasks: BackgroundTasks,
     cleanup_images: List[UploadFile] = File(...),
+    cleaner_lat: Optional[float] = Form(None),
+    cleaner_lon: Optional[float] = Form(None),
     db: Session = Depends(get_db),
     user: models.User = Depends(require_role("cleaner")),
 ):
@@ -3103,11 +3106,25 @@ async def complete_work_order(
 
     background_tasks.add_task(_bg_verify_complete, wo.id, user.id)
 
+    # Compute proximity if cleaner GPS was provided
+    proximity_m = None
+    if cleaner_lat is not None and cleaner_lon is not None and report.lat and report.lon:
+        def _haversine(lat1, lon1, lat2, lon2):
+            R = 6371000
+            dLat = math.radians(lat2 - lat1)
+            dLon = math.radians(lon2 - lon1)
+            a = math.sin(dLat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dLon / 2) ** 2
+            return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        proximity_m = round(_haversine(cleaner_lat, cleaner_lon, report.lat, report.lon))
+        logger.info("WO %s complete: cleaner GPS (%.5f, %.5f), proximity %dm from report",
+                     wo.id, cleaner_lat, cleaner_lon, proximity_m)
+
     return {
         "success": True,
         "message": f"Cleanup photo received for {report.tracking_id}. AI verification running.",
         "verification_pending": True,
         "work_order": serialize_work_order(wo),
+        "cleaner_proximity_m": proximity_m,
     }
 
 

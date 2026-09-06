@@ -137,10 +137,13 @@ function CleanerPortalInner() {
         }
     };
 
-    const handleComplete = async (workOrderId: number, images: File[]) => {
+    const handleComplete = async (workOrderId: number, images: File[], cleanerLat?: number, cleanerLon?: number) => {
         setActionLoading(true);
         const formData = new FormData();
         images.forEach((img) => formData.append("cleanup_images", img));
+        // Append cleaner GPS for proximity audit (optional — backend accepts but doesn't require)
+        if (cleanerLat != null) formData.append("cleaner_lat", String(cleanerLat));
+        if (cleanerLon != null) formData.append("cleaner_lon", String(cleanerLon));
 
         try {
             const data = await api(`/work-orders/${workOrderId}/complete`, {
