@@ -832,9 +832,9 @@ function EvidenceTab({
                                     <div className="text-[10px] text-foreground/40 mt-1">Uploaded {formatRelative(cp.uploaded_at)}</div>
                                     {cp.ai_confidence !== null && (
                                         <div className="text-[10px] text-foreground/60 mt-0.5">
-                                            AI: <span className="font-bold">{(cp.ai_confidence * 100).toFixed(0)}%</span>
-                                            {cp.ai_verified === true && <span className="ml-2 text-emerald-400">Verified</span>}
-                                            {cp.ai_verified === false && <span className="ml-2 text-red-400">Failed</span>}
+                                            AI: <span className="font-bold">{((1 - cp.ai_confidence) * 100).toFixed(0)}%</span>
+                                            {cp.ai_verified === false && <span className="ml-2 text-emerald-400">Clean</span>}
+                                            {cp.ai_verified === true && <span className="ml-2 text-red-400">Waste Detected</span>}
                                         </div>
                                     )}
                                 </div>
