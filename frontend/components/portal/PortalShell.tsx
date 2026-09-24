@@ -15,6 +15,7 @@ export type PortalNavItem = {
     icon: LucideIcon;
     subtitle?: string;
     sectionBreakBefore?: boolean;
+    badge?: number;
 };
 
 export type PortalBrand = {
@@ -128,9 +129,9 @@ export function PortalShell({
                         actions={actions}
                     />
                 </div>
-                <main className={`relative flex-1 ${scrollable ? "overflow-y-auto" : "overflow-hidden"} ${activeKey === "map_view" ? "p-0" : "px-4 md:px-8 py-6 md:pb-6"}`}>
+                <div role="region" aria-label="Portal content" className={`relative flex-1 ${scrollable ? "overflow-y-auto" : "overflow-hidden"} ${activeKey === "map_view" ? "p-0" : "px-4 md:px-8 py-6 md:pb-6"}`}>
                     {children}
-                </main>
+                </div>
 
                 {/* Mobile Bottom Navigation */}
                 <div className="md:hidden fixed inset-x-0 bottom-0 z-50 bg-background/95 backdrop-blur-md border-t border-border flex items-center justify-around px-1 py-1.5 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.15)] pb-[env(safe-area-inset-bottom)]">
@@ -149,6 +150,11 @@ export function PortalShell({
                             >
                                 <div className={`relative flex items-center justify-center w-8 h-8 rounded-full transition-all ${isActive ? "bg-primary/15" : "bg-transparent"}`}>
                                     <Icon className={`size-5 ${isActive ? "scale-110" : "scale-100 transition-transform"}`} strokeWidth={isActive ? 2.5 : 2} />
+                                    {Boolean(item.badge && item.badge > 0) && (
+                                        <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[9px] font-bold rounded-full px-1 min-w-[15px] h-[15px] flex items-center justify-center">
+                                            {item.badge}
+                                        </span>
+                                    )}
                                 </div>
                                 <span className={`text-[10px] leading-none tracking-tight ${isActive ? "font-semibold" : "font-medium"}`}>
                                     {item.label}

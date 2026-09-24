@@ -70,7 +70,7 @@ export function PortalSidebar({
                             <button
                                 type="button"
                                 onClick={() => onNavChange(item.key)}
-                                title={collapsed ? item.label : undefined}
+                                title={collapsed ? (item.badge ? `${item.label} (${item.badge})` : item.label) : undefined}
                                 className={`w-full flex items-center gap-3 rounded-lg text-sm font-medium transition-colors ${
                                     collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5"
                                 } ${
@@ -79,22 +79,36 @@ export function PortalSidebar({
                                         : "text-foreground/70 hover:bg-foreground/5 hover:text-foreground"
                                 }`}
                             >
-                                <Icon className="size-5 shrink-0" />
+                                <div className="relative shrink-0 flex items-center justify-center">
+                                    <Icon className="size-5 shrink-0" />
+                                    {collapsed && Boolean(item.badge && item.badge > 0) && (
+                                        <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-white text-[9px] font-bold rounded-full size-4 flex items-center justify-center">
+                                            {item.badge}
+                                        </span>
+                                    )}
+                                </div>
                                 {!collapsed && (
-                                    <div className="flex-1 text-left leading-tight min-w-0">
-                                        <div className="truncate">{item.label}</div>
-                                        {item.subtitle && (
-                                            <div
-                                                className={`text-[10px] font-normal mt-0.5 truncate ${
-                                                    isActive
-                                                        ? "text-primary/70"
-                                                        : "text-foreground/40"
-                                                }`}
-                                            >
-                                                {item.subtitle}
-                                            </div>
+                                    <>
+                                        <div className="flex-1 text-left leading-tight min-w-0">
+                                            <div className="truncate">{item.label}</div>
+                                            {item.subtitle && (
+                                                <div
+                                                    className={`text-[10px] font-normal mt-0.5 truncate ${
+                                                        isActive
+                                                            ? "text-primary/70"
+                                                            : "text-foreground/40"
+                                                    }`}
+                                                >
+                                                    {item.subtitle}
+                                                </div>
+                                            )}
+                                        </div>
+                                        {Boolean(item.badge && item.badge > 0) && (
+                                            <span className="ml-auto bg-amber-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 min-w-[18px] text-center shrink-0">
+                                                {item.badge}
+                                            </span>
                                         )}
-                                    </div>
+                                    </>
                                 )}
                             </button>
                         </div>

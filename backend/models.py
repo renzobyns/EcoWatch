@@ -21,8 +21,10 @@ import enum
 
 class ReportStatus(str, enum.Enum):
     PENDING = "pending"
-    VERIFIED = "verified"
-    REJECTED = "rejected"
+    AI_VERIFIED = "ai_verified"       # Layer 1 passed — awaiting human review
+    AI_REJECTED = "ai_rejected"       # Layer 1 failed — awaiting human review/override
+    VERIFIED = "verified"             # Fully verified (AI + human)
+    REJECTED = "rejected"             # Fully rejected (human confirmed)
     ASSIGNED = "assigned"
     IN_PROGRESS = "in_progress"
     RESOLVED = "resolved"
@@ -64,7 +66,11 @@ class User(Base):
     last_login_at = Column(DateTime, nullable=True)
 
     # Relationships
-    reports = relationship("Report", back_populates="reporter")
+    reports = relationship(
+        "Report",
+        back_populates="reporter",
+        foreign_keys="[Report.reporter_id]",
+    )
     work_orders_assigned = relationship(
         "WorkOrder",
         back_populates="assigned_cleaner",
@@ -83,7 +89,8 @@ class Report(Base):
 
     # Reporter (nullable for anonymous reports)
     reporter_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    reporter = relationship("User", back_populates="reports")
+    reporter = relationship("User", back_populates="reports", foreign_keys=[reporter_id])
+    human_verifier = relationship("User", foreign_keys="[Report.human_verified_by]")
 
     # Image evidence
     image_url = Column(String, nullable=True)  # Path to uploaded photo
@@ -120,6 +127,12 @@ class Report(Base):
     # Trust scoring
     trust_score = Column(String, nullable=True)  # "high" | "medium" | "low"
     needs_human_review = Column(Boolean, nullable=False, default=False)
+
+    # Human verification (Layer 2)
+    human_verified_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    human_verified_at = Column(DateTime, nullable=True)
+    human_verification_notes = Column(Text, nullable=True)       # Reason/justification
+    human_verification_action = Column(String, nullable=True)    # "confirmed" | "overridden" | "rejected" | "confirmed_rejection"
 
     # Duplicate detection (Module 3). duplicate_of_id points to the original report
     # an admin confirmed this one duplicates. possible_duplicate_flag is set at submit
@@ -196,7 +209,10 @@ class Notification(Base):
     # Barangay: report_verified_in_barangay | cleanup_verified | cleanup_needs_redo
     #          | sla_approaching | sla_breached
     #          | report_reassigned_in | report_reassigned_out
+    #          | pending_human_review
     # CENRO:   cenro_sla_breached | cenro_force_resolved | cenro_high_priority_deployed | cenro_stale_deploy
+    #          | manual_override | ai_verified_rejected_by_human
+    # Citizen: human_verified | human_rejected
     title = Column(String, nullable=False)
     body = Column(Text, nullable=False)
     work_order_id = Column(Integer, ForeignKey("work_orders.id"), nullable=True, index=True)

@@ -73,6 +73,20 @@
 - [x] Fix dead footer link → `/privacy`
 - [x] Replace `alert()` with Sonner toast in `QRCodeModal.tsx`
 
+### 🛡️ Mini-Phase 2.5 — Two-Layer Human-in-the-Loop Verification System
+- [x] **Database Schema**: Add `ai_verified` and `ai_rejected` enum statuses to `ReportStatus`
+- [x] **Database Schema**: Add `human_verified_by`, `human_verified_at`, `human_verification_notes`, `human_verification_action` columns with auto-migration DDL
+- [x] **Backend Logic**: Update Mask R-CNN background task to route to `ai_verified` / `ai_rejected`
+- [x] **Backend API**: Add `POST /report/{report_id}/human-verify` endpoint with RBAC (Barangay/CENRO), override logging, and CENRO alert triggers
+- [x] **Backend API**: Add `GET /reports/pending-review` endpoint with barangay jurisdiction filtering
+- [x] **Backend Guard**: Add 409 Conflict enforcement on `PUT /report/{id}/assign` blocking unverified reports
+- [x] **Backend Analytics**: Update timeline, leaderboards, and AI quality metrics for two-layer statuses
+- [x] **Frontend Navigation**: Add Review Queue counter badge to `PortalSidebar` and mobile nav
+- [x] **Frontend Barangay Portal**: Add dedicated "Review" tab with All/AI Verified/AI Rejected filters, trust scores, and preset rejection reasons
+- [x] **Frontend Deployment Gate**: Add verification gate modal intercepting cleaner dispatch on unconfirmed reports
+- [x] **Frontend CENRO Portal**: Add Human Verification banner with Approve/Reject actions in `ReportDetailDrawer` and status filters in `OversightTab`
+- [x] **Automated Testing**: Comprehensive end-to-end verification test suite in `backend/test_human_verification.py`
+
 ---
 
 ## 🟢 Phase 3 — Polish & Compliance

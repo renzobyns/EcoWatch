@@ -22,6 +22,7 @@
 12. [Prioritized Action Plan](#12-prioritized-action-plan)
 13. [Suggestions to Improve the System](#13-suggestions-to-improve-the-system)
 14. [Account Management](#14-account-management)
+15. [Two-Layer Verification System](#15-two-layer-verification-system)
 
 ---
 
@@ -599,6 +600,58 @@ The backend has a `PUT /users/{user_id}` endpoint that allows CENRO/barangay adm
 - **Who benefits**: CENRO admins (proper user governance), barangay admins (cleaner management)
 - **Effort estimate**: ~4-5 hours (backend role endpoint + frontend edit modal + validation)
 - **Priority**: 🟡 High — needed for proper account governance before production
+
+---
+
+## 15. Two-Layer Verification System
+
+### Overview
+In response to defense panel feedback, EcoWatch implements a **Two-Layer Human-in-the-Loop Verification Pipeline** for all illegal dumping submissions. AI detection alone (Mask R-CNN) does not immediately dispatch cleaners; rather, human administrators (Barangay Officers & CENRO) act as accountability checkpoints.
+
+### Architecture & Lifecycle
+```
+Citizen Submits
+      │
+      ▼
+Layer 1: Mask R-CNN AI Verification
+      ├───────────────┬───────────────┐
+      ▼                               ▼
+`ai_verified`                   `ai_rejected`
+(AI detects waste)             (Low confidence or no waste)
+      │                               │
+      ├───────────────────────────────┤
+      ▼                               ▼
+Layer 2: Human Verification Review Queue
+      │                               │
+[Barangay / CENRO Confirms]     [Barangay / CENRO Override]
+      │                         (Requires explicit rationale,
+      │                          triggers CENRO oversight alert)
+      ├───────────────────────────────┤
+      ▼                               ▼
+  `verified`                      `rejected`
+      │                       (Preset or custom reason logged)
+      ▼
+Cleaner Assignment / Dispatch
+(`assigned` / `deployed`)
+```
+
+### Key Components
+1. **Schema Enhancements**:
+   - `ReportStatus.AI_VERIFIED` (`"ai_verified"`) and `ReportStatus.AI_REJECTED` (`"ai_rejected"`).
+   - Columns: `human_verified_by` (FK to `users.id`), `human_verified_at`, `human_verification_notes`, `human_verification_action`.
+2. **Backend API Endpoints**:
+   - `POST /report/{report_id}/human-verify`: RBAC guarded (Barangay & CENRO). Supports `action="approve"` and `action="reject"`. When an `ai_rejected` report is overridden to `verified`, a synthetic notification (`manual_override`) is immediately dispatched to CENRO for city-wide accountability.
+   - `GET /reports/pending-review`: Returns active queue filtered by barangay jurisdiction or city-wide for CENRO.
+   - `PUT /report/{id}/assign` Guard: Strictly rejects assignment attempts on reports in `ai_verified` or `ai_rejected` status with HTTP 409 Conflict.
+3. **Barangay Portal Experience**:
+   - Dedicated **Review** tab with live counter badges on the sidebar and mobile bottom navigation.
+   - Three-way category filtering: `All`, `AI Verified`, `AI Rejected`.
+   - Rejection modal with predefined presets (*"False report / No waste visible"*, *"Not illegal dumping (household bin)"*, *"Image too blurry / unclear"*, *"Duplicate of existing report"*) or custom remarks.
+   - Inline **Verification Gate Modal**: If an admin attempts to deploy a cleaner on an unconfirmed report, an inline modal displays the photo, AI confidence score, trust level, and forces a confirmation or rejection before proceeding.
+4. **CENRO Command Center Oversight**:
+   - `ReportDetailDrawer` incorporates a human verification banner allowing CENRO admins to confirm or reject reports city-wide.
+   - `OversightTab` includes dedicated filter chips and badges for `ai_verified` and `ai_rejected`.
+   - Comprehensive audit logging recording verifier identities, notes, and previous states.
 
 ---
 

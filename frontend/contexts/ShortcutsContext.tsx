@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useSyncExternalStore, useCallback, useMemo } from "react";
 
 export type ShortcutAction = 
     | "quickSearch" 
@@ -38,39 +38,56 @@ interface ShortcutsContextType {
 
 const ShortcutsContext = createContext<ShortcutsContextType | undefined>(undefined);
 
-export function ShortcutsProvider({ children }: { children: React.ReactNode }) {
-    const [shortcuts, setShortcuts] = useState<ShortcutsMap>(DEFAULT_SHORTCUTS);
-    const [mounted, setMounted] = useState(false);
+function subscribe(callback: () => void) {
+    window.addEventListener("storage", callback);
+    window.addEventListener("ecowatch:shortcuts-updated", callback);
+    return () => {
+        window.removeEventListener("storage", callback);
+        window.removeEventListener("ecowatch:shortcuts-updated", callback);
+    };
+}
 
-    useEffect(() => {
-        const stored = localStorage.getItem("ecowatch_shortcuts");
-        if (stored) {
-            try {
-                const parsed = JSON.parse(stored);
-                setShortcuts({ ...DEFAULT_SHORTCUTS, ...parsed });
-            } catch (e) {
-                console.error("Failed to parse shortcuts", e);
-            }
+function getSnapshot(): string {
+    try {
+        return localStorage.getItem("ecowatch_shortcuts") ?? "";
+    } catch {
+        return "";
+    }
+}
+
+function getServerSnapshot(): string {
+    return "";
+}
+
+export function ShortcutsProvider({ children }: { children: React.ReactNode }) {
+    const rawShortcuts = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+
+    const shortcuts = useMemo<ShortcutsMap>(() => {
+        if (!rawShortcuts) return DEFAULT_SHORTCUTS;
+        try {
+            const parsed = JSON.parse(rawShortcuts);
+            return { ...DEFAULT_SHORTCUTS, ...parsed };
+        } catch {
+            return DEFAULT_SHORTCUTS;
         }
-        setMounted(true);
+    }, [rawShortcuts]);
+
+    const updateShortcut = useCallback((action: ShortcutAction, combination: string) => {
+        try {
+            const current = localStorage.getItem("ecowatch_shortcuts");
+            const parsed = current ? JSON.parse(current) : {};
+            const next = { ...DEFAULT_SHORTCUTS, ...parsed, [action]: combination.toLowerCase() };
+            localStorage.setItem("ecowatch_shortcuts", JSON.stringify(next));
+            window.dispatchEvent(new Event("ecowatch:shortcuts-updated"));
+        } catch { /* ignore */ }
     }, []);
 
-    const updateShortcut = (action: ShortcutAction, combination: string) => {
-        setShortcuts(prev => {
-            const next = { ...prev, [action]: combination.toLowerCase() };
-            localStorage.setItem("ecowatch_shortcuts", JSON.stringify(next));
-            return next;
-        });
-    };
-
-    const resetShortcuts = () => {
-        setShortcuts(DEFAULT_SHORTCUTS);
-        localStorage.removeItem("ecowatch_shortcuts");
-    };
-
-    if (!mounted) {
-        return <>{children}</>;
-    }
+    const resetShortcuts = useCallback(() => {
+        try {
+            localStorage.removeItem("ecowatch_shortcuts");
+            window.dispatchEvent(new Event("ecowatch:shortcuts-updated"));
+        } catch { /* ignore */ }
+    }, []);
 
     return (
         <ShortcutsContext.Provider value={{ shortcuts, updateShortcut, resetShortcuts }}>
@@ -82,7 +99,6 @@ export function ShortcutsProvider({ children }: { children: React.ReactNode }) {
 export function useShortcutsContext() {
     const context = useContext(ShortcutsContext);
     if (context === undefined) {
-        // Fallback for when context is not available (e.g. before mount)
         return {
             shortcuts: DEFAULT_SHORTCUTS,
             updateShortcut: () => {},

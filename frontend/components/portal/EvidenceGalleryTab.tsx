@@ -361,7 +361,7 @@ export function EvidenceGalleryTab({ reports, barangays, onReportClick, loading 
                                         )}
                                     </div>
                                     <TrustBadge
-                                        trust_score={report.trust_score}
+                                        trust_score={report.trust_score as "high" | "medium" | "low" | null | undefined}
                                         trust_reasons={report.trust_reasons}
                                         failing_signals={report.failing_signals}
                                         needs_human_review={report.needs_human_review}

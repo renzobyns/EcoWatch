@@ -204,7 +204,7 @@ def _build_trend(reports, start, end, granularity):
         b["submitted"] += 1
         if r.status == "resolved":
             b["resolved"] += 1
-        elif r.status == "rejected":
+        elif r.status in ("rejected", "ai_rejected"):
             b["rejected"] += 1
         if r.ai_confidence is not None:
             b["conf_sum"] += r.ai_confidence
@@ -245,7 +245,7 @@ def _build_barangay_leaderboard(reports, start, end, prior_start):
                     c["resolve_n"] += 1
             elif r.status in ("assigned", "in_progress"):
                 c["active"] += 1
-            elif r.status in ("pending", "verified"):
+            elif r.status in ("pending", "verified", "ai_verified", "ai_rejected"):
                 c["pending"] += 1
         elif prior_start <= r.created_at < start:
             prior[r.barangay] += 1
@@ -286,14 +286,21 @@ def _build_funnel(reports, start, end):
     Submitted -> Verified -> Assigned -> Resolved.
     Also tracks side branches like 'rejected' or 'failed_cleanup'.
     """
-    counts = {"pending": 0, "verified": 0, "assigned": 0, "in_progress": 0, "resolved": 0, "rejected": 0, "failed_cleanup": 0}
+    counts = {
+        "pending": 0, "ai_verified": 0, "ai_rejected": 0,
+        "verified": 0, "assigned": 0, "in_progress": 0,
+        "resolved": 0, "rejected": 0, "failed_cleanup": 0
+    }
     for r in reports:
         if not r.created_at or not (start <= r.created_at < end):
             continue
         if r.status in counts:
             counts[r.status] += 1
     submitted = sum(counts.values())
-    verified_or_beyond = counts["verified"] + counts["assigned"] + counts["in_progress"] + counts["resolved"] + counts["failed_cleanup"]
+    verified_or_beyond = (
+        counts["ai_verified"] + counts["verified"] + counts["assigned"] +
+        counts["in_progress"] + counts["resolved"] + counts["failed_cleanup"]
+    )
     assigned_or_beyond = counts["assigned"] + counts["in_progress"] + counts["resolved"] + counts["failed_cleanup"]
     resolved_total = counts["resolved"]
     return {
@@ -304,7 +311,8 @@ def _build_funnel(reports, start, end):
             {"key": "resolved", "label": "Resolved", "count": resolved_total},
         ],
         "branches": [
-            {"key": "rejected", "label": "Rejected by AI", "count": counts["rejected"]},
+            {"key": "ai_rejected", "label": "AI Rejected (Pending Review)", "count": counts["ai_rejected"]},
+            {"key": "rejected", "label": "Fully Rejected", "count": counts["rejected"]},
             {"key": "failed_cleanup", "label": "Failed Cleanup", "count": counts["failed_cleanup"]},
         ],
         "raw_counts": counts,
@@ -325,10 +333,10 @@ def _build_ai_quality(reports, start, end):
     else:
         mean_conf = None
 
-    rejected = sum(1 for r in in_window if r.status == "rejected")
-    verified_through = sum(1 for r in in_window if r.status != "rejected" and r.status != "pending")
+    rejected = sum(1 for r in in_window if r.status in ("rejected", "ai_rejected"))
+    verified_through = sum(1 for r in in_window if r.status not in ("rejected", "ai_rejected", "pending"))
     verification_rate = round(verified_through / len(in_window) * 100, 1) if in_window else 0.0
-    verified_with_conf = [r for r in in_window if r.status != "rejected" and r.ai_confidence is not None]
+    verified_with_conf = [r for r in in_window if r.status not in ("rejected", "ai_rejected") and r.ai_confidence is not None]
     if verified_with_conf:
         avg_verified_conf = round(sum(r.ai_confidence for r in verified_with_conf) / len(verified_with_conf), 3)
     else:
@@ -495,7 +503,11 @@ def compute_drilldown(reports, work_orders, metric, key=None, start=None, end=No
     # ---- Funnel branches: rejected / failed_cleanup ----
     if metric == "branch":
         rows = [r for r in in_window if r.status == key]
-        label_map = {"rejected": "Rejected by AI", "failed_cleanup": "Failed Cleanup"}
+        label_map = {
+            "ai_rejected": "AI Rejected (Pending Review)",
+            "rejected": "Fully Rejected",
+            "failed_cleanup": "Failed Cleanup"
+        }
         label = label_map.get(key, key or "")
         return {
             "kind": "reports",

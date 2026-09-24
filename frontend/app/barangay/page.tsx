@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { Search, Download, LayoutDashboard, FileText, Map, ClipboardList, BookUser, MoreVertical, FileDown, Eye, EyeOff, Edit2, Key, UserCheck, UserX, Plus, ChevronRight, LayoutGrid, List, RefreshCw, AlertTriangle, ListChecks, Hourglass, CheckCircle2 } from "lucide-react";
+import { Search, Download, LayoutDashboard, FileText, Map, ClipboardList, BookUser, MoreVertical, FileDown, Eye, EyeOff, Edit2, Key, UserCheck, UserX, Plus, ChevronRight, ChevronLeft, ArrowUpDown, Check, LayoutGrid, List, RefreshCw, AlertTriangle, ListChecks, Hourglass, CheckCircle2, ShieldCheck, Maximize2, X, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
 import { slaInfo, SLA_PILL_CLASSES, slaDeadlineColor, slaDeadlineLabel } from "@/lib/sla";
@@ -23,11 +23,22 @@ const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://renzobyns-ecowatch-backend.hf.space";
 
-type BarangayView = "dashboard" | "reports" | "map_view" | "workorders" | "accounts";
+export const REJECTION_PRESETS = [
+    { value: "false_report", label: "False report / No waste visible", desc: "Clean street, selfie, or non-waste photo" },
+    { value: "food_waste", label: "Food / biodegradable waste only", desc: "Food in plastic, fruit peels, compostable leftovers" },
+    { value: "not_illegal", label: "Not illegal dumping (household bin)", desc: "Scheduled municipal collection or residential garbage bin" },
+    { value: "image_unclear", label: "Image too blurry / unclear", desc: "Cannot identify or distinguish waste from surroundings" },
+    { value: "duplicate", label: "Duplicate of existing report", desc: "Already reported at this exact location" },
+    { value: "outside_jurisdiction", label: "Outside SJDM jurisdiction", desc: "Location is outside San Jose del Monte city limits" },
+    { value: "other", label: "Other / Custom Reason", desc: "Provide specific details below" },
+];
+
+type BarangayView = "dashboard" | "review" | "reports" | "map_view" | "workorders" | "accounts";
 type ReportSubFilter = "pending" | "assigned" | "resolved";
 
 const BARANGAY_NAV: PortalNavItem[] = [
     { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, subtitle: "Jurisdiction overview" },
+    { key: "review", label: "Review", icon: ShieldCheck, subtitle: "Verify AI verdicts" },
     { key: "reports", label: "Reports", icon: FileText },
     { key: "map_view", label: "Map View", icon: Map },
     { key: "workorders", label: "Workorders", icon: ClipboardList, sectionBreakBefore: true },
@@ -107,7 +118,7 @@ function BarangayPortalInner() {
     const rawSub = searchParams.get('sub');
     const VALID_SUBS: ReportSubFilter[] = ['pending', 'assigned', 'resolved'];
     const [reportSubFilter, setReportSubFilter] = useState<ReportSubFilter>(
-        (typeof window !== "undefined" ? (new URLSearchParams(window.location.search).get("sub") as ReportSubFilter) : null) || 'pending'
+        (rawSub && VALID_SUBS.includes(rawSub as ReportSubFilter)) ? (rawSub as ReportSubFilter) : 'pending'
     );
     const [reportPage, setReportPage] = useState(1);
     const [reportViewMode, setReportViewMode] = useState<"table" | "card">("table");
@@ -223,14 +234,114 @@ function BarangayPortalInner() {
         setUser(parsed);
     }, [router]);
 
+    // Review Tab State (Layer 2 Verification)
+    const [reviewReports, setReviewReports] = useState<any[]>([]);
+    const [reviewLoading, setReviewLoading] = useState(false);
+    const [reviewFilter, setReviewFilter] = useState<"all" | "ai_verified" | "ai_rejected">("all");
+    const [reviewSearch, setReviewSearch] = useState("");
+    const [reviewSort, setReviewSort] = useState<"newest" | "oldest" | "conf_desc" | "conf_asc">("newest");
+    const [reviewPage, setReviewPage] = useState(1);
+    const [reviewActionLoading, setReviewActionLoading] = useState<number | null>(null);
+    const [showRejectDropdown, setShowRejectDropdown] = useState<number | null>(null);
+    const [customRejectReason, setCustomRejectReason] = useState("");
+    const [reviewRejectModalReport, setReviewRejectModalReport] = useState<any | null>(null);
+    const [rejectModalPreset, setRejectModalPreset] = useState("false_report");
+    const [rejectModalNotes, setRejectModalNotes] = useState("");
+    const [verifyGateReport, setVerifyGateReport] = useState<any | null>(null);
+    const [gateRejectMode, setGateRejectMode] = useState(false);
+    const [gateRejectPreset, setGateRejectPreset] = useState("false_report");
+    const [gateCustomNotes, setGateCustomNotes] = useState("");
+    const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
+
+    // Reset pagination when review search, filter, or sort changes
+    useEffect(() => {
+        setReviewPage(1);
+    }, [reviewSearch, reviewFilter, reviewSort]);
+
+    useEffect(() => {
+        function handleKeyDown(e: KeyboardEvent) {
+            if (e.key === "Escape") {
+                if (fullscreenImage) setFullscreenImage(null);
+                if (reviewRejectModalReport) setReviewRejectModalReport(null);
+                if (showRejectDropdown) setShowRejectDropdown(null);
+            }
+        }
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [fullscreenImage, reviewRejectModalReport, showRejectDropdown]);
+
+    const fetchReviewQueue = async () => {
+        setReviewLoading(true);
+        try {
+            const data = await api("/reports/pending-review");
+            if (Array.isArray(data)) setReviewReports(data);
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Failed to load review queue");
+        } finally {
+            setReviewLoading(false);
+        }
+    };
+
+    const handleHumanVerify = async (reportId: number, action: "approve" | "reject", reason?: string) => {
+        setReviewActionLoading(reportId);
+        const wasGateReport = verifyGateReport && verifyGateReport.id === reportId;
+        const gateRep = verifyGateReport;
+        try {
+            const data = await api(`/report/${reportId}/human-verify`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action, reason: reason || "" }),
+            });
+            toast.success(data.message || `Report ${action === "approve" ? "approved" : "rejected"}.`);
+            // Remove from review queue
+            setReviewReports(prev => prev.filter(r => r.id !== reportId));
+            // Update in reports queue if present
+            const nextStatus = action === "approve" ? "verified" : "rejected";
+            const updatedReport = {
+                ...(gateRep || {}),
+                id: reportId,
+                status: nextStatus,
+                human_verification_action: action === "approve" ? "approved" : "rejected",
+                human_verification_notes: reason || null,
+                human_verified_at: new Date().toISOString(),
+                ...(data?.report || {})
+            };
+            setReports(prev => prev.map(r => r.id === reportId ? { ...r, ...updatedReport } : r));
+            setSelectedReport((prev: any) => prev && prev.id === reportId ? { ...prev, ...updatedReport } : prev);
+            setShowRejectDropdown(null);
+            setCustomRejectReason("");
+            setVerifyGateReport(null);
+            setGateRejectMode(false);
+            setReviewRejectModalReport(null);
+            setRejectModalNotes("");
+            setRejectModalPreset("false_report");
+
+            // If an unverified report was approved from the deployment gate, automatically open deploy dialog!
+            if (wasGateReport && action === "approve") {
+                handleDeploy(updatedReport);
+            }
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Verification failed");
+        } finally {
+            setReviewActionLoading(null);
+        }
+    };
+
     // Re-fetch whenever filters change (after the user is loaded)
     useEffect(() => {
         if (!user?.barangay_assignment) return;
         fetchReports(user.barangay_assignment);
+        fetchReviewQueue();
         fetchCleaners(); // Ensure cleaners are available for the deploy modal on initial load
         api("/config/sla").then((data) => setSlaPolicy(data)).catch(() => {});
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user?.barangay_assignment, debouncedSearch, dateRange]);
+    }, [user?.barangay_assignment, debouncedSearch, dateRange, reportStatus]);
+
+    useEffect(() => {
+        if (user && activeView === "review") {
+            fetchReviewQueue();
+        }
+    }, [user, activeView]);
 
     useEffect(() => setReportPage(1), [search, reportStatus, reportSort, reportViewMode, dateRange]);
     useEffect(() => setWoPage(1), [woSearch, woStatusFilter, woPriorityFilter, woCleanerFilter, woSlaRiskOnly, woSort, woViewMode]);
@@ -238,6 +349,7 @@ function BarangayPortalInner() {
     const buildQuery = () => {
         const params = new URLSearchParams();
         if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+        if (reportStatus && reportStatus !== "all") params.set("status", reportStatus);
         if (dateRange?.from) {
             const y = dateRange.from.getFullYear();
             const m = String(dateRange.from.getMonth() + 1).padStart(2, '0');
@@ -796,6 +908,15 @@ function BarangayPortalInner() {
         }
     };
 
+    const navWithBadge = useMemo(() => {
+        return BARANGAY_NAV.map(item => {
+            if (item.key === "review") {
+                return { ...item, badge: reviewReports.length > 0 ? reviewReports.length : undefined };
+            }
+            return item;
+        });
+    }, [reviewReports.length]);
+
     if (!user) return null;
 
     let displayReports = reports;
@@ -809,7 +930,7 @@ function BarangayPortalInner() {
     });
 
     const stats = {
-        pending: reports.filter(r => r.status === 'pending' || r.status === 'verified').length,
+        pending: reports.filter(r => r.status === 'pending' || r.status === 'verified' || r.status === 'ai_verified' || r.status === 'ai_rejected').length,
         deployed: reports.filter(r => r.status === 'assigned' || r.status === 'in_progress' || r.status === 'failed_cleanup').length,
         resolved: reports.filter(r => r.status === 'resolved').length
     };
@@ -823,7 +944,7 @@ function BarangayPortalInner() {
         <PortalShell
             brand={{ name: "Barangay Ops", suffix: user.barangay_assignment }}
             role="BARANGAY"
-            nav={BARANGAY_NAV}
+            nav={navWithBadge}
             activeKey={activeView}
             onNavChange={(k) => {
                     setActiveView(k as BarangayView);
@@ -943,6 +1064,538 @@ function BarangayPortalInner() {
                         </div>
                     </div>
                 )}
+
+                {/* REVIEW TAB (LAYER 2 HUMAN-IN-THE-LOOP VERIFICATION) */}
+                {activeView === 'review' && (() => {
+                    const aiVerifiedCount = reviewReports.filter(r => r.status === "ai_verified").length;
+                    const aiRejectedCount = reviewReports.filter(r => r.status === "ai_rejected").length;
+                    const highTrustCount = reviewReports.filter(r => r.trust_score === 'high').length;
+
+                    const filteredReviewReports = reviewReports
+                        .filter(r => {
+                            if (reviewFilter !== "all" && r.status !== reviewFilter) return false;
+                            if (reviewSearch.trim()) {
+                                const q = reviewSearch.toLowerCase().trim();
+                                const matchTracking = (r.tracking_id || "").toLowerCase().includes(q);
+                                const matchNotes = (r.notes || "").toLowerCase().includes(q);
+                                const matchBrgy = (r.barangay || "").toLowerCase().includes(q);
+                                return matchTracking || matchNotes || matchBrgy;
+                            }
+                            return true;
+                        })
+                        .sort((a, b) => {
+                            if (reviewSort === "newest") {
+                                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                            }
+                            if (reviewSort === "oldest") {
+                                return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+                            }
+                            if (reviewSort === "conf_desc") {
+                                return (b.ai_confidence || 0) - (a.ai_confidence || 0);
+                            }
+                            if (reviewSort === "conf_asc") {
+                                return (a.ai_confidence || 0) - (b.ai_confidence || 0);
+                            }
+                            return 0;
+                        });
+
+                    const REVIEW_PAGE_SIZE = 6;
+                    const totalReviewPages = Math.ceil(filteredReviewReports.length / REVIEW_PAGE_SIZE) || 1;
+                    const paginatedReviewReports = filteredReviewReports.slice(
+                        (reviewPage - 1) * REVIEW_PAGE_SIZE,
+                        reviewPage * REVIEW_PAGE_SIZE
+                    );
+
+                    return (
+                        <div className="flex flex-col gap-5 flex-1 min-h-0 animate-slide-up pb-8 w-full shrink-0">
+                            {/* Header */}
+                            <div className="flex items-start justify-between gap-4 flex-wrap shrink-0">
+                                <div>
+                                    <div className="flex items-center gap-3">
+                                        <h1 className="text-2xl font-bold text-foreground tracking-tight">
+                                            Verification Review Queue
+                                        </h1>
+                                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                                            Layer 2 Human-in-the-Loop
+                                        </span>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground mt-1">
+                                        Review AI verification results and confirm before deployment, or rescue false negatives with manual overrides.
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={fetchReviewQueue}
+                                    disabled={reviewLoading}
+                                    className="px-4 py-2 bg-muted/60 border border-border text-foreground text-xs font-semibold rounded-lg hover:bg-muted transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm"
+                                >
+                                    <RefreshCw size={13} className={reviewLoading ? "animate-spin" : ""} />
+                                    Refresh Queue
+                                </button>
+                            </div>
+
+                            {/* KPI Metrics Row (Section 5 Standard) */}
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
+                                <div className="bg-card border border-border p-4 rounded-xl shadow-sm flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs font-medium text-muted-foreground">Total In Queue</p>
+                                        <h3 className="text-2xl font-bold text-foreground mt-0.5">{reviewReports.length}</h3>
+                                        <p className="text-[11px] text-muted-foreground mt-1">Pending officer decision</p>
+                                    </div>
+                                    <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                                        <Hourglass size={18} />
+                                    </div>
+                                </div>
+
+                                <div className="bg-card border border-border p-4 rounded-xl shadow-sm flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs font-medium text-muted-foreground">AI Verified</p>
+                                        <h3 className="text-2xl font-bold text-foreground mt-0.5">{aiVerifiedCount}</h3>
+                                        <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">Awaiting confirmation</p>
+                                    </div>
+                                    <div className="size-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                                        <CheckCircle2 size={18} />
+                                    </div>
+                                </div>
+
+                                <div className="bg-card border border-border p-4 rounded-xl shadow-sm flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs font-medium text-muted-foreground">AI Rejected</p>
+                                        <h3 className="text-2xl font-bold text-foreground mt-0.5">{aiRejectedCount}</h3>
+                                        <p className="text-[11px] text-red-600 dark:text-red-400 mt-1">Override candidates</p>
+                                    </div>
+                                    <div className="size-10 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center">
+                                        <AlertTriangle size={18} />
+                                    </div>
+                                </div>
+
+                                <div className="bg-card border border-border p-4 rounded-xl shadow-sm flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs font-medium text-muted-foreground">High Photo Trust</p>
+                                        <h3 className="text-2xl font-bold text-foreground mt-0.5">{highTrustCount}</h3>
+                                        <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1">EXIF & GPS validated</p>
+                                    </div>
+                                    <div className="size-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                                        <ShieldCheck size={18} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Action Toolbar */}
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0 bg-card p-3 rounded-xl border border-border shadow-sm">
+                                {/* Search Bar */}
+                                <div className="relative flex-1">
+                                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search by tracking ID, notes, or location..."
+                                        value={reviewSearch}
+                                        onChange={(e) => setReviewSearch(e.target.value)}
+                                        className="w-full bg-background border border-border rounded-lg pl-9 pr-8 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                                    />
+                                    {reviewSearch && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setReviewSearch("")}
+                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
+                                        >
+                                            <X size={12} />
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Status Filters */}
+                                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+                                    <button
+                                        type="button"
+                                        onClick={() => setReviewFilter("all")}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
+                                            reviewFilter === "all"
+                                                ? "bg-primary text-primary-foreground shadow-sm"
+                                                : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                        }`}
+                                    >
+                                        All ({reviewReports.length})
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setReviewFilter("ai_verified")}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 flex items-center gap-1.5 ${
+                                            reviewFilter === "ai_verified"
+                                                ? "bg-amber-600 text-white shadow-sm"
+                                                : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                        }`}
+                                    >
+                                        <span className="size-2 rounded-full bg-amber-400" />
+                                        AI Verified ({aiVerifiedCount})
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setReviewFilter("ai_rejected")}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 flex items-center gap-1.5 ${
+                                            reviewFilter === "ai_rejected"
+                                                ? "bg-red-600 text-white shadow-sm"
+                                                : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                        }`}
+                                    >
+                                        <span className="size-2 rounded-full bg-red-400" />
+                                        AI Rejected ({aiRejectedCount})
+                                    </button>
+                                </div>
+
+                                {/* Sort Dropdown */}
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <div className="relative">
+                                        <select
+                                            value={reviewSort}
+                                            onChange={(e) => setReviewSort(e.target.value as any)}
+                                            className="bg-background border border-border rounded-lg pl-3 pr-8 py-2 text-xs text-foreground focus:outline-none focus:border-primary transition-colors cursor-pointer appearance-none"
+                                        >
+                                            <option value="newest">Newest First</option>
+                                            <option value="oldest">Oldest First</option>
+                                            <option value="conf_desc">Confidence: High to Low</option>
+                                            <option value="conf_asc">Confidence: Low to High</option>
+                                        </select>
+                                        <ArrowUpDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Main List / Grid */}
+                            {reviewLoading ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                                    {[1, 2, 3, 4, 5, 6].map(i => (
+                                        <div key={i} className="bg-card rounded-xl border border-border p-4 animate-pulse flex flex-col gap-3">
+                                            <div className="w-full h-44 bg-muted/60 rounded-lg flex items-center justify-center">
+                                                <div className="size-8 bg-muted-foreground/10 rounded-full" />
+                                            </div>
+                                            <div className="flex justify-between items-center">
+                                                <div className="h-3.5 bg-muted-foreground/15 rounded w-1/3" />
+                                                <div className="h-3.5 bg-muted-foreground/15 rounded w-1/4" />
+                                            </div>
+                                            <div className="h-10 bg-muted/40 rounded-lg" />
+                                            <div className="h-8 bg-muted/60 rounded-lg" />
+                                            <div className="flex gap-2 pt-1">
+                                                <div className="h-9 bg-emerald-500/20 rounded-lg flex-1" />
+                                                <div className="h-9 bg-red-500/20 rounded-lg w-20" />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : reviewReports.length === 0 ? (
+                                <div className="bg-card border border-border rounded-xl p-12 text-center flex flex-col items-center justify-center my-6 shadow-sm">
+                                    <div className="size-16 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-4 ring-8 ring-emerald-500/5">
+                                        <CheckCircle2 size={32} />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-foreground">Review Queue Clear</h3>
+                                    <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                                        There are currently no reports awaiting human verification in your jurisdiction. All submissions have been processed.
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={fetchReviewQueue}
+                                        className="mt-4 px-4 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5"
+                                    >
+                                        <RefreshCw size={12} />
+                                        Check Again
+                                    </button>
+                                </div>
+                            ) : filteredReviewReports.length === 0 ? (
+                                <div className="bg-card border border-border rounded-xl p-10 text-center flex flex-col items-center justify-center my-6 shadow-sm">
+                                    <div className="size-14 rounded-full bg-muted text-muted-foreground flex items-center justify-center mb-3">
+                                        <Search size={24} />
+                                    </div>
+                                    <h3 className="text-base font-bold text-foreground">No Matching Reports</h3>
+                                    <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+                                        No reports match your current search query {reviewSearch ? `"${reviewSearch}"` : ""} or selected filter.
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setReviewSearch("");
+                                            setReviewFilter("all");
+                                        }}
+                                        className="mt-4 px-3.5 py-1.5 bg-primary text-primary-foreground text-xs font-semibold rounded-lg shadow-sm transition-colors"
+                                    >
+                                        Clear Filters
+                                    </button>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                                        {paginatedReviewReports.map(report => {
+                                            const isAiRejected = report.status === "ai_rejected";
+                                            const isActioning = reviewActionLoading === report.id;
+                                            const isDropdownOpen = showRejectDropdown === report.id;
+
+                                            return (
+                                                <div
+                                                    key={report.id}
+                                                    className="bg-card rounded-xl border border-border shadow-sm hover:shadow-md hover:border-primary/40 transition-all flex flex-col relative"
+                                                >
+                                                    {/* Image Preview with Unclipped Badges */}
+                                                    <div className="relative w-full h-48 rounded-t-xl group">
+                                                        {/* Inner clipped box for image hover zoom */}
+                                                        <div className="absolute inset-0 rounded-t-xl overflow-hidden bg-black/40">
+                                                            {report.image_url ? (
+                                                                <img
+                                                                    src={`${API_URL}${report.image_url}`}
+                                                                    alt="Report Evidence"
+                                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                                    loading="lazy"
+                                                                />
+                                                            ) : (
+                                                                <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
+                                                                    No Image Uploaded
+                                                                </div>
+                                                            )}
+                                                            {/* Bottom Overlay with Confidence */}
+                                                            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent p-3 pt-6 flex items-center justify-between text-white text-xs">
+                                                                <span className="font-mono font-bold tracking-tight">
+                                                                    {report.tracking_id}
+                                                                </span>
+                                                                <span className="font-medium flex items-center gap-1.5 text-xs">
+                                                                    <span className="text-white/70">AI Confidence:</span>
+                                                                    <strong className={report.ai_confidence && report.ai_confidence >= 0.5 ? "text-emerald-400" : "text-red-400"}>
+                                                                        {report.ai_confidence ? `${Math.round(report.ai_confidence * 100)}%` : "N/A"}
+                                                                    </strong>
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Status Badge */}
+                                                        <div className="absolute top-3 left-3 z-10 pointer-events-auto">
+                                                            <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider shadow-md backdrop-blur-md ${
+                                                                isAiRejected
+                                                                    ? "bg-red-500/90 text-white border border-red-400/40"
+                                                                    : "bg-amber-500/90 text-white border border-amber-400/40"
+                                                            }`}>
+                                                                {isAiRejected ? "AI Rejected" : "AI Verified"}
+                                                            </span>
+                                                        </div>
+
+                                                        {/* Trust Badge & Maximize Button (Unclipped) */}
+                                                        <div className="absolute top-3 right-3 flex items-center gap-1.5 z-30 pointer-events-auto">
+                                                            {report.trust_score && (
+                                                                <TrustBadge trust_score={report.trust_score} align="right" tooltipSide="bottom" />
+                                                            )}
+                                                            {report.image_url && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setFullscreenImage(`${API_URL}${report.image_url}`);
+                                                                    }}
+                                                                    className="size-6 rounded-md bg-black/60 hover:bg-black/85 text-white/90 hover:text-white flex items-center justify-center backdrop-blur-md border border-white/20 transition-all hover:scale-105 shadow-sm"
+                                                                    title="View full screen image"
+                                                                    aria-label="View full screen image"
+                                                                >
+                                                                    <Maximize2 size={12} />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Content Body */}
+                                                    <div className="p-4 flex-1 flex flex-col justify-between gap-3">
+                                                        <div>
+                                                            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+                                                                <span>{formatRelative(report.created_at)}</span>
+                                                                <span>{formatDate(report.created_at)}</span>
+                                                            </div>
+                                                            {report.notes ? (
+                                                                <p className="text-xs text-foreground/85 line-clamp-2 bg-muted/40 p-2 rounded-lg border border-border/60">
+                                                                    &ldquo;{report.notes}&rdquo;
+                                                                </p>
+                                                            ) : (
+                                                                <p className="text-xs text-muted-foreground italic">
+                                                                    No citizen description attached
+                                                                </p>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Explanation Banner */}
+                                                        <div className={`p-2.5 rounded-xl text-xs ${
+                                                            isAiRejected 
+                                                                ? "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20" 
+                                                                : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                                                        }`}>
+                                                            {isAiRejected ? (
+                                                                <span>
+                                                                    <strong>AI Verdict:</strong> Waste not detected ({report.ai_confidence ? `${Math.round(report.ai_confidence * 100)}%` : "0%"}). Review and override if garbage is visible.
+                                                                </span>
+                                                            ) : (
+                                                                <span>
+                                                                    <strong>AI Verdict:</strong> Confirmed garbage ({report.ai_confidence ? `${Math.round(report.ai_confidence * 100)}%` : "0%"}). Confirm to enable cleaner deployment.
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Action Buttons */}
+                                                        <div className="flex items-center gap-2 pt-1 relative">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleHumanVerify(report.id, "approve")}
+                                                                disabled={isActioning}
+                                                                className="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-all shadow-sm disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                                            >
+                                                                {isActioning ? (
+                                                                    <>
+                                                                        <RefreshCw size={13} className="animate-spin" />
+                                                                        <span>Processing...</span>
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <CheckCircle2 size={14} />
+                                                                        <span>{isAiRejected ? "Override & Approve" : "Confirm & Approve"}</span>
+                                                                    </>
+                                                                )}
+                                                            </button>
+
+                                                            <div className="relative">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setShowRejectDropdown(isDropdownOpen ? null : report.id)}
+                                                                    disabled={isActioning}
+                                                                    className="py-2 px-3 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition-all shadow-sm disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-1"
+                                                                    title="Select rejection preset reason"
+                                                                >
+                                                                    <span>{isAiRejected ? "Confirm Reject" : "Reject"}</span>
+                                                                    <span className="text-[10px]">▼</span>
+                                                                </button>
+
+                                                                {/* Reject Dropdown Menu - 100% Solid & High Contrast */}
+                                                                {isDropdownOpen && (
+                                                                    <div className="absolute right-0 bottom-full mb-2 w-80 sm:w-96 max-h-[22rem] overflow-y-auto bg-popover text-popover-foreground border border-border shadow-2xl rounded-xl p-3 z-50 animate-in fade-in zoom-in-95 ring-1 ring-black/10 dark:ring-white/10">
+                                                                        <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/70">
+                                                                            <div className="flex items-center gap-1.5">
+                                                                                <AlertTriangle size={13} className="text-red-500" />
+                                                                                <span className="text-xs font-bold text-foreground">Select Rejection Reason</span>
+                                                                            </div>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => setShowRejectDropdown(null)}
+                                                                                className="p-1 text-muted-foreground hover:text-foreground rounded-md transition-colors"
+                                                                            >
+                                                                                <X size={13} />
+                                                                            </button>
+                                                                        </div>
+                                                                        <div className="space-y-1">
+                                                                            {REJECTION_PRESETS.map(preset => (
+                                                                                <button
+                                                                                    key={preset.value}
+                                                                                    type="button"
+                                                                                    onClick={() => handleHumanVerify(report.id, "reject", preset.label)}
+                                                                                    className="w-full text-left p-2 text-xs text-foreground hover:bg-red-500/10 hover:border-red-500/30 border border-transparent rounded-lg transition-colors font-medium flex flex-col group"
+                                                                                >
+                                                                                    <span className="font-semibold text-foreground group-hover:text-red-600 dark:group-hover:text-red-400">
+                                                                                        {preset.label}
+                                                                                    </span>
+                                                                                    <span className="text-[10px] text-muted-foreground font-normal">
+                                                                                        {preset.desc}
+                                                                                    </span>
+                                                                                </button>
+                                                                            ))}
+                                                                        </div>
+
+                                                                        {/* Custom Reason Input */}
+                                                                        <div className="mt-2.5 pt-2.5 border-t border-border/70 space-y-2">
+                                                                            <span className="text-[11px] font-semibold text-foreground block">Custom Reason</span>
+                                                                            <input
+                                                                                type="text"
+                                                                                placeholder="Enter custom rejection reason..."
+                                                                                value={customRejectReason}
+                                                                                onChange={e => setCustomRejectReason(e.target.value)}
+                                                                                className="w-full px-2.5 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-red-500 transition-colors"
+                                                                                onKeyDown={e => {
+                                                                                    if (e.key === "Enter" && customRejectReason.trim().length >= 3) {
+                                                                                        handleHumanVerify(report.id, "reject", customRejectReason.trim());
+                                                                                    }
+                                                                                }}
+                                                                            />
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    if (customRejectReason.trim().length >= 3) {
+                                                                                        handleHumanVerify(report.id, "reject", customRejectReason.trim());
+                                                                                    } else {
+                                                                                        toast.error("Please enter at least 3 characters.");
+                                                                                    }
+                                                                                }}
+                                                                                className="w-full py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
+                                                                            >
+                                                                                Submit Rejection
+                                                                            </button>
+
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    setShowRejectDropdown(null);
+                                                                                    setReviewRejectModalReport(report);
+                                                                                }}
+                                                                                className="w-full text-center text-[11px] text-muted-foreground hover:text-foreground hover:underline pt-1"
+                                                                            >
+                                                                                Open in full rejection dialog →
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Pagination Controls (Section 5 Standard) */}
+                                    {filteredReviewReports.length > REVIEW_PAGE_SIZE && (
+                                        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-border mt-2 bg-card p-4 rounded-xl shadow-sm">
+                                            <span className="text-xs font-medium text-muted-foreground">
+                                                Showing {((reviewPage - 1) * REVIEW_PAGE_SIZE) + 1}–{Math.min(reviewPage * REVIEW_PAGE_SIZE, filteredReviewReports.length)} of {filteredReviewReports.length} reports
+                                            </span>
+                                            <div className="flex items-center gap-1.5">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setReviewPage(p => Math.max(1, p - 1))}
+                                                    disabled={reviewPage === 1}
+                                                    className="p-1.5 border border-border bg-background rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                                    aria-label="Previous page"
+                                                >
+                                                    <ChevronLeft size={16} />
+                                                </button>
+
+                                                {Array.from({ length: totalReviewPages }, (_, i) => i + 1).map(page => (
+                                                    <button
+                                                        key={page}
+                                                        type="button"
+                                                        onClick={() => setReviewPage(page)}
+                                                        className={`size-8 text-xs font-semibold rounded-lg transition-colors ${
+                                                            reviewPage === page
+                                                                ? "bg-primary text-primary-foreground shadow-sm"
+                                                                : "border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted"
+                                                        }`}
+                                                    >
+                                                        {page}
+                                                    </button>
+                                                ))}
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setReviewPage(p => Math.min(totalReviewPages, p + 1))}
+                                                    disabled={reviewPage === totalReviewPages}
+                                                    className="p-1.5 border border-border bg-background rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                                    aria-label="Next page"
+                                                >
+                                                    <ChevronRight size={16} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    );
+                })()}
 
                 {/* MAP VIEW */}
                 {activeView === 'map_view' && (
@@ -1874,6 +2527,8 @@ function BarangayPortalInner() {
                     const STATUS_OPTIONS = [
                         { value: "all", label: "All Statuses" },
                         { value: "pending", label: "Pending" },
+                        { value: "ai_verified", label: "AI Verified (Pending Review)" },
+                        { value: "ai_rejected", label: "AI Rejected (Pending Review)" },
                         { value: "verified", label: "Verified" },
                         { value: "assigned", label: "Assigned" },
                         { value: "in_progress", label: "In Progress" },
@@ -2050,9 +2705,11 @@ function BarangayPortalInner() {
                                                                 <td className="p-4">
                                                                     <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
                                                                         report.status === 'resolved' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' :
+                                                                        report.status === 'verified' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' :
+                                                                        report.status === 'ai_verified' ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30' :
+                                                                        report.status === 'ai_rejected' ? 'bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30' :
                                                                         report.status === 'assigned' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20' :
                                                                         report.status === 'in_progress' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' :
-                                                                        report.status === 'verified' ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20' :
                                                                         report.status === 'pending' ? 'bg-destructive/10 text-destructive border border-destructive/20' :
                                                                         report.status === 'failed_cleanup' ? 'bg-destructive/10 text-destructive border border-destructive/20' :
                                                                         report.status === 'rejected' ? 'bg-muted text-muted-foreground border border-border' :
@@ -2116,6 +2773,9 @@ function BarangayPortalInner() {
                                                     <div className="font-mono text-sm font-bold text-foreground">{report.tracking_id}</div>
                                                     <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${
                                                         report.status === 'resolved' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' :
+                                                        report.status === 'verified' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' :
+                                                        report.status === 'ai_verified' ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30' :
+                                                        report.status === 'ai_rejected' ? 'bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30' :
                                                         report.status === 'pending' ? 'bg-destructive/10 text-destructive border border-destructive/20' :
                                                         'bg-muted text-foreground border border-border'
                                                     }`}>
@@ -2244,15 +2904,60 @@ function BarangayPortalInner() {
                                 <div>
                                     <div className="flex items-center justify-between mb-2">
                                         <h3 className="text-sm font-medium text-muted-foreground">Evidence Photo</h3>
-                                        <button
-                                            onClick={() => handleReverify(selectedReport.id)}
-                                            disabled={actionLoading || selectedReport.verification_pending}
-                                            className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-[11px] font-bold disabled:opacity-50"
-                                        >
-                                            <RefreshCw size={12} className={actionLoading ? "animate-spin" : ""} />
-                                            {actionLoading ? "Re-verifying..." : "Re-verify"}
-                                        </button>
+                                        {selectedReport.image_url && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setFullscreenImage(`${API_URL}${selectedReport.image_url}`)}
+                                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors text-[11px] font-semibold"
+                                                title="View image full screen"
+                                            >
+                                                <Maximize2 size={12} />
+                                                <span>Full View</span>
+                                            </button>
+                                        )}
                                     </div>
+
+                                    {/* Rejection Details Banner if rejected */}
+                                    {selectedReport.status === 'rejected' && (
+                                        <div className="mb-4 p-3.5 rounded-xl border border-red-500/20 bg-red-500/10 text-xs flex items-start gap-2.5 animate-in fade-in">
+                                            <XCircle className="text-red-500 shrink-0 mt-0.5" size={16} />
+                                            <div className="space-y-1">
+                                                <p className="font-bold text-red-600 dark:text-red-400">Report Rejected</p>
+                                                <p className="text-muted-foreground">
+                                                    {selectedReport.human_verification_notes 
+                                                        ? `Reason: ${selectedReport.human_verification_notes}` 
+                                                        : "This report has been reviewed and rejected. No cleanup team will be dispatched."}
+                                                </p>
+                                                {selectedReport.human_verified_at && (
+                                                    <p className="text-[10px] text-muted-foreground/80">
+                                                        Action taken on {formatDateTime(selectedReport.human_verified_at)}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Pending Review Banner if ai_verified or ai_rejected */}
+                                    {(selectedReport.status === 'ai_verified' || selectedReport.status === 'ai_rejected') && (
+                                        <div className="mb-4 p-3 rounded-xl border border-amber-500/20 bg-amber-500/10 text-xs flex items-center justify-between gap-3 animate-in fade-in">
+                                            <div className="flex items-center gap-2">
+                                                <ShieldCheck className="text-amber-500 shrink-0" size={18} />
+                                                <div>
+                                                    <p className="font-bold text-foreground">Awaiting Human Verification</p>
+                                                    <p className="text-[11px] text-muted-foreground">Review photo and confirm before deploying cleaners.</p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    setVerifyGateReport(selectedReport);
+                                                    setSelectedReport(null);
+                                                }}
+                                                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold text-xs shadow-sm transition-all"
+                                            >
+                                                Review Now
+                                            </button>
+                                        </div>
+                                    )}
                                     
                                     {reverifyStatus && (
                                         <div className="mb-4 p-3 rounded-lg border text-sm flex flex-col gap-2 bg-card">
@@ -2355,9 +3060,18 @@ function BarangayPortalInner() {
                                 <div className="bg-muted/40 p-6 rounded-xl border border-border">
                                     <h3 className="text-base font-semibold text-foreground mb-4 border-b border-border pb-2">Take Action</h3>
 
-                                    {selectedReport.status === 'verified' && (
+                                    {(selectedReport.status === 'verified' || selectedReport.status === 'ai_verified') && (
                                         <div>
-                                            <p className="text-xs text-foreground/60 mb-4">This report has been verified by the AI. Dispatch a cleanup team to the location.</p>
+                                            {selectedReport.status === 'ai_verified' ? (
+                                                <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-600 dark:text-amber-400">
+                                                    <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider mb-1">
+                                                        <ShieldCheck size={14} /> Layer 2 Verification Required
+                                                    </div>
+                                                    AI detected waste ({selectedReport.ai_confidence ? `${Math.round(selectedReport.ai_confidence * 100)}%` : "N/A"}). Human vision confirmation is required before assigning cleaner.
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-foreground/60 mb-4">This report has been verified. Dispatch a cleanup team to the location.</p>
+                                            )}
 
                                             <div className="grid grid-cols-2 gap-3 mb-4">
                                                 <div>
@@ -2396,12 +3110,53 @@ function BarangayPortalInner() {
                                                 className="w-full mb-4 px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20 resize-none transition-all"
                                             />
                                             <button
-                                                onClick={() => handleDeploy(selectedReport.id)}
+                                                onClick={() => {
+                                                    if (selectedReport.status === "ai_verified") {
+                                                        setVerifyGateReport(selectedReport);
+                                                    } else {
+                                                        handleDeploy(selectedReport.id);
+                                                    }
+                                                }}
                                                 disabled={actionLoading || !selectedCleaner}
                                                 className="w-full py-2.5 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg font-medium shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
-                                                {actionLoading ? "Processing..." : "Deploy Cleanup Team"}
+                                                {actionLoading ? "Processing..." : selectedReport.status === 'ai_verified' ? "Verify Image & Deploy" : "Deploy Cleanup Team"}
                                             </button>
+                                        </div>
+                                    )}
+
+                                    {selectedReport.status === 'ai_rejected' && (
+                                        <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 space-y-3">
+                                            <div className="flex items-center gap-2 text-red-600 dark:text-red-400 font-bold text-xs uppercase tracking-wider">
+                                                <ShieldCheck size={16} /> AI Rejected Report
+                                            </div>
+                                            <p className="text-xs text-foreground/70">
+                                                Mask R-CNN did not detect waste in this photo ({selectedReport.ai_confidence ? `${Math.round(selectedReport.ai_confidence * 100)}%` : "0%"}). If this is a false negative, you can review the photo and manually approve it.
+                                            </p>
+                                            <button
+                                                onClick={() => setVerifyGateReport(selectedReport)}
+                                                className="w-full py-2 px-3 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors flex items-center justify-center gap-1.5"
+                                            >
+                                                <ShieldCheck size={14} /> Review & Override AI Rejection
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {selectedReport.status === 'rejected' && (
+                                        <div className="p-4 rounded-xl bg-muted/60 border border-border space-y-1.5">
+                                            <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                                                Report Fully Rejected
+                                            </div>
+                                            <p className="text-xs text-foreground/80">
+                                                {selectedReport.human_verification_notes 
+                                                    ? `Rejection reason: "${selectedReport.human_verification_notes}"`
+                                                    : "This report has been reviewed and rejected."}
+                                            </p>
+                                            {selectedReport.human_verified_at && (
+                                                <p className="text-[11px] text-muted-foreground">
+                                                    Reviewed {formatRelative(selectedReport.human_verified_at)}
+                                                </p>
+                                            )}
                                         </div>
                                     )}
 
@@ -2624,6 +3379,434 @@ function BarangayPortalInner() {
                                 </div>
                             )}
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Verification Gate Modal */}
+            {verifyGateReport && (
+                <div className="fixed inset-0 z-[2100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-card p-0 max-w-lg w-full rounded-2xl border border-border shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh] overflow-hidden">
+                        {/* Header */}
+                        <div className={`p-4 border-b border-border ${gateRejectMode ? "bg-red-500/10" : "bg-amber-500/10"} flex items-center justify-between`}>
+                            <div className="flex items-center gap-2.5">
+                                <div className={`size-8 rounded-lg ${gateRejectMode ? "bg-red-500/20 text-red-600 dark:text-red-400" : "bg-amber-500/20 text-amber-600 dark:text-amber-400"} flex items-center justify-center`}>
+                                    {gateRejectMode ? <AlertTriangle size={18} /> : <ShieldCheck size={18} />}
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-bold text-foreground">
+                                        {gateRejectMode ? "Reject Report Reason" : "Human Verification Required"}
+                                    </h3>
+                                    <p className="text-xs text-muted-foreground">
+                                        {gateRejectMode ? "Specify why this report is being rejected" : "Confirm report evidence before assigning cleanup"}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setVerifyGateReport(null);
+                                    setGateRejectMode(false);
+                                }}
+                                className="text-muted-foreground hover:text-foreground p-1 rounded-lg"
+                                aria-label="Close"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-5 overflow-y-auto space-y-4">
+                            {!gateRejectMode ? (
+                                <>
+                                    {verifyGateReport.image_url ? (
+                                        <div className="w-full h-56 rounded-xl bg-black/40 relative border border-border">
+                                            <img
+                                                src={`${API_URL}${verifyGateReport.image_url}`}
+                                                alt="Report Evidence"
+                                                className="w-full h-full object-cover rounded-xl"
+                                            />
+                                            <div className="absolute top-2 left-2 z-10">
+                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shadow-sm ${
+                                                    verifyGateReport.status === 'ai_rejected' ? 'bg-red-500 text-white' : 'bg-amber-500 text-white'
+                                                }`}>
+                                                    {verifyGateReport.status === 'ai_rejected' ? 'AI Rejected' : 'AI Verified'}
+                                                </span>
+                                            </div>
+                                            <div className="absolute top-2 right-2 flex items-center gap-1.5 z-20">
+                                                {verifyGateReport.trust_score && (
+                                                    <TrustBadge trust_score={verifyGateReport.trust_score} align="right" tooltipSide="bottom" />
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFullscreenImage(`${API_URL}${verifyGateReport.image_url}`)}
+                                                    className="size-7 rounded-lg bg-black/60 hover:bg-black/85 text-white/90 hover:text-white flex items-center justify-center backdrop-blur-md border border-white/20 transition-all hover:scale-105 shadow-sm"
+                                                    title="View full screen image"
+                                                    aria-label="View full screen image"
+                                                >
+                                                    <Maximize2 size={13} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="w-full h-32 rounded-xl bg-muted flex items-center justify-center text-xs text-muted-foreground">
+                                            No Image Uploaded
+                                        </div>
+                                    )}
+
+                                    <div className="grid grid-cols-2 gap-2 text-xs bg-muted/40 p-3 rounded-xl border border-border">
+                                        <div>
+                                            <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Tracking ID</span>
+                                            <span className="font-mono font-bold text-foreground">{verifyGateReport.tracking_id}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground block text-[10px] uppercase font-semibold">AI Confidence</span>
+                                            <span className={`font-bold ${verifyGateReport.ai_confidence && verifyGateReport.ai_confidence >= 0.5 ? 'text-emerald-500' : 'text-red-500'}`}>
+                                                {verifyGateReport.ai_confidence ? `${Math.round(verifyGateReport.ai_confidence * 100)}%` : 'N/A'}
+                                            </span>
+                                        </div>
+                                        {verifyGateReport.barangay && (
+                                            <div className="col-span-2 pt-1 border-t border-border/50">
+                                                <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Barangay</span>
+                                                <span className="font-medium text-foreground">{verifyGateReport.barangay}</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <p className="text-xs text-muted-foreground leading-relaxed">
+                                        Please review the image above. Does this report show genuine, actionable illegal garbage that warrants team deployment?
+                                    </p>
+                                </>
+                            ) : (
+                                /* Rejection Presets Selector */
+                                <div className="space-y-4 animate-in fade-in duration-200">
+                                    <div className="flex items-center gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+                                        {verifyGateReport.image_url && (
+                                            <div className="size-14 rounded-lg overflow-hidden shrink-0 border border-border relative">
+                                                <img
+                                                    src={`${API_URL}${verifyGateReport.image_url}`}
+                                                    alt="Thumbnail"
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            </div>
+                                        )}
+                                        <div className="min-w-0">
+                                            <p className="text-xs font-bold text-foreground truncate">Rejecting {verifyGateReport.tracking_id}</p>
+                                            <p className="text-[11px] text-muted-foreground">Select an official reason for rejecting this report.</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-foreground block">
+                                            Select Reason <span className="text-red-500">*</span>
+                                        </label>
+                                        <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                                            {REJECTION_PRESETS.map((preset) => {
+                                                const isSelected = gateRejectPreset === preset.value;
+                                                return (
+                                                    <button
+                                                        key={preset.value}
+                                                        type="button"
+                                                        onClick={() => setGateRejectPreset(preset.value)}
+                                                        className={`w-full text-left p-2.5 rounded-xl border text-xs transition-all flex items-start justify-between gap-2 ${
+                                                            isSelected
+                                                                ? "bg-red-500/10 border-red-500/50 text-foreground ring-1 ring-red-500/30"
+                                                                : "bg-muted/40 border-border text-foreground hover:bg-muted/70"
+                                                        }`}
+                                                    >
+                                                        <div>
+                                                            <div className="font-semibold text-foreground">{preset.label}</div>
+                                                            <div className="text-[10px] text-muted-foreground mt-0.5">{preset.desc}</div>
+                                                        </div>
+                                                        <div className={`size-4 rounded-full border mt-0.5 shrink-0 flex items-center justify-center ${
+                                                            isSelected ? "border-red-500 bg-red-500 text-white" : "border-muted-foreground/30"
+                                                        }`}>
+                                                            {isSelected && <span className="text-[9px]">✓</span>}
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-semibold text-foreground block">
+                                            Additional Remarks / Notes {gateRejectPreset === 'other' ? <span className="text-red-500">*</span> : <span className="text-muted-foreground font-normal">(optional)</span>}
+                                        </label>
+                                        <textarea
+                                            value={gateCustomNotes}
+                                            onChange={(e) => setGateCustomNotes(e.target.value)}
+                                            placeholder={gateRejectPreset === 'other' ? "Please explain why this report is rejected..." : "Add optional details for the reporter and audit log..."}
+                                            rows={2}
+                                            className="w-full text-xs p-2.5 rounded-xl bg-background border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-red-500 resize-none"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer Actions */}
+                        <div className="p-4 border-t border-border bg-muted/20 flex flex-col sm:flex-row gap-2">
+                            {!gateRejectMode ? (
+                                <>
+                                    <button
+                                        onClick={async () => {
+                                            await handleHumanVerify(verifyGateReport.id, "approve");
+                                        }}
+                                        disabled={reviewActionLoading === verifyGateReport.id}
+                                        className="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                    >
+                                        <CheckCircle2 size={15} />
+                                        {reviewActionLoading === verifyGateReport.id ? "Verifying..." : verifyGateReport.status === 'ai_rejected' ? "Approve (Override AI)" : "Approve & Mark Verified"}
+                                    </button>
+
+                                    <button
+                                        onClick={() => setGateRejectMode(true)}
+                                        disabled={reviewActionLoading === verifyGateReport.id}
+                                        className="py-2.5 px-4 bg-red-600/90 hover:bg-red-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50"
+                                    >
+                                        Reject Report...
+                                    </button>
+
+                                    <button
+                                        onClick={() => {
+                                            setVerifyGateReport(null);
+                                            setGateRejectMode(false);
+                                        }}
+                                        className="py-2.5 px-3 bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold rounded-xl transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <button
+                                        onClick={async () => {
+                                            const preset = REJECTION_PRESETS.find(p => p.value === gateRejectPreset);
+                                            if (!preset) return;
+                                            if (gateRejectPreset === 'other' && gateCustomNotes.trim().length < 3) {
+                                                toast.error("Please enter a custom reason for 'Other'.");
+                                                return;
+                                            }
+                                            const finalReason = gateRejectPreset === 'other'
+                                                ? gateCustomNotes.trim()
+                                                : gateCustomNotes.trim()
+                                                    ? `${preset.label}: ${gateCustomNotes.trim()}`
+                                                    : preset.label;
+                                            await handleHumanVerify(verifyGateReport.id, "reject", finalReason);
+                                        }}
+                                        disabled={reviewActionLoading === verifyGateReport.id}
+                                        className="flex-1 py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                    >
+                                        <AlertTriangle size={15} />
+                                        {reviewActionLoading === verifyGateReport.id ? "Rejecting..." : "Confirm Rejection"}
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setGateRejectMode(false)}
+                                        disabled={reviewActionLoading === verifyGateReport.id}
+                                        className="py-2.5 px-4 bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold rounded-xl transition-colors"
+                                    >
+                                        ← Back to Review
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Review Tab Dedicated Rejection Modal */}
+            {reviewRejectModalReport && (
+                <div
+                    className="fixed inset-0 z-[2500] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+                    onClick={() => setReviewRejectModalReport(null)}
+                >
+                    <div
+                        className="bg-card border border-border rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="p-4 border-b border-border flex items-center justify-between bg-muted/20">
+                            <div className="flex items-center gap-2.5">
+                                <div className="size-8 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center">
+                                    <AlertTriangle size={18} />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-bold text-foreground">
+                                        Reject Report {reviewRejectModalReport.tracking_id}
+                                    </h3>
+                                    <p className="text-xs text-muted-foreground">
+                                        Select official reason for rejection and audit trail
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setReviewRejectModalReport(null)}
+                                className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div className="p-5 overflow-y-auto space-y-4 flex-1">
+                            {/* Evidence Thumbnail & Details Strip */}
+                            <div className="flex items-center gap-3 p-3 bg-muted/40 border border-border rounded-xl">
+                                {reviewRejectModalReport.image_url ? (
+                                    <div className="size-16 rounded-lg overflow-hidden shrink-0 border border-border relative bg-black/40">
+                                        <img
+                                            src={`${API_URL}${reviewRejectModalReport.image_url}`}
+                                            alt="Evidence"
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="size-16 rounded-lg bg-muted flex items-center justify-center text-[10px] text-muted-foreground shrink-0">
+                                        No Photo
+                                    </div>
+                                )}
+                                <div className="min-w-0 flex-1 text-xs">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="font-mono font-bold text-foreground">
+                                            {reviewRejectModalReport.tracking_id}
+                                        </span>
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                            reviewRejectModalReport.status === 'ai_rejected' ? 'bg-red-500/15 text-red-600 dark:text-red-400' : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                                        }`}>
+                                            {reviewRejectModalReport.status === 'ai_rejected' ? 'AI Rejected' : 'AI Verified'}
+                                        </span>
+                                    </div>
+                                    <div className="text-[11px] text-muted-foreground">
+                                        Confidence: <strong className="text-foreground">{reviewRejectModalReport.ai_confidence ? `${Math.round(reviewRejectModalReport.ai_confidence * 100)}%` : 'N/A'}</strong>
+                                        {reviewRejectModalReport.barangay && ` • ${reviewRejectModalReport.barangay}`}
+                                    </div>
+                                    {reviewRejectModalReport.notes && (
+                                        <p className="text-[11px] text-muted-foreground italic truncate mt-0.5">
+                                            &ldquo;{reviewRejectModalReport.notes}&rdquo;
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Preset Reasons */}
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-foreground block">
+                                    Official Rejection Reason <span className="text-red-500">*</span>
+                                </label>
+                                <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                                    {REJECTION_PRESETS.map((preset) => {
+                                        const isSelected = rejectModalPreset === preset.value;
+                                        return (
+                                            <button
+                                                key={preset.value}
+                                                type="button"
+                                                onClick={() => setRejectModalPreset(preset.value)}
+                                                className={`w-full text-left p-2.5 rounded-xl border text-xs transition-all flex items-start justify-between gap-2.5 ${
+                                                    isSelected
+                                                        ? "bg-red-500/10 border-red-500/50 text-foreground ring-1 ring-red-500/30"
+                                                        : "bg-muted/30 border-border text-foreground hover:bg-muted/70"
+                                                }`}
+                                            >
+                                                <div>
+                                                    <div className="font-semibold text-foreground text-xs">{preset.label}</div>
+                                                    <div className="text-[11px] text-muted-foreground mt-0.5">{preset.desc}</div>
+                                                </div>
+                                                <div className={`size-4 rounded-full border mt-0.5 shrink-0 flex items-center justify-center transition-colors ${
+                                                    isSelected ? "border-red-500 bg-red-500 text-white" : "border-muted-foreground/30"
+                                                }`}>
+                                                    {isSelected && <Check size={10} strokeWidth={3} />}
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Additional Notes */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold text-foreground block">
+                                    Additional Remarks / Explanation {rejectModalPreset === 'other' ? <span className="text-red-500">*</span> : <span className="text-muted-foreground font-normal">(optional)</span>}
+                                </label>
+                                <textarea
+                                    value={rejectModalNotes}
+                                    onChange={(e) => setRejectModalNotes(e.target.value)}
+                                    placeholder={rejectModalPreset === 'other' ? "Please explain why this report is rejected (minimum 3 characters)..." : "Add optional details for the reporter and audit log..."}
+                                    rows={2}
+                                    className="w-full text-xs p-2.5 rounded-xl bg-background border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-red-500 resize-none"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Footer Actions */}
+                        <div className="p-4 border-t border-border bg-muted/20 flex gap-2 justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setReviewRejectModalReport(null)}
+                                disabled={reviewActionLoading === reviewRejectModalReport.id}
+                                className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold rounded-lg transition-colors disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    const preset = REJECTION_PRESETS.find(p => p.value === rejectModalPreset);
+                                    if (!preset) return;
+                                    if (rejectModalPreset === 'other' && rejectModalNotes.trim().length < 3) {
+                                        toast.error("Please enter a custom reason for 'Other'.");
+                                        return;
+                                    }
+                                    const finalReason = rejectModalPreset === 'other'
+                                        ? rejectModalNotes.trim()
+                                        : rejectModalNotes.trim()
+                                            ? `${preset.label}: ${rejectModalNotes.trim()}`
+                                            : preset.label;
+                                    await handleHumanVerify(reviewRejectModalReport.id, "reject", finalReason);
+                                }}
+                                disabled={reviewActionLoading === reviewRejectModalReport.id}
+                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm disabled:opacity-50 flex items-center gap-1.5"
+                            >
+                                {reviewActionLoading === reviewRejectModalReport.id ? (
+                                    <>
+                                        <RefreshCw size={13} className="animate-spin" />
+                                        <span>Rejecting...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <AlertTriangle size={13} />
+                                        <span>Confirm Rejection</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Fullscreen Image Lightbox Modal */}
+            {fullscreenImage && (
+                <div
+                    className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-200"
+                    onClick={() => setFullscreenImage(null)}
+                >
+                    <div className="relative max-w-5xl max-h-[90vh] w-full flex flex-col items-center justify-center" onClick={e => e.stopPropagation()}>
+                        <div className="w-full flex items-center justify-between pb-3 text-white">
+                            <span className="text-xs font-semibold text-white/80">Photo Evidence Inspector</span>
+                            <button
+                                type="button"
+                                onClick={() => setFullscreenImage(null)}
+                                className="text-white/80 hover:text-white flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+                            >
+                                <X size={15} /> Close (Esc)
+                            </button>
+                        </div>
+                        <img
+                            src={fullscreenImage}
+                            alt="Evidence Full View"
+                            className="max-h-[80vh] max-w-full object-contain rounded-xl shadow-2xl border border-white/10 bg-black/50"
+                        />
                     </div>
                 </div>
             )}

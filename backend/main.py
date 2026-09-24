@@ -100,6 +100,10 @@ with engine.connect() as _conn:
         "ALTER TABLE reports ADD COLUMN ai_mask_size_bytes INTEGER DEFAULT 0",
         "ALTER TABLE reports ADD COLUMN cleanup_size_bytes INTEGER DEFAULT 0",
         "ALTER TABLE reports ADD COLUMN verification_error TEXT",
+        "ALTER TABLE reports ADD COLUMN human_verified_by INTEGER",
+        "ALTER TABLE reports ADD COLUMN human_verified_at TIMESTAMP",
+        "ALTER TABLE reports ADD COLUMN human_verification_notes TEXT",
+        "ALTER TABLE reports ADD COLUMN human_verification_action VARCHAR",
     ):
         try:
             _conn.execute(text(_ddl))
@@ -434,6 +438,11 @@ class ReportResponse(BaseModel):
     failing_signals: List[str] = []
     trust_reasons: List[str] = []
     photos: List[dict] = []
+    # Human verification (Layer 2)
+    human_verified_by: Optional[int] = None
+    human_verified_at: Optional[datetime] = None
+    human_verification_notes: Optional[str] = None
+    human_verification_action: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -1901,7 +1910,7 @@ async def _bg_verify_submit(report_id: int, device_lat: float = None, device_lon
         # Update report aggregate: use best passing result's mask (or best overall if none pass)
         report.ai_confidence = best.get("confidence")
         if any_verified:
-            report.status = models.ReportStatus.VERIFIED
+            report.status = models.ReportStatus.AI_VERIFIED
             passing = [
                 (result, row)
                 for (_, row), result in zip(pairs, results)
@@ -1914,13 +1923,20 @@ async def _bg_verify_submit(report_id: int, device_lat: float = None, device_lon
                     report.ai_mask_url, report.ai_mask_size_bytes = mask_result
             if report.barangay:
                 emit_to_barangay(
-                    db, report.barangay, "report_verified_in_barangay",
-                    f"New verified report: {report.tracking_id}",
-                    "AI confirmed waste. Deploy a cleaner.",
+                    db, report.barangay, "pending_human_review",
+                    f"New report needs review: {report.tracking_id}",
+                    "AI detected waste. Please verify the image before deploying a cleaner.",
                     report_id=report.id,
                 )
         else:
-            report.status = models.ReportStatus.REJECTED
+            report.status = models.ReportStatus.AI_REJECTED
+            if report.barangay:
+                emit_to_barangay(
+                    db, report.barangay, "pending_human_review",
+                    f"AI-rejected report needs review: {report.tracking_id}",
+                    "AI did not detect waste. Please review — you can override if it's a false negative.",
+                    report_id=report.id,
+                )
 
         report.verification_pending = False
         report.verification_kind = None
@@ -1928,10 +1944,11 @@ async def _bg_verify_submit(report_id: int, device_lat: float = None, device_lon
         if report.reporter_id:
             emit_notification(
                 db, report.reporter_id,
-                "verified" if report.status == models.ReportStatus.VERIFIED else "rejected",
-                f"Report {report.tracking_id} {report.status}",
-                "AI verification complete." if report.status == models.ReportStatus.VERIFIED
-                else "AI did not detect waste in the photo.",
+                "ai_verified" if report.status == models.ReportStatus.AI_VERIFIED else "ai_rejected",
+                f"Report {report.tracking_id} — AI review complete",
+                "AI verification complete. An admin will review and confirm shortly."
+                if report.status == models.ReportStatus.AI_VERIFIED
+                else "AI did not detect waste in the photo. An admin will review your report.",
                 report_id=report.id,
             )
         db.commit()
@@ -2737,6 +2754,18 @@ async def assign_report(
     if report.barangay != user.barangay_assignment:
         raise HTTPException(status_code=403, detail="Cannot assign a report outside your barangay")
 
+    if report.status == models.ReportStatus.AI_VERIFIED:
+        raise HTTPException(
+            status_code=409,
+            detail="Human verification required. This report has been AI-verified but needs "
+                   "a Barangay or CENRO admin to confirm before a cleaner can be assigned."
+        )
+    if report.status == models.ReportStatus.AI_REJECTED:
+        raise HTTPException(
+            status_code=409,
+            detail="This report was rejected by AI and has not been manually verified. "
+                   "A Barangay or CENRO admin must review and approve it first."
+        )
     if report.status != models.ReportStatus.VERIFIED:
         raise HTTPException(
             status_code=400,
@@ -3542,6 +3571,209 @@ async def reverify_report(
         "report_id": report.id,
         "tracking_id": report.tracking_id,
     }
+
+
+# ── Two-Layer Verification: Human Verify + Review Queue ─────────────
+
+
+@app.post("/report/{report_id}/human-verify")
+async def human_verify_report(
+    report_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("cenro", "barangay")),
+):
+    """Layer 2 human verification. Barangay or CENRO admin confirms or overrides
+    the AI verification result.
+
+    Body JSON:
+        action: "approve" | "reject"
+        reason: str (required for reject and override; optional for confirm)
+    """
+    body = await request.json()
+    action = body.get("action")
+    reason = body.get("reason", "").strip()
+
+    if action not in ("approve", "reject"):
+        raise HTTPException(status_code=400, detail="action must be 'approve' or 'reject'")
+
+    report = db.query(models.Report).filter(models.Report.id == report_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    # Only allow human verification on ai_verified or ai_rejected reports
+    if report.status not in (models.ReportStatus.AI_VERIFIED, models.ReportStatus.AI_REJECTED):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Report status is '{report.status}', not eligible for human verification. "
+                   f"Only 'ai_verified' and 'ai_rejected' reports can be human-verified.",
+        )
+
+    # Barangay users can only verify reports in their jurisdiction
+    if user.role == "barangay" and report.barangay != user.barangay_assignment:
+        raise HTTPException(status_code=403, detail="You can only verify reports in your barangay.")
+
+    previous_status = report.status
+    is_override = (report.status == models.ReportStatus.AI_REJECTED and action == "approve")
+    is_ai_verified_rejection = (report.status == models.ReportStatus.AI_VERIFIED and action == "reject")
+
+    # Require reason for overrides and rejections
+    if (is_override or action == "reject") and len(reason) < 3:
+        raise HTTPException(
+            status_code=400,
+            detail="A reason is required when rejecting or overriding AI verification (min 3 characters).",
+        )
+
+    # Determine new status and verification action label
+    if action == "approve":
+        report.status = models.ReportStatus.VERIFIED
+        verification_action = "overridden" if is_override else "confirmed"
+    else:
+        report.status = models.ReportStatus.REJECTED
+        verification_action = "rejected" if is_ai_verified_rejection else "confirmed_rejection"
+
+    # Set human verification fields
+    report.human_verified_by = user.id
+    report.human_verified_at = _utcnow()
+    report.human_verification_notes = reason or None
+    report.human_verification_action = verification_action
+
+    # Audit log
+    write_audit(db, user.id, "human_verify", report.id, {
+        "tracking_id": report.tracking_id,
+        "action": action,
+        "verification_action": verification_action,
+        "reason": reason,
+        "previous_status": previous_status,
+        "new_status": report.status,
+        "ai_confidence": report.ai_confidence,
+        "is_override": is_override,
+        "verifier_name": user.full_name,
+        "verifier_role": user.role,
+        "verifier_barangay": user.barangay_assignment,
+    })
+
+    # Notifications
+    if is_override:
+        emit_to_cenro(
+            db, "manual_override",
+            f"Manual override: {report.tracking_id}",
+            f"{user.full_name} ({user.role}, {user.barangay_assignment or 'CENRO'}) "
+            f"manually verified AI-rejected report. Reason: {reason}",
+            report_id=report.id,
+        )
+    if is_ai_verified_rejection:
+        emit_to_cenro(
+            db, "ai_verified_rejected_by_human",
+            f"AI result overturned: {report.tracking_id}",
+            f"{user.full_name} rejected an AI-verified report. Reason: {reason}",
+            report_id=report.id,
+        )
+
+    # Notify the citizen of final result
+    if report.reporter_id:
+        if report.status == models.ReportStatus.VERIFIED:
+            emit_notification(
+                db, report.reporter_id, "human_verified",
+                f"Report {report.tracking_id} verified",
+                "Your report has been verified and a cleanup team will be dispatched.",
+                report_id=report.id,
+            )
+        else:
+            emit_notification(
+                db, report.reporter_id, "human_rejected",
+                f"Report {report.tracking_id} rejected",
+                f"Your report was reviewed and could not be verified. Reason: {reason or 'Not specified'}",
+                report_id=report.id,
+            )
+
+    # If approved and barangay context, also emit the original barangay notification
+    if report.status == models.ReportStatus.VERIFIED and report.barangay:
+        emit_to_barangay(
+            db, report.barangay, "report_verified_in_barangay",
+            f"Report verified: {report.tracking_id}",
+            f"Report verified by {user.full_name}. Ready for cleanup deployment.",
+            report_id=report.id,
+        )
+
+    db.commit()
+
+    return {
+        "success": True,
+        "report_id": report.id,
+        "tracking_id": report.tracking_id,
+        "previous_status": previous_status,
+        "new_status": report.status,
+        "verification_action": verification_action,
+        "verified_by": user.full_name,
+        "message": f"Report {verification_action} by {user.full_name}.",
+    }
+
+
+@app.get("/reports/pending-review")
+async def get_pending_review_reports(
+    barangay: Optional[str] = None,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("cenro", "barangay")),
+):
+    """Fetch reports with status ai_verified or ai_rejected for the review queue."""
+    query = db.query(models.Report).filter(
+        models.Report.status.in_([
+            models.ReportStatus.AI_VERIFIED,
+            models.ReportStatus.AI_REJECTED,
+        ])
+    )
+
+    # Barangay users only see their jurisdiction
+    if user.role == "barangay":
+        query = query.filter(models.Report.barangay == user.barangay_assignment)
+    elif barangay:
+        query = query.filter(models.Report.barangay == barangay)
+
+    query = query.order_by(models.Report.created_at.desc())
+    reports = query.all()
+
+    # Reuse the same serialization as other report endpoints
+    result = []
+    for r in reports:
+        trust_reasons = []
+        if r.trust_score and r.trust_score != "high":
+            trust_reasons.append(f"Trust: {r.trust_score}")
+        result.append({
+            "id": r.id,
+            "lat": r.lat,
+            "lon": r.lon,
+            "barangay": r.barangay,
+            "reporter_id": r.reporter_id,
+            "image_url": r.image_url,
+            "image_size_bytes": r.image_size_bytes or 0,
+            "ai_mask_url": r.ai_mask_url,
+            "ai_mask_size_bytes": r.ai_mask_size_bytes or 0,
+            "cleanup_image_url": r.cleanup_image_url,
+            "cleanup_size_bytes": r.cleanup_size_bytes or 0,
+            "ai_confidence": r.ai_confidence,
+            "status": r.status,
+            "notes": r.notes,
+            "deployment_notes": r.deployment_notes,
+            "tracking_id": r.tracking_id,
+            "tracking_url": r.tracking_url,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "deployed_at": r.deployed_at.isoformat() if r.deployed_at else None,
+            "resolved_at": r.resolved_at.isoformat() if r.resolved_at else None,
+            "verification_pending": r.verification_pending,
+            "trust_score": r.trust_score,
+            "needs_human_review": r.needs_human_review,
+            "possible_duplicate_flag": r.possible_duplicate_flag,
+            "duplicate_of_id": r.duplicate_of_id,
+            "failing_signals": [],
+            "trust_reasons": trust_reasons,
+            "human_verified_by": r.human_verified_by,
+            "human_verified_at": r.human_verified_at.isoformat() if r.human_verified_at else None,
+            "human_verification_notes": r.human_verification_notes,
+            "human_verification_action": r.human_verification_action,
+        })
+
+    return result
 
 
 @app.get("/report/{report_id}/verification-status")

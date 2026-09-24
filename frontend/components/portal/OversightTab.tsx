@@ -6,7 +6,6 @@ import { api, ApiError } from "@/lib/api";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { DateRange } from "react-day-picker";
 import { formatDate } from "@/lib/date-utils";
-import { formatDF } from "@/lib/date-utils"; // Need to ensure formatDF is exported or use alternative
 import { toast } from "sonner";
 import { KpiCard } from "@/components/portal/KpiCard";
 import { QueueReport } from "@/components/portal/ReportDetailDrawer"; // Assuming QueueReport is exported there
@@ -14,6 +13,8 @@ import { QueueReport } from "@/components/portal/ReportDetailDrawer"; // Assumin
 const STATUS_OPTIONS = [
     { value: "all", label: "All Statuses" },
     { value: "pending", label: "Pending" },
+    { value: "ai_verified", label: "AI Verified (Pending Review)" },
+    { value: "ai_rejected", label: "AI Rejected (Pending Review)" },
     { value: "verified", label: "Verified" },
     { value: "assigned", label: "Assigned" },
     { value: "in_progress", label: "In Progress" },
@@ -382,9 +383,11 @@ export function OversightTab({ user, barangays, onReportClick }: OversightTabPro
                                                 <td className="p-4">
                                                     <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
                                                         report.status === 'resolved' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' :
+                                                        report.status === 'verified' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' :
+                                                        report.status === 'ai_verified' ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30' :
+                                                        report.status === 'ai_rejected' ? 'bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30' :
                                                         report.status === 'assigned' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20' :
                                                         report.status === 'in_progress' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' :
-                                                        report.status === 'verified' ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20' :
                                                         report.status === 'pending' ? 'bg-destructive/10 text-destructive border border-destructive/20' :
                                                         report.status === 'failed_cleanup' ? 'bg-destructive/10 text-destructive border border-destructive/20' :
                                                         report.status === 'rejected' ? 'bg-muted text-muted-foreground border border-border' :
@@ -424,6 +427,9 @@ export function OversightTab({ user, barangays, onReportClick }: OversightTabPro
                                     <div className="font-mono text-sm font-bold text-foreground">{report.tracking_id}</div>
                                     <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${
                                         report.status === 'resolved' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' :
+                                        report.status === 'verified' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' :
+                                        report.status === 'ai_verified' ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30' :
+                                        report.status === 'ai_rejected' ? 'bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30' :
                                         report.status === 'pending' ? 'bg-destructive/10 text-destructive border border-destructive/20' :
                                         'bg-muted text-foreground border border-border'
                                     }`}>

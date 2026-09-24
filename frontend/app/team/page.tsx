@@ -1,6 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
-import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Users, Mail, ExternalLink, Globe, BookOpen, Sparkles, Building2, Award } from "lucide-react";
 
@@ -38,9 +37,7 @@ const RESEARCHERS: Researcher[] = [
 export default function TeamPage() {
     return (
         <div className="min-h-screen bg-background text-foreground flex flex-col selection:bg-primary/20">
-            <Navbar />
-
-            <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16">
+            <div className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-6 sm:pt-10 pb-16">
                 {/* Ambient Background Glows */}
                 <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-primary/10 rounded-full blur-3xl pointer-events-none -z-10" />
 
@@ -234,7 +231,7 @@ export default function TeamPage() {
                         ECOWATCH SJDM — RESEARCH DIVISION • 2026
                     </p>
                 </div>
-            </main>
+            </div>
 
             <Footer />
         </div>

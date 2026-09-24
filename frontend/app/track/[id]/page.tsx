@@ -18,6 +18,8 @@ const STATUS_COLORS: Record<string, { text: string, bg: string, bgLight: string,
     resolved: { text: 'text-green-500', bg: 'bg-green-500', bgLight: 'bg-green-500/10', glow: 'shadow-[0_0_15px_rgba(34,197,94,0.5)]' },
     rejected: { text: 'text-red-500', bg: 'bg-red-500', bgLight: 'bg-red-500/10', glow: 'shadow-[0_0_15px_rgba(239,68,68,0.5)]' },
     failed_cleanup: { text: 'text-red-500', bg: 'bg-red-500', bgLight: 'bg-red-500/10', glow: 'shadow-[0_0_15px_rgba(239,68,68,0.5)]' },
+    ai_verified: { text: 'text-amber-500', bg: 'bg-amber-500', bgLight: 'bg-amber-500/10', glow: 'shadow-[0_0_15px_rgba(245,158,11,0.5)]' },
+    ai_rejected: { text: 'text-amber-500', bg: 'bg-amber-500', bgLight: 'bg-amber-500/10', glow: 'shadow-[0_0_15px_rgba(245,158,11,0.5)]' },
 };
 
 export default function TrackReportPage() {
@@ -154,10 +156,12 @@ export default function TrackReportPage() {
     // Determine progress
     const isRejected = report.status === "rejected";
     const isFailed = report.status === "failed_cleanup";
+    const isUnderReview = report.status === "ai_verified" || report.status === "ai_rejected";
     let currentStepIndex = STATUS_STEPS.indexOf(report.status);
     
     // Fallbacks for edge cases
     if (isRejected) currentStepIndex = -1;
+    if (isUnderReview) currentStepIndex = 0; // between submission and final verification
     if (isFailed) currentStepIndex = 3; // in_progress step, but failed resolving
 
     return (
@@ -181,16 +185,18 @@ export default function TrackReportPage() {
                     {/* Status Banner */}
                     <div className={`p-6 text-center border-b border-border ${STATUS_COLORS[report.status]?.bgLight || 'bg-foreground/10'}`}>
                         <h2 className={`text-xl font-semibold uppercase tracking-widest ${STATUS_COLORS[report.status]?.text || 'text-foreground'}`}>
-                            {isFailed ? "Cleanup Failed" : report.status}
+                            {isFailed ? "Cleanup Failed" : isUnderReview ? "Under Review" : report.status}
                         </h2>
                         <p className="text-sm text-foreground/60 mt-2 font-medium">
                             {report.status === 'pending' && "Report received, waiting for AI verification."}
-                            {report.status === 'verified' && "AI Verified! Awaiting barangay assignment."}
+                            {report.status === 'ai_verified' && "AI verification complete. Under review by Barangay admin."}
+                            {report.status === 'ai_rejected' && "Under manual review by Barangay admin."}
+                            {report.status === 'verified' && "Verified! Awaiting cleanup team assignment."}
                             {report.status === 'assigned' && "Cleanup team has been assigned to the location!"}
                             {report.status === 'in_progress' && "Cleanup is actively in progress!"}
                             {report.status === 'resolved' && "Issue resolved. Thank you for keeping SJDM clean!"}
                             {isFailed && "The cleanup attempt was rejected by the AI. A retry is required."}
-                            {isRejected && "This report was rejected by the AI (No waste detected)."}
+                            {isRejected && "This report was rejected (No waste confirmed)."}
                         </p>
                     </div>
 

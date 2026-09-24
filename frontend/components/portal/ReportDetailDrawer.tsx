@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, FileText, Camera, Shield, Clock, MapPin, User, Mail, Phone, ExternalLink, ClipboardList, RefreshCw } from "lucide-react";
+import { X, FileText, Camera, Shield, Clock, MapPin, User, Mail, Phone, ExternalLink, ClipboardList, RefreshCw, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { TrustBadge } from "@/components/TrustBadge";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
@@ -25,7 +25,11 @@ export interface QueueReport {
     lon: number;
     reporter_id: number | null;
     image_url: string | null;
+    image_size_bytes?: number;
     ai_mask_url: string | null;
+    ai_mask_size_bytes?: number;
+    cleanup_image_url?: string | null;
+    cleanup_size_bytes?: number;
     ai_confidence: number | null;
     notes: string | null;
     deployment_notes: string | null;
@@ -39,6 +43,10 @@ export interface QueueReport {
     deployed_at: string | null;
     resolved_at: string | null;
     verification_pending: boolean;
+    human_verified_by?: number | null;
+    human_verified_at?: string | null;
+    human_verification_notes?: string | null;
+    human_verification_action?: string | null;
 }
 
 export interface ReportDetailPayload {
@@ -114,7 +122,9 @@ interface Props {
 
 const STATUS_PILL: Record<string, string> = {
     pending: "bg-red-500/20 text-red-400",
-    verified: "bg-orange-500/20 text-orange-400",
+    ai_verified: "bg-amber-500/20 text-amber-400",
+    ai_rejected: "bg-red-500/20 text-red-400",
+    verified: "bg-emerald-500/20 text-emerald-400",
     assigned: "bg-yellow-500/20 text-yellow-400",
     in_progress: "bg-blue-500/20 text-blue-400",
     resolved: "bg-green-500/20 text-green-400",
@@ -249,8 +259,29 @@ export function ReportDetailDrawer({
         if (activeTab === "timeline" && !auditFetched && !auditLoading) {
             fetchAudit();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, open, report?.id]);
+
+    const [drawerVerifyLoading, setDrawerVerifyLoading] = useState(false);
+
+    const handleDrawerHumanVerify = async (action: "approve" | "reject", reason?: string) => {
+        if (!report) return;
+        setDrawerVerifyLoading(true);
+        try {
+            const data = await api(`/report/${report.id}/human-verify`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action, reason: reason || "" }),
+            });
+            toast.success(data.message || `Report ${action === "approve" ? "approved" : "rejected"}.`);
+            onUpdated?.();
+            fetchDetail();
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Verification failed");
+        } finally {
+            setDrawerVerifyLoading(false);
+        }
+    };
 
     if (!report) return null;
 
@@ -319,6 +350,54 @@ export function ReportDetailDrawer({
                         </button>
                     ))}
                 </div>
+
+                {/* Human Verification Action Banner (Layer 2) */}
+                {report && (report.status === "ai_verified" || report.status === "ai_rejected") && (
+                    <div className={`mx-5 mt-4 p-4 rounded-xl border flex flex-col gap-2.5 ${
+                        report.status === "ai_rejected"
+                            ? "bg-red-500/10 border-red-500/30 text-red-500"
+                            : "bg-amber-500/10 border-amber-500/30 text-amber-500"
+                    }`}>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <ShieldCheck size={16} />
+                                <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                                    {report.status === "ai_rejected" ? "AI Rejected — Human Review" : "AI Verified — Confirmation Needed"}
+                                </span>
+                            </div>
+                            <span className="text-[10px] font-semibold text-muted-foreground uppercase">
+                                Layer 2 Verification
+                            </span>
+                        </div>
+                        <p className="text-xs text-foreground/80 leading-relaxed">
+                            {report.status === "ai_rejected"
+                                ? "AI did not detect garbage. Review the evidence photo and approve if this is a genuine report."
+                                : "AI detected garbage. Confirm the report evidence to authorize cleanup deployment."}
+                        </p>
+                        <div className="flex items-center gap-2 pt-1">
+                            <button
+                                onClick={() => handleDrawerHumanVerify("approve")}
+                                disabled={drawerVerifyLoading}
+                                className="flex-1 py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
+                            >
+                                <CheckCircle2 size={13} />
+                                {drawerVerifyLoading ? "Processing..." : report.status === "ai_rejected" ? "Override & Approve" : "Confirm & Approve"}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const reason = prompt("Enter rejection reason:", "False report / No waste visible");
+                                    if (reason && reason.trim().length >= 3) {
+                                        handleDrawerHumanVerify("reject", reason.trim());
+                                    }
+                                }}
+                                disabled={drawerVerifyLoading}
+                                className="py-1.5 px-3 bg-red-600/90 hover:bg-red-600 text-white rounded-lg text-xs font-bold transition-all shadow-sm disabled:opacity-50"
+                            >
+                                Reject
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {/* Tab content */}
                 <div className="flex-1 overflow-y-auto p-5 scrollbar-hide">
@@ -587,6 +666,37 @@ function OverviewTab({ report, detail, loading, error, onRetry, onDuplicateConfi
                 )}
             </div>
 
+            {/* Human Verification (Layer 2) */}
+            {(report.human_verification_action || report.human_verified_at) && (
+                <div className="bg-card rounded-lg border border-border shadow-sm p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                        <div className="text-sm font-semibold tracking-tight text-foreground flex items-center gap-1.5">
+                            <ShieldCheck size={16} className="text-primary" />
+                            Human Verification (Layer 2)
+                        </div>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                            report.human_verification_action === "overridden"
+                                ? "bg-amber-500/15 text-amber-500 border border-amber-500/30"
+                                : report.human_verification_action === "rejected" || report.human_verification_action === "confirmed_rejection"
+                                ? "bg-red-500/15 text-red-500 border border-red-500/30"
+                                : "bg-emerald-500/15 text-emerald-500 border border-emerald-500/30"
+                        }`}>
+                            {report.human_verification_action?.replace(/_/g, " ") || "Verified"}
+                        </span>
+                    </div>
+                    {report.human_verified_at && (
+                        <div className="text-xs text-muted-foreground">
+                            Verified on {formatDate(report.human_verified_at)}
+                        </div>
+                    )}
+                    {report.human_verification_notes && (
+                        <div className="p-2.5 rounded-lg bg-muted/50 border border-border/50 text-xs text-foreground/80">
+                            <strong>Note:</strong> {report.human_verification_notes}
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Notes */}
             {(report.notes || report.deployment_notes) && (
                 <div className="bg-card rounded-lg border border-border shadow-sm p-4 space-y-3">
@@ -718,7 +828,7 @@ function EvidenceTab({
                 <div>
                     <div className="flex items-center justify-between mb-2">
                         <div className="text-sm font-semibold tracking-tight text-foreground">Citizen Evidence</div>
-                        {(userRole === "cenro" || userRole === "barangay") && (
+                        {(userRole === "cenro" || userRole === "barangay") && report.status !== "rejected" && report.status !== "resolved" && (
                             <button
                                 onClick={handleReverify}
                                 disabled={reverifyLoading || report.verification_pending}

@@ -8,6 +8,8 @@
   --foreground: #052e16;
   --card: #f5faf6;
   --card-foreground: #052e16;
+  --popover: #ffffff;
+  --popover-foreground: #052e16;
   --muted-bg: rgba(5, 46, 22, 0.06);
   --muted-fg: rgba(5, 46, 22, 0.6);
   --border: rgba(5, 46, 22, 0.08);
@@ -32,6 +34,8 @@
   --foreground: #ecfdf5;
   --card: #0f1410;
   --card-foreground: #ecfdf5;
+  --popover: #111812;
+  --popover-foreground: #ecfdf5;
   --muted-bg: rgba(255, 255, 255, 0.05);
   --muted-fg: rgba(236, 253, 245, 0.6);
   --border: rgba(255, 255, 255, 0.04);
@@ -54,6 +58,8 @@
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
   --color-muted: var(--muted-bg);
   --color-muted-foreground: var(--muted-fg);
   --color-border: var(--border);

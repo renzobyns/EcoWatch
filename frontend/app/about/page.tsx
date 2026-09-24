@@ -1,14 +1,11 @@
 import Link from "next/link";
-import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Sparkles, Shield, ArrowRight, Flag, Building2 } from "lucide-react";
 
 export default function AboutPage() {
     return (
         <div className="min-h-screen bg-background text-foreground flex flex-col selection:bg-primary/20">
-            <Navbar />
-
-            <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16">
+            <div className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-6 sm:pt-10 pb-16">
                 {/* Ambient Glows */}
                 <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-primary/10 rounded-full blur-3xl pointer-events-none -z-10" />
 
@@ -162,7 +159,7 @@ export default function AboutPage() {
                         </Link>
                     </div>
                 </div>
-            </main>
+            </div>
 
             <Footer />
         </div>

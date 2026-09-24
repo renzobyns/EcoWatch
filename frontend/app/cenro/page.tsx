@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
-import { formatRelative, formatDate, formatDF } from "@/lib/date-utils";
+import { formatRelative, formatDate } from "@/lib/date-utils";
 import { OversightTab } from "@/components/portal/OversightTab";
 import { PortalShell, type PortalNavItem } from "@/components/portal/PortalShell";
 import { SlaManagementTab } from "@/components/portal/SlaManagementTab";
@@ -169,6 +169,7 @@ function CenroDashboardInner() {
     // Action State (Oversight modal)
     const [actionLoading, setActionLoading] = useState(false);
     const [newBarangay, setNewBarangay] = useState<string>("");
+    const [disabling, setDisabling] = useState<Set<number>>(new Set());
 
     // C3 — SLA Breaches & Config
     const [slaBreaches, setSlaBreaches] = useState<any[]>([]);
@@ -616,16 +617,6 @@ function CenroDashboardInner() {
         } catch (err) {
             toast.error("Export failed");
             console.error(err);
-        }
-    };
-
-    const handleCopyPassword = async () => {
-        if (!createdCredential) return;
-        try {
-            await navigator.clipboard.writeText(createdCredential.password);
-            toast.success("Password copied to clipboard.");
-        } catch {
-            toast.error("Could not copy. Select the password manually.");
         }
     };
 
@@ -1202,7 +1193,7 @@ function CenroDashboardInner() {
                 {activeTab === 'oversight' && (
                     <OversightTab 
                         user={user} 
-                        barangays={BARANGAYS} 
+                        barangays={[...BARANGAYS]} 
                         onReportClick={(report) => {
                             setSelectedReport(report);
                             setNewBarangay(report.barangay ?? "");

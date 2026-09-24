@@ -101,9 +101,9 @@ export function PhotoEvidenceDetail({ photo, report }: PhotoEvidenceDetailProps)
     const noEditorTag = !hasEditorTag;
 
     return (
-        <div className="mt-3 rounded-xl border border-border bg-foreground/[0.03] overflow-hidden">
+        <div className="mt-3 rounded-xl border border-border bg-foreground/[0.03] overflow-visible">
             {/* Header */}
-            <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-border bg-foreground/5">
+            <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-border bg-foreground/5 rounded-t-xl">
                 <div className="flex items-center gap-2">
                     <span className="text-sm">{sourceIcon}</span>
                     <span className="text-[11px] font-semibold text-foreground/80">{source}</span>
@@ -111,6 +111,8 @@ export function PhotoEvidenceDetail({ photo, report }: PhotoEvidenceDetailProps)
                 <TrustBadge
                     trust_score={photo.trust_score as "high" | "medium" | "low" | null}
                     failing_signals={failing}
+                    align="right"
+                    tooltipSide="bottom"
                 />
             </div>
 
