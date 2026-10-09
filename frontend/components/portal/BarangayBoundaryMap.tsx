@@ -25,9 +25,10 @@ function FitBounds({ feature }: { feature: any }) {
 
 export default function BarangayBoundaryMap({ feature }: { feature: any }) {
     const { theme } = useTheme();
+    const cartoKey = process.env.NEXT_PUBLIC_CARTO_API_KEY ?? "";
     const tileUrl = theme === "dark"
-        ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+        ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png${cartoKey ? `?key=${cartoKey}` : ""}`
+        : `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png${cartoKey ? `?key=${cartoKey}` : ""}`;
 
     return (
         <MapContainer

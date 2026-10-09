@@ -80,9 +80,10 @@ export default function MiniMap({ lat, lon, barangay }: MiniMapProps) {
         return () => controller.abort();
     }, [barangay]);
 
+    const cartoKey = process.env.NEXT_PUBLIC_CARTO_API_KEY ?? "";
     const tileUrl = theme === "dark"
-        ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+        ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png${cartoKey ? `?key=${cartoKey}` : ""}`
+        : `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png${cartoKey ? `?key=${cartoKey}` : ""}`;
 
     const boundaryStyle = useMemo(() => ({
         color: "#10b981",

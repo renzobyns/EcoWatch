@@ -106,9 +106,10 @@ export default function LocationPickerMap({
         }
     }, [position]);
 
+    const cartoKey = process.env.NEXT_PUBLIC_CARTO_API_KEY ?? "";
     const tileUrl = theme === "dark"
-        ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+        ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png${cartoKey ? `?key=${cartoKey}` : ""}`
+        : `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png${cartoKey ? `?key=${cartoKey}` : ""}`;
 
     return (
         <div className="w-full h-full rounded-2xl overflow-hidden border border-border relative">
