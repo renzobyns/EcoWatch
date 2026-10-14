@@ -19,6 +19,7 @@ numpy<2.0.0
 # Deployment & Database
 huggingface_hub
 psycopg2-binary
+psycopg[binary]
 requests
 python-dotenv
 resend

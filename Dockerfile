@@ -17,10 +17,10 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements file first to leverage Docker cache
 COPY backend/requirements.txt .
 
-# Install dependencies (plus psycopg2-binary for PostgreSQL support)
+# Install dependencies (plus psycopg2-binary and psycopg for PostgreSQL support)
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir psycopg2-binary
+    pip install --no-cache-dir psycopg2-binary "psycopg[binary]"
 
 # Copy the rest of the backend application code
 COPY backend/ .

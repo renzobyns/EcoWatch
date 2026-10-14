@@ -10,6 +10,8 @@ except ImportError:
 
 # Default to local SQLite if no Supabase/PostgreSQL URL is provided in .env
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./ecowatch.db")
+if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
+    SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 # SQLite needs check_same_thread=False for FastAPI concurrency, Postgres doesn't
 connect_args = {"check_same_thread": False} if SQLALCHEMY_DATABASE_URL.startswith("sqlite") else {}

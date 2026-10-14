@@ -270,13 +270,15 @@ function BarangayPortalInner() {
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [fullscreenImage, reviewRejectModalReport, showRejectDropdown]);
 
-    const fetchReviewQueue = async () => {
+    const fetchReviewQueue = async (silent = false) => {
         setReviewLoading(true);
         try {
             const data = await api("/reports/pending-review");
             if (Array.isArray(data)) setReviewReports(data);
         } catch (err) {
-            toast.error(err instanceof ApiError ? err.message : "Failed to load review queue");
+            if (!silent) {
+                toast.error(err instanceof ApiError && err.status !== 404 ? err.message : "Failed to load review queue");
+            }
         } finally {
             setReviewLoading(false);
         }
@@ -318,7 +320,7 @@ function BarangayPortalInner() {
 
             // If an unverified report was approved from the deployment gate, automatically open deploy dialog!
             if (wasGateReport && action === "approve") {
-                handleDeploy(updatedReport);
+                handleDeploy(reportId);
             }
         } catch (err) {
             toast.error(err instanceof ApiError ? err.message : "Verification failed");
@@ -331,7 +333,7 @@ function BarangayPortalInner() {
     useEffect(() => {
         if (!user?.barangay_assignment) return;
         fetchReports(user.barangay_assignment);
-        fetchReviewQueue();
+        fetchReviewQueue(true);
         fetchCleaners(); // Ensure cleaners are available for the deploy modal on initial load
         api("/config/sla").then((data) => setSlaPolicy(data)).catch(() => {});
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -339,7 +341,7 @@ function BarangayPortalInner() {
 
     useEffect(() => {
         if (user && activeView === "review") {
-            fetchReviewQueue();
+            fetchReviewQueue(false);
         }
     }, [user, activeView]);
 
