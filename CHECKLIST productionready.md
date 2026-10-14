@@ -232,8 +232,7 @@
 | Date | Decision | Context |
 |------|----------|---------|
 | 2026-08-16 | Audit completed | Full system audit across 72 endpoints, 15 routes, 9 settings tabs |
-| | | |
-| | | |
+| 2026-10-14 | HF Backend Deployed | Synced latest backend (2-layer verification, /reports/pending-review, psycopg) to Hugging Face space |
 
 ---
 
