@@ -236,17 +236,23 @@ export default function PrivacyPolicyPage() {
                                 </div>
                                 <div>
                                     <h2 className="text-lg sm:text-xl font-bold text-foreground">3. AI & Computer Vision Processing</h2>
-                                    <p className="text-xs text-foreground/50">Mask R-CNN & automated garbage verification</p>
+                                    <p className="text-xs text-foreground/50">Three-Layer Verification Pipeline (Gemini VLM + Mask R-CNN + CENRO Review)</p>
                                 </div>
                             </div>
 
                             <div className="text-xs sm:text-sm text-foreground/80 leading-relaxed space-y-3 pt-2">
                                 <p>
-                                    EcoWatch SJDM employs automated artificial intelligence pipelines to ensure the authenticity and efficiency of report intake:
+                                    EcoWatch SJDM employs a Three-Layer Hierarchical Verification Pipeline to ensure the authenticity, privacy, and efficiency of report intake and cleanup verification:
                                 </p>
-                                <ul className="space-y-2 list-disc list-inside text-foreground/70">
+                                <ul className="space-y-2.5 list-disc list-inside text-foreground/70">
                                     <li>
-                                        <strong>Instance Segmentation (Mask R-CNN)</strong>: Uploaded images are analyzed by our fine-tuned computer vision model to detect garbage clusters, compute confidence scores, and generate visual mask overlays.
+                                        <strong>Layer 1: Semantic Verification &amp; Pre-Filtering (Google Gemini Flash VLM)</strong>: Citizen report photos and worker cleanup proofs are analyzed for semantic context (differentiating actual illegal dumping from food containers, selfies, clean surfaces, or pranks). Before sending image data to Google AI services, our server <strong>strips all EXIF metadata (including GPS coordinates, device serials, and timestamps)</strong>, ensuring that only anonymized visual pixels are evaluated.
+                                    </li>
+                                    <li>
+                                        <strong>Layer 2: Deep Instance Segmentation (Mask R-CNN)</strong>: Confirmed waste images are processed locally by our custom-trained Mask R-CNN model to detect garbage clusters, compute segmentation confidence scores, and generate visual polygon mask overlays without relying on external cloud APIs.
+                                    </li>
+                                    <li>
+                                        <strong>Layer 3: Human-in-the-Loop Review (CENRO SJDM)</strong>: Reports with conflicting AI classifications or borderline confidence are automatically queued for side-by-side inspection and manual resolution by authorized CENRO personnel.
                                     </li>
                                     <li>
                                         <strong>Spatial Ray-Casting</strong>: GPS points are tested against San Jose del Monte&apos;s 59 barangay boundary polygons (`sjdm_barangays.geojson`) using Shapely point-in-polygon algorithms to automatically assign jurisdictional responsibility.
@@ -255,7 +261,7 @@ export default function PrivacyPolicyPage() {
                                         <strong>DBSCAN Hotspot Clustering</strong>: Unresolved report coordinates are clustered geographically (epsilon ≈ 100m) to generate real-time heatmaps for city environmental planners without exposing individual identity on public views.
                                     </li>
                                     <li>
-                                        <strong>Privacy Pre-Processing</strong>: Citizen faces or vehicle license plates accidentally captured in background surroundings are not used for facial recognition or vehicle tracking.
+                                        <strong>Privacy Pre-Processing (RA 10173)</strong>: Citizen faces or vehicle license plates accidentally captured in background surroundings are never used for facial recognition, biometric profiling, or vehicle tracking.
                                     </li>
                                 </ul>
                             </div>

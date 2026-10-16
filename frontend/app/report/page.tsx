@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import exifr from "exifr";
 import { Button } from "@/components/ui/button";
@@ -568,6 +569,12 @@ export default function ReportPage() {
                                 )}
                             </Button>
                         </div>
+                        <p className="mt-3 text-center text-[11px] text-foreground/50 leading-relaxed">
+                            By submitting, you agree that uploaded photos will be verified using AI (Gemini VLM &amp; Mask R-CNN) with all EXIF metadata stripped locally under RA 10173.{" "}
+                            <Link href="/privacy" className="text-primary hover:underline font-medium">
+                                Privacy Policy
+                            </Link>
+                        </p>
                     </div>
                 )}
             </div>

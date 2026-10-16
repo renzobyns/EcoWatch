@@ -10,11 +10,21 @@ type ServiceStatus = {
     latency_ms?: number;
 };
 
+type VLMStatus = ServiceStatus & {
+    daily_calls?: number;
+    daily_limit?: number;
+    quota_remaining?: number;
+    cache_hits?: number;
+    cache_hit_rate_pct?: number;
+    provider?: string;
+};
+
 type HealthResponse = {
     backend: ServiceStatus;
     database: ServiceStatus;
     supabase: ServiceStatus;
     ai: ServiceStatus;
+    vlm?: VLMStatus;
 };
 
 export function ConnectivityTab() {
@@ -113,7 +123,18 @@ export function ConnectivityTab() {
                 {renderService("Backend API (FastAPI)", health?.backend)}
                 {renderService("Database (PostgreSQL/SQLite)", health?.database)}
                 {renderService("Supabase Storage", health?.supabase)}
-                {renderService("AI Model (Mask R-CNN)", health?.ai)}
+                {renderService(
+                    "AI Layer 1 (Gemini Flash VLM)",
+                    health?.vlm
+                        ? {
+                              ...health.vlm,
+                              message: health.vlm.message
+                                  ? `${health.vlm.message} (RPD: ${health.vlm.daily_calls ?? 0}/${health.vlm.daily_limit ?? 1400} • Cache: ${health.vlm.cache_hit_rate_pct ?? 0}%)`
+                                  : undefined,
+                          }
+                        : undefined
+                )}
+                {renderService("AI Layer 2 (Mask R-CNN)", health?.ai)}
             </div>
 
             {lastChecked && (

@@ -117,35 +117,35 @@
 - [x] Tested Before vs. After cleanup proof verification fallback
 
 #### Phase 4: Pipeline Integration (`backend/main.py`)
-- [ ] Modify `_verify_report_photos_task()` — call VLM first, conditionally run Mask R-CNN per Decision Table
-- [ ] Add DB columns to Report model: `vlm_result` (JSON), `vlm_category`, `vlm_confidence`, `vlm_description`, `vlm_provider`, `vlm_latency_ms`
-- [ ] Implement full Decision Table status routing (verified / pending_review / rejected / unverified)
-- [ ] Daily budget guard: skip VLM when approaching 1,400 daily calls
-- [ ] Update analytics endpoints to include VLM metrics
-- [ ] Ensure citizen reports are NEVER lost if VLM is down (accept → queue → verify later)
+- [x] Modify `_verify_report_photos_task()` — call VLM first, conditionally run Mask R-CNN per Decision Table
+- [x] Add DB columns to Report model: `vlm_result` (JSON), `vlm_category`, `vlm_confidence`, `vlm_description`, `vlm_provider`, `vlm_latency_ms`
+- [x] Implement full Decision Table status routing (verified / pending_review / rejected / unverified)
+- [x] Daily budget guard: skip VLM when approaching 1,400 daily calls
+- [x] Update analytics endpoints to include VLM metrics
+- [x] Ensure citizen reports are NEVER lost if VLM is down (accept → queue → verify later)
 
 #### Phase 5: CENRO Portal — Side-by-Side Review UI
-- [ ] Display VLM natural language reason alongside Mask R-CNN mask overlay in `ReportDetailDrawer`
-- [ ] Show Decision Table outcome label (e.g., "Disagreement: VLM not_waste vs Mask R-CNN detected")
-- [ ] Add VLM category badges and confidence indicators to report cards
-- [ ] Preserve existing Override / Confirm actions with audit logging
+- [x] Display VLM natural language reason alongside Mask R-CNN mask overlay in `ReportDetailDrawer`
+- [x] Show Decision Table outcome label (e.g., "Disagreement: VLM not_waste vs Mask R-CNN detected")
+- [x] Add VLM category badges and confidence indicators to report cards
+- [x] Preserve existing Override / Confirm actions with audit logging
 
 #### Phase 6: Cleanup Proof VLM Verification
-- [ ] Implement before-vs-after comparison API call (original dump photo + cleanup proof)
-- [ ] Auto-resolve if `cleaned: true` with high confidence
-- [ ] Flag for barangay review if `cleaned: false` with Gemini's remarks
-- [ ] Add `cleanup_vlm_result` column to WorkOrder or Report model
+- [x] Implement before-vs-after comparison API call (original dump photo + cleanup proof)
+- [x] Auto-resolve if `cleaned: true` with high confidence
+- [x] Flag for barangay review if `cleaned: false` with Gemini's remarks
+- [x] Add `cleanup_vlm_result` column to WorkOrder or Report model
 
 #### Phase 7: Monitoring & Observability
-- [ ] Daily VLM usage counter (track calls against 1,500/day budget)
-- [ ] Log every fallback event (VLM → Mask R-CNN only)
-- [ ] Add VLM health status to `/health/full` endpoint
-- [ ] Add VLM usage metrics to CENRO Command Center (calls today, cache hit rate, avg latency, fallback count)
+- [x] Daily VLM usage counter (track calls against 1,500/day budget)
+- [x] Log every fallback event (VLM → Mask R-CNN only)
+- [x] Add VLM health status to `/health/full` endpoint
+- [x] Add VLM usage metrics to CENRO Command Center (calls today, cache hit rate, avg latency, fallback count)
 
 #### Privacy & Compliance
-- [ ] Verify EXIF is fully stripped before any image is sent to Google API
-- [ ] Update Privacy Policy (`/privacy`) to disclose third-party AI photo processing
-- [ ] Update report submission consent notice to mention AI analysis by external service
+- [x] Verify EXIF is fully stripped before any image is sent to Google API
+- [x] Update Privacy Policy (`/privacy`) to disclose third-party AI photo processing
+- [x] Update report submission consent notice to mention AI analysis by external service
 
 ---
 

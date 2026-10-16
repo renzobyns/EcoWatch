@@ -38,9 +38,13 @@ _SESSION = requests.Session()
 _CACHE: dict[str, "VLMResult"] = {}
 _MAX_CACHE_SIZE = 1000
 
-# Daily call counter (resets on restart; can be persisted)
+# Daily call and observability counters
 _DAILY_CALL_COUNT = 0
 _DAILY_CALL_LIMIT = 1400  # Soft limit to stay safely below 1,500 RPD
+_CACHE_HITS = 0
+_FALLBACK_COUNT = 0
+_TOTAL_LATENCY_MS = 0
+_SUCCESSFUL_CALLS = 0
 
 
 class VLMResult(BaseModel):
@@ -156,8 +160,8 @@ def verify_images_with_vlm(images_bytes: list[bytes], timeout_seconds: int = 18)
     Takes 1 to N image byte streams (citizen report), strips EXIF, batches them,
     and queries Gemini Flash in a single API call.
     """
-    global _DAILY_CALL_COUNT
     start_time = time.time()
+    global _DAILY_CALL_COUNT, _SUCCESSFUL_CALLS, _TOTAL_LATENCY_MS, _FALLBACK_COUNT, _CACHE_HITS
 
     if not images_bytes:
         return VLMResult(
@@ -175,6 +179,7 @@ def verify_images_with_vlm(images_bytes: list[bytes], timeout_seconds: int = 18)
     # 2. Check Cache
     composite_hash = _compute_images_hash(cleaned_bytes)
     if composite_hash in _CACHE:
+        _CACHE_HITS += 1
         cached_result = _CACHE[composite_hash]
         logger.info(f"VLM cache hit for hash {composite_hash[:10]}...")
         return VLMResult(
@@ -259,6 +264,8 @@ def verify_images_with_vlm(images_bytes: list[bytes], timeout_seconds: int = 18)
                     _CACHE.pop(next(iter(_CACHE)))
                 _CACHE[composite_hash] = result
                 _DAILY_CALL_COUNT += 1
+                _SUCCESSFUL_CALLS += 1
+                _TOTAL_LATENCY_MS += latency
 
                 logger.info(
                     f"VLM success via {model_name} in {latency}ms: "
@@ -286,6 +293,7 @@ def verify_images_with_vlm(images_bytes: list[bytes], timeout_seconds: int = 18)
 
     # 7. Graceful degradation: If all candidate VLM models failed, NEVER crash the report!
     # Fall through to Mask R-CNN and flag report as unverified/pending.
+    _FALLBACK_COUNT += 1
     logger.error(f"All VLM candidate models failed (Last error: {last_error}). Falling back to Mask R-CNN.")
     return VLMResult(
         is_waste_issue=True,  # Allow it to pass to Layer 2 so the citizen is not blocked
@@ -308,6 +316,7 @@ def verify_cleanup_proof_with_vlm(
     Sends Image 1 (Before) and Image 2 (After) to Gemini Flash in a single call.
     """
     start_time = time.time()
+    global _DAILY_CALL_COUNT, _SUCCESSFUL_CALLS, _TOTAL_LATENCY_MS, _FALLBACK_COUNT
     api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
 
     if not api_key:
@@ -345,6 +354,10 @@ def verify_cleanup_proof_with_vlm(
             if resp.status_code == 200:
                 parsed = json.loads(resp.json()["candidates"][0]["content"]["parts"][0]["text"])
                 latency = int((time.time() - start_time) * 1000)
+                global _DAILY_CALL_COUNT, _SUCCESSFUL_CALLS, _TOTAL_LATENCY_MS
+                _DAILY_CALL_COUNT += 1
+                _SUCCESSFUL_CALLS += 1
+                _TOTAL_LATENCY_MS += latency
                 return CleanupVLMResult(
                     cleaned=bool(parsed.get("cleaned", False)),
                     confidence=parsed.get("confidence", "medium"),
@@ -355,9 +368,39 @@ def verify_cleanup_proof_with_vlm(
         except Exception:
             continue
 
+    global _FALLBACK_COUNT
+    _FALLBACK_COUNT += 1
     return CleanupVLMResult(
         cleaned=True,
         confidence="low",
         remarks="Cleanup VLM check bypassed due to network error; needs admin review.",
         provider="fallback",
     )
+
+
+def get_vlm_metrics() -> dict:
+    """Returns runtime metrics for VLM calls, quota usage, cache performance, and latency."""
+    avg_latency = (
+        round(_TOTAL_LATENCY_MS / _SUCCESSFUL_CALLS, 1)
+        if _SUCCESSFUL_CALLS > 0
+        else 0.0
+    )
+    total_inquiries = _DAILY_CALL_COUNT + _CACHE_HITS
+    cache_hit_rate = (
+        round((_CACHE_HITS / total_inquiries) * 100, 1)
+        if total_inquiries > 0
+        else 0.0
+    )
+    return {
+        "provider": CANDIDATE_MODELS[0],
+        "configured": bool(os.getenv("GOOGLE_GEMINI_API_KEY")),
+        "daily_calls": _DAILY_CALL_COUNT,
+        "daily_limit": _DAILY_CALL_LIMIT,
+        "quota_remaining": max(0, _DAILY_CALL_LIMIT - _DAILY_CALL_COUNT),
+        "cache_hits": _CACHE_HITS,
+        "cache_hit_rate_pct": cache_hit_rate,
+        "cache_size": len(_CACHE),
+        "fallback_count": _FALLBACK_COUNT,
+        "avg_latency_ms": avg_latency,
+    }
+

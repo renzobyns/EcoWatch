@@ -142,6 +142,7 @@ class Report(Base):
     vlm_rejection_reason = Column(Text, nullable=True)            # Rejection explanation
     vlm_provider = Column(String, nullable=True)                  # gemini-3.5-flash
     vlm_latency_ms = Column(Integer, nullable=True)               # Latency in ms
+    cleanup_vlm_result = Column(Text, nullable=True)              # Before-vs-After cleanup verification JSON
 
     # Duplicate detection (Module 3). duplicate_of_id points to the original report
     # an admin confirmed this one duplicates. possible_duplicate_flag is set at submit
@@ -170,6 +171,7 @@ class WorkOrder(Base):
     sla_deadline = Column(DateTime, nullable=False)
     status = Column(String, nullable=False, default=WorkOrderStatus.ASSIGNED, index=True)
     notes = Column(Text, nullable=True)
+    cleanup_vlm_result = Column(Text, nullable=True)              # Before-vs-After cleanup verification JSON
 
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     started_at = Column(DateTime, nullable=True)

@@ -54,7 +54,7 @@ from ai_verifier import (
     extract_gate_signals,
     _GPS_HIGH_TRUST_METERS,
 )
-from vlm_service import verify_images_with_vlm, verify_cleanup_proof_with_vlm
+from vlm_service import verify_images_with_vlm, verify_cleanup_proof_with_vlm, get_vlm_metrics
 import analytics
 from notifications import emit_notification, emit_to_barangay, emit_to_cenro, sweep_sla_notifications
 import email_service
@@ -112,6 +112,8 @@ with engine.connect() as _conn:
         "ALTER TABLE reports ADD COLUMN vlm_rejection_reason TEXT",
         "ALTER TABLE reports ADD COLUMN vlm_provider VARCHAR",
         "ALTER TABLE reports ADD COLUMN vlm_latency_ms INTEGER",
+        "ALTER TABLE reports ADD COLUMN cleanup_vlm_result TEXT",
+        "ALTER TABLE work_orders ADD COLUMN cleanup_vlm_result TEXT",
     ):
         try:
             _conn.execute(text(_ddl))
@@ -405,6 +407,7 @@ class WorkOrderResponse(BaseModel):
     report_notes: Optional[str] = None
     report_cleanup_image_url: Optional[str] = None
     report_verification_pending: bool = False
+    cleanup_vlm_result: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -459,6 +462,7 @@ class ReportResponse(BaseModel):
     vlm_rejection_reason: Optional[str] = None
     vlm_provider: Optional[str] = None
     vlm_latency_ms: Optional[int] = None
+    cleanup_vlm_result: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -750,12 +754,44 @@ async def health_check_full(db: Session = Depends(get_db)):
     model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models", "mask_rcnn_garbage.h5")
     if os.path.exists(model_path):
         ai_status = {"status": "ok", "message": "Mask R-CNN active"}
+
+    # 5. Layer 1 VLM Service
+    vlm_metrics = get_vlm_metrics()
+    vlm_status = {
+        "status": "ok" if vlm_metrics["configured"] else "warning",
+        "message": "Gemini Flash VLM active" if vlm_metrics["configured"] else "API key missing, running in bypass",
+        **vlm_metrics,
+    }
         
     return {
         "backend": backend_status,
         "database": db_status,
         "supabase": supabase_status,
-        "ai": ai_status
+        "ai": ai_status,
+        "vlm": vlm_status,
+    }
+
+@app.get("/analytics/vlm-stats")
+async def get_vlm_stats(
+    db: Session = Depends(get_db),
+    _user: models.User = Depends(require_role("cenro", "barangay"))
+):
+    """Returns VLM usage statistics, quota status, cache metrics, and report distribution."""
+    metrics = get_vlm_metrics()
+
+    cat_rows = (
+        db.query(models.Report.vlm_category, func.count(models.Report.id))
+        .filter(models.Report.vlm_category.isnot(None))
+        .group_by(models.Report.vlm_category)
+        .all()
+    )
+    categories = {cat: count for cat, count in cat_rows}
+    total_vlm_reports = db.query(func.count(models.Report.id)).filter(models.Report.vlm_result.isnot(None)).scalar() or 0
+
+    return {
+        "metrics": metrics,
+        "categories": categories,
+        "total_vlm_reports": total_vlm_reports,
     }
 
 @app.get("/analytics/storage-health")
@@ -2102,14 +2138,49 @@ async def _bg_verify_resolve(report_id: int, user_id: int) -> None:
         threshold = float(conf.value) if conf else 0.5
         results = await verify_images_async([b for b, _ in pairs], threshold)
         # ANY photo still showing waste = cleanup failed (inverted: waste detected = bad)
-        any_waste_detected = any(r.get("verified") for r in results)
+        mrcnn_waste_detected = any(r.get("verified") for r in results)
 
         for (_, row), result in zip(pairs, results):
             if row is not None:
                 row.ai_confidence = result.get("confidence")
                 row.ai_verified = bool(result.get("verified", False))
 
-        if any_waste_detected:
+        # ── VLM Layer 1 Before-vs-After Verification ──
+        original_bytes = None
+        orig_photos = db.query(models.ReportPhoto).filter(models.ReportPhoto.report_id == report_id).all()
+        if orig_photos:
+            for op in orig_photos:
+                try:
+                    original_bytes = _read_upload_bytes(op.file_path)
+                    if original_bytes:
+                        break
+                except Exception:
+                    pass
+        if not original_bytes and report.image_url:
+            try:
+                original_bytes = _read_upload_bytes(report.image_url)
+            except Exception:
+                pass
+
+        cleanup_vlm_res = None
+        if original_bytes and pairs:
+            try:
+                cleanup_vlm_res = await asyncio.to_thread(
+                    verify_cleanup_proof_with_vlm,
+                    original_bytes,
+                    pairs[0][0],
+                )
+                report.cleanup_vlm_result = cleanup_vlm_res.model_dump_json()
+            except Exception as e:
+                logger.warning(f"BG resolve: VLM cleanup verification failed: {e}")
+
+        vlm_failed = (
+            cleanup_vlm_res is not None
+            and (not cleanup_vlm_res.cleaned)
+            and cleanup_vlm_res.confidence in ("high", "medium")
+        )
+
+        if mrcnn_waste_detected or vlm_failed:
             report.status = models.ReportStatus.FAILED_CLEANUP
         else:
             report.status = models.ReportStatus.RESOLVED
@@ -2120,6 +2191,8 @@ async def _bg_verify_resolve(report_id: int, user_id: int) -> None:
         write_audit(db, user_id, "resolve", report.id, {
             "tracking_id": report.tracking_id,
             "outcome": report.status,
+            "mrcnn_waste_detected": mrcnn_waste_detected,
+            "vlm_remarks": cleanup_vlm_res.remarks if cleanup_vlm_res else None,
         })
         db.commit()
     except Exception:
@@ -2169,27 +2242,68 @@ async def _bg_verify_complete(work_order_id: int, user_id: int) -> None:
         conf = db.query(models.SystemConfig).filter(models.SystemConfig.key == "ai_confidence_threshold").first()
         threshold = float(conf.value) if conf else 0.5
         results = await verify_images_async([b for b, _ in pairs], threshold)
-        any_waste_detected = any(r.get("verified") for r in results)
+        mrcnn_waste_detected = any(r.get("verified") for r in results)
 
         for (_, row), result in zip(pairs, results):
             if row is not None:
                 row.ai_confidence = result.get("confidence")
                 row.ai_verified = bool(result.get("verified", False))
 
-        if any_waste_detected:
+        # ── VLM Layer 1 Before-vs-After Verification ──
+        original_bytes = None
+        orig_photos = db.query(models.ReportPhoto).filter(models.ReportPhoto.report_id == report.id).all()
+        if orig_photos:
+            for op in orig_photos:
+                try:
+                    original_bytes = _read_upload_bytes(op.file_path)
+                    if original_bytes:
+                        break
+                except Exception:
+                    pass
+        if not original_bytes and report.image_url:
+            try:
+                original_bytes = _read_upload_bytes(report.image_url)
+            except Exception:
+                pass
+
+        cleanup_vlm_res = None
+        if original_bytes and pairs:
+            try:
+                cleanup_vlm_res = await asyncio.to_thread(
+                    verify_cleanup_proof_with_vlm,
+                    original_bytes,
+                    pairs[0][0],
+                )
+                wo.cleanup_vlm_result = cleanup_vlm_res.model_dump_json()
+                report.cleanup_vlm_result = cleanup_vlm_res.model_dump_json()
+            except Exception as e:
+                logger.warning(f"BG complete: VLM cleanup verification failed: {e}")
+
+        vlm_failed = (
+            cleanup_vlm_res is not None
+            and (not cleanup_vlm_res.cleaned)
+            and cleanup_vlm_res.confidence in ("high", "medium")
+        )
+
+        if mrcnn_waste_detected or vlm_failed:
             wo.status = models.WorkOrderStatus.NEEDS_REDO
             report.status = models.ReportStatus.FAILED_CLEANUP
+            redo_msg = (
+                f"AI verification flagged remaining waste: {cleanup_vlm_res.remarks}"
+                if (cleanup_vlm_res and not cleanup_vlm_res.cleaned)
+                else "AI still detected waste. Please clean more thoroughly and try again."
+            )
             emit_notification(
                 db, wo.assigned_cleaner_id, "needs_redo",
                 f"Cleanup needs redo: {report.tracking_id}",
-                "AI still detected waste. Please clean more thoroughly and try again.",
+                redo_msg,
                 work_order_id=wo.id, report_id=report.id,
             )
             if report.barangay:
                 emit_to_barangay(
                     db, report.barangay, "cleanup_needs_redo",
                     f"Cleanup needs redo: {report.tracking_id}",
-                    "AI still detected waste. Decide: retry or force-close.",
+                    redo_msg,
                     work_order_id=wo.id, report_id=report.id,
                 )
         else:
@@ -2216,6 +2330,8 @@ async def _bg_verify_complete(work_order_id: int, user_id: int) -> None:
             "work_order_id": wo.id,
             "tracking_id": report.tracking_id,
             "outcome": wo.status,
+            "mrcnn_waste_detected": mrcnn_waste_detected,
+            "vlm_remarks": cleanup_vlm_res.remarks if cleanup_vlm_res else None,
         })
         db.commit()
     except Exception:
