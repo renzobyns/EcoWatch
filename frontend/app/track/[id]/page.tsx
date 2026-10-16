@@ -185,12 +185,12 @@ export default function TrackReportPage() {
                     {/* Status Banner */}
                     <div className={`p-6 text-center border-b border-border ${STATUS_COLORS[report.status]?.bgLight || 'bg-foreground/10'}`}>
                         <h2 className={`text-xl font-semibold uppercase tracking-widest ${STATUS_COLORS[report.status]?.text || 'text-foreground'}`}>
-                            {isFailed ? "Cleanup Failed" : isUnderReview ? "Under Review" : report.status}
+                            {report.status === 'ai_rejected' ? "Flagged for Review (Non-Waste Detected)" : isFailed ? "Cleanup Failed" : isUnderReview ? "Under Review" : report.status}
                         </h2>
                         <p className="text-sm text-foreground/60 mt-2 font-medium">
                             {report.status === 'pending' && "Report received, waiting for AI verification."}
                             {report.status === 'ai_verified' && "AI verification complete. Under review by Barangay admin."}
-                            {report.status === 'ai_rejected' && "Under manual review by Barangay admin."}
+                            {report.status === 'ai_rejected' && (report.vlm_rejection_reason || "AI detected this image may not be outdoor waste (e.g. selfie/portrait/clean area). Sent to admin for confirmation.")}
                             {report.status === 'verified' && "Verified! Awaiting cleanup team assignment."}
                             {report.status === 'assigned' && "Cleanup team has been assigned to the location!"}
                             {report.status === 'in_progress' && "Cleanup is actively in progress!"}
@@ -317,12 +317,14 @@ export default function TrackReportPage() {
                                                                 </svg>
                                                                 <span className="absolute text-xs font-bold text-white">{scanProgress}%</span>
                                                             </div>
-                                                            <div className="flex flex-col items-center">
-                                                                <span className="text-[13px] font-bold text-white tracking-widest uppercase mb-1 drop-shadow-md">Mask R-CNN Scanning</span>
+                                                            <div className="flex flex-col items-center text-center">
+                                                                <span className="text-[13px] font-bold text-white tracking-widest uppercase mb-1 drop-shadow-md">
+                                                                    {scanProgress < 50 ? "Layer 1: VLM Semantic Check" : "Layer 2: Mask R-CNN Scanning"}
+                                                                </span>
                                                                 <span className="text-[10px] font-mono text-primary uppercase opacity-80">
-                                                                    {scanProgress < 30 ? "Extracting features..." : 
-                                                                     scanProgress < 60 ? "Proposing regions..." : 
-                                                                     scanProgress < 90 ? "Generating masks..." : "Finalizing output..."}
+                                                                    {scanProgress < 25 ? "Stripping EXIF & Preprocessing..." : 
+                                                                     scanProgress < 50 ? "Evaluating scene context (Gemini)..." : 
+                                                                     scanProgress < 75 ? "Segmenting waste boundaries..." : "Finalizing output..."}
                                                                 </span>
                                                             </div>
                                                         </div>
@@ -428,6 +430,38 @@ export default function TrackReportPage() {
                                         <p className="text-sm text-foreground/80 leading-relaxed italic bg-foreground/5 p-3 rounded-lg border border-border">
                                             "{report.notes}"
                                         </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Layer 1 & 2 AI Verification Breakdown */}
+                            {report.vlm_category && (
+                                <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-2.5">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                                            <span className="text-[11px] font-bold uppercase tracking-wider text-primary">
+                                                AI Verification (3-Layer Pipeline)
+                                            </span>
+                                        </div>
+                                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase border ${report.vlm_category === 'not_waste' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
+                                            {report.vlm_category.replace('_', ' ')}
+                                        </span>
+                                    </div>
+                                    {report.vlm_description && (
+                                        <p className="text-xs text-foreground/80 leading-relaxed">
+                                            <span className="font-semibold text-foreground/90">AI Scene: </span>
+                                            {report.vlm_description}
+                                        </p>
+                                    )}
+                                    {report.vlm_rejection_reason && (
+                                        <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs">
+                                            <strong>Flagged: </strong> {report.vlm_rejection_reason}
+                                        </div>
+                                    )}
+                                    <div className="flex items-center justify-between pt-1 text-[10px] text-foreground/50 border-t border-primary/10">
+                                        <span>Model: {report.vlm_provider || "Gemini Flash"}</span>
+                                        {report.vlm_latency_ms && <span>Latency: {report.vlm_latency_ms}ms</span>}
                                     </div>
                                 </div>
                             )}
