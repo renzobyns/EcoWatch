@@ -22,7 +22,7 @@
 12. [Prioritized Action Plan](#12-prioritized-action-plan)
 13. [Suggestions to Improve the System](#13-suggestions-to-improve-the-system)
 14. [Account Management](#14-account-management)
-15. [Two-Layer Verification System](#15-two-layer-verification-system)
+15. [Three-Layer Hierarchical Verification System](#15-three-layer-hierarchical-verification-system-vlm--mask-r-cnn--cenro-hitl)
 
 ---
 
@@ -603,56 +603,242 @@ The backend has a `PUT /users/{user_id}` endpoint that allows CENRO/barangay adm
 
 ---
 
-## 15. Two-Layer Verification System
+## 15. Three-Layer Hierarchical Verification System (VLM + Mask R-CNN + CENRO HITL)
 
-### Overview
-In response to defense panel feedback, EcoWatch implements a **Two-Layer Human-in-the-Loop Verification Pipeline** for all illegal dumping submissions. AI detection alone (Mask R-CNN) does not immediately dispatch cleaners; rather, human administrators (Barangay Officers & CENRO) act as accountability checkpoints.
+> **Change ID**: MC-004 (see [`MAJOR_CHANGES.md`](MAJOR_CHANGES.md))
+> **Planned**: October 16, 2026 | **Branch**: `feat/3-layer-verification-vlm`
+> **Reference**: [`EcoWatch_VLM_Implementation_Plan.md`](EcoWatch_VLM_Implementation_Plan.md)
 
-### Architecture & Lifecycle
+### 15.1 Problem Statement
+
+The Mask R-CNN model is an **instance segmentation model** trained on shapes and textures. It has **zero semantic or contextual understanding**:
+
+| Failure Mode | What Happens | Why It Fails |
+|---|---|---|
+| **False Positive (Food in Plastic)** | Citizen photographs their *baon* (lunch in a Tupperware/plastic container) on a table. Mask R-CNN detects the plastic texture and marks it as "GARBAGE". | Mask R-CNN sees plastic texture but cannot reason about context (indoor table, food visible, held by person). |
+| **False Positive (Complex Backgrounds)** | Cracked asphalt, dense leaf patterns, or dark shadow patches are occasionally segmented as trash. | Low-level texture features resemble waste patterns in the training set. |
+| **False Negative (Unusual Packaging)** | Real dumpsites with waste in unusual sacks, dimly lit areas, or taken from distant angles fail the 0.50 threshold and get silently rejected. | The model was trained on clearly visible garbage piles; edge-case presentations fail confidence checks. |
+| **Prank / Irrelevant Submissions** | Selfies, pet photos, memes, screenshots, or clean room photos still get processed through full Mask R-CNN inference, wasting compute. | Mask R-CNN has no "not a valid scene" classifier; it processes any input image. |
+
+> **Root cause in one sentence**: Mask R-CNN is excellent at answering **"where is the garbage and what shape is it?"** but incapable of answering **"is this actually garbage in context, and why?"** — the second question requires a Vision-Language Model (VLM).
+
+### 15.2 Solution: Three-Layer Architecture
+
 ```
-Citizen Submits
-      │
-      ▼
-Layer 1: Mask R-CNN AI Verification
-      ├───────────────┬───────────────┐
-      ▼                               ▼
-`ai_verified`                   `ai_rejected`
-(AI detects waste)             (Low confidence or no waste)
-      │                               │
-      ├───────────────────────────────┤
-      ▼                               ▼
-Layer 2: Human Verification Review Queue
-      │                               │
-[Barangay / CENRO Confirms]     [Barangay / CENRO Override]
-      │                         (Requires explicit rationale,
-      │                          triggers CENRO oversight alert)
-      ├───────────────────────────────┤
-      ▼                               ▼
-  `verified`                      `rejected`
-      │                       (Preset or custom reason logged)
-      ▼
-Cleaner Assignment / Dispatch
-(`assigned` / `deployed`)
+                  [ CITIZEN PHOTO UPLOAD ]
+               (1 to 3 photos + GPS Coordinates)
+                              │
+                              ▼
+            [ PREPROCESS & DATA PRIVACY GUARD ]
+         1. EXIF Inspection for Trust Score (kept locally)
+         2. EXIF Stripping before sending to external API
+         3. Resize to max 1024px long side + JPEG 75% compression
+         4. SHA-256 image hash for quota caching
+                              │
+                              ▼
+    ┌─────────────────────────────────────────────────────┐
+    │  LAYER 1: GEMINI FLASH VLM (Semantic Pre-Filter)    │
+    │  • 1 Multi-image Batch API Call per report           │
+    │  • Outputs structured VLMResult JSON                 │
+    │  • Filters: selfies, pets, food, clean streets       │
+    │  • Latency: ~1-2 seconds                             │
+    └─────────────────────────┬───────────────────────────┘
+                              │
+         ┌────────────────────┴────────────────────┐
+         │                                         │
+         ▼                                         ▼
+   [ is_waste: TRUE ]                   [ is_waste: FALSE ]
+         │                                         │
+         ▼                                         ├── HIGH confidence?
+┌─────────────────────────────┐                    │   YES → AI_REJECTED
+│  LAYER 2: MASK R-CNN        │                    │         (skip Mask R-CNN,
+│  (Local Instance Seg.)      │                    │          save compute)
+│  • Polygon masks + bboxes   │                    │   NO → Run Mask R-CNN
+│  • Pixel-level localization │                    │         anyway (check
+│  • Visual overlay for admin │                    │         for disagreement)
+└──────────────┬──────────────┘                    │
+               │                                   │
+        ┌──────┴──────┐                            │
+        │             │                            │
+        ▼             ▼                            ▼
+   [ Detected ]  [ No Detect ]              [ Disagreement? ]
+        │             │                      VLM: not waste
+        ▼             ▼                      MRCNN: detected
+  AI_VERIFIED    PENDING_REVIEW                    │
+  → Auto-dispatch     │                            │
+    to Barangay       └────────────────────────────┘
+                                                   │
+                                                   ▼
+                              ┌─────────────────────────────────┐
+                              │  LAYER 3: CENRO / BARANGAY      │
+                              │  HUMAN-IN-THE-LOOP REVIEW       │
+                              │  • Side-by-side: Photo + VLM    │
+                              │    reason + Mask R-CNN overlay   │
+                              │  • 1-Click Override / Confirm    │
+                              │  • Audit-logged with rationale   │
+                              └─────────────────────────────────┘
 ```
 
-### Key Components
-1. **Schema Enhancements**:
-   - `ReportStatus.AI_VERIFIED` (`"ai_verified"`) and `ReportStatus.AI_REJECTED` (`"ai_rejected"`).
-   - Columns: `human_verified_by` (FK to `users.id`), `human_verified_at`, `human_verification_notes`, `human_verification_action`.
-2. **Backend API Endpoints**:
-   - `POST /report/{report_id}/human-verify`: RBAC guarded (Barangay & CENRO). Supports `action="approve"` and `action="reject"`. When an `ai_rejected` report is overridden to `verified`, a synthetic notification (`manual_override`) is immediately dispatched to CENRO for city-wide accountability.
-   - `GET /reports/pending-review`: Returns active queue filtered by barangay jurisdiction or city-wide for CENRO.
-   - `PUT /report/{id}/assign` Guard: Strictly rejects assignment attempts on reports in `ai_verified` or `ai_rejected` status with HTTP 409 Conflict.
-3. **Barangay Portal Experience**:
-   - Dedicated **Review** tab with live counter badges on the sidebar and mobile bottom navigation.
-   - Three-way category filtering: `All`, `AI Verified`, `AI Rejected`.
-   - Rejection modal with predefined presets (*"False report / No waste visible"*, *"Not illegal dumping (household bin)"*, *"Image too blurry / unclear"*, *"Duplicate of existing report"*) or custom remarks.
-   - Inline **Verification Gate Modal**: If an admin attempts to deploy a cleaner on an unconfirmed report, an inline modal displays the photo, AI confidence score, trust level, and forces a confirmation or rejection before proceeding.
-4. **CENRO Command Center Oversight**:
-   - `ReportDetailDrawer` incorporates a human verification banner allowing CENRO admins to confirm or reject reports city-wide.
-   - `OversightTab` includes dedicated filter chips and badges for `ai_verified` and `ai_rejected`.
-   - Comprehensive audit logging recording verifier identities, notes, and previous states.
+### 15.3 Decision Table
+
+| VLM Result | VLM Confidence | Mask R-CNN | Final Status | System Action |
+|---|---|---|---|---|
+| **Waste Issue** | `high` / `medium` | Detected | `AI_VERIFIED` | Auto-dispatch to Barangay Work Order with mask overlay and VLM description. |
+| **Waste Issue** | `high` / `medium` | Not Detected | `PENDING_REVIEW` | Possible small/distant waste. Route to CENRO queue with VLM explanation. |
+| **Not Waste** | `high` | *Skipped* | `AI_REJECTED` | **Compute saved**. Clear prank/selfie/food. Explain rejection reason to citizen; allow resubmit. |
+| **Not Waste** | `medium` / `low` | Detected | `PENDING_REVIEW` | **Disagreement!** VLM unsure but Mask R-CNN found something. Route to CENRO for human decision. |
+| **Not Waste** | `medium` / `low` | Not Detected | `AI_REJECTED` | Both AIs agree: not waste. Archive with explanation. |
+| **VLM Failed** | `failed` | Any | `UNVERIFIED` | **Fail-safe fallback**: Accept report, run Mask R-CNN only, flag for CENRO review at lower priority. |
+
+### 15.4 VLM Contract & Prompt Engineering
+
+#### Pydantic Schema (`VLMResult`):
+
+```python
+from pydantic import BaseModel
+from typing import Literal
+
+class VLMResult(BaseModel):
+    is_waste_issue: bool
+    category: Literal["plastic", "food_waste", "mixed_garbage", "construction_debris", "hazardous", "not_waste"]
+    confidence: Literal["high", "medium", "low"]
+    description: str
+    rejection_reason: str | None = None
+```
+
+#### System Prompt (with Edge-Case Handling):
+
+> *You are the environmental triage AI for San Jose del Monte, Bulacan (EcoWatch SJDM). Analyze the image(s) and determine if there is illegal waste dumping, scattered garbage, or littering in a public outdoor area.*
+>
+> **EDGE-CASE RULES:**
+> 1. **Food / Packed meals**: Food in a Tupperware, baunan, or plastic container that is on a table, held by a person, or being eaten = `is_waste_issue: false` (Category: `not_waste`).
+> 2. **Spoiled / Discarded food**: Rotten food thrown on the ground, in a canal, or mixed with garbage outdoors = `is_waste_issue: true` (Category: `food_waste`).
+> 3. **New purchases / Groceries**: Plastic bags of groceries held by a person or in a vehicle = `is_waste_issue: false`.
+> 4. **Indoor scenes**: Living rooms, kitchens, offices, bedrooms with items on shelves = `is_waste_issue: false`.
+> 5. **Pranks / Irrelevant**: Selfies, pet photos, memes, screenshots, ceiling photos, clean paved roads = `is_waste_issue: false` (Confidence: `high`).
+> 6. **Construction debris**: Broken concrete, rebar, wood scraps dumped outdoors = `is_waste_issue: true` (Category: `construction_debris`).
+> 7. **Hazardous waste**: Chemical containers, paint cans, medical waste in public = `is_waste_issue: true` (Category: `hazardous`).
+>
+> *Return ONLY valid JSON matching the schema. No markdown, no explanation outside the JSON.*
+
+### 15.5 Data Privacy & RA 10173 Compliance
+
+Citizen photos are transmitted to a third-party API (Google Gemini). The following safeguards are mandatory:
+
+1. **EXIF Stripping**: Remove all EXIF metadata (GPS lat/long, device serial number, camera model, timestamps) from the image **before** encoding to base64 and transmitting to Google. Use `Pillow` to strip EXIF while preserving image data.
+2. **Local EXIF Extraction First**: The backend extracts EXIF GPS and timestamp data for its own trust scoring and geolocation **before** stripping, so no functionality is lost.
+3. **Image Compression**: Resize to max 1024px long side + JPEG 75% quality before sending. Reduces payload size, transmission time, and token cost.
+4. **No PII in Prompts**: The system prompt never includes citizen names, emails, phone numbers, or GPS coordinates.
+5. **Consent Notice**: The privacy policy and report submission form must disclose that photos are processed by third-party AI services for waste detection purposes.
+
+### 15.6 Quota Protection & Fallback Strategy (Free Tier: 1,500 RPD / 15 RPM)
+
+#### Multi-Image Batching
+When a citizen uploads 1 to 3 photos per report, all images are sent in a **single API call** to Gemini Flash (native multi-image support). This means:
+- 1 report with 3 photos = **1 API call** (not 3).
+- Free tier capacity: **~750 complete reports/day** (each report uses ~2 calls: 1 for submission verification + 1 for eventual cleanup proof).
+
+#### SHA-256 Image Hash Cache
+Before calling the API, compute a SHA-256 hash of the preprocessed image bytes. If the same hash has been seen before (duplicate/resubmitted photo), return the cached VLM result without consuming an API call.
+
+#### Graceful Fallback Chain
+If the primary VLM provider fails, the system degrades through a chain of fallbacks — the citizen's report is **never lost**:
+
+| Priority | Fallback Step | Detail |
+|---|---|---|
+| 1 | **Retry with exponential backoff** | 2-3 retries for `429` (rate limit) or `5xx` errors with 1s → 2s → 4s delay. |
+| 2 | **Daily budget guard** | Track daily API call count. When approaching 1,400/day, proactively skip VLM and route directly to Mask R-CNN + CENRO review. |
+| 3 | **Mask R-CNN only (local)** | Run inference locally. Mark report as `unverified` so CENRO knows VLM was bypassed. |
+| 4 | **Accept & queue** | If even Mask R-CNN fails (model not loaded), save the report as `pending` and schedule background re-verification when the system recovers. |
+
+> **Iron Rule**: A citizen's report must NEVER be discarded or errored out because an external AI service is down. Accept first, verify later.
+
+### 15.7 Cleanup Proof Verification (Before vs. After)
+
+When a waste worker marks a report as resolved and uploads a cleanup proof photo, the system uses Gemini Flash to perform a **before-vs-after comparison** in a single API call:
+
+- **Input**: Original report photo (the dump) + Cleanup proof photo.
+- **Prompt**: *"Image 1 shows an illegal dumpsite. Image 2 is a cleanup proof photo submitted by the waste worker. Has the garbage visible in Image 1 been successfully removed in Image 2? Return JSON: `{\"cleaned\": true/false, \"confidence\": \"high\"|\"medium\"|\"low\", \"remarks\": \"string\"}`."*
+- **If `cleaned: true`**: Auto-resolve the work order.
+- **If `cleaned: false`**: Flag for barangay admin review with Gemini's remarks (e.g., "Partial cleanup — some plastic bags remain near the canal").
+
+### 15.8 Implementation Phases
+
+#### Phase 0: Evaluation Dataset (Pre-Requisite) — Est. 2-3 hrs
+- Collect 100-200 labeled test images covering all edge cases: obvious dumpsites, food in plastic, selfies, clean streets, blurry night photos, construction debris, indoor rooms, pet photos.
+- Create a CSV manifest: `filename, expected_is_waste, expected_category, notes`.
+- This dataset will be used to tune prompts and validate accuracy before integration.
+
+#### Phase 1: API Configuration — ✅ COMPLETED
+- `GOOGLE_GEMINI_API_KEY` stored in `backend/.env` (gitignored).
+- Verified working: HTTP 200 from Google AI Studio API.
+
+#### Phase 2: VLM Service Module (`backend/vlm_service.py`) — Est. 3-4 hrs
+- Pydantic `VLMResult` model with strict validation.
+- `verify_with_vlm(image_bytes_list: list[bytes]) -> VLMResult` async function.
+- EXIF stripping via `Pillow` before base64 encoding.
+- Image resize/compression (max 1024px, JPEG 75%).
+- SHA-256 hash cache (in-memory LRU or database-backed).
+- Timeout handling (10-15s with retry).
+- Structured logging of every VLM call (provider, latency_ms, result, cache_hit).
+- Graceful error handling: never raises, always returns a result or fallback indicator.
+
+#### Phase 3: Unit Testing & Edge-Case Validation (`backend/test_vlm.py`) — Est. 2-3 hrs
+- CLI test script that processes the Phase 0 eval dataset.
+- Outputs CSV: `filename, expected, predicted, confidence, match, latency_ms`.
+- Accuracy report: overall accuracy, per-category precision/recall.
+- Edge-case spotlight: list all misclassifications for prompt tuning.
+
+#### Phase 4: Pipeline Integration (`backend/main.py`) — Est. 4-5 hrs
+- Modify `_verify_report_photos_task()` to call VLM first, then conditionally run Mask R-CNN per the Decision Table (§15.3).
+- Add new database columns to `Report` model:
+  - `vlm_result` (JSON text — full VLM response for audit).
+  - `vlm_category` (string — waste type classification).
+  - `vlm_confidence` (string — high/medium/low).
+  - `vlm_description` (string — human-readable explanation).
+  - `vlm_provider` (string — e.g., "gemini-1.5-flash").
+  - `vlm_latency_ms` (integer — API call duration).
+- Save VLM results alongside existing Mask R-CNN results.
+- Implement the full Decision Table status routing.
+- Update existing analytics endpoints to include VLM metrics.
+
+#### Phase 5: CENRO Portal — Side-by-Side Review UI — Est. 2-3 hrs
+- In the `ReportDetailDrawer` and Review Queue:
+  - Display the original photo alongside the **VLM's natural language reason** and the **Mask R-CNN polygon overlay** in a side-by-side or tabbed layout.
+  - Show the Decision Table outcome (e.g., "Disagreement: VLM said not_waste (low confidence) but Mask R-CNN detected 3 instances").
+  - Preserve existing 1-click Override / Confirm actions with audit logging.
+- Add VLM category badges and confidence indicators to report cards.
+
+#### Phase 6: Cleanup Proof VLM Verification — Est. 2-3 hrs
+- Modify the cleanup resolution flow in `backend/main.py`:
+  - When cleaner uploads proof photo, send both original + proof to Gemini Flash.
+  - If `cleaned: true` with high confidence, auto-resolve.
+  - If `cleaned: false`, flag for barangay admin with Gemini's remarks.
+- Add `cleanup_vlm_result` column to `WorkOrder` or `Report` model.
+
+#### Phase 7: Monitoring & Observability — Est. 1-2 hrs
+- Daily VLM usage counter (track calls against the 1,500/day budget).
+- Log fallback events (every time the system degrades from VLM → Mask R-CNN only).
+- Add VLM health status to `/health/full` endpoint.
+- Add VLM usage metrics to CENRO Command Center (calls today, cache hit rate, avg latency, fallback count).
+
+### 15.9 Cost Analysis
+
+| Tier | Daily Limit | Cost per Report | Monthly Cost (100 reports/day) |
+|---|---|---|---|
+| **Google AI Studio Free Tier** | 1,500 requests/day | **₱0.00** | **₱0.00** |
+| **Pay-As-You-Go (if billing enabled)** | Unlimited | ~₱0.0026 per photo | ~₱7.80 |
+
+> **Recommendation**: Stay on the **Free Tier** for development, defense, and initial pilot. The 1,500 RPD limit supports ~750 complete reports/day — more than sufficient for a city-wide pilot in San Jose del Monte.
+
+### 15.10 Security Considerations
+
+- `GOOGLE_GEMINI_API_KEY` must remain **server-side only** (in `backend/.env`). Never expose via `NEXT_PUBLIC_` prefix or frontend code.
+- VLM output is **untrusted data**: always validate with Pydantic before using. Never inject VLM-generated text directly into SQL queries or HTML.
+- Images may contain manipulative text (prompt injection attempts). The system prompt explicitly restricts output to JSON-only.
+- Rate limit the `/report/submit` endpoint (already done: 15/min via `slowapi`) to prevent API quota abuse.
 
 ---
 
 *This document should be reviewed and updated as tasks are completed. Use the companion `CHECKLIST productionready.md` for tracking progress.*
+

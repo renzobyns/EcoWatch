@@ -87,6 +87,64 @@
 - [x] **Frontend CENRO Portal**: Add Human Verification banner with Approve/Reject actions in `ReportDetailDrawer` and status filters in `OversightTab`
 - [x] **Automated Testing**: Comprehensive end-to-end verification test suite in `backend/test_human_verification.py`
 
+### 🧠 Mini-Phase 2.6 — Three-Layer VLM Verification (Gemini Flash + Mask R-CNN + CENRO HITL) *(see `production readiness.md` §15)*
+
+#### Phase 0: Evaluation Dataset
+- [ ] Collect 100-200 labeled test images (dumpsites, food in plastic, selfies, clean streets, blurry night, construction debris, indoor rooms, pet photos)
+- [ ] Create CSV manifest: `filename, expected_is_waste, expected_category, notes`
+
+#### Phase 1: API Configuration
+- [x] Obtain Gemini Flash API key from Google AI Studio
+- [x] Store `GOOGLE_GEMINI_API_KEY` in `backend/.env` (gitignored, server-side only)
+- [x] Verify API key works (HTTP 200 from Google AI Studio)
+
+#### Phase 2: VLM Service Module (`backend/vlm_service.py`)
+- [ ] Define Pydantic `VLMResult` model (`is_waste_issue`, `category`, `confidence`, `description`, `rejection_reason`)
+- [ ] Implement `verify_with_vlm()` async function with multi-image batch support
+- [ ] EXIF stripping via Pillow before base64 encoding (RA 10173 compliance)
+- [ ] Image preprocessing: resize to max 1024px long side + JPEG 75% compression
+- [ ] SHA-256 image hash cache to avoid duplicate API calls
+- [ ] Timeout handling (10-15s) with exponential backoff retry (2-3 attempts)
+- [ ] Structured logging: provider, latency_ms, result, cache_hit
+- [ ] Graceful fallback: never raises, returns result or fallback indicator
+
+#### Phase 3: Unit Testing & Edge-Case Validation (`backend/test_vlm.py`)
+- [ ] CLI test script processing eval dataset images
+- [ ] CSV output: `filename, expected, predicted, confidence, match, latency_ms`
+- [ ] Accuracy report: overall accuracy, per-category precision/recall
+- [ ] Edge-case spotlight: list all misclassifications for prompt tuning
+
+#### Phase 4: Pipeline Integration (`backend/main.py`)
+- [ ] Modify `_verify_report_photos_task()` — call VLM first, conditionally run Mask R-CNN per Decision Table
+- [ ] Add DB columns to Report model: `vlm_result` (JSON), `vlm_category`, `vlm_confidence`, `vlm_description`, `vlm_provider`, `vlm_latency_ms`
+- [ ] Implement full Decision Table status routing (verified / pending_review / rejected / unverified)
+- [ ] Daily budget guard: skip VLM when approaching 1,400 daily calls
+- [ ] Update analytics endpoints to include VLM metrics
+- [ ] Ensure citizen reports are NEVER lost if VLM is down (accept → queue → verify later)
+
+#### Phase 5: CENRO Portal — Side-by-Side Review UI
+- [ ] Display VLM natural language reason alongside Mask R-CNN mask overlay in `ReportDetailDrawer`
+- [ ] Show Decision Table outcome label (e.g., "Disagreement: VLM not_waste vs Mask R-CNN detected")
+- [ ] Add VLM category badges and confidence indicators to report cards
+- [ ] Preserve existing Override / Confirm actions with audit logging
+
+#### Phase 6: Cleanup Proof VLM Verification
+- [ ] Implement before-vs-after comparison API call (original dump photo + cleanup proof)
+- [ ] Auto-resolve if `cleaned: true` with high confidence
+- [ ] Flag for barangay review if `cleaned: false` with Gemini's remarks
+- [ ] Add `cleanup_vlm_result` column to WorkOrder or Report model
+
+#### Phase 7: Monitoring & Observability
+- [ ] Daily VLM usage counter (track calls against 1,500/day budget)
+- [ ] Log every fallback event (VLM → Mask R-CNN only)
+- [ ] Add VLM health status to `/health/full` endpoint
+- [ ] Add VLM usage metrics to CENRO Command Center (calls today, cache hit rate, avg latency, fallback count)
+
+#### Privacy & Compliance
+- [ ] Verify EXIF is fully stripped before any image is sent to Google API
+- [ ] Update Privacy Policy (`/privacy`) to disclose third-party AI photo processing
+- [ ] Update report submission consent notice to mention AI analysis by external service
+
 ---
 
 ## 🟢 Phase 3 — Polish & Compliance
@@ -130,7 +188,7 @@
 - [ ] Remove legacy notification shims at `backend/main.py:4373` (past 2026-06-15 cutover)
 
 ### Documentation
-- [ ] Update `backend/.env.example` — add: `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `FRONTEND_URL`, `GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- [ ] Update `backend/.env.example` — add: `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `FRONTEND_URL`, `GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `GOOGLE_GEMINI_API_KEY`
 - [ ] Create `frontend/.env.example` with all required variables
 - [ ] Add `LICENSE` file to project root (MIT or Apache 2.0 or proprietary capstone)
 - [ ] Update `AGENTS.md` — fix references to `test_auth.py` and `test_analytics.py` (now merged into `smoke_test.py`)
@@ -233,6 +291,7 @@
 |------|----------|---------|
 | 2026-08-16 | Audit completed | Full system audit across 72 endpoints, 15 routes, 9 settings tabs |
 | 2026-10-14 | HF Backend Deployed | Synced latest backend (2-layer verification, /reports/pending-review, psycopg) to Hugging Face space |
+| 2026-10-16 | 3-Layer VLM Verification planned | Added Gemini Flash VLM as Layer 1 pre-filter (MC-004). Branch: `feat/3-layer-verification-vlm`. API key configured and verified. |
 
 ---
 
