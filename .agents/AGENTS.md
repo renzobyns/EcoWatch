@@ -54,6 +54,7 @@ Before writing any code, the agent MUST:
 
 ### When to STOP and ask the user
 - The task requires **choosing between two or more valid approaches** with meaningful tradeoffs.
+- You are introducing a **major architectural change or paradigm shift** (e.g., adding/modifying AI layers like Gemini VLM, altering verification pipelines, modifying core database schemas, or changing role lifecycles). You MUST ask: *"Would you like to plan and log this major change in `MAJOR_CHANGES.md` before execution?"*
 - You need to **modify a database schema** (adding/removing columns, changing types).
 - You need to **change or remove a public API endpoint** that other parts of the system depend on.
 - The task is **vague or underspecified** — don't guess, ask.
@@ -201,6 +202,7 @@ Always verify layout across these breakpoints:
 
 | File | Purpose | Agent rules |
 |------|---------|-------------|
+| [`MAJOR_CHANGES.md`](../MAJOR_CHANGES.md) | **Architecture evolution & major changes log** — records architectural paradigm shifts, rationale, plans, and execution dates | ✅ Ask user to plan & log here for major shifts. ✅ Update execution date when done. |
 | [`production readiness.md`](../production%20readiness.md) | **Requirements & documentation** — what needs to be done, feature specs, suggestions, system gaps | ✅ Read for context. ✅ Modify when new requirements are discovered or the user adds features. |
 | [`CHECKLIST productionready.md`](../CHECKLIST%20productionready.md) | **Task tracker** — checkbox list tracking progress | ✅ This is the ONLY file the agent should update for task progress (`[ ]` → `[/]` → `[x]`). |
 
@@ -231,12 +233,13 @@ backend/ (FastAPI, SQLAlchemy, Shapely, Scikit-learn, TensorFlow 2.16)
     → Mask R-CNN weights from Hugging Face Hub (downloaded on startup)
 ```
 
-### Report submission flow
+### Report submission flow (3-Layer Verification)
 1. Citizen POSTs photo + GPS to `POST /report/submit`
-2. `ai_verifier.py` runs Mask R-CNN inference → confidence score
-3. `spatial_utils.py` ray-casts GPS against `data/sjdm_barangays.geojson` → assigns barangay
-4. Report saved with unique tracking slug (`EW-XXXX`)
-5. Frontend displays confirmation + shareable tracking URL
+2. **Layer 1 (Gemini Flash VLM)**: Fast semantic check & pre-filter; filters out selfies, pets, clean streets, and memes.
+3. **Layer 2 (Mask R-CNN)**: Deep instance segmentation; generates bounding boxes and polygon masks on confirmed waste.
+4. `spatial_utils.py` ray-casts GPS against `data/sjdm_barangays.geojson` → assigns barangay.
+5. **Layer 3 (CENRO Human Review)**: Rejected or borderline cases route to CENRO triage for 1-click manual override.
+6. Report saved with unique tracking slug (`EW-XXXX`) and auto-dispatched to Barangay work order if verified.
 
 ### Report lifecycle
 ```
