@@ -54,6 +54,7 @@ from ai_verifier import (
     extract_gate_signals,
     _GPS_HIGH_TRUST_METERS,
 )
+from vlm_service import verify_images_with_vlm, verify_cleanup_proof_with_vlm
 import analytics
 from notifications import emit_notification, emit_to_barangay, emit_to_cenro, sweep_sla_notifications
 import email_service
@@ -104,6 +105,13 @@ with engine.connect() as _conn:
         "ALTER TABLE reports ADD COLUMN human_verified_at TIMESTAMP",
         "ALTER TABLE reports ADD COLUMN human_verification_notes TEXT",
         "ALTER TABLE reports ADD COLUMN human_verification_action VARCHAR",
+        "ALTER TABLE reports ADD COLUMN vlm_result TEXT",
+        "ALTER TABLE reports ADD COLUMN vlm_category VARCHAR",
+        "ALTER TABLE reports ADD COLUMN vlm_confidence VARCHAR",
+        "ALTER TABLE reports ADD COLUMN vlm_description TEXT",
+        "ALTER TABLE reports ADD COLUMN vlm_rejection_reason TEXT",
+        "ALTER TABLE reports ADD COLUMN vlm_provider VARCHAR",
+        "ALTER TABLE reports ADD COLUMN vlm_latency_ms INTEGER",
     ):
         try:
             _conn.execute(text(_ddl))
@@ -443,6 +451,14 @@ class ReportResponse(BaseModel):
     human_verified_at: Optional[datetime] = None
     human_verification_notes: Optional[str] = None
     human_verification_action: Optional[str] = None
+    # VLM Verification (Layer 1)
+    vlm_result: Optional[str] = None
+    vlm_category: Optional[str] = None
+    vlm_confidence: Optional[str] = None
+    vlm_description: Optional[str] = None
+    vlm_rejection_reason: Optional[str] = None
+    vlm_provider: Optional[str] = None
+    vlm_latency_ms: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -1864,15 +1880,75 @@ async def _bg_verify_submit(report_id: int, device_lat: float = None, device_lon
             db.commit()
             return
 
+        # ─────────────────────────────────────────────────────────
+        # LAYER 1: VLM SEMANTIC PRE-FILTER (Gemini Flash)
+        # ─────────────────────────────────────────────────────────
+        all_imgs = [b for b, _ in pairs]
+        vlm_res = await asyncio.to_thread(verify_images_with_vlm, all_imgs)
+
+        # Store Layer 1 VLM results on report row
+        report.vlm_result = vlm_res.model_dump_json()
+        report.vlm_category = vlm_res.category
+        report.vlm_confidence = vlm_res.confidence
+        report.vlm_description = vlm_res.description
+        report.vlm_rejection_reason = vlm_res.rejection_reason
+        report.vlm_provider = vlm_res.provider
+        report.vlm_latency_ms = vlm_res.latency_ms
+
+        # DECISION TABLE CASE:
+        # VLM confirms NOT WASTE with HIGH confidence (definite prank, selfie, food, clean pavement).
+        # We skip Mask R-CNN entirely to save server compute!
+        if (not vlm_res.is_waste_issue) and (vlm_res.confidence == "high"):
+            report.status = models.ReportStatus.AI_REJECTED
+            report.ai_confidence = 0.0
+            report.verification_pending = False
+            report.verification_kind = None
+
+            # Run trust scoring for photo records
+            photo_bytes_for_trust = [(b, row) for b, row in pairs]
+            def _run_trust_batch_early():
+                return [(p, compute_trust_score(b, report.lat, report.lon, device_lat, device_lon)) for b, p in photo_bytes_for_trust]
+            trust_results = await asyncio.to_thread(_run_trust_batch_early)
+            for photo, trust_result in trust_results:
+                if photo is not None:
+                    photo.trust_score = trust_result["score"]
+                    photo.trust_signals = json.dumps(trust_result, default=str)
+            photo_scores = [p.trust_score for p, _ in trust_results if p is not None and p.trust_score]
+            if photo_scores:
+                _trust_priority = {"low": 0, "medium": 1, "high": 2}
+                report.trust_score = min(photo_scores, key=lambda s: _trust_priority.get(s, 99))
+                report.needs_human_review = (report.trust_score == "low")
+
+            if report.barangay:
+                emit_to_barangay(
+                    db, report.barangay, "pending_human_review",
+                    f"AI-rejected report: {report.tracking_id}",
+                    f"VLM classified as not_waste: {vlm_res.description}. Review if false negative.",
+                    report_id=report.id,
+                )
+            if report.reporter_id:
+                emit_notification(
+                    db, report.reporter_id,
+                    "ai_rejected",
+                    f"Report {report.tracking_id} — AI review complete",
+                    f"Photo analyzed: {vlm_res.description}. An admin will review if this was rejected in error.",
+                    report_id=report.id,
+                )
+            db.commit()
+            return
+
+        # ─────────────────────────────────────────────────────────
+        # LAYER 2: MASK R-CNN (Local Instance Segmentation)
+        # ─────────────────────────────────────────────────────────
         conf = db.query(models.SystemConfig).filter(models.SystemConfig.key == "ai_confidence_threshold").first()
         threshold = float(conf.value) if conf else 0.5
         results = await verify_images_async([b for b, _ in pairs], threshold)
 
-        # ANY-wins: if any photo passes the threshold, the report is verified
+        # ANY-wins: if any photo passes the threshold, Mask R-CNN detected waste
         any_verified = any(r.get("verified") for r in results)
         best = max(results, key=lambda r: r.get("confidence", 0.0))
 
-        # Update individual photo rows with per-photo AI results (no trust scoring yet)
+        # Update individual photo rows with per-photo AI results
         photo_bytes_for_trust: list[tuple[bytes, object]] = []
         for (img_bytes, row), result in zip(pairs, results):
             if row is not None:
@@ -1894,22 +1970,26 @@ async def _bg_verify_submit(report_id: int, device_lat: float = None, device_lon
 
         trust_results = await asyncio.to_thread(_run_trust_batch)
         for photo, trust_result in trust_results:
-            photo.trust_score = trust_result["score"]
-            # default=str is a safety net: never let an odd EXIF value (e.g. a raw
-            # rational) crash the whole verification over trust-signal logging.
-            photo.trust_signals = json.dumps(trust_result, default=str)
+            if photo is not None:
+                photo.trust_score = trust_result["score"]
+                photo.trust_signals = json.dumps(trust_result, default=str)
 
         # Compute aggregate trust score from the scored photos
-        photo_scores = [p.trust_score for p, _ in trust_results if p.trust_score]
+        photo_scores = [p.trust_score for p, _ in trust_results if p is not None and p.trust_score]
         if photo_scores:
             _trust_priority = {"low": 0, "medium": 1, "high": 2}
             worst_score = min(photo_scores, key=lambda s: _trust_priority.get(s, 99))
             report.trust_score = worst_score
             report.needs_human_review = (worst_score == "low")
 
-        # Update report aggregate: use best passing result's mask (or best overall if none pass)
+        # Update report aggregate confidence
         report.ai_confidence = best.get("confidence")
-        if any_verified:
+
+        # ─────────────────────────────────────────────────────────
+        # LAYER 3: DECISION TABLE & DISAGREEMENT ROUTING
+        # ─────────────────────────────────────────────────────────
+        # 1. Both agree waste is present:
+        if vlm_res.is_waste_issue and any_verified:
             report.status = models.ReportStatus.AI_VERIFIED
             passing = [
                 (result, row)
@@ -1924,17 +2004,40 @@ async def _bg_verify_submit(report_id: int, device_lat: float = None, device_lon
             if report.barangay:
                 emit_to_barangay(
                     db, report.barangay, "pending_human_review",
-                    f"New report needs review: {report.tracking_id}",
-                    "AI detected waste. Please verify the image before deploying a cleaner.",
+                    f"New report verified: {report.tracking_id}",
+                    f"AI verified waste ({vlm_res.category}). Ready for review and deployment.",
                     report_id=report.id,
                 )
+        # 2. Disagreement: VLM detected waste, but Mask R-CNN missed it (small or obscure waste)
+        elif vlm_res.is_waste_issue and not any_verified:
+            report.status = models.ReportStatus.AI_REJECTED
+            report.needs_human_review = True  # Flag for CENRO review
+            if report.barangay:
+                emit_to_barangay(
+                    db, report.barangay, "pending_human_review",
+                    f"Borderline report needs review: {report.tracking_id}",
+                    f"VLM detected waste ({vlm_res.category}), but Mask R-CNN confidence was low. Please review.",
+                    report_id=report.id,
+                )
+        # 3. Disagreement: VLM was unsure/not_waste (low/med), but Mask R-CNN detected something
+        elif (not vlm_res.is_waste_issue) and any_verified:
+            report.status = models.ReportStatus.AI_REJECTED
+            report.needs_human_review = True  # Disagreement! Flag for CENRO review
+            if report.barangay:
+                emit_to_barangay(
+                    db, report.barangay, "pending_human_review",
+                    f"Disputed report needs review: {report.tracking_id}",
+                    "Mask R-CNN detected waste, but VLM doubted it. Please review manually.",
+                    report_id=report.id,
+                )
+        # 4. Both agree not waste:
         else:
             report.status = models.ReportStatus.AI_REJECTED
             if report.barangay:
                 emit_to_barangay(
                     db, report.barangay, "pending_human_review",
-                    f"AI-rejected report needs review: {report.tracking_id}",
-                    "AI did not detect waste. Please review — you can override if it's a false negative.",
+                    f"AI-rejected report: {report.tracking_id}",
+                    f"No significant waste detected ({vlm_res.description}).",
                     report_id=report.id,
                 )
 

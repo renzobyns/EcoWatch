@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, FileText, Camera, Shield, Clock, MapPin, User, Mail, Phone, ExternalLink, ClipboardList, RefreshCw, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { X, FileText, Camera, Shield, Clock, MapPin, User, Mail, Phone, ExternalLink, ClipboardList, RefreshCw, ShieldCheck, CheckCircle2, Sparkles } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { TrustBadge } from "@/components/TrustBadge";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
@@ -47,6 +47,13 @@ export interface QueueReport {
     human_verified_at?: string | null;
     human_verification_notes?: string | null;
     human_verification_action?: string | null;
+    vlm_result?: string | null;
+    vlm_category?: string | null;
+    vlm_confidence?: string | null;
+    vlm_description?: string | null;
+    vlm_rejection_reason?: string | null;
+    vlm_provider?: string | null;
+    vlm_latency_ms?: number | null;
 }
 
 export interface ReportDetailPayload {
@@ -665,6 +672,48 @@ function OverviewTab({ report, detail, loading, error, onRetry, onDuplicateConfi
                     <div className="mt-2 text-[11px] text-amber-300">AI verification still running…</div>
                 )}
             </div>
+
+            {/* VLM Semantic Pre-Filter (Layer 1) */}
+            {report.vlm_category && (
+                <div className="bg-card rounded-lg border border-border shadow-sm p-4 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                        <div className="text-sm font-semibold tracking-tight text-foreground flex items-center gap-1.5">
+                            <Sparkles size={16} className="text-primary" />
+                            VLM Semantic Check (Layer 1)
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
+                                {report.vlm_category.replace(/_/g, " ")}
+                            </span>
+                            {report.vlm_confidence && (
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                    report.vlm_confidence === "high"
+                                        ? "bg-emerald-500/15 text-emerald-500 border border-emerald-500/30"
+                                        : report.vlm_confidence === "medium"
+                                        ? "bg-amber-500/15 text-amber-500 border border-amber-500/30"
+                                        : "bg-red-500/15 text-red-500 border border-red-500/30"
+                                }`}>
+                                    {report.vlm_confidence}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                    {report.vlm_description && (
+                        <div className="p-2.5 rounded-lg bg-muted/40 border border-border/50 text-xs text-foreground/85 leading-relaxed">
+                            {report.vlm_description}
+                        </div>
+                    )}
+                    {report.vlm_rejection_reason && (
+                        <div className="text-[11px] text-red-400 font-medium bg-red-500/10 border border-red-500/20 rounded-md p-2">
+                            <strong>Rejection Note:</strong> {report.vlm_rejection_reason}
+                        </div>
+                    )}
+                    <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-0.5">
+                        <span>Model: <strong className="font-mono text-foreground/70">{report.vlm_provider || "Gemini Flash"}</strong></span>
+                        {report.vlm_latency_ms ? <span>{report.vlm_latency_ms}ms latency</span> : null}
+                    </div>
+                </div>
+            )}
 
             {/* Human Verification (Layer 2) */}
             {(report.human_verification_action || report.human_verified_at) && (

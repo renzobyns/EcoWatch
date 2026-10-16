@@ -134,6 +134,15 @@ class Report(Base):
     human_verification_notes = Column(Text, nullable=True)       # Reason/justification
     human_verification_action = Column(String, nullable=True)    # "confirmed" | "overridden" | "rejected" | "confirmed_rejection"
 
+    # VLM Verification (Layer 1)
+    vlm_result = Column(Text, nullable=True)                      # Raw JSON text
+    vlm_category = Column(String, nullable=True)                  # plastic | food_waste | mixed_garbage | etc.
+    vlm_confidence = Column(String, nullable=True)                # high | medium | low
+    vlm_description = Column(Text, nullable=True)                 # Scene description
+    vlm_rejection_reason = Column(Text, nullable=True)            # Rejection explanation
+    vlm_provider = Column(String, nullable=True)                  # gemini-3.5-flash
+    vlm_latency_ms = Column(Integer, nullable=True)               # Latency in ms
+
     # Duplicate detection (Module 3). duplicate_of_id points to the original report
     # an admin confirmed this one duplicates. possible_duplicate_flag is set at submit
     # time when a nearby open report exists, so admin queues can surface a badge.

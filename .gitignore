@@ -52,6 +52,8 @@ Thumbs.db
 
 # Database
 backend/ecowatch.db
+ecowatch.db
+*.db
 
 # Dynamic Uploads
 backend/uploads/

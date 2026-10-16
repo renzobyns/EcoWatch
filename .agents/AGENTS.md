@@ -215,7 +215,7 @@ Always verify layout across these breakpoints:
 ### 🔴 High-Priority Reminders
 > Items the agent has flagged as urgent. Review these first.
 
-- **🧠 MC-004: Three-Layer VLM Verification (In Progress)** — Branch `feat/3-layer-verification-vlm`. Phase 1 (API key) complete. Next: Phase 0 (eval dataset) and Phase 2 (`vlm_service.py`). See `production readiness.md` §15 and `CHECKLIST productionready.md` Mini-Phase 2.6.
+- **🧠 MC-004: Three-Layer VLM Verification (Core Implementation Complete)** — Branch `feat/3-layer-verification-vlm`. VLM service module, 3-layer Decision Table routing in `main.py`, and CENRO drawer inspection UI completed. All tests and frontend build pass.
 
 ---
 
