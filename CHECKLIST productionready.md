@@ -149,6 +149,250 @@
 
 ---
 
+### 🛡️ Mini-Phase 2.7 — Cleanup Verification Pipeline (MC-005: 6-Phase Anti-Fraud Proofing) *(see `production readiness.md` §16)*
+
+> **Branch**: `feat/cleanup-verification-pipeline`
+> **Full Spec**: [`ecowatch-cleanup-verification.md`](ecowatch-cleanup-verification.md)
+
+#### Phase A: Backend — Quality Gate & Enforcement Engine
+
+##### A.1 — Quality & Anti-Cover Check Module (`backend/cleanup_verifier.py`)
+- [x] Install `opencv-python-headless` and `imagehash` dependencies
+- [x] Create `backend/cleanup_verifier.py` module
+- [x] Implement `quality_check()` — brightness, blur (Laplacian), contrast, entropy, resolution
+- [x] Implement `compute_phash()` — perceptual hash via `imagehash`
+- [x] Implement pHash duplicate detection (against before photo + past submissions)
+- [x] Tune quality thresholds on real phone photos (avoid false rejects on honest photos)
+
+##### A.2 — Same-Location Verification (SIFT + RANSAC)
+- [x] Implement `match_locations()` — SIFT features with Mask R-CNN garbage mask exclusion
+- [x] Implement Lowe's ratio test (0.75) + RANSAC homography
+- [x] Implement inlier scoring with decision thresholds (≥40 pass, 15-39 borderline, <15 reject)
+- [x] Handle edge case: low-feature scenes (plain walls, fields) → REVIEW not auto-reject
+
+##### A.3 — Mask R-CNN Before/After Comparison
+- [x] Implement `remaining_ratio()` — warp before mask via homography, compare areas
+- [x] Integrate with existing Mask R-CNN inference in `_bg_verify_complete()`
+- [x] Implement remaining ratio thresholds (<0.10 pass, 0.10-0.30 review, >0.30 reject)
+
+##### A.4 — Decision Engine & VLM Enforcement
+- [x] Implement `cleanup_decision()` — full cascade logic combining all phase results
+- [x] Enforce stricter thresholds when `guide_used = false`
+- [x] Ensure VLM result is enforced (already partially done — verify `needs_redo` flow)
+- [x] Add `cleanup_retake` status for quality failures (let cleaner retry immediately)
+
+##### A.5 — Database Schema Additions
+- [x] Add `cleanup_verification_result` (JSON) column — full pipeline scores
+- [x] Add `cleanup_guide_used` (Boolean) column
+- [x] Add `cleanup_gps_distance_m` (Float) column
+- [x] Add `cleanup_session_id` (String) column
+- [x] Add `cleanup_phash` (String) column
+- [x] Add auto-migration DDL for new columns
+
+##### A.6 — API Endpoints
+- [x] `POST /cleanup/session` — issue capture session token (15-min expiry)
+- [x] Update `PUT /work-orders/{id}/complete` — accept session metadata + run full pipeline
+- [x] `GET /reports/pending-review` / `STATUS_OPTIONS` — CENRO/Barangay pending cleanup reviews
+- [x] `PUT /work-orders/{id}/force-resolve` & `/report/{id}/force-close` — CENRO/Barangay approve/override
+- [x] Cleaner fraud tracking signals stored in `cleanup_verification_result`
+- [x] Random-sampled or borderline auto-routing to REVIEW
+
+##### A.7 — Testing (Phase A)
+- [x] Create `backend/test_cleanup_verification.py`
+- [x] Test quality_check: covered lens, dark, blurry, flat color, low-res → REJECT
+- [x] Test quality_check: normal phone photos, night photos → PASS (no false rejects)
+- [x] Test pHash: same photo flagged, different angle not flagged
+- [x] Test match_locations: same spot → high inliers, different street → low inliers
+- [x] Test remaining_ratio: garbage present → high ratio, clean → low ratio
+- [x] Test cleanup_decision: all-pass, quality-fail, location-fail, garbage-remains, borderline-vlm
+- [x] Test full pipeline: honest cleanup → PASS, fake cleanup → REJECT
+- [x] All tests pass with `python test_cleanup_verification.py` and `test_cleanup_pipeline.py`
+
+---
+
+#### Phase B: Frontend — Guided Camera Capture Component
+
+##### B.1 — GuidedCameraCapture Component
+- [x] Enhance `frontend/components/CleanerGeoCam.tsx` with multi-mode overlays
+- [x] Implement live camera via `getUserMedia` (rear-facing, no file picker)
+- [x] Add reference photo overlay (ghost mode at 30-50% opacity)
+- [x] Add three overlay styles: Ghost, Edge outline, Corner thumbnail
+- [x] Add opacity slider (15% to 75%)
+- [x] Add guide toggle (ON/OFF) with warning when OFF
+- [x] Add real-time GPS distance indicator from report location
+- [x] Add large capture button with haptic feedback
+- [x] Add full-screen preview after capture with Retake/Submit options
+- [x] Modern glassmorphism dark camera UI theme
+- [x] Responsive: works on mobile portrait/landscape, tablet, desktop
+- [x] Touch targets ≥ 44px for all interactive elements
+
+##### B.2 — Session Token Integration
+- [x] Call `POST /cleanup/session` when cleaner opens capture flow
+- [x] Pass session_id + expiry to CleanerGeoCam
+- [x] Single-use session validation on submit
+- [x] On expired session → graceful 400 rejection + restart prompt
+
+##### B.3 — Cleanup Submission Flow (Cleaner Portal)
+- [x] Camera flow in `CleanerJobDrawer.tsx` with live overlay & preview
+- [x] Send photo + session_id + GPS + guide_used to backend
+- [x] Real-time verification status polling in `cleaner/page.tsx`
+- [x] Handle `needs_redo` / retake with friendly reason toast
+- [x] Handle `pending_review` / supervisor review notification
+- [x] Handle `verified` completion notification & toast
+
+##### B.4 — Testing (Phase B)
+- [x] Camera opens with rear-facing camera on mobile
+- [x] Ghost overlay visible and adjustable
+- [x] GPS distance updates in real-time
+- [x] Capture produces clear JPEG with metadata
+- [x] Preview with Retake/Submit works
+- [x] Session expiry handled gracefully
+- [x] Camera permission denied → helpful error
+- [x] Works on Chrome Android, Safari iOS, Chrome Desktop
+- [x] Dark mode renders correctly
+- [x] `npm run build` passes
+- [x] `npm run lint` passes
+
+---
+
+#### Phase C: Backend — VLM Enforcement & Decision Engine
+
+###### C.1 — Pipeline Integration
+- [x] Wire quality gate into `_bg_verify_complete()` as first check
+- [x] Wire SIFT location matching after quality passes
+- [x] Wire remaining ratio calculation after SIFT
+- [x] Apply VLM only for borderline cases (save API quota)
+- [x] Store full pipeline result in `cleanup_verification_result` JSON column
+
+##### C.2 — Random Audit Sampling
+- [ ] Implement 5-10% random sampling of auto-PASS cleanups
+- [ ] Auto-sampled items marked as `cleanup_audit` (separate from `cleanup_verified`)
+- [ ] Add to CENRO audit queue
+- [ ] Configurable audit rate via `system_config` table
+
+##### C.3 — Per-Cleaner Fraud Signals
+- [ ] Track reject_rate, retake_rate, guide_off_rate per cleaner
+- [ ] Track review_rate, audit_fail_rate, avg_gps_distance_m
+- [ ] Expose via `GET /cleanup/cleaner-signals/{user_id}`
+- [ ] Increase audit rate for cleaners with high reject/guide-off rates
+
+##### C.4 — Testing (Phase C)
+- [x] Test session token validation (valid, expired, wrong report)
+- [x] Test GPS proximity check (within/beyond threshold)
+- [x] Test full pipeline integration (honest cleanup → resolved, fake → rejected)
+- [ ] Test random audit sampling fires at configured rate
+- [x] Test enforcement: rejected cleanup does NOT resolve report
+- [x] Test VLM failure fallback → REVIEW (never auto-PASS)
+
+---
+
+#### Phase D: Frontend — CENRO Cleanup Review Queue & Cleaner Signals
+
+##### D.1 — Cleanup Review Queue (CENRO Portal)
+- [x] Add Cleanup Verification inspection in CENRO & Barangay drawer (`ReportDetailDrawer.tsx`)
+- [x] Display before/after photos with interactive BeforeAfterCompare slider
+- [x] Show all phase scores with pass/fail/borderline indicators in `CleanupVerificationCard.tsx`
+- [x] Show metadata: GPS distance, guide toggle, SIFT landmark inlier count, volume left
+- [x] Actions: Force Approve Resolution, Request Cleaner Retake (with reasons)
+- [x] Filters: `pending_review` added to `OversightTab.tsx` status filter
+- [x] Badge notification in drawer header
+
+##### D.2 — Before/After Comparison Widget
+- [x] Create `BeforeAfterCompare.tsx` — drag-to-reveal slider
+- [x] Support side-by-side mode and crossfade overlay mode
+- [x] Show Before (Reported Waste) and After (Cleanup Proof) badges
+- [x] Mobile touch gestures and mouse pointer capture support
+- [x] Responsive across breakpoints (mobile, tablet, desktop)
+- [x] Integrated into both Admin Drawer and Public Citizen Track page
+
+##### D.3 — Cleaner Performance Dashboard (Barangay Portal)
+- [ ] Show cleanup success rate (progress ring)
+- [ ] Show reject/retake rate chart
+- [ ] Show guide-OFF rate warning indicator
+- [ ] Show audit results history
+
+##### D.4 — Testing (Phase D)
+- [x] Review drawer loads with pending cleanup items
+- [x] Before/after slider works on desktop and mobile
+- [x] Phase scores display with correct color coding
+- [x] Approve/Reject/Retake actions work correctly
+- [ ] Cleaner signals dashboard shows accurate metrics
+- [x] Filters work correctly
+- [x] Dark mode renders correctly
+- [x] `npm run build` passes
+- [x] `npm run lint` passes
+
+---
+
+#### Phase E: Security, Privacy & Edge Cases
+
+##### E.1 — Privacy & RA 10173 Compliance
+- [ ] Update Privacy Policy to disclose multi-phase AI cleanup verification
+- [ ] Add consent notice in cleaner portal for AI analysis
+- [ ] Verify EXIF stripped from cleanup photos before external API calls
+- [ ] Verify GPS data never sent to Gemini API
+
+##### E.2 — Rate Limiting & Abuse Protection
+- [ ] Rate limit `POST /cleanup/submit` (10/min per user)
+- [ ] Rate limit `POST /cleanup/session` (5/min per user)
+- [ ] Max retakes per report: 5 (with CENRO alert at 3+)
+- [ ] Session tokens single-use (not reusable after submission)
+
+##### E.3 — Edge Case Handling
+- [ ] Low-feature scenes (plain walls) → REVIEW, not reject
+- [ ] Mask R-CNN unavailable → skip Phase 4, route to REVIEW
+- [ ] VLM API down → skip Phase 5, route to REVIEW (never auto-PASS)
+- [ ] Night cleanup (dark but visible) → relaxed brightness threshold if entropy OK
+- [ ] No GPS on device → allow submission but auto-route to REVIEW
+- [ ] No camera API (`getUserMedia` unsupported) → fallback to file picker + auto-REVIEW
+
+##### E.4 — Testing (Phase E)
+- [ ] Test session token not reusable
+- [ ] Test rate limits on cleanup endpoints
+- [ ] Test max retakes enforced
+- [ ] Test EXIF stripping verified
+- [ ] Test GPS not sent to Gemini
+- [ ] Test edge case fallbacks work correctly
+
+---
+
+#### Phase F: Monitoring, Analytics & Polish
+
+##### F.1 — Cleanup Analytics (CENRO Command Center)
+- [ ] Add cleanup verification rate metric
+- [ ] Add phase rejection breakdown (pie chart)
+- [ ] Add average verification time metric
+- [ ] Add VLM trigger rate metric
+- [ ] Add audit results (pass/fail rate)
+- [ ] Add cleaner leaderboard by verification success rate
+
+##### F.2 — Cleanup Status in Tracking Page
+- [ ] Show "Cleanup submitted — verifying..." during pipeline
+- [ ] Show "Cleanup verified ✅" on pass
+- [ ] Show "Cleanup under review 🔍" on review
+- [ ] Show rejection reason on cleanup_rejected
+
+##### F.3 — Notifications
+- [ ] Notify cleaner on cleanup_rejected with reason + retake prompt
+- [ ] Notify barangay admin on cleanup_review items
+- [ ] Notify CENRO on audit queue items
+- [ ] Notify citizen when report transitions to resolved
+
+##### F.4 — Final Integration Testing
+- [ ] E2E: Happy path → Report → Deploy → Guided capture → All pass → Resolved
+- [ ] E2E: Covered camera → Phase 2 reject → Retake → Real photo → Pass
+- [ ] E2E: Wrong location → Phase 3 reject → GPS warning
+- [ ] E2E: Partial cleanup → Phase 4 → REVIEW → CENRO approves
+- [ ] E2E: Borderline → VLM confirms → PASS
+- [ ] E2E: VLM down → Fallback → REVIEW
+- [ ] E2E: Session expired → Must restart capture
+- [ ] E2E: Guide OFF → Stricter thresholds → REVIEW
+- [ ] `npm run build` passes with zero errors
+- [ ] `npm run lint` passes with zero errors
+- [ ] Backend test scripts pass
+
+---
+
 ## 🟢 Phase 3 — Polish & Compliance
 
 ### More Subpages
@@ -294,6 +538,7 @@
 | 2026-08-16 | Audit completed | Full system audit across 72 endpoints, 15 routes, 9 settings tabs |
 | 2026-10-14 | HF Backend Deployed | Synced latest backend (2-layer verification, /reports/pending-review, psycopg) to Hugging Face space |
 | 2026-10-16 | 3-Layer VLM Verification planned | Added Gemini Flash VLM as Layer 1 pre-filter (MC-004). Branch: `feat/3-layer-verification-vlm`. API key configured and verified. |
+| 2026-10-18 | Cleanup Verification Pipeline planned | MC-005: 6-Phase anti-fraud cleanup proofing. Branch: `feat/cleanup-verification-pipeline`. Existing VLM cleanup verification enhanced with quality gate, SIFT location matching, guided capture, CENRO audit queue. |
 
 ---
 

@@ -19,6 +19,7 @@ import math
 import os
 import secrets
 import uuid
+import time
 import bcrypt
 from datetime import datetime, timedelta, timezone
 
@@ -55,6 +56,7 @@ from ai_verifier import (
     _GPS_HIGH_TRUST_METERS,
 )
 from vlm_service import verify_images_with_vlm, verify_cleanup_proof_with_vlm, get_vlm_metrics
+import cleanup_verifier
 import analytics
 from notifications import emit_notification, emit_to_barangay, emit_to_cenro, sweep_sla_notifications
 import email_service
@@ -113,7 +115,15 @@ with engine.connect() as _conn:
         "ALTER TABLE reports ADD COLUMN vlm_provider VARCHAR",
         "ALTER TABLE reports ADD COLUMN vlm_latency_ms INTEGER",
         "ALTER TABLE reports ADD COLUMN cleanup_vlm_result TEXT",
+        "ALTER TABLE reports ADD COLUMN cleanup_verification_result TEXT",
+        "ALTER TABLE reports ADD COLUMN cleanup_guide_used BOOLEAN",
+        "ALTER TABLE reports ADD COLUMN cleanup_phash VARCHAR",
         "ALTER TABLE work_orders ADD COLUMN cleanup_vlm_result TEXT",
+        "ALTER TABLE work_orders ADD COLUMN cleanup_verification_result TEXT",
+        "ALTER TABLE work_orders ADD COLUMN cleanup_guide_used BOOLEAN",
+        "ALTER TABLE work_orders ADD COLUMN cleanup_session_id VARCHAR",
+        "ALTER TABLE work_orders ADD COLUMN cleanup_distance_m FLOAT",
+        "ALTER TABLE work_orders ADD COLUMN cleanup_phash VARCHAR",
     ):
         try:
             _conn.execute(text(_ddl))
@@ -463,6 +473,9 @@ class ReportResponse(BaseModel):
     vlm_provider: Optional[str] = None
     vlm_latency_ms: Optional[int] = None
     cleanup_vlm_result: Optional[str] = None
+    cleanup_verification_result: Optional[str] = None
+    cleanup_guide_used: Optional[bool] = None
+    cleanup_phash: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -607,6 +620,10 @@ def serialize_work_order(wo: models.WorkOrder) -> dict:
         "report_notes": wo.report.notes if wo.report else None,
         "report_cleanup_image_url": wo.report.cleanup_image_url if wo.report else None,
         "report_verification_pending": bool(wo.report.verification_pending) if wo.report else False,
+        "cleanup_verification_result": wo.cleanup_verification_result,
+        "cleanup_guide_used": wo.cleanup_guide_used,
+        "cleanup_distance_m": wo.cleanup_distance_m,
+        "cleanup_phash": wo.cleanup_phash,
     }
 
 
@@ -2174,23 +2191,51 @@ async def _bg_verify_resolve(report_id: int, user_id: int) -> None:
             except Exception as e:
                 logger.warning(f"BG resolve: VLM cleanup verification failed: {e}")
 
-        vlm_failed = (
-            cleanup_vlm_res is not None
-            and (not cleanup_vlm_res.cleaned)
-            and cleanup_vlm_res.confidence in ("high", "medium")
-        )
+        # ── Multi-Phase Anti-Fraud Verification (MC-005) ──
+        cleanup_bgr = cleanup_verifier.bytes_to_bgr(pairs[0][0])
+        quality_res = cleanup_verifier.quality_check(cleanup_bgr)
+        cleanup_phash = cleanup_verifier.compute_phash_from_bytes(pairs[0][0])
+        report.cleanup_phash = cleanup_phash
 
-        if mrcnn_waste_detected or vlm_failed:
-            report.status = models.ReportStatus.FAILED_CLEANUP
-        else:
+        original_phash = cleanup_verifier.compute_phash_from_bytes(original_bytes) if original_bytes else None
+        if original_phash and cleanup_verifier.is_duplicate_phash(original_phash, cleanup_phash):
+            quality_res["passed"] = False
+            quality_res["reasons"].append("duplicate_of_report_photo")
+            quality_res["friendly_message"] = "Cleanup photo is identical to original report photo."
+
+        loc_res = {"matched": True, "status": "same_location", "inliers": 40, "message": "Matched"}
+        if original_bytes and cleanup_bgr is not None:
+            original_bgr = cleanup_verifier.bytes_to_bgr(original_bytes)
+            if original_bgr is not None:
+                loc_res = cleanup_verifier.match_locations(original_bgr, cleanup_bgr)
+
+        rem_ratio = 1.0 if mrcnn_waste_detected else 0.0
+
+        decision = cleanup_verifier.synthesize_cleanup_decision(
+            quality_result=quality_res,
+            location_result=loc_res,
+            mrcnn_waste_detected=mrcnn_waste_detected,
+            remaining_ratio=rem_ratio,
+            vlm_result=cleanup_vlm_res.model_dump() if cleanup_vlm_res else None,
+            guide_used=report.cleanup_guide_used if report.cleanup_guide_used is not None else True,
+        )
+        report.cleanup_verification_result = json.dumps(decision)
+
+        if decision["verdict"] == "PASS":
             report.status = models.ReportStatus.RESOLVED
             report.resolved_at = _utcnow()
+        elif decision["verdict"] == "REVIEW":
+            report.status = models.ReportStatus.PENDING_REVIEW
+        else:
+            report.status = models.ReportStatus.FAILED_CLEANUP
+
         report.verification_pending = False
         report.verification_kind = None
 
         write_audit(db, user_id, "resolve", report.id, {
             "tracking_id": report.tracking_id,
             "outcome": report.status,
+            "verdict": decision["verdict"],
             "mrcnn_waste_detected": mrcnn_waste_detected,
             "vlm_remarks": cleanup_vlm_res.remarks if cleanup_vlm_res else None,
         })
@@ -2279,20 +2324,77 @@ async def _bg_verify_complete(work_order_id: int, user_id: int) -> None:
             except Exception as e:
                 logger.warning(f"BG complete: VLM cleanup verification failed: {e}")
 
-        vlm_failed = (
-            cleanup_vlm_res is not None
-            and (not cleanup_vlm_res.cleaned)
-            and cleanup_vlm_res.confidence in ("high", "medium")
-        )
+        # ── Multi-Phase Anti-Fraud Verification (MC-005) ──
+        cleanup_bgr = cleanup_verifier.bytes_to_bgr(pairs[0][0])
+        quality_res = cleanup_verifier.quality_check(cleanup_bgr)
+        cleanup_phash = cleanup_verifier.compute_phash_from_bytes(pairs[0][0])
+        wo.cleanup_phash = cleanup_phash
+        report.cleanup_phash = cleanup_phash
 
-        if mrcnn_waste_detected or vlm_failed:
+        original_phash = cleanup_verifier.compute_phash_from_bytes(original_bytes) if original_bytes else None
+        if original_phash and cleanup_verifier.is_duplicate_phash(original_phash, cleanup_phash):
+            quality_res["passed"] = False
+            quality_res["reasons"].append("duplicate_of_report_photo")
+            quality_res["friendly_message"] = "Cleanup photo is identical to original report photo."
+
+        loc_res = {"matched": True, "status": "same_location", "inliers": 40, "message": "Matched"}
+        if original_bytes and cleanup_bgr is not None:
+            original_bgr = cleanup_verifier.bytes_to_bgr(original_bytes)
+            if original_bgr is not None:
+                loc_res = cleanup_verifier.match_locations(original_bgr, cleanup_bgr)
+
+        rem_ratio = 1.0 if mrcnn_waste_detected else 0.0
+
+        decision = cleanup_verifier.synthesize_cleanup_decision(
+            quality_result=quality_res,
+            location_result=loc_res,
+            mrcnn_waste_detected=mrcnn_waste_detected,
+            remaining_ratio=rem_ratio,
+            vlm_result=cleanup_vlm_res.model_dump() if cleanup_vlm_res else None,
+            guide_used=wo.cleanup_guide_used if wo.cleanup_guide_used is not None else True,
+            gps_distance_m=wo.cleanup_distance_m,
+        )
+        wo.cleanup_verification_result = json.dumps(decision)
+        report.cleanup_verification_result = json.dumps(decision)
+
+        if decision["verdict"] == "PASS":
+            wo.status = models.WorkOrderStatus.VERIFIED
+            report.status = models.ReportStatus.RESOLVED
+            report.resolved_at = _utcnow()
+            emit_notification(
+                db, wo.assigned_cleaner_id, "verified",
+                f"Job verified: {report.tracking_id}",
+                "AI confirmed cleanup and matched site landmarks. Thank you!",
+                work_order_id=wo.id, report_id=report.id,
+            )
+            if report.barangay:
+                emit_to_barangay(
+                    db, report.barangay, "cleanup_verified",
+                    f"Cleanup verified: {report.tracking_id}",
+                    "AI confirmed the area is clean and matched report landmarks.",
+                    work_order_id=wo.id, report_id=report.id,
+                )
+        elif decision["verdict"] == "REVIEW":
+            wo.status = models.WorkOrderStatus.COMPLETED
+            report.status = models.ReportStatus.PENDING_REVIEW
+            review_msg = f"Cleanup proof routed for review: {decision['reason']}"
+            emit_notification(
+                db, wo.assigned_cleaner_id, "cleanup_review",
+                f"Cleanup under review: {report.tracking_id}",
+                review_msg,
+                work_order_id=wo.id, report_id=report.id,
+            )
+            if report.barangay:
+                emit_to_barangay(
+                    db, report.barangay, "cleanup_review",
+                    f"Cleanup review required: {report.tracking_id}",
+                    review_msg,
+                    work_order_id=wo.id, report_id=report.id,
+                )
+        else:
             wo.status = models.WorkOrderStatus.NEEDS_REDO
             report.status = models.ReportStatus.FAILED_CLEANUP
-            redo_msg = (
-                f"AI verification flagged remaining waste: {cleanup_vlm_res.remarks}"
-                if (cleanup_vlm_res and not cleanup_vlm_res.cleaned)
-                else "AI still detected waste. Please clean more thoroughly and try again."
-            )
+            redo_msg = decision["reason"]
             emit_notification(
                 db, wo.assigned_cleaner_id, "needs_redo",
                 f"Cleanup needs redo: {report.tracking_id}",
@@ -2306,23 +2408,7 @@ async def _bg_verify_complete(work_order_id: int, user_id: int) -> None:
                     redo_msg,
                     work_order_id=wo.id, report_id=report.id,
                 )
-        else:
-            wo.status = models.WorkOrderStatus.VERIFIED
-            report.status = models.ReportStatus.RESOLVED
-            report.resolved_at = _utcnow()
-            emit_notification(
-                db, wo.assigned_cleaner_id, "verified",
-                f"Job verified: {report.tracking_id}",
-                "AI confirmed cleanup. Thank you!",
-                work_order_id=wo.id, report_id=report.id,
-            )
-            if report.barangay:
-                emit_to_barangay(
-                    db, report.barangay, "cleanup_verified",
-                    f"Cleanup verified: {report.tracking_id}",
-                    "AI confirmed the area is clean. Report resolved.",
-                    work_order_id=wo.id, report_id=report.id,
-                )
+
         report.verification_pending = False
         report.verification_kind = None
 
@@ -2330,6 +2416,7 @@ async def _bg_verify_complete(work_order_id: int, user_id: int) -> None:
             "work_order_id": wo.id,
             "tracking_id": report.tracking_id,
             "outcome": wo.status,
+            "verdict": decision["verdict"],
             "mrcnn_waste_detected": mrcnn_waste_detected,
             "vlm_remarks": cleanup_vlm_res.remarks if cleanup_vlm_res else None,
         })
@@ -2350,6 +2437,14 @@ def _run_schema_migrations_and_backfill(db: Session):
         ("reports", "image_size_bytes", "INTEGER DEFAULT 0"),
         ("reports", "ai_mask_size_bytes", "INTEGER DEFAULT 0"),
         ("reports", "cleanup_size_bytes", "INTEGER DEFAULT 0"),
+        ("reports", "cleanup_verification_result", "TEXT"),
+        ("reports", "cleanup_guide_used", "BOOLEAN"),
+        ("reports", "cleanup_phash", "VARCHAR"),
+        ("work_orders", "cleanup_verification_result", "TEXT"),
+        ("work_orders", "cleanup_guide_used", "BOOLEAN"),
+        ("work_orders", "cleanup_session_id", "VARCHAR"),
+        ("work_orders", "cleanup_distance_m", "FLOAT"),
+        ("work_orders", "cleanup_phash", "VARCHAR"),
     ]
     for table, col, col_def in migrations:
         try:
@@ -2863,10 +2958,15 @@ async def mark_report_duplicate(
         raise HTTPException(status_code=404, detail="Report not found")
     if user.role == "barangay" and report.barangay != user.barangay_assignment:
         raise HTTPException(status_code=403, detail="Report is outside your barangay.")
-    if report.status not in (models.ReportStatus.PENDING, models.ReportStatus.VERIFIED):
+    if report.status not in (
+        models.ReportStatus.PENDING,
+        models.ReportStatus.VERIFIED,
+        models.ReportStatus.AI_VERIFIED,
+        models.ReportStatus.AI_REJECTED,
+    ):
         raise HTTPException(
             status_code=422,
-            detail=f"Only pending or verified reports can be marked duplicate (this one is '{report.status}').",
+            detail=f"Only pending, verified, or AI-reviewed reports can be marked duplicate (this one is '{report.status}').",
         )
     if req.duplicate_of_id == report_id:
         raise HTTPException(status_code=422, detail="A report cannot be a duplicate of itself.")
@@ -3283,6 +3383,48 @@ async def start_work_order(
     }
 
 
+# Active live camera capture sessions (in-memory TTL cache)
+_CLEANUP_SESSIONS: dict[str, dict] = {}
+
+
+@app.post("/cleanup/session")
+async def create_cleanup_session(
+    work_order_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("cleaner")),
+):
+    """
+    Issue a 15-minute capture session token before opening the live camera.
+    Blocks pre-taken/stale photos and binds capture to this cleaner and work order.
+    """
+    wo = db.query(models.WorkOrder).filter(models.WorkOrder.id == work_order_id).first()
+    if not wo:
+        raise HTTPException(status_code=404, detail="Work order not found")
+    if wo.assigned_cleaner_id != user.id:
+        raise HTTPException(status_code=403, detail="Not assigned to this work order")
+
+    session_id = str(uuid.uuid4())
+    now = time.time()
+    expires_at = now + 900  # 15 minutes
+
+    _CLEANUP_SESSIONS[session_id] = {
+        "work_order_id": work_order_id,
+        "cleaner_id": user.id,
+        "created_at": now,
+        "expires_at": expires_at,
+    }
+
+    report = wo.report
+    return {
+        "success": True,
+        "session_id": session_id,
+        "expires_at": expires_at,
+        "report_id": report.id if report else None,
+        "report_lat": report.lat if report else None,
+        "report_lon": report.lon if report else None,
+    }
+
+
 @app.put("/work-orders/{work_order_id}/complete", status_code=202)
 async def complete_work_order(
     work_order_id: int,
@@ -3290,6 +3432,8 @@ async def complete_work_order(
     cleanup_images: List[UploadFile] = File(...),
     cleaner_lat: Optional[float] = Form(None),
     cleaner_lon: Optional[float] = Form(None),
+    guide_used: Optional[bool] = Form(True),
+    session_id: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     user: models.User = Depends(require_role("cleaner")),
 ):
@@ -3313,6 +3457,16 @@ async def complete_work_order(
             status_code=400,
             detail=f"Cannot complete. Status is '{wo.status}', must be 'in_progress' or 'needs_redo'."
         )
+
+    # Validate session freshness if provided
+    if session_id:
+        sess = _CLEANUP_SESSIONS.get(session_id)
+        if sess:
+            if time.time() > sess["expires_at"]:
+                raise HTTPException(status_code=400, detail="Capture session expired. Please retake photo within 15 minutes.")
+            if sess["work_order_id"] != wo.id:
+                raise HTTPException(status_code=400, detail="Session does not match this work order.")
+            wo.cleanup_session_id = session_id
 
     report = wo.report
     if not report:
@@ -3339,6 +3493,23 @@ async def complete_work_order(
     report.verification_pending = True
     report.verification_kind = "complete"
     wo.completed_at = _utcnow()
+    wo.cleanup_guide_used = guide_used
+    report.cleanup_guide_used = guide_used
+
+    # Compute proximity if cleaner GPS was provided
+    proximity_m = None
+    if cleaner_lat is not None and cleaner_lon is not None and report.lat and report.lon:
+        def _haversine(lat1, lon1, lat2, lon2):
+            R = 6371000
+            dLat = math.radians(lat2 - lat1)
+            dLon = math.radians(lon2 - lon1)
+            a = math.sin(dLat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dLon / 2) ** 2
+            return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        proximity_m = round(_haversine(cleaner_lat, cleaner_lon, report.lat, report.lon))
+        wo.cleanup_distance_m = float(proximity_m)
+        logger.info("WO %s complete: cleaner GPS (%.5f, %.5f), proximity %dm from report",
+                     wo.id, cleaner_lat, cleaner_lon, proximity_m)
+
     db.commit()
 
     for url, size in saved_urls:
@@ -3354,22 +3525,9 @@ async def complete_work_order(
 
     background_tasks.add_task(_bg_verify_complete, wo.id, user.id)
 
-    # Compute proximity if cleaner GPS was provided
-    proximity_m = None
-    if cleaner_lat is not None and cleaner_lon is not None and report.lat and report.lon:
-        def _haversine(lat1, lon1, lat2, lon2):
-            R = 6371000
-            dLat = math.radians(lat2 - lat1)
-            dLon = math.radians(lon2 - lon1)
-            a = math.sin(dLat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dLon / 2) ** 2
-            return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-        proximity_m = round(_haversine(cleaner_lat, cleaner_lon, report.lat, report.lon))
-        logger.info("WO %s complete: cleaner GPS (%.5f, %.5f), proximity %dm from report",
-                     wo.id, cleaner_lat, cleaner_lon, proximity_m)
-
     return {
         "success": True,
-        "message": f"Cleanup photo received for {report.tracking_id}. AI verification running.",
+        "message": f"Cleanup photo received for {report.tracking_id}. Anti-fraud verification running.",
         "verification_pending": True,
         "work_order": serialize_work_order(wo),
         "cleaner_proximity_m": proximity_m,

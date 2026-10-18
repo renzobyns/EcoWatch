@@ -9,6 +9,8 @@ import { ConfidenceTooltipBody } from "@/components/ConfidenceTooltipBody";
 import { formatRelative, formatDate } from "@/lib/date-utils";
 import { PhotoEvidenceDetail } from "@/components/PhotoEvidenceDetail";
 import { toast } from "sonner";
+import BeforeAfterCompare from "@/components/BeforeAfterCompare";
+import CleanupVerificationCard from "@/components/portal/CleanupVerificationCard";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://renzobyns-ecowatch-backend.hf.space";
 
@@ -54,6 +56,10 @@ export interface QueueReport {
     vlm_rejection_reason?: string | null;
     vlm_provider?: string | null;
     vlm_latency_ms?: number | null;
+    cleanup_vlm_result?: string | null;
+    cleanup_verification_result?: string | null;
+    cleanup_guide_used?: boolean | null;
+    cleanup_phash?: string | null;
 }
 
 export interface ReportDetailPayload {
@@ -97,6 +103,10 @@ export interface ReportDetailPayload {
         completed_at: string | null;
         assigned_cleaner_name: string | null;
         assigned_cleaner_email: string | null;
+        cleanup_verification_result?: string | null;
+        cleanup_guide_used?: boolean | null;
+        cleanup_distance_m?: number | null;
+        cleanup_phash?: string | null;
     }>;
 }
 
@@ -137,6 +147,7 @@ const STATUS_PILL: Record<string, string> = {
     resolved: "bg-green-500/20 text-green-400",
     rejected: "bg-foreground/5 text-foreground/40",
     failed_cleanup: "bg-red-900/30 text-red-400",
+    pending_review: "bg-purple-500/20 text-purple-400",
 };
 
 const WO_STATUS_PILL: Record<string, string> = {
@@ -290,6 +301,60 @@ export function ReportDetailDrawer({
         }
     };
 
+    const handleForceApproveCleanup = async (reason: string) => {
+        if (!report) return;
+        setDrawerVerifyLoading(true);
+        try {
+            if (userRole === "cenro") {
+                await api(`/report/${report.id}/force-close`, { method: "PUT" });
+                toast.success("Cleanup proof force-approved by CENRO.");
+            } else if (userRole === "barangay") {
+                const activeWo = detail?.work_orders?.find(
+                    (w) => w.status === "needs_redo" || w.status === "completed" || w.status === "in_progress"
+                );
+                if (activeWo) {
+                    await api(`/work-orders/${activeWo.id}/force-resolve`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ reason }),
+                    });
+                    toast.success("Work order force-resolved by Barangay.");
+                } else {
+                    toast.error("No active work order found to force-resolve.");
+                    return;
+                }
+            } else {
+                toast.error("Unauthorized to force-approve cleanup.");
+                return;
+            }
+            onUpdated?.();
+            fetchDetail();
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Override failed");
+        } finally {
+            setDrawerVerifyLoading(false);
+        }
+    };
+
+    const handleRequestRetake = async (reason: string) => {
+        if (!report) return;
+        setDrawerVerifyLoading(true);
+        try {
+            if (userRole === "barangay") {
+                await api(`/report/${report.id}/retry`, { method: "PUT" });
+                toast.success("Cleanup retake requested. Report queued for redeployment.");
+            } else {
+                toast.info(`Retake requested: ${reason}`);
+            }
+            onUpdated?.();
+            fetchDetail();
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Retake request failed");
+        } finally {
+            setDrawerVerifyLoading(false);
+        }
+    };
+
     if (!report) return null;
 
     const TABS: { key: DrawerTab; label: string; icon: React.ReactNode }[] = [
@@ -406,6 +471,54 @@ export function ReportDetailDrawer({
                     </div>
                 )}
 
+                {/* Cleanup Verification Action Banner (Phase 6 / MC-005) */}
+                {report && (report.status === "failed_cleanup" || report.status === "pending_review") && (
+                    <div className={`mx-5 mt-4 p-4 rounded-xl border flex flex-col gap-2.5 ${
+                        report.status === "failed_cleanup"
+                            ? "bg-red-500/10 border-red-500/30 text-red-500"
+                            : "bg-purple-500/10 border-purple-500/30 text-purple-400"
+                    }`}>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <ShieldCheck size={16} />
+                                <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                                    {report.status === "failed_cleanup" ? "Cleanup Failed AI Verification" : "Cleanup Proof Under Review"}
+                                </span>
+                            </div>
+                            <span className="text-[10px] font-semibold text-muted-foreground uppercase">
+                                Anti-Fraud Audit
+                            </span>
+                        </div>
+                        <p className="text-xs text-foreground/80 leading-relaxed">
+                            {report.status === "failed_cleanup"
+                                ? "Cleaner proof was flagged for scene mismatch, remaining waste, or poor photo quality. Inspect evidence below."
+                                : "Cleaner submitted resolution proof with borderline landmarks or low AI confidence. Verify the site is clean."}
+                        </p>
+                        <div className="flex items-center gap-2 pt-1">
+                            <button
+                                onClick={() => handleForceApproveCleanup("Supervisor visual confirmation: site cleaned.")}
+                                disabled={drawerVerifyLoading}
+                                className="flex-1 py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
+                            >
+                                <CheckCircle2 size={13} />
+                                {drawerVerifyLoading ? "Processing..." : "Force Approve Resolution"}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const reason = prompt("Enter retake/rejection reason for cleaner:", "Please clean remaining waste and retake with ghost guide.");
+                                    if (reason && reason.trim().length >= 5) {
+                                        handleRequestRetake(reason.trim());
+                                    }
+                                }}
+                                disabled={drawerVerifyLoading}
+                                className="py-1.5 px-3 bg-foreground/10 hover:bg-foreground/15 text-foreground rounded-lg text-xs font-bold transition-all disabled:opacity-50"
+                            >
+                                Request Retake
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 {/* Tab content */}
                 <div className="flex-1 overflow-y-auto p-5 scrollbar-hide">
                     {activeTab === "overview" && (
@@ -427,6 +540,9 @@ export function ReportDetailDrawer({
                             onRetry={fetchDetail}
                             userRole={userRole}
                             onUpdated={onUpdated}
+                            onForceApprove={handleForceApproveCleanup}
+                            onRequestRetake={handleRequestRetake}
+                            actionLoading={drawerVerifyLoading}
                         />
                     )}
                     {activeTab === "work_orders" && (
@@ -769,7 +885,16 @@ function OverviewTab({ report, detail, loading, error, onRetry, onDuplicateConfi
 }
 
 function EvidenceTab({
-    report, detail, loading, error, onRetry, userRole, onUpdated
+    report,
+    detail,
+    loading,
+    error,
+    onRetry,
+    userRole,
+    onUpdated,
+    onForceApprove,
+    onRequestRetake,
+    actionLoading,
 }: {
     report: QueueReport;
     detail: ReportDetailPayload | null;
@@ -778,6 +903,9 @@ function EvidenceTab({
     onRetry: () => void;
     userRole?: string;
     onUpdated?: () => void;
+    onForceApprove?: (reason: string) => Promise<void>;
+    onRequestRetake?: (reason: string) => Promise<void>;
+    actionLoading?: boolean;
 }) {
     const [lightbox, setLightbox] = useState<string | null>(null);
     const [reverifyLoading, setReverifyLoading] = useState(false);
@@ -971,35 +1099,78 @@ function EvidenceTab({
                 </div>
             )}
 
-            {cleanupPhotos.length > 0 && (
-                <div>
-                    <div className="text-sm font-semibold tracking-tight text-foreground mb-2">Cleanup Proof</div>
-                    <div className="flex flex-col gap-2">
-                        {cleanupPhotos.map((cp) => (
-                            <div key={cp.id} className="bg-card rounded-lg border border-border shadow-sm p-3 flex gap-3">
-                                <button
-                                    onClick={() => setLightbox(`${API_URL}${cp.url}`)}
-                                    className="w-20 h-20 rounded-lg overflow-hidden bg-foreground/5 border border-border shrink-0 hover:border-primary/40 transition-colors"
-                                >
-                                    <img src={`${API_URL}${cp.url}`} alt="Cleanup proof" className="w-full h-full object-cover" />
-                                </button>
-                                <div className="min-w-0 flex-1 text-xs">
-                                    <div className="font-semibold text-foreground truncate">
-                                        {cp.cleaner?.full_name ?? "Unknown cleaner"}
-                                    </div>
-                                    <div className="text-[11px] text-foreground/50 truncate">{cp.cleaner?.email ?? ""}</div>
-                                    <div className="text-[10px] text-foreground/40 mt-1">Uploaded {formatRelative(cp.uploaded_at)}</div>
-                                    {cp.ai_confidence !== null && (
-                                        <div className="text-[10px] text-foreground/60 mt-0.5">
-                                            AI: <span className="font-bold">{((1 - cp.ai_confidence) * 100).toFixed(0)}%</span>
-                                            {cp.ai_verified === false && <span className="ml-2 text-emerald-400">Clean</span>}
-                                            {cp.ai_verified === true && <span className="ml-2 text-red-400">Waste Detected</span>}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
+            {(cleanupPhotos.length > 0 || Boolean(report.cleanup_image_url)) && (
+                <div className="space-y-3 pt-2">
+                    <div className="flex items-center justify-between">
+                        <div className="text-sm font-semibold tracking-tight text-foreground">
+                            Cleanup Proof & Anti-Fraud Verification
+                        </div>
+                        <span className="text-[10px] font-mono text-muted-foreground uppercase">
+                            MC-005 Pipeline
+                        </span>
                     </div>
+
+                    {/* Interactive Before & After Visual Compare */}
+                    {citizenPhotos[0]?.url && (cleanupPhotos[0]?.url || report.cleanup_image_url) && (
+                        <div className="bg-card rounded-xl border border-border p-3 shadow-sm">
+                            <div className="text-xs font-semibold text-foreground mb-2 flex items-center justify-between">
+                                <span>Before vs. After Comparison</span>
+                                <span className="text-[10px] text-muted-foreground font-normal">
+                                    Interactive inspector
+                                </span>
+                            </div>
+                            <BeforeAfterCompare
+                                beforeSrc={`${API_URL}${citizenPhotos[0].url}`}
+                                afterSrc={`${API_URL}${cleanupPhotos[0]?.url || report.cleanup_image_url}`}
+                                beforeLabel="Before (Report)"
+                                afterLabel="After (Cleanup)"
+                                onEnlarge={(src) => setLightbox(src)}
+                            />
+                        </div>
+                    )}
+
+                    {/* Multi-Phase Anti-Fraud Decision Card */}
+                    <CleanupVerificationCard
+                        rawResult={report.cleanup_verification_result || detail?.work_orders?.[0]?.cleanup_verification_result}
+                        guideUsed={report.cleanup_guide_used ?? detail?.work_orders?.[0]?.cleanup_guide_used}
+                        gpsDistanceM={detail?.work_orders?.[0]?.cleanup_distance_m}
+                        vlmRaw={report.cleanup_vlm_result}
+                        userRole={userRole as "citizen" | "barangay" | "cenro" | "cleaner" | undefined}
+                        onForceApprove={onForceApprove}
+                        onRequestRetake={onRequestRetake}
+                        actionLoading={actionLoading}
+                    />
+
+                    {/* Uploaded Cleanup Proof Items */}
+                    {cleanupPhotos.length > 0 && (
+                        <div className="flex flex-col gap-2 pt-1">
+                            <div className="text-xs font-semibold text-foreground">Uploaded Proof Items</div>
+                            {cleanupPhotos.map((cp) => (
+                                <div key={cp.id} className="bg-card rounded-lg border border-border shadow-sm p-3 flex gap-3">
+                                    <button
+                                        onClick={() => setLightbox(`${API_URL}${cp.url}`)}
+                                        className="w-20 h-20 rounded-lg overflow-hidden bg-foreground/5 border border-border shrink-0 hover:border-primary/40 transition-colors"
+                                    >
+                                        <img src={`${API_URL}${cp.url}`} alt="Cleanup proof" className="w-full h-full object-cover" />
+                                    </button>
+                                    <div className="min-w-0 flex-1 text-xs">
+                                        <div className="font-semibold text-foreground truncate">
+                                            {cp.cleaner?.full_name ?? "Unknown cleaner"}
+                                        </div>
+                                        <div className="text-[11px] text-foreground/50 truncate">{cp.cleaner?.email ?? ""}</div>
+                                        <div className="text-[10px] text-foreground/40 mt-1">Uploaded {formatRelative(cp.uploaded_at)}</div>
+                                        {cp.ai_confidence !== null && (
+                                            <div className="text-[10px] text-foreground/60 mt-0.5">
+                                                AI: <span className="font-bold">{((1 - cp.ai_confidence) * 100).toFixed(0)}%</span>
+                                                {cp.ai_verified === false && <span className="ml-2 text-emerald-400 font-medium">Clean</span>}
+                                                {cp.ai_verified === true && <span className="ml-2 text-red-400 font-medium">Waste Detected</span>}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -1075,6 +1246,24 @@ function WorkOrdersTab({ detail, loading, error, onRetry }: {
 
                     {wo.notes && (
                         <p className="mt-2 text-[11px] text-foreground/60 leading-relaxed whitespace-pre-wrap">{wo.notes}</p>
+                    )}
+
+                    {wo.cleanup_verification_result && (
+                        <div className="mt-2 pt-2 border-t border-border flex items-center justify-between text-[10px]">
+                            <span className="text-muted-foreground font-medium">AI Cleanup Proof:</span>
+                            <span className="font-bold text-primary truncate max-w-[220px]">
+                                {(() => {
+                                    try {
+                                        const r = typeof wo.cleanup_verification_result === "string"
+                                            ? JSON.parse(wo.cleanup_verification_result)
+                                            : wo.cleanup_verification_result;
+                                        return `${r.verdict}: ${r.reason || "Processed"}`;
+                                    } catch {
+                                        return "Verified";
+                                    }
+                                })()}
+                            </span>
+                        </div>
                     )}
                 </div>
             ))}

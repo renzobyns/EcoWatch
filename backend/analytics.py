@@ -23,6 +23,8 @@ _OPEN_FOR_DUPLICATE = (
     models.ReportStatus.VERIFIED,
     models.ReportStatus.ASSIGNED,
     models.ReportStatus.IN_PROGRESS,
+    models.ReportStatus.AI_VERIFIED,
+    models.ReportStatus.AI_REJECTED,
 )
 
 

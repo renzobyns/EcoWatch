@@ -19,6 +19,7 @@ const STATUS_OPTIONS = [
     { value: "assigned", label: "Assigned" },
     { value: "in_progress", label: "In Progress" },
     { value: "resolved", label: "Resolved" },
+    { value: "pending_review", label: "Pending Review (Cleanup Review)" },
     { value: "failed_cleanup", label: "Failed Cleanup" },
     { value: "rejected", label: "Rejected" },
 ];

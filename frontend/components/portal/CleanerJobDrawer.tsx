@@ -25,7 +25,7 @@ interface CleanerJobDrawerProps {
     workOrder: any;
     onClose: () => void;
     onStart: (workOrderId: number) => Promise<void> | void;
-    onComplete: (workOrderId: number, images: File[], cleanerLat?: number, cleanerLon?: number) => Promise<void> | void;
+    onComplete: (workOrderId: number, images: File[], cleanerLat?: number, cleanerLon?: number, guideUsed?: boolean, sessionId?: string) => Promise<void> | void;
     actionLoading?: boolean;
 }
 
@@ -121,7 +121,9 @@ export function CleanerJobDrawer({
         const files = reviewPhotos.map((p) => p.file);
         const lat = reviewPhotos[0]?.lat;
         const lon = reviewPhotos[0]?.lon;
-        await onComplete(workOrder.id, files, lat, lon);
+        const guideUsed = reviewPhotos[0]?.guideUsed ?? true;
+        const sessionId = reviewPhotos[0]?.sessionId;
+        await onComplete(workOrder.id, files, lat, lon, guideUsed, sessionId);
         cleanupReviewState();
         setShowReview(false);
     };
@@ -494,6 +496,7 @@ export function CleanerJobDrawer({
                     reportLon={workOrder.report_lon ?? 121.0453}
                     trackingId={workOrder.report_tracking_id ?? `WO-${workOrder.id}`}
                     barangay={workOrder.report_barangay}
+                    workOrderId={workOrder.id}
                     onComplete={handleCameraComplete}
                     onBack={handleCameraBack}
                 />,

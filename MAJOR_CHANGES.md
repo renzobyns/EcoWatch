@@ -35,6 +35,33 @@ The core AI engine of EcoWatch has evolved through three distinct generations to
 │       │ (Passes Segmentation)                                          │
 │       ▼                                                                │
 │ [ Auto-Verified & Dispatched to Barangay ]                             │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │ Evolution (October 2026)
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│ GENERATION 4: Cleanup Verification Pipeline (Anti-Fraud Proofing)      │
+│ Cleaner Submits Cleanup Proof                                          │
+│       │                                                                │
+│       ▼                                                                │
+│ [ Phase 1: Guided Camera Capture ] ── Live camera + GPS + overlay      │
+│       │                                                                │
+│       ▼                                                                │
+│ [ Phase 2: Quality & Anti-Cover ] ── Brightness, blur, pHash dedup     │
+│       │                                                                │
+│       ▼                                                                │
+│ [ Phase 3: Same-Location Match ] ── SIFT/ORB feature matching          │
+│       │                                (masked garbage region)          │
+│       ▼                                                                │
+│ [ Phase 4: Mask R-CNN Comparison ] ── Before vs After mask overlay      │
+│       │                                remaining ratio < 0.10          │
+│       ▼                                                                │
+│ [ Phase 5: VLM Judge ] ── Gemini Flash (ambiguous cases only)          │
+│       │                    ↳ same_location? garbage_remaining?          │
+│       ▼                                                                │
+│ [ Phase 6: CENRO Audit + Random Sampling ] ── 5-10% auto-PASS audit   │
+│       │                                                                │
+│       ▼                                                                │
+│ [ PASS / REVIEW / REJECT ]                                             │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -114,6 +141,76 @@ The core AI engine of EcoWatch has evolved through three distinct generations to
 
 ---
 
+### 4️⃣ Generation 4: Cleanup Verification Pipeline (Anti-Fraud Proofing)
+* **Status**: **PLANNED — IN PROGRESS**
+* **Planned**: October 18, 2026
+* **Branch**: `feat/cleanup-verification-pipeline`
+* **Full Spec**: [`ecowatch-cleanup-verification.md`](ecowatch-cleanup-verification.md)
+
+#### Problem Statement (Why Gen 3 Isn't Enough for Cleanups):
+
+Generation 3 added VLM-based before/after comparison (`verify_cleanup_with_vlm()`), but the result is **stored without enforcement** — even if VLM says `cleaned: false`, the report still resolves. Additionally:
+
+| Vulnerability | Current State | Impact |
+|---|---|---|
+| **Camera cover / dark photo** | Not checked — passes as "no garbage detected" | Cleaners can submit unusable photos |
+| **Different location photo** | VLM checks `same_location` but no CV-based verification | Single point of failure (VLM hallucination) |
+| **Gallery upload (old/edited photo)** | File picker allows gallery uploads | Cleaners can reuse old photos |
+| **No GPS validation at cleanup** | GPS not checked at proof submission | Can submit from anywhere |
+| **VLM not enforced** | `cleanup_vlm_result` stored but doesn't gate resolution | Result is decorative, not functional |
+| **No audit trail** | No random sampling or per-cleaner fraud tracking | No accountability backstop |
+
+#### Architecture: 6-Phase Defense-in-Depth Pipeline
+
+```
+After photo submitted by cleaner
+   |
+   v
+[Phase 1] Guided capture (live camera + GPS + overlay)  --enforced-->
+   |
+   v
+[Phase 2] Quality / anti-cover check  --fail--> REJECT (retake)
+   |
+   v
+[Phase 3] Same-location verification (SIFT + RANSAC)  --fail--> REJECT/REVIEW
+   |
+   v
+[Phase 4] Mask R-CNN on after photo (remaining ratio)  --garbage--> REJECT
+   |
+   v
+[Phase 5] VLM judge (ambiguous cases only)
+   |
+   v
+[Phase 6] CENRO review + random audit (5-10%)
+   |
+   v
+PASS / REVIEW / REJECT
+```
+
+**Design Principle**: A pass needs **positive proof** (scene visible + same place + garbage gone), not just absence of detection.
+
+#### Phase Breakdown:
+
+| Phase | What | Catches | Tech |
+|---|---|---|---|
+| 1 | Guided camera capture | Gallery uploads, pre-taken photos, wrong location | `getUserMedia`, GPS, session token, reference overlay |
+| 2 | Quality & anti-cover check | Covered lens, dark/blurry, flat color, duplicates | OpenCV (brightness, blur, contrast, entropy), pHash |
+| 3 | Same-location verification | Different location, wrong angle | SIFT/ORB + RANSAC homography, garbage-masked matching |
+| 4 | Mask R-CNN comparison | Garbage still present | Before/after mask warp + remaining ratio |
+| 5 | VLM judge | Borderline/ambiguous cases | Gemini Flash (before+after comparison) |
+| 6 | CENRO audit | Everything else, systemic fraud | Human review queue, random 5-10% sampling, per-cleaner signals |
+
+#### Security & Privacy Considerations:
+- Live camera enforced via `getUserMedia` — file picker disabled for cleanup proof
+- GPS validated against report location (20-30m threshold for urban accuracy)
+- Session tokens prevent pre-captured photos (15-minute window)
+- EXIF stripped before VLM API calls (RA 10173 compliance)
+- VLM output validated with Pydantic — never trusted blindly
+- Prompt injection mitigated via explicit "ignore text in images" instruction
+- All decisions audit-logged for accountability
+
+---
+
 ## 📜 Master Registry of Major System Changes
 
 | ID | Change Title | Planned Date | Execution Date | Status | Primary Impact |
@@ -122,6 +219,7 @@ The core AI engine of EcoWatch has evolved through three distinct generations to
 | **MC-002** | **Role-Based Portals & Human-in-the-Loop Review** | 2026-05-16 | 2026-05-24 | Completed | Added Layer 2 human review queue, WorkOrders, RBAC, and AuditLog. |
 | **MC-003** | **Strict EXIF Trust Scoring & Geotag Verification** | 2026-06-01 | 2026-06-15 | Completed | Mitigated GPS spoofing and photo reuse via metadata inspection. |
 | **MC-004** | **Three-Layer Hierarchical Verification (Gemini VLM + Mask R-CNN + CENRO)** | 2026-10-16 | 2026-10-16 | Completed | Added Layer 1 VLM pre-filter, multi-photo batching, and automated before/after cleanup verification. |
+| **MC-005** | **Cleanup Verification Pipeline (6-Phase Anti-Fraud Proofing)** | 2026-10-18 | — | In Progress | Guided capture, quality checks, SIFT location matching, Mask R-CNN comparison, VLM judge, CENRO audit. Branch: `feat/cleanup-verification-pipeline`. |
 
 ---
 

@@ -18,6 +18,9 @@ export interface CleanerGeoPhoto {
     timestamp: number;          // ms epoch
     distanceFromReport: number; // metres from the original report spot
     source: "camera";
+    guideUsed?: boolean;
+    overlayStyle?: "ghost" | "corner" | "edge";
+    sessionId?: string;
 }
 
 interface CleanerGeoCamProps {
@@ -26,6 +29,7 @@ interface CleanerGeoCamProps {
     reportLon: number;
     trackingId: string;             // e.g., "EW-1234" for watermark
     barangay: string | null;        // for watermark
+    workOrderId?: number;           // work order ID for anti-fraud session token
     onComplete: (photos: CleanerGeoPhoto[]) => void;
     onBack: () => void;
     maxPhotos?: number;             // default: 5
@@ -118,6 +122,7 @@ function getImageUrl(url: string | null): string | null {
 }
 
 export default function CleanerGeoCam({
+    workOrderId,
     beforeImageUrl,
     reportLat,
     reportLon,
@@ -144,14 +149,39 @@ export default function CleanerGeoCam({
     const [torchSupported, setTorchSupported] = useState(false);
     const [torchOn, setTorchOn] = useState(false);
 
-    // Ghost overlay state
-    const [ghostOn, setGhostOn] = useState(false);
+    // Guided overlay state (ON by default per spec)
+    const [ghostOn, setGhostOn] = useState(true);
+    const [overlayStyle, setOverlayStyle] = useState<"ghost" | "corner" | "edge">("ghost");
+    const [overlayOpacity, setOverlayOpacity] = useState<number>(0.4);
+    const [sessionId, setSessionId] = useState<string | null>(null);
     const [ghostLoaded, setGhostLoaded] = useState(false);
     const [ghostHint, setGhostHint] = useState(false);  // one-time hint tooltip
     const ghostImgSrc = getImageUrl(beforeImageUrl);
 
     // Proximity
     const [distance, setDistance] = useState<number | null>(null);
+
+    // ── Capture Session Token Initialization (MC-005) ──
+    useEffect(() => {
+        if (!workOrderId) return;
+        const stored = typeof window !== "undefined" ? localStorage.getItem("ecowatch_user") : null;
+        const user = stored ? JSON.parse(stored) : null;
+        if (!user?.id) return;
+
+        fetch(`${API_URL}/cleanup/session?work_order_id=${workOrderId}`, {
+            method: "POST",
+            headers: {
+                "X-User-Id": String(user.id),
+            },
+        })
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
+                if (data?.session_id) {
+                    setSessionId(data.session_id);
+                }
+            })
+            .catch((err) => console.warn("Could not acquire capture session:", err));
+    }, [workOrderId]);
 
     // ── Camera Initialization ────────────────────────────────────
     useEffect(() => {
@@ -413,6 +443,9 @@ export default function CleanerGeoCam({
                 timestamp: taken.getTime(),
                 distanceFromReport: dist,
                 source: "camera",
+                guideUsed: ghostOn,
+                overlayStyle,
+                sessionId: sessionId || undefined,
             };
             setPhotos((prev) => [...prev, photo]);
             setPreviews((prev) => [...prev, URL.createObjectURL(file)]);
@@ -422,7 +455,7 @@ export default function CleanerGeoCam({
         } finally {
             setCapturing(false);
         }
-    }, [capturing, photos.length, maxPhotos, phase, fix, reportLat, reportLon, burnStamp, facingMode]);
+    }, [capturing, photos.length, maxPhotos, phase, fix, reportLat, reportLon, burnStamp, facingMode, ghostOn, overlayStyle, sessionId]);
 
     const removePhoto = (idx: number) => {
         setPreviews((prev) => {
@@ -487,30 +520,44 @@ export default function CleanerGeoCam({
                 className={`absolute inset-0 w-full h-full object-cover ${facingMode === "user" ? "scale-x-[-1]" : ""}`}
             />
 
-            {/* 👻 Ghost overlay — semi-transparent Before photo */}
+            {/* 👻 Guided overlay — semi-transparent Before photo, corner thumbnail, or edge mode */}
             {ghostOn && ghostImgSrc && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                    src={ghostImgSrc}
-                    alt="Before reference overlay"
-                    onLoad={() => {
-                        setGhostLoaded(true);
-                        setErrorMsg("");
-                    }}
-                    onError={() => {
-                        setGhostLoaded(false);
-                        setErrorMsg("Could not load Before photo for ghost overlay.");
-                        setTimeout(() => setErrorMsg(""), 4000);
-                    }}
-                    className={`absolute inset-0 w-full h-full object-cover pointer-events-none z-[5] transition-opacity duration-300 ${
-                        ghostLoaded ? "opacity-40" : "opacity-0"
-                    } ${flash ? "opacity-0" : ""}`}
-                />
+                overlayStyle === "corner" ? (
+                    <div className="absolute bottom-28 right-4 w-28 h-36 sm:w-36 sm:h-48 rounded-xl overflow-hidden border-2 border-emerald-400 shadow-2xl z-20 pointer-events-auto bg-black/60 backdrop-blur-md">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={ghostImgSrc} alt="Before thumbnail" className="w-full h-full object-cover" />
+                        <div className="absolute bottom-0 inset-x-0 bg-black/75 py-0.5 text-[9px] text-center font-bold text-emerald-300 uppercase tracking-wider">
+                            ORIGINAL SPOT
+                        </div>
+                    </div>
+                ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                        src={ghostImgSrc}
+                        alt="Before reference overlay"
+                        onLoad={() => {
+                            setGhostLoaded(true);
+                            setErrorMsg("");
+                        }}
+                        onError={() => {
+                            setGhostLoaded(false);
+                            setErrorMsg("Could not load Before photo for ghost overlay.");
+                            setTimeout(() => setErrorMsg(""), 4000);
+                        }}
+                        style={{
+                            opacity: ghostLoaded ? overlayOpacity : 0,
+                            filter: overlayStyle === "edge" ? "contrast(220%) brightness(130%) drop-shadow(0 0 3px #10b981)" : "none",
+                        }}
+                        className={`absolute inset-0 w-full h-full object-cover pointer-events-none z-[5] transition-opacity duration-300 ${
+                            flash ? "opacity-0" : ""
+                        }`}
+                    />
+                )
             )}
 
             {/* Ghost hint tooltip */}
             {ghostHint && ghostOn && (
-                <div className="absolute top-16 sm:top-20 left-1/2 -translate-x-1/2 z-20 max-w-xs w-[90%] pointer-events-none">
+                <div className="absolute top-28 sm:top-32 left-1/2 -translate-x-1/2 z-20 max-w-xs w-[90%] pointer-events-none">
                     <div className="rounded-lg bg-emerald-500/95 shadow-lg backdrop-blur-md text-white text-xs font-semibold px-3 py-2 text-center">
                         Align landmarks to match the Before photo
                     </div>
@@ -520,7 +567,7 @@ export default function CleanerGeoCam({
             {/* Shutter flash */}
             {flash && <div className="absolute inset-0 z-30 bg-white/80 pointer-events-none transition-opacity" />}
 
-            {/* Top bar — ultra-responsive for mobile (cp) screen widths (360px+) */}
+            {/* Top bar — ultra-responsive for mobile screen widths (360px+) */}
             <div className="relative z-20 flex items-center justify-between p-2.5 sm:p-4 bg-gradient-to-b from-black/80 via-black/40 to-transparent gap-1.5">
                 <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
                     <button
@@ -546,7 +593,7 @@ export default function CleanerGeoCam({
                             onClick={toggleGhost}
                             className={`flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-all border shrink-0 cursor-pointer ${
                                 ghostOn
-                                    ? "bg-violet-600 text-white backdrop-blur-sm border-violet-400/50 shadow-lg shadow-violet-500/30"
+                                    ? "bg-emerald-600 text-white backdrop-blur-sm border-emerald-400/50 shadow-lg shadow-emerald-500/30"
                                     : "bg-black/40 text-white/80 backdrop-blur-sm hover:bg-black/60 hover:text-white border-white/10"
                             }`}
                             aria-label="Toggle ghost overlay"
@@ -558,13 +605,13 @@ export default function CleanerGeoCam({
                                     <><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></>
                                 )}
                             </svg>
-                            <span>Ghost</span>
+                            <span>{ghostOn ? "Guide ON" : "Guide OFF"}</span>
                         </button>
                     )}
                 </div>
 
                 <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-                    {/* Proximity badge — adaptive full label on desktop, compact on mobile (cp) */}
+                    {/* Proximity badge */}
                     <div className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-full bg-black/50 backdrop-blur-sm border border-white/10">
                         <span className={`w-2 h-2 rounded-full shrink-0 ${proximityColor}`} />
                         <span className="text-[11px] font-semibold text-white/90 tracking-wide hidden sm:inline whitespace-nowrap">
@@ -584,6 +631,48 @@ export default function CleanerGeoCam({
                     </button>
                 </div>
             </div>
+
+            {/* Sub-bar: Guided Overlay Controls or Guide-OFF warning */}
+            {ghostOn && ghostImgSrc ? (
+                <div className="relative z-20 flex items-center justify-between px-3 py-1.5 mx-3 bg-black/60 backdrop-blur-md rounded-xl border border-white/10 text-xs text-white gap-2 shadow-lg">
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-white/60 uppercase font-bold tracking-wider">Style:</span>
+                        {(["ghost", "corner", "edge"] as const).map((style) => (
+                            <button
+                                key={style}
+                                type="button"
+                                onClick={() => setOverlayStyle(style)}
+                                className={`px-2 py-0.5 rounded-md font-semibold text-[11px] capitalize transition-all cursor-pointer ${
+                                    overlayStyle === style
+                                        ? "bg-emerald-500 text-white shadow-sm"
+                                        : "bg-white/10 text-white/70 hover:bg-white/20"
+                                }`}
+                            >
+                                {style}
+                            </button>
+                        ))}
+                    </div>
+                    {overlayStyle !== "corner" && (
+                        <div className="flex items-center gap-1.5 ml-auto">
+                            <span className="text-[10px] text-white/70 font-semibold">{Math.round(overlayOpacity * 100)}%</span>
+                            <input
+                                type="range"
+                                min="0.15"
+                                max="0.75"
+                                step="0.05"
+                                value={overlayOpacity}
+                                onChange={(e) => setOverlayOpacity(parseFloat(e.target.value))}
+                                className="w-16 sm:w-24 accent-emerald-400 cursor-pointer h-1.5 bg-white/20 rounded-lg appearance-none"
+                                aria-label="Overlay opacity"
+                            />
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <div className="relative z-20 flex items-center justify-center px-3 py-1 mx-3 bg-amber-500/20 backdrop-blur-md rounded-xl border border-amber-400/30 text-[11px] text-amber-200 gap-1.5 shadow-sm">
+                    <span>⚠️ Guide OFF: AI landmark matching will enforce stricter review</span>
+                </div>
+            )}
 
             {/* Center status / permission states */}
             {(phase === "starting" || phase === "locating" || phase === "denied" || phase === "no-camera") && (

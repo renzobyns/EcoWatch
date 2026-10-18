@@ -6,6 +6,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
+import BeforeAfterCompare from "@/components/BeforeAfterCompare";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://renzobyns-ecowatch-backend.hf.space";
 
 const STATUS_STEPS = ["pending", "verified", "assigned", "in_progress", "resolved"];
@@ -373,26 +374,36 @@ export default function TrackReportPage() {
                                 );
                             })()}
 
-                            {/* Cleanup Photo (if resolved or failed) */}
+                            {/* Cleanup Photo & Before-After Slider (if resolved or failed) */}
                             {report.cleanup_image_url && (
-                                <div className="mt-4">
-                                    <div className="flex items-center gap-2 mb-2 text-foreground/50">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
-                                        <h3 className="text-xs font-semibold">Cleanup Verification</h3>
+                                <div className="mt-4 space-y-2">
+                                    <div className="flex items-center gap-2 text-foreground/80">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+                                        <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-500">Cleanup Resolution Proof</h3>
                                     </div>
-                                    <div 
-                                        className="w-full h-32 rounded-lg overflow-hidden border border-border relative cursor-pointer group/cleanup"
-                                        onClick={() => setPreviewImage(`${API_URL}${report.cleanup_image_url}`)}
-                                        title="Click to zoom"
-                                    >
-                                        <img 
-                                            src={`${API_URL}${report.cleanup_image_url}`} 
-                                            alt="Cleanup" 
-                                            className="w-full h-full object-cover transition-transform duration-300 group-hover/cleanup:scale-105" 
-                                            onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
+                                    {report.image_url ? (
+                                        <BeforeAfterCompare
+                                            beforeSrc={`${API_URL}${report.image_url}`}
+                                            afterSrc={`${API_URL}${report.cleanup_image_url}`}
+                                            beforeLabel="Reported Waste"
+                                            afterLabel="Cleaned Site"
+                                            onEnlarge={(src) => setPreviewImage(src)}
                                         />
-                                        <div className="hidden absolute inset-0 flex items-center justify-center text-xs text-foreground/40 uppercase tracking-widest text-center px-4 bg-muted border border-border">Image unavailable</div>
-                                    </div>
+                                    ) : (
+                                        <div 
+                                            className="w-full h-40 rounded-lg overflow-hidden border border-border relative cursor-pointer group/cleanup"
+                                            onClick={() => setPreviewImage(`${API_URL}${report.cleanup_image_url}`)}
+                                            title="Click to zoom"
+                                        >
+                                            <img 
+                                                src={`${API_URL}${report.cleanup_image_url}`} 
+                                                alt="Cleanup" 
+                                                className="w-full h-full object-cover transition-transform duration-300 group-hover/cleanup:scale-105" 
+                                                onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
+                                            />
+                                            <div className="hidden absolute inset-0 flex items-center justify-center text-xs text-foreground/40 uppercase tracking-widest text-center px-4 bg-muted border border-border">Image unavailable</div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>

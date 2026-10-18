@@ -416,7 +416,7 @@ def s4_report_submit_pipeline(users: dict) -> Optional[dict]:
     if confidence is not None:
         check(0.0 <= confidence <= 1.0,
               f"ai_confidence in [0, 1] (got {confidence})")
-    check(final_status in ("verified", "rejected"),
+    check(final_status in ("verified", "rejected", "ai_verified", "ai_rejected"),
           f"final status is verified or rejected (got {final_status!r})")
 
     return {"id": report_id, "slug": slug, "tracking_id": tracking_id,

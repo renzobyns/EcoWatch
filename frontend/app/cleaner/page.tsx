@@ -34,14 +34,46 @@ export default function CleanerPortal() {
     );
 }
 
+interface CleanerUser {
+    id: number;
+    email: string;
+    full_name?: string;
+    role: string;
+}
+
+interface CleanerWorkOrder {
+    id: number;
+    report_id: number;
+    assigned_cleaner_id?: number | null;
+    priority: string;
+    sla_deadline: string;
+    status: string;
+    notes?: string | null;
+    created_at: string;
+    started_at?: string | null;
+    completed_at?: string | null;
+    report_tracking_id?: string | null;
+    report_barangay?: string | null;
+    report_lat?: number | null;
+    report_lon?: number | null;
+    report_image_url?: string | null;
+    report_status?: string | null;
+    report_verification_pending?: boolean;
+    cleanup_verification_result?: string | null;
+    cleanup_guide_used?: boolean | null;
+    cleanup_distance_m?: number | null;
+    cleanup_phash?: string | null;
+    [key: string]: unknown;
+}
+
 function CleanerPortalInner() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const [user, setUser] = useState<any>(null);
-    const [workOrders, setWorkOrders] = useState<any[]>([]);
+    const [user, setUser] = useState<CleanerUser | null>(null);
+    const [workOrders, setWorkOrders] = useState<CleanerWorkOrder[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
-    const [selectedWorkOrder, setSelectedWorkOrder] = useState<any>(null);
+    const [selectedWorkOrder, setSelectedWorkOrder] = useState<CleanerWorkOrder | null>(null);
     const rawTab = searchParams.get('tab');
     const [activeView, setActiveView] = useState<CleanerView>(
         CLEANER_NAV.some(n => n.key === rawTab) ? (rawTab as CleanerView) : 'dashboard'
@@ -126,7 +158,7 @@ function CleanerPortalInner() {
             setWorkOrders((prev) =>
                 prev.map((wo) => (wo.id === workOrderId ? { ...wo, ...data.work_order } : wo))
             );
-            setSelectedWorkOrder((prev: any) =>
+            setSelectedWorkOrder((prev) =>
                 prev?.id === workOrderId ? { ...prev, ...data.work_order } : prev
             );
             toast.success("Work started. Go clean!");
@@ -137,13 +169,22 @@ function CleanerPortalInner() {
         }
     };
 
-    const handleComplete = async (workOrderId: number, images: File[], cleanerLat?: number, cleanerLon?: number) => {
+    const handleComplete = async (
+        workOrderId: number,
+        images: File[],
+        cleanerLat?: number,
+        cleanerLon?: number,
+        guideUsed?: boolean,
+        sessionId?: string
+    ) => {
         setActionLoading(true);
         const formData = new FormData();
         images.forEach((img) => formData.append("cleanup_images", img));
         // Append cleaner GPS for proximity audit (optional — backend accepts but doesn't require)
         if (cleanerLat != null) formData.append("cleaner_lat", String(cleanerLat));
         if (cleanerLon != null) formData.append("cleaner_lon", String(cleanerLon));
+        if (guideUsed != null) formData.append("guide_used", String(guideUsed));
+        if (sessionId) formData.append("session_id", sessionId);
 
         try {
             const data = await api(`/work-orders/${workOrderId}/complete`, {
@@ -154,10 +195,10 @@ function CleanerPortalInner() {
             setWorkOrders((prev) =>
                 prev.map((wo) => (wo.id === workOrderId ? { ...wo, ...data.work_order } : wo))
             );
-            setSelectedWorkOrder((prev: any) =>
+            setSelectedWorkOrder((prev) =>
                 prev?.id === workOrderId ? { ...prev, ...data.work_order } : prev
             );
-            toast.info("Cleanup photo uploaded. AI verifying…");
+            toast.info("Cleanup photo uploaded. Multi-phase AI verification running…");
             pollCompleteOutcome(workOrderId);
         } catch (err) {
             toast.error(err instanceof ApiError ? err.message : "Upload failed. Tap Submit to try again.");
@@ -176,17 +217,29 @@ function CleanerPortalInner() {
                 const data = await api(`/work-orders/cleaner/${user.id}`);
                 if (Array.isArray(data)) {
                     setWorkOrders(data);
-                    const fresh = data.find((wo: any) => wo.id === workOrderId);
+                    const fresh = data.find((wo: CleanerWorkOrder) => wo.id === workOrderId);
                     if (fresh) {
-                        setSelectedWorkOrder((prev: any) =>
+                        setSelectedWorkOrder((prev) =>
                             prev?.id === workOrderId ? { ...prev, ...fresh } : prev
                         );
                         if (!fresh.report_verification_pending) {
                             if (fresh.status === "needs_redo") {
-                                toast.warning("AI detected waste is still present. Clean thoroughly and try again.");
+                                let reason = "AI detected issues with cleanup proof. Please review and retake.";
+                                if (fresh.cleanup_verification_result) {
+                                    try {
+                                        const parsed = typeof fresh.cleanup_verification_result === "string"
+                                            ? JSON.parse(fresh.cleanup_verification_result)
+                                            : fresh.cleanup_verification_result;
+                                        if (parsed.reason) reason = parsed.reason;
+                                    } catch {}
+                                }
+                                toast.warning(reason);
                             } else if (fresh.status === "verified") {
-                                toast.success("Work completed! Thank you!");
-                                setSelectedWorkOrder((prev: any) => prev?.id === workOrderId ? null : prev);
+                                toast.success("Work completed and verified! Thank you!");
+                                setSelectedWorkOrder((prev) => prev?.id === workOrderId ? null : prev);
+                            } else if (fresh.status === "completed") {
+                                toast.info("Cleanup submitted. Awaiting supervisor/CENRO review.");
+                                setSelectedWorkOrder((prev) => prev?.id === workOrderId ? null : prev);
                             }
                             return;
                         }
