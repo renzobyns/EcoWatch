@@ -596,8 +596,52 @@ def compute_sla_deadline(db: Session, priority: str, anchor: Optional[datetime] 
     return (anchor or _utcnow()) + timedelta(days=policy[priority])
 
 
-def serialize_work_order(wo: models.WorkOrder) -> dict:
+def filter_cleanup_verification_result_for_role(raw_result: Optional[str], role: str = "cleaner") -> Optional[str]:
+    """Filters internal diagnostics (inliers, blur Laplacian variance, raw VLM reasoning) for non-CENRO callers."""
+    if not raw_result:
+        return None
+    try:
+        data = json.loads(raw_result)
+        if not isinstance(data, dict):
+            return raw_result
+        if role == "cenro":
+            return raw_result  # CENRO gets full raw diagnostics
+        
+        filtered = dict(data)
+        if "layers" in filtered and isinstance(filtered["layers"], list):
+            clean_layers = []
+            for lyr in filtered["layers"]:
+                l_copy = dict(lyr)
+                if "metrics" in l_copy and isinstance(l_copy["metrics"], dict):
+                    l_copy["metrics"] = {
+                        k: v for k, v in l_copy["metrics"].items()
+                        if k in ("gps_distance_m",)
+                    }
+                if "vlm" in l_copy and isinstance(l_copy["vlm"], dict):
+                    v_copy = dict(l_copy["vlm"])
+                    v_copy.pop("internal_reasoning", None)
+                    l_copy["vlm"] = v_copy
+                clean_layers.append(l_copy)
+            filtered["layers"] = clean_layers
+        
+        if "details" in filtered and isinstance(filtered["details"], dict):
+            d_copy = dict(filtered["details"])
+            d_copy.pop("quality", None)
+            d_copy.pop("inliers", None)
+            if "vlm" in d_copy and isinstance(d_copy["vlm"], dict):
+                v_copy = dict(d_copy["vlm"])
+                v_copy.pop("internal_reasoning", None)
+                d_copy["vlm"] = v_copy
+            filtered["details"] = d_copy
+            
+        return json.dumps(filtered)
+    except Exception:
+        return raw_result
+
+
+def serialize_work_order(wo: models.WorkOrder, role: str = "cleaner") -> dict:
     """Flatten WorkOrder + joined Report/User fields into a dict for API responses."""
+    filtered_verif = filter_cleanup_verification_result_for_role(wo.cleanup_verification_result, role)
     return {
         "id": wo.id,
         "report_id": wo.report_id,
@@ -620,7 +664,7 @@ def serialize_work_order(wo: models.WorkOrder) -> dict:
         "report_notes": wo.report.notes if wo.report else None,
         "report_cleanup_image_url": wo.report.cleanup_image_url if wo.report else None,
         "report_verification_pending": bool(wo.report.verification_pending) if wo.report else False,
-        "cleanup_verification_result": wo.cleanup_verification_result,
+        "cleanup_verification_result": filtered_verif,
         "cleanup_guide_used": wo.cleanup_guide_used,
         "cleanup_distance_m": wo.cleanup_distance_m,
         "cleanup_phash": wo.cleanup_phash,
@@ -2345,6 +2389,27 @@ async def _bg_verify_complete(work_order_id: int, user_id: int) -> None:
 
         rem_ratio = 1.0 if mrcnn_waste_detected else 0.0
 
+        # Check previous attempt count
+        attempt_count = 1
+        if wo.cleanup_verification_result:
+            try:
+                prev_d = json.loads(wo.cleanup_verification_result)
+                attempt_count = int(prev_d.get("attempt_count", 0)) + 1
+            except Exception:
+                pass
+
+        # Save Mask R-CNN annotated overlay if waste detected
+        annotated_mask_url = None
+        for res_item in results:
+            if res_item.get("mask_bytes"):
+                saved_mask = _save_mask_bytes(res_item.get("mask_bytes"))
+                if saved_mask:
+                    annotated_mask_url = saved_mask[0]
+                    break
+
+        mrcnn_conf = max([r.get("confidence", 0.0) for r in results], default=0.0)
+        mrcnn_count = sum([r.get("instances_found", 0) for r in results])
+
         decision = cleanup_verifier.synthesize_cleanup_decision(
             quality_result=quality_res,
             location_result=loc_res,
@@ -2353,6 +2418,11 @@ async def _bg_verify_complete(work_order_id: int, user_id: int) -> None:
             vlm_result=cleanup_vlm_res.model_dump() if cleanup_vlm_res else None,
             guide_used=wo.cleanup_guide_used if wo.cleanup_guide_used is not None else True,
             gps_distance_m=wo.cleanup_distance_m,
+            attempt_count=attempt_count,
+            max_attempts=3,
+            mrcnn_confidence=mrcnn_conf,
+            mrcnn_detections_count=mrcnn_count,
+            annotated_image_url=annotated_mask_url,
         )
         wo.cleanup_verification_result = json.dumps(decision)
         report.cleanup_verification_result = json.dumps(decision)
@@ -2897,9 +2967,10 @@ async def get_report_detail(
 
     # Work orders (newest first)
     work_orders = [
-        serialize_work_order(wo)
+        serialize_work_order(wo, role=_user.role)
         for wo in sorted(report.work_orders, key=lambda w: w.created_at, reverse=True)
     ]
+    response.cleanup_verification_result = filter_cleanup_verification_result_for_role(report.cleanup_verification_result, role=_user.role)
 
     # Reporter info (None for anonymous reports)
     reporter = None
@@ -3661,20 +3732,20 @@ async def force_resolve_work_order(
     work_order_id: int,
     req: ForceResolveWorkOrderRequest,
     db: Session = Depends(get_db),
-    user: models.User = Depends(require_role("barangay")),
+    user: models.User = Depends(require_role(["barangay", "cenro"])),
 ):
     """
-    Barangay force-closes a needs_redo work order as resolved, bypassing AI re-verification.
+    Supervisor (Barangay or CENRO) force-resolves a work order, bypassing AI re-verification.
     Requires a written reason (min 10 chars).
     """
     wo = db.query(models.WorkOrder).filter(models.WorkOrder.id == work_order_id).first()
     if not wo:
         raise HTTPException(status_code=404, detail="Work order not found")
 
-    if wo.status != models.WorkOrderStatus.NEEDS_REDO:
+    if wo.status not in (models.WorkOrderStatus.NEEDS_REDO, models.WorkOrderStatus.COMPLETED, models.WorkOrderStatus.IN_PROGRESS):
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot force-resolve. Status is '{wo.status}', must be 'needs_redo'."
+            detail=f"Cannot force-resolve. Status is '{wo.status}', must be 'needs_redo', 'completed', or 'in_progress'."
         )
 
     reason = req.reason.strip()
@@ -3687,36 +3758,64 @@ async def force_resolve_work_order(
 
     wo.status = models.WorkOrderStatus.VERIFIED
     wo.completed_at = wo.completed_at or _utcnow()
-    wo.notes = f"{wo.notes or ''}\n[Force-resolved by barangay: {reason}]".strip()
+    role_label = user.role.capitalize()
+    wo.notes = f"{wo.notes or ''}\n[Force-resolved by {role_label}: {reason}]".strip()
 
     report.status = models.ReportStatus.RESOLVED
     report.resolved_at = _utcnow()
+
+    # Stamp override onto verification result JSON (MC-006 standard)
+    override_meta = {
+        "override_by_id": user.id,
+        "override_by_name": user.full_name or user.email,
+        "override_role": user.role,
+        "override_status": "approved",
+        "remarks": reason,
+        "timestamp": _utcnow().isoformat(),
+    }
+    cur_data = {}
+    if wo.cleanup_verification_result:
+        try:
+            cur_data = json.loads(wo.cleanup_verification_result)
+        except Exception:
+            pass
+    cur_data["final_status"] = "approved"
+    cur_data["verdict"] = "PASS"
+    cur_data["decided_by"] = "manual_override"
+    cur_data["reason_code"] = "MANUAL_OVERRIDE_APPROVED"
+    cur_data["summary_message"] = f"Manual override approved by {role_label} ({user.full_name or user.email}): {reason}"
+    cur_data["requires_retake"] = False
+    cur_data["override"] = override_meta
+    wo.cleanup_verification_result = json.dumps(cur_data)
+    report.cleanup_verification_result = json.dumps(cur_data)
 
     write_audit(db, user.id, "force_resolve_work_order", report.id, {
         "work_order_id": wo.id,
         "tracking_id": report.tracking_id,
         "reason": reason,
+        "override_role": user.role,
     })
     emit_notification(
         db, wo.assigned_cleaner_id, "force_resolved",
-        f"Job force-resolved: {report.tracking_id}",
-        "Your supervisor closed this work order manually.",
+        f"Job approved: {report.tracking_id}",
+        f"Your supervisor ({role_label}) approved this cleanup manually.",
         work_order_id=wo.id, report_id=report.id,
     )
-    emit_to_cenro(
-        db, "cenro_force_resolved",
-        f"Force-resolved by {user.barangay_assignment}: {report.tracking_id}",
-        f"Reason: {reason}",
-        work_order_id=wo.id, report_id=report.id,
-    )
+    if user.role == "barangay":
+        emit_to_cenro(
+            db, "cenro_force_resolved",
+            f"Force-resolved by {user.barangay_assignment}: {report.tracking_id}",
+            f"Reason: {reason}",
+            work_order_id=wo.id, report_id=report.id,
+        )
     db.commit()
     db.refresh(wo)
     db.refresh(report)
 
     return {
         "success": True,
-        "message": "Work order force-resolved. Report marked as resolved.",
-        "work_order": serialize_work_order(wo),
+        "message": f"Work order force-resolved by {role_label}. Report marked as resolved.",
+        "work_order": serialize_work_order(wo, role=user.role),
     }
 
 
@@ -3825,6 +3924,7 @@ async def reassign_report(
     }
 
 @app.put("/report/{report_id}/force-close")
+@app.post("/report/{report_id}/force-close")
 async def force_close_report(
     report_id: int,
     db: Session = Depends(get_db),
@@ -3838,6 +3938,36 @@ async def force_close_report(
     previous_status = report.status
     report.status = models.ReportStatus.RESOLVED
     report.resolved_at = _utcnow()
+
+    # Update associated in-flight work orders
+    override_meta = {
+        "override_by_id": user.id,
+        "override_by_name": user.full_name or user.email,
+        "override_role": "cenro",
+        "override_status": "approved",
+        "remarks": "Direct force-close by CENRO administrator",
+        "timestamp": _utcnow().isoformat(),
+    }
+    cur_data = {}
+    if report.cleanup_verification_result:
+        try:
+            cur_data = json.loads(report.cleanup_verification_result)
+        except Exception:
+            pass
+    cur_data["final_status"] = "approved"
+    cur_data["verdict"] = "PASS"
+    cur_data["decided_by"] = "manual_override"
+    cur_data["summary_message"] = f"Directly approved and force-closed by CENRO ({user.full_name or user.email})."
+    cur_data["requires_retake"] = False
+    cur_data["override"] = override_meta
+    report.cleanup_verification_result = json.dumps(cur_data)
+
+    for wo in report.work_orders:
+        if wo.status in (models.WorkOrderStatus.IN_PROGRESS, models.WorkOrderStatus.NEEDS_REDO, models.WorkOrderStatus.COMPLETED, models.WorkOrderStatus.ASSIGNED):
+            wo.status = models.WorkOrderStatus.VERIFIED
+            wo.completed_at = wo.completed_at or _utcnow()
+            wo.cleanup_verification_result = json.dumps(cur_data)
+
     write_audit(db, user.id, "force_close", report.id, {
         "tracking_id": report.tracking_id,
         "previous_status": previous_status,

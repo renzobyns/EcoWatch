@@ -71,7 +71,11 @@ class CleanupVLMResult(BaseModel):
     """Structured contract returned by Before-vs-After cleanup proof verification."""
     cleaned: bool = Field(description="True if the dumpsite from Image 1 was verified cleaned in Image 2")
     confidence: Literal["high", "medium", "low"]
-    remarks: str = Field(description="Explanation of what changed between Before and After")
+    verdict: Literal["approve", "reject", "uncertain"] = Field(default="uncertain")
+    reason_code: str = Field(default="ALL_CLEANED", description="Standardized reason code")
+    description: str = Field(default="", description="Plain-language description of what is visible and why")
+    reasoning: str = Field(default="", description="Short internal reasoning for CENRO")
+    remarks: str = Field(default="", description="Backward-compatible remarks field")
     provider: str = Field(default="gemini-flash")
     latency_ms: int = Field(default=0)
 
@@ -144,13 +148,18 @@ Return ONLY a raw JSON object matching this schema exactly:
 
 CLEANUP_PROMPT = """Image 1 shows the original illegal dumpsite reported by a citizen.
 Image 2 is the proof of cleanup photo uploaded by the barangay waste collection team.
-Analyze both images and decide whether the waste shown in Image 1 has been successfully and completely removed in Image 2.
+Analyze both images carefully:
+1. Are Image 1 and Image 2 showing the same physical location/landmarks?
+2. Has the garbage/waste from Image 1 been thoroughly and cleanly removed in Image 2?
 
-Return ONLY a raw JSON object with this schema:
+Return ONLY a raw JSON object matching this schema exactly:
 {
   "cleaned": boolean,
   "confidence": "high" | "medium" | "low",
-  "remarks": "1-2 sentence description explaining what was removed or what waste remains"
+  "verdict": "approve" | "reject" | "uncertain",
+  "reason_code": "ALL_CLEANED" | "WASTE_STILL_DETECTED" | "SCENE_MISMATCH" | "CAMERA_BLOCKED_OR_DARK" | "UNCERTAIN",
+  "description": "Clear 1-2 sentence plain-language description for the cleaner explaining what was removed or what waste remains",
+  "reasoning": "1-2 sentence technical reasoning for CENRO supervisors regarding landmarks, surfaces, or residual debris"
 }
 """
 
@@ -324,6 +333,10 @@ def verify_cleanup_proof_with_vlm(
         return CleanupVLMResult(
             cleaned=True,
             confidence="low",
+            verdict="uncertain",
+            reason_code="UNCERTAIN",
+            description="VLM key not configured; cleanup accepted for manual review.",
+            reasoning="Missing GOOGLE_GEMINI_API_KEY environment variable.",
             remarks="VLM key missing; cleanup accepted for manual review.",
             provider="bypass",
         )
@@ -359,10 +372,30 @@ def verify_cleanup_proof_with_vlm(
                 _DAILY_CALL_COUNT += 1
                 _SUCCESSFUL_CALLS += 1
                 _TOTAL_LATENCY_MS += latency
+
+                cleaned = bool(parsed.get("cleaned", False))
+                conf = parsed.get("confidence", "medium")
+                if conf not in ("high", "medium", "low"):
+                    conf = "medium"
+
+                verdict_candidate = str(parsed.get("verdict", "")).lower()
+                if verdict_candidate in ("approve", "reject", "uncertain"):
+                    v_verdict = verdict_candidate
+                else:
+                    v_verdict = "approve" if (cleaned and conf != "low") else ("reject" if not cleaned else "uncertain")
+
+                desc = parsed.get("description") or parsed.get("remarks") or ("Cleanup confirmed" if cleaned else "Waste remaining detected")
+                reasoning = parsed.get("reasoning", "")
+                reason_code = parsed.get("reason_code") or ("ALL_CLEANED" if cleaned else "WASTE_STILL_DETECTED")
+
                 return CleanupVLMResult(
-                    cleaned=bool(parsed.get("cleaned", False)),
-                    confidence=parsed.get("confidence", "medium"),
-                    remarks=parsed.get("remarks", "Evaluated by EcoWatch VLM"),
+                    cleaned=cleaned,
+                    confidence=conf,
+                    verdict=v_verdict,
+                    reason_code=reason_code,
+                    description=desc,
+                    reasoning=reasoning,
+                    remarks=desc,
                     provider=model_name,
                     latency_ms=latency,
                 )
@@ -371,11 +404,17 @@ def verify_cleanup_proof_with_vlm(
 
     global _FALLBACK_COUNT
     _FALLBACK_COUNT += 1
+    latency = int((time.time() - start_time) * 1000)
     return CleanupVLMResult(
-        cleaned=True,
+        cleaned=False,
         confidence="low",
+        verdict="uncertain",
+        reason_code="UNCERTAIN",
+        description="Cleanup VLM check bypassed due to network error; routed for supervisor review.",
+        reasoning="Failed to contact Gemini VLM candidate models within timeout.",
         remarks="Cleanup VLM check bypassed due to network error; needs admin review.",
         provider="fallback",
+        latency_ms=latency,
     )
 
 

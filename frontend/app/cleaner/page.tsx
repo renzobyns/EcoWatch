@@ -230,16 +230,16 @@ function CleanerPortalInner() {
                                         const parsed = typeof fresh.cleanup_verification_result === "string"
                                             ? JSON.parse(fresh.cleanup_verification_result)
                                             : fresh.cleanup_verification_result;
-                                        if (parsed.reason) reason = parsed.reason;
+                                        if (parsed.summary_message || parsed.reason) {
+                                            reason = parsed.summary_message || parsed.reason;
+                                        }
                                     } catch {}
                                 }
                                 toast.warning(reason);
                             } else if (fresh.status === "verified") {
                                 toast.success("Work completed and verified! Thank you!");
-                                setSelectedWorkOrder((prev) => prev?.id === workOrderId ? null : prev);
                             } else if (fresh.status === "completed") {
                                 toast.info("Cleanup submitted. Awaiting supervisor/CENRO review.");
-                                setSelectedWorkOrder((prev) => prev?.id === workOrderId ? null : prev);
                             }
                             return;
                         }

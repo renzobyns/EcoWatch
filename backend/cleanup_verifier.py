@@ -350,139 +350,235 @@ def synthesize_cleanup_decision(
     guide_used: bool = True,
     gps_distance_m: Optional[float] = None,
     gps_threshold_m: float = 120.0,
+    attempt_count: int = 1,
+    max_attempts: int = 3,
+    mrcnn_confidence: float = 0.0,
+    mrcnn_detections_count: int = 0,
+    annotated_image_url: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
-    Master Decision Engine: Combines Phase 1 through Phase 5 signals into a final verdict.
+    Master Decision Engine: Combines Phase 1 through Phase 5 signals into an
+    explainable, multi-layer verification verdict (MC-006 Transparency Standard).
     
     Possible verdicts:
-    - PASS: Auto-verified, clean.
+    - PASS: Auto-verified, clean (final_status: approved).
     - RETAKE: Image quality failed (lens covered, blurry, dark), cleaner must retake immediately.
-    - REJECT: Proven fraud (different location, original photo resubmitted, significant waste remains).
-    - REVIEW: Borderline case, low confidence, or guide turned off -> CENRO review queue.
+    - REJECT: Proven fraud / waste remains / wrong location (final_status: rejected).
+    - REVIEW: Borderline case, low confidence, or 3rd failed attempt -> CENRO review queue.
     """
+    # ── Initial layer states ──
+    l1_status = "passed" if quality_result.get("passed", False) else "failed"
+    l1_reasons = quality_result.get("reasons", [])
+    l1_reason_code = l1_reasons[0].upper() if l1_reasons else "OK"
+    l1_msg = quality_result.get("friendly_message", "Photo quality is clear and acceptable.")
+
+    inliers = location_result.get("inliers", 0)
+    inlier_ratio = location_result.get("inlier_ratio", 0.0)
+    loc_status = location_result.get("status", "insufficient_features")
+    loc_matched = bool(location_result.get("matched", False))
+
+    verdict = "PASS"
+    phase = "all_passed"
+    decided_by = "all_passed"
+    reason_code = "ALL_PASSED"
+    summary_message = "All verification checks passed. Location confirmed and waste fully removed."
+    requires_retake = False
+
     # ── 1. Quality & Anti-Cover Gate (Hard Filter) ──
     if not quality_result.get("passed", False):
-        return {
-            "verdict": "RETAKE",
-            "phase": "phase_2_quality",
-            "reason": quality_result.get("friendly_message", "Photo quality is unacceptable. Please retake."),
-            "details": quality_result,
-            "requires_retake": True,
-        }
+        verdict = "RETAKE"
+        phase = "phase_2_quality"
+        decided_by = "layer_1_integrity"
+        reason_code = l1_reason_code
+        summary_message = l1_msg
+        requires_retake = True
 
-    # ── 2. GPS Proximity Check (if available) ──
-    if gps_distance_m is not None and gps_distance_m > gps_threshold_m:
-        # If cleaner is >120m away from report location, flag
+    # ── 2. GPS Proximity Check ──
+    elif gps_distance_m is not None and gps_distance_m > gps_threshold_m:
         if gps_distance_m > 300.0:
-            return {
-                "verdict": "REJECT",
-                "phase": "phase_1_gps",
-                "reason": f"Photo was taken {round(gps_distance_m)}m away from the dumpsite location. Please take photo on site.",
-                "details": {"gps_distance_m": gps_distance_m, "threshold_m": gps_threshold_m},
-                "requires_retake": True,
-            }
+            verdict = "REJECT"
+            phase = "phase_1_gps"
+            decided_by = "layer_1_integrity"
+            reason_code = "LOCATION_MISMATCH"
+            summary_message = f"Photo was taken {round(gps_distance_m)}m away from the dumpsite location. Please take photo on site."
+            requires_retake = True
+            l1_status = "failed"
         else:
-            # Borderline GPS distance -> send to review unless guide and features are perfect
             if not guide_used:
-                return {
-                    "verdict": "REVIEW",
-                    "phase": "phase_1_gps",
-                    "reason": f"Photo GPS is {round(gps_distance_m)}m from site with guide overlay disabled. Routed to supervisor.",
-                    "details": {"gps_distance_m": gps_distance_m},
-                    "requires_retake": False,
-                }
+                verdict = "REVIEW"
+                phase = "phase_1_gps"
+                decided_by = "layer_1_integrity"
+                reason_code = "LOCATION_MISMATCH"
+                summary_message = f"Photo GPS is {round(gps_distance_m)}m from site with guide overlay disabled. Routed to supervisor."
+                requires_retake = False
 
     # ── 3. Same-Location Verification (Classical CV) ──
-    loc_status = location_result.get("status", "insufficient_features")
-    inliers = location_result.get("inliers", 0)
+    if verdict == "PASS":
+        min_inliers_required = 30 if guide_used else 45
+        if loc_status == "different_location" or inliers < 12:
+            vlm_cleaned = vlm_result.get("cleaned", False) if vlm_result else False
+            vlm_same = vlm_result.get("same_location", False) if vlm_result else False
+            vlm_conf = vlm_result.get("confidence", "low") if vlm_result else "low"
 
-    # If guide was turned OFF, apply stricter inlier requirement
-    min_inliers_required = 30 if guide_used else 45
-
-    if loc_status == "different_location" or inliers < 12:
-        # Check if VLM gives a very high confidence pass as a second opinion
-        vlm_cleaned = vlm_result.get("cleaned", False) if vlm_result else False
-        vlm_same = vlm_result.get("same_location", False) if vlm_result else False
-        vlm_conf = vlm_result.get("confidence", "low") if vlm_result else "low"
-
-        if vlm_cleaned and vlm_same and vlm_conf == "high":
-            # Scene might have completely changed (paved road or painted wall)
-            return {
-                "verdict": "REVIEW",
-                "phase": "phase_3_location_override",
-                "reason": "Feature matching found few landmarks, but AI VLM identified potential match. Queued for CENRO review.",
-                "details": {"inliers": inliers, "vlm": vlm_result},
-                "requires_retake": False,
-            }
-        else:
-            return {
-                "verdict": "REJECT" if guide_used else "REVIEW",
-                "phase": "phase_3_location",
-                "reason": location_result.get("message", "Photos do not appear to show the same location."),
-                "details": location_result,
-                "requires_retake": guide_used,
-            }
+            if vlm_cleaned and (vlm_same or vlm_conf == "high"):
+                verdict = "REVIEW"
+                phase = "phase_3_location_override"
+                decided_by = "layer_2_location"
+                reason_code = "BORDERLINE_LANDMARKS"
+                summary_message = "Landmark matching had low confidence, but AI scene analysis detected potential match. Queued for CENRO review."
+                requires_retake = False
+            else:
+                verdict = "REJECT" if guide_used else "REVIEW"
+                phase = "phase_3_location"
+                decided_by = "layer_2_location"
+                reason_code = "DIFFERENT_LOCATION"
+                summary_message = location_result.get("message", "Photos do not appear to show the same location. Please align landmarks using the camera guide.")
+                requires_retake = guide_used
 
     # ── 4. Waste Remaining Evaluation (Mask R-CNN + Remaining Ratio) ──
-    if remaining_ratio > 0.35:
-        return {
-            "verdict": "REJECT",
-            "phase": "phase_4_garbage_remaining",
-            "reason": f"AI detected significant waste still remaining in the area ({int(remaining_ratio * 100)}% of original volume). Please clean thoroughly.",
-            "details": {"remaining_ratio": remaining_ratio, "mrcnn_waste_detected": mrcnn_waste_detected},
-            "requires_retake": True,
-        }
+    if verdict == "PASS":
+        if remaining_ratio > 0.35:
+            verdict = "REJECT"
+            phase = "phase_4_garbage_remaining"
+            decided_by = "layer_3_mrcnn"
+            reason_code = "WASTE_STILL_DETECTED"
+            summary_message = f"AI detected significant waste still remaining ({int(remaining_ratio * 100)}% of original volume). Please clean thoroughly and retake."
+            requires_retake = True
 
     # ── 5. VLM Second Opinion for Borderline Cases ──
-    is_borderline = (
-        loc_status == "borderline"
-        or (15 <= inliers < min_inliers_required)
-        or (0.10 <= remaining_ratio <= 0.35)
-        or (not guide_used)
-    )
+    if verdict == "PASS":
+        is_borderline = (
+            loc_status == "borderline"
+            or (15 <= inliers < 30)
+            or (0.10 <= remaining_ratio <= 0.35)
+            or (not guide_used)
+        )
 
-    if is_borderline and vlm_result:
-        vlm_cleaned = bool(vlm_result.get("cleaned", False))
-        vlm_conf = vlm_result.get("confidence", "low")
-        vlm_remarks = vlm_result.get("remarks", "")
+        if is_borderline and vlm_result:
+            vlm_cleaned = bool(vlm_result.get("cleaned", False))
+            vlm_conf = vlm_result.get("confidence", "low")
+            vlm_desc = vlm_result.get("description") or vlm_result.get("remarks") or ""
+            vlm_code = vlm_result.get("reason_code", "UNCERTAIN")
 
-        if not vlm_cleaned:
-            return {
-                "verdict": "REJECT",
-                "phase": "phase_5_vlm",
-                "reason": f"AI verification noted: {vlm_remarks}",
-                "details": vlm_result,
-                "requires_retake": True,
-            }
-        elif vlm_conf == "low":
-            return {
-                "verdict": "REVIEW",
-                "phase": "phase_5_vlm",
-                "reason": f"AI verification gave low-confidence resolution: {vlm_remarks}. Routed for human sign-off.",
-                "details": vlm_result,
-                "requires_retake": False,
-            }
+            if not vlm_cleaned:
+                verdict = "REJECT"
+                phase = "phase_5_vlm"
+                decided_by = "layer_4_vlm"
+                reason_code = vlm_code if vlm_code != "ALL_CLEANED" else "WASTE_STILL_DETECTED"
+                summary_message = f"Visual verification noted: {vlm_desc}"
+                requires_retake = True
+            elif vlm_conf == "low":
+                verdict = "REVIEW"
+                phase = "phase_5_vlm"
+                decided_by = "layer_4_vlm"
+                reason_code = "UNCERTAIN"
+                summary_message = f"Visual verification gave low confidence: {vlm_desc}. Routed for supervisor review."
+                requires_retake = False
 
-    # If Mask R-CNN detected residual waste and VLM didn't confidently confirm clean
-    if mrcnn_waste_detected and remaining_ratio >= 0.10:
-        return {
-            "verdict": "REVIEW",
-            "phase": "phase_4_mrcnn",
-            "reason": "Mask R-CNN detected potential scattered debris. Queued for CENRO review.",
-            "details": {"remaining_ratio": remaining_ratio},
-            "requires_retake": False,
-        }
+        if verdict == "PASS" and mrcnn_waste_detected and remaining_ratio >= 0.10:
+            verdict = "REVIEW"
+            phase = "phase_4_mrcnn"
+            decided_by = "layer_3_mrcnn"
+            reason_code = "WASTE_STILL_DETECTED"
+            summary_message = "Mask R-CNN detected potential scattered debris. Queued for CENRO review."
+            requires_retake = False
 
-    # ── 6. All Checks Passed ──
-    return {
-        "verdict": "PASS",
-        "phase": "all_passed",
-        "reason": "All anti-fraud checks passed. Location verified, waste fully removed, clear photo.",
-        "details": {
-            "inliers": inliers,
-            "remaining_ratio": remaining_ratio,
-            "quality": quality_result.get("metrics"),
-            "guide_used": guide_used,
+    # ── 6. Enforce 3-Attempt Cap before looping cleaner indefinitely ──
+    if attempt_count >= max_attempts and verdict in ("REJECT", "RETAKE"):
+        verdict = "REVIEW"
+        phase = "max_attempts_exceeded"
+        decided_by = "max_attempts_exceeded"
+        reason_code = "MAX_ATTEMPTS_EXCEEDED"
+        summary_message = f"Maximum retakes ({max_attempts}) reached for this job. Automatically routed to CENRO supervisor for manual review."
+        requires_retake = False
+
+    # ── 7. Map to final_status ──
+    if verdict == "PASS":
+        final_status = "approved"
+    elif verdict in ("REJECT", "RETAKE"):
+        final_status = "rejected"
+    else:
+        final_status = "needs_review"
+
+    # ── 8. Assemble Layer Breakdown ──
+    layers = [
+        {
+            "layer": "layer_1_integrity",
+            "name": "Photo & Site Integrity",
+            "status": l1_status,
+            "reason_code": l1_reason_code if l1_status == "failed" else "OK",
+            "summary": l1_msg if l1_status == "failed" else "Image is sharp, well-lit, and GPS proximity verified.",
+            "metrics": {
+                "gps_distance_m": gps_distance_m,
+                "blur_score": quality_result.get("metrics", {}).get("blur_score"),
+                "mean_brightness": quality_result.get("metrics", {}).get("mean_brightness"),
+                "contrast": quality_result.get("metrics", {}).get("contrast"),
+            },
         },
-        "requires_retake": False,
+        {
+            "layer": "layer_2_location",
+            "name": "Landmark Alignment",
+            "status": "skipped" if l1_status == "failed" else ("passed" if loc_matched else "failed"),
+            "reason_code": "OK" if loc_matched else ("DIFFERENT_LOCATION" if inliers < 12 else "BORDERLINE_LANDMARKS"),
+            "summary": location_result.get("message", "Static landmarks verified."),
+            "metrics": {
+                "inliers": inliers,
+                "inlier_ratio": inlier_ratio,
+                "status": loc_status,
+            },
+        },
+        {
+            "layer": "layer_3_mrcnn",
+            "name": "Waste Detection (Mask R-CNN)",
+            "status": "skipped" if l1_status == "failed" else ("failed" if remaining_ratio > 0.35 or (mrcnn_waste_detected and remaining_ratio >= 0.10) else "passed"),
+            "reason_code": "WASTE_STILL_DETECTED" if (remaining_ratio > 0.35 or (mrcnn_waste_detected and remaining_ratio >= 0.10)) else "OK",
+            "summary": f"Residual waste area: {int(remaining_ratio * 100)}%" if remaining_ratio > 0.10 else "No remaining waste detected.",
+            "maskrcnn": {
+                "waste_detected": mrcnn_waste_detected,
+                "confidence": round(float(mrcnn_confidence), 3),
+                "remaining_ratio_pct": round(remaining_ratio * 100, 1),
+                "detections_count": mrcnn_detections_count,
+                "annotated_image_url": annotated_image_url,
+            },
+        },
+        {
+            "layer": "layer_4_vlm",
+            "name": "Visual Scene Analysis (Gemini Flash)",
+            "status": "skipped" if (l1_status == "failed" or not vlm_result) else (
+                "passed" if vlm_result.get("cleaned") else "failed"
+            ),
+            "reason_code": vlm_result.get("reason_code", "OK") if vlm_result else "SKIPPED",
+            "summary": (vlm_result.get("description") or vlm_result.get("remarks") or "Multimodal before-vs-after comparison evaluated.") if vlm_result else "VLM check not evaluated.",
+            "vlm": {
+                "cleaned": vlm_result.get("cleaned", True) if vlm_result else True,
+                "confidence": vlm_result.get("confidence", "medium") if vlm_result else "medium",
+                "description": (vlm_result.get("description") or vlm_result.get("remarks") or "") if vlm_result else "",
+                "internal_reasoning": vlm_result.get("reasoning", "") if vlm_result else "",
+            },
+        },
+    ]
+
+    details = {
+        "inliers": inliers,
+        "remaining_ratio": remaining_ratio,
+        "quality": quality_result.get("metrics"),
+        "guide_used": guide_used,
+        "gps_distance_m": gps_distance_m,
+        "vlm": vlm_result,
+        "annotated_image_url": annotated_image_url,
+    }
+
+    return {
+        "verdict": verdict,
+        "final_status": final_status,
+        "decided_by": decided_by,
+        "reason_code": reason_code,
+        "summary_message": summary_message,
+        "reason": summary_message,
+        "phase": phase,
+        "requires_retake": requires_retake,
+        "attempt_count": attempt_count,
+        "max_attempts": max_attempts,
+        "layers": layers,
+        "details": details,
     }

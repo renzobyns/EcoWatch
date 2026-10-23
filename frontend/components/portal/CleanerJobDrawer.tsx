@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { slaDeadlineLabel, slaDeadlineColor, SLA_PILL_CLASSES } from "@/lib/sla";
 import { formatDateTime } from "@/lib/date-utils";
 import type { CleanerGeoPhoto } from "@/components/CleanerGeoCam";
+import CleanupVerificationCard from "@/components/portal/CleanupVerificationCard";
 
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
 const CleanerGeoCam = dynamic(() => import("@/components/CleanerGeoCam"), { ssr: false });
@@ -305,6 +306,32 @@ export function CleanerJobDrawer({
                     ) : (
                         /* ── Normal Drawer Content ──────────────────── */
                         <>
+                            {/* Verification Pending Banner */}
+                            {workOrder.report_verification_pending && (
+                                <div className="p-4 rounded-xl border border-primary/30 bg-primary/5 animate-pulse space-y-2">
+                                    <div className="flex items-center gap-2 text-primary font-bold text-sm">
+                                        <span className="size-2 rounded-full bg-primary animate-ping" />
+                                        Anti-Fraud Verification Running...
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        AI is inspecting image quality, matching site landmarks, and scanning for remaining waste. This takes 3–5 seconds.
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Verification Result Transparency Card */}
+                            {workOrder.cleanup_verification_result && (
+                                <section>
+                                    <CleanupVerificationCard
+                                        rawResult={workOrder.cleanup_verification_result}
+                                        guideUsed={workOrder.cleanup_guide_used}
+                                        gpsDistanceM={workOrder.cleanup_distance_m}
+                                        userRole="cleaner"
+                                        onRetakeNow={() => setCameraOpen(true)}
+                                    />
+                                </section>
+                            )}
+
                             {/* Citizen evidence */}
                             <section>
                                 <h3 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
@@ -484,6 +511,17 @@ export function CleanerJobDrawer({
                                 Re-capture Cleanup Photo
                             </button>
                         )}
+                    </div>
+                )}
+                {isReadOnly && !showReview && (
+                    <div className="shrink-0 border-t border-border p-5">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="w-full px-4 py-2.5 bg-foreground/10 hover:bg-foreground/15 text-foreground text-sm font-medium rounded-lg transition-colors"
+                        >
+                            Close Drawer
+                        </button>
                     </div>
                 )}
             </aside>

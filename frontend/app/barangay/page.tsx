@@ -18,6 +18,7 @@ import { useUnreadNotificationCount } from "@/lib/notification-poll";
 import { KpiCard } from "@/components/portal/KpiCard";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { DateRange } from "react-day-picker";
+import CleanupVerificationCard from "@/components/portal/CleanupVerificationCard";
 
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
@@ -1944,9 +1945,29 @@ function BarangayPortalInner() {
                                                                     </span>
                                                                 </td>
                                                                 <td className="p-4">
-                                                                    <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${STATUS_PILL[wo.status] || "bg-muted text-foreground border border-border"}`}>
-                                                                        {STATUS_LABEL[wo.status] || wo.status}
-                                                                    </span>
+                                                                    <div className="flex flex-col gap-1 items-start">
+                                                                        <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${STATUS_PILL[wo.status] || "bg-muted text-foreground border border-border"}`}>
+                                                                            {STATUS_LABEL[wo.status] || wo.status}
+                                                                        </span>
+                                                                        {wo.cleanup_verification_result && (() => {
+                                                                            try {
+                                                                                const parsed = typeof wo.cleanup_verification_result === "string" ? JSON.parse(wo.cleanup_verification_result) : wo.cleanup_verification_result;
+                                                                                if (parsed.decided_by && parsed.decided_by !== "all_passed") {
+                                                                                    const tag = parsed.decided_by === "layer_3_mrcnn" ? "Mask R-CNN" :
+                                                                                        parsed.decided_by === "layer_4_vlm" ? "VLM" :
+                                                                                        parsed.decided_by === "layer_2_location" ? "Landmarks" :
+                                                                                        parsed.decided_by === "layer_1_integrity" ? "Integrity" :
+                                                                                        parsed.decided_by === "manual_override" ? "Override" : null;
+                                                                                    return tag ? (
+                                                                                        <span className="text-[10px] text-muted-foreground font-mono">
+                                                                                            via {tag}
+                                                                                        </span>
+                                                                                    ) : null;
+                                                                                }
+                                                                            } catch {}
+                                                                            return null;
+                                                                        })()}
+                                                                    </div>
                                                                 </td>
                                                                 <td className="p-4 text-sm text-muted-foreground">
                                                                     {wo.sla_deadline ? formatDate(wo.sla_deadline) : "—"}
@@ -2145,6 +2166,19 @@ function BarangayPortalInner() {
                                                     <div className="flex justify-between"><span className="text-foreground/40">Completed</span><span className="text-foreground/70">{selectedWorkOrder.completed_at ? formatDateTime(selectedWorkOrder.completed_at) : "—"}</span></div>
                                                 </div>
                                             </div>
+
+                                            {/* Anti-Fraud Verification Result */}
+                                            {selectedWorkOrder.cleanup_verification_result && (
+                                                <div className="mb-2">
+                                                    <CleanupVerificationCard
+                                                        rawResult={selectedWorkOrder.cleanup_verification_result}
+                                                        guideUsed={selectedWorkOrder.cleanup_guide_used}
+                                                        gpsDistanceM={selectedWorkOrder.cleanup_distance_m}
+                                                        userRole="barangay"
+                                                        onForceApprove={handleForceResolve}
+                                                    />
+                                                </div>
+                                            )}
 
                                             {/* Notes */}
                                             {selectedWorkOrder.notes && (

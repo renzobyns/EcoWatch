@@ -71,3 +71,6 @@ backend/logs/
 # imports from it and the app cannot load real model weights without it.
 .vercel
 .git_hf/
+
+*.db-shm
+*.db-wal

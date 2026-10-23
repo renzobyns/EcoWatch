@@ -213,6 +213,26 @@ PASS / REVIEW / REJECT
 
 ## 📜 Master Registry of Major System Changes
 
+### 5️⃣ Generation 5: Cleanup Verification Result Transparency (MC-006)
+* **Status**: Completed
+* **Planned**: October 23, 2026
+* **Execution**: October 23, 2026
+
+#### Problem Statement & Rationale:
+In the initial MC-005 implementation, the multi-phase anti-fraud engine ran in the background, but only returned a binary "verified" or "needs_redo" verdict to the cleaner. Neither the cleaner nor the barangay could see *which* layer failed (e.g. blur, landmark mismatch, or residual garbage) or what the VLM saw. Cleaners were left guessing what to fix.
+
+#### Architectural Enhancements:
+1. **Standardized Per-Layer Schema**:
+   Stores `final_status`, `decided_by`, `reason_code`, `summary_message`, `attempt_count`, and a `layers[]` breakdown (Integrity, Location, Mask R-CNN, VLM) in `cleanup_verification_result`.
+2. **Actionable Cleaner UI**:
+   Replaces vague toasts with a dedicated Verification Result card inside `CleanerJobDrawer.tsx`. Cleaners receive actionable instructions, a visual bounding box overlay showing any remaining garbage, and a 1-click Retake loop (capped at 3 attempts before escalating to CENRO).
+3. **Role-Guarded Transparency**:
+   Cleaners receive friendly guidance; CENRO receives complete technical forensics (raw VLM reasoning, inliers, latency) with 1-click manual override.
+
+---
+
+## 📜 Master Registry of Major System Changes
+
 | ID | Change Title | Planned Date | Execution Date | Status | Primary Impact |
 |:---:|:---|:---:|:---:|:---:|:---|
 | **MC-001** | **Single-Layer Mask R-CNN Verification** | 2026-03-10 | 2026-04-15 | Completed | Initial automated waste detection via trained `.h5` model. |
@@ -220,6 +240,7 @@ PASS / REVIEW / REJECT
 | **MC-003** | **Strict EXIF Trust Scoring & Geotag Verification** | 2026-06-01 | 2026-06-15 | Completed | Mitigated GPS spoofing and photo reuse via metadata inspection. |
 | **MC-004** | **Three-Layer Hierarchical Verification (Gemini VLM + Mask R-CNN + CENRO)** | 2026-10-16 | 2026-10-16 | Completed | Added Layer 1 VLM pre-filter, multi-photo batching, and automated before/after cleanup verification. |
 | **MC-005** | **Cleanup Verification Pipeline (6-Phase Anti-Fraud Proofing)** | 2026-10-18 | — | In Progress | Guided capture, quality checks, SIFT location matching, Mask R-CNN comparison, VLM judge, CENRO audit. Branch: `feat/cleanup-verification-pipeline`. |
+| **MC-006** | **Cleanup Verification Result Transparency** | 2026-10-23 | 2026-10-23 | Completed | Exposes multi-layer verification results (integrity, SIFT landmarks, Mask R-CNN, VLM) to cleaners with actionable retake guidance, role-based visibility, and CENRO manual override. |
 
 ---
 

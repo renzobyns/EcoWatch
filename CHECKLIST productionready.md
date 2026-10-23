@@ -393,6 +393,23 @@
 
 ---
 
+### 🔍 Mini-Phase 2.8 — Cleanup Verification Result Transparency (MC-006)
+
+> **Spec**: [`cleanup-verification-transparency-spec.md`](cleanup-verification-transparency-spec.md)
+> **Plan**: Multi-layer explainable verification across Cleaner, Barangay, and CENRO portals.
+
+- [x] **Backend Schema**: Standardize `cleanup_verification_result` with `final_status`, `decided_by`, `reason_code`, `summary_message`, `attempt_count`, and `layers[]` breakdown
+- [x] **Backend VLM**: Update `verify_cleanup_proof_with_vlm` to enforce structured JSON output (`verdict`, `reason_code`, `description`, `reasoning`) with fallback
+- [x] **Backend Synthesizer**: Update `synthesize_cleanup_decision` in `backend/cleanup_verifier.py` with 4-tier funnel and 3-attempt escalation to CENRO
+- [x] **Backend Annotated Image**: Generate and save Mask R-CNN annotated overlay on cleanup photos when waste is detected
+- [x] **Backend Role Filtering**: Filter internal forensics (inliers, blur metrics, internal VLM reasoning) for cleaner/barangay roles in `serialize_work_order`
+- [x] **Backend Override API**: Ensure CENRO manual override records `override_by`, `override_remarks`, and logs to `audit_logs`
+- [x] **Frontend Cleaner UI**: Build `VerificationResultCard.tsx` and integrate into `CleanerJobDrawer.tsx` with retry loop and actionable guidance
+- [x] **Frontend Admin UI**: Update `CleanupVerificationCard.tsx` to render new standardized multi-layer schema
+- [x] **Testing & Quality**: Run `npm run build`, `npm run lint`, and backend pipeline tests
+
+---
+
 ## 🟢 Phase 3 — Polish & Compliance
 
 ### More Subpages
