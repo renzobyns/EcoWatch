@@ -462,15 +462,25 @@ def synthesize_cleanup_decision(
             vlm_desc = vlm_result.get("description") or vlm_result.get("remarks") or ""
             vlm_code = vlm_result.get("reason_code", "UNCERTAIN")
 
-            # CRITICAL: If Gemini VLM explicitly flagged that the site is NOT cleaned
-            # or the photo shows a completely different surface/wall, NEVER auto-pass!
+            # CRITICAL: If Gemini VLM flagged that waste is still detected or photo is blocked,
+            # handle accordingly. BUT if GPS and SIFT landmark alignment both PASSED,
+            # a mere subjective location doubt by Gemini should NOT hard-reject the cleaner.
+            # Instead, route for supervisor REVIEW or accept if landmark alignment was solid.
             if not vlm_cleaned:
-                verdict = "REJECT"
-                phase = "phase_5_vlm"
-                decided_by = "layer_4_vlm"
-                reason_code = vlm_code if vlm_code != "ALL_CLEANED" else "WASTE_STILL_DETECTED"
-                summary_message = f"Visual verification noted: {vlm_desc}"
-                requires_retake = True
+                if vlm_code == "SCENE_MISMATCH" and loc_matched and inliers >= 15:
+                    verdict = "REVIEW"
+                    phase = "phase_5_vlm"
+                    decided_by = "layer_4_vlm"
+                    reason_code = "BORDERLINE_LANDMARKS"
+                    summary_message = f"GPS and static landmarks verified, but AI visual scene had questions: {vlm_desc}. Routed for supervisor confirmation."
+                    requires_retake = False
+                else:
+                    verdict = "REJECT"
+                    phase = "phase_5_vlm"
+                    decided_by = "layer_4_vlm"
+                    reason_code = vlm_code if vlm_code != "ALL_CLEANED" else "WASTE_STILL_DETECTED"
+                    summary_message = f"Visual verification noted: {vlm_desc}"
+                    requires_retake = True
             elif vlm_conf == "low" and is_borderline:
                 verdict = "REVIEW"
                 phase = "phase_5_vlm"

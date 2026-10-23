@@ -148,9 +148,18 @@ Return ONLY a raw JSON object matching this schema exactly:
 
 CLEANUP_PROMPT = """Image 1 shows the original illegal dumpsite reported by a citizen.
 Image 2 is the proof of cleanup photo uploaded by the barangay waste collection team.
-Analyze both images carefully:
-1. Are Image 1 and Image 2 showing the same physical location/landmarks?
-2. Has the garbage/waste from Image 1 been thoroughly and cleanly removed in Image 2?
+
+IMPORTANT CONTEXT:
+The physical location and GPS proximity of Image 2 have ALREADY been verified and mathematically confirmed by on-device GPS coordinates and SIFT feature matching.
+Do NOT attempt to judge GPS or disqualify Image 2 for slight angle, perspective, zoom, or lighting differences.
+
+YOUR ROLE:
+Focus strictly on evaluating WASTE REMOVAL and CLEANLINESS:
+1. Has the garbage, waste, sack, or litter seen in Image 1 been cleared/removed in Image 2?
+2. Is the ground/site where the waste was located now clean?
+3. Only reject if:
+   - Significant uncollected garbage is still clearly visible on the site, OR
+   - The photo is completely invalid/fraudulent (e.g., an indoor room, a selfie, a black screen, or a camera lens obstructed).
 
 Return ONLY a raw JSON object matching this schema exactly:
 {
@@ -158,8 +167,8 @@ Return ONLY a raw JSON object matching this schema exactly:
   "confidence": "high" | "medium" | "low",
   "verdict": "approve" | "reject" | "uncertain",
   "reason_code": "ALL_CLEANED" | "WASTE_STILL_DETECTED" | "SCENE_MISMATCH" | "CAMERA_BLOCKED_OR_DARK" | "UNCERTAIN",
-  "description": "Clear 1-2 sentence plain-language description for the cleaner explaining what was removed or what waste remains",
-  "reasoning": "1-2 sentence technical reasoning for CENRO supervisors regarding landmarks, surfaces, or residual debris"
+  "description": "Clear 1-2 sentence plain-language description for the cleaner explaining whether the waste was removed or what waste remains",
+  "reasoning": "1-2 sentence technical reasoning for CENRO supervisors regarding waste removal and residual cleanliness"
 }
 """
 
