@@ -25,9 +25,12 @@ class TestCleanupPipelineIntegration(unittest.TestCase):
     def setUpClass(cls):
         cls.client = TestClient(app)
         db = next(get_db())
-        cls.cleaner = db.query(models.User).filter(models.User.role == "cleaner").first()
-        cls.barangay = db.query(models.User).filter(models.User.role == "barangay").first()
-        cls.citizen = db.query(models.User).filter(models.User.role == "citizen").first()
+        try:
+            cls.cleaner = db.query(models.User).filter(models.User.role == "cleaner").first()
+            cls.barangay = db.query(models.User).filter(models.User.role == "barangay").first()
+            cls.citizen = db.query(models.User).filter(models.User.role == "citizen").first()
+        finally:
+            db.close()
 
         assert cls.cleaner, "Cleaner user required. Run seed_test_data.py first."
         cls.cleaner_headers = {"X-User-Id": str(cls.cleaner.id)}
@@ -36,33 +39,49 @@ class TestCleanupPipelineIntegration(unittest.TestCase):
     def setUp(self):
         import uuid
         db = next(get_db())
-        uid = uuid.uuid4().hex[:6]
-        # Create a test report & work order for the cleaner
-        self.report = models.Report(
-            tracking_id=f"EW-{uid}",
-            tracking_url=f"/track/{uid}",
-            barangay="Muzon",
-            lat=14.8150,
-            lon=121.0250,
-            status=models.ReportStatus.IN_PROGRESS,
-            notes="Test dumpsite for cleanup verification",
-        )
-        db.add(self.report)
-        db.commit()
-        db.refresh(self.report)
+        try:
+            uid = uuid.uuid4().hex[:6]
+            self.report = models.Report(
+                tracking_id=f"EW-{uid}",
+                tracking_url=f"/track/{uid}",
+                barangay="Muzon",
+                lat=14.8150,
+                lon=121.0250,
+                status=models.ReportStatus.IN_PROGRESS,
+                notes="Test dumpsite for cleanup verification",
+            )
+            db.add(self.report)
+            db.commit()
+            db.refresh(self.report)
 
-        from datetime import datetime, timezone
-        self.wo = models.WorkOrder(
-            report_id=self.report.id,
-            assigned_cleaner_id=self.cleaner.id,
-            priority="medium",
-            sla_deadline=datetime.now(timezone.utc),
-            status=models.WorkOrderStatus.IN_PROGRESS,
-        )
-        db.add(self.wo)
-        db.commit()
-        db.refresh(self.wo)
-        self.wo_id = self.wo.id
+            from datetime import datetime, timezone
+            self.wo = models.WorkOrder(
+                report_id=self.report.id,
+                assigned_cleaner_id=self.cleaner.id,
+                priority="medium",
+                sla_deadline=datetime.now(timezone.utc),
+                status=models.WorkOrderStatus.IN_PROGRESS,
+            )
+            db.add(self.wo)
+            db.commit()
+            db.refresh(self.wo)
+            self.wo_id = self.wo.id
+            self.report_id = self.report.id
+        finally:
+            db.close()
+
+    def tearDown(self):
+        db = next(get_db())
+        try:
+            if hasattr(self, "wo_id") and self.wo_id:
+                db.query(models.CleanupPhoto).filter(models.CleanupPhoto.work_order_id == self.wo_id).delete()
+                db.query(models.WorkOrder).filter(models.WorkOrder.id == self.wo_id).delete()
+            if hasattr(self, "report_id") and self.report_id:
+                db.query(models.ReportPhoto).filter(models.ReportPhoto.report_id == self.report_id).delete()
+                db.query(models.Report).filter(models.Report.id == self.report_id).delete()
+            db.commit()
+        finally:
+            db.close()
 
     def test_session_token_creation_and_auth(self):
         """Cleaners must be able to acquire a 15-minute capture session."""

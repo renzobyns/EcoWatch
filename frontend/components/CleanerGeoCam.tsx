@@ -476,6 +476,63 @@ export default function CleanerGeoCam({
         onBack();
     };
 
+    const handleSimulatedUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Simulate perfect on-site GPS fix
+        const simFix: Fix = {
+            lat: reportLat,
+            lon: reportLon,
+            accuracy: 5,
+        };
+        setFix(simFix);
+        setDistance(0);
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            const dataUrl = reader.result as string;
+            try {
+                const stamped = stampExif(dataUrl, simFix, new Date());
+                const cleanFile = dataUrlToFile(stamped, `sim_cleanup_${Date.now()}.jpg`);
+                const photo: CleanerGeoPhoto = {
+                    file: cleanFile,
+                    lat: simFix.lat,
+                    lon: simFix.lon,
+                    accuracy: simFix.accuracy,
+                    timestamp: Date.now(),
+                    distanceFromReport: 0,
+                    source: "camera",
+                    guideUsed: ghostOn,
+                    overlayStyle: ghostOn ? overlayStyle : undefined,
+                    sessionId: sessionId || undefined,
+                };
+                setPhotos((prev) => [...prev, photo]);
+                setPreviews((prev) => [...prev, URL.createObjectURL(cleanFile)]);
+                setPhase("ready");
+            } catch (err) {
+                console.error("Simulation EXIF stamp error, using raw file:", err);
+                const photo: CleanerGeoPhoto = {
+                    file: file,
+                    lat: simFix.lat,
+                    lon: simFix.lon,
+                    accuracy: simFix.accuracy,
+                    timestamp: Date.now(),
+                    distanceFromReport: 0,
+                    source: "camera",
+                    guideUsed: ghostOn,
+                    overlayStyle: ghostOn ? overlayStyle : undefined,
+                    sessionId: sessionId || undefined,
+                };
+                setPhotos((prev) => [...prev, photo]);
+                setPreviews((prev) => [...prev, URL.createObjectURL(file)]);
+                setPhase("ready");
+            }
+        };
+        reader.readAsDataURL(file);
+        e.target.value = "";
+    };
+
     const canShoot = phase === "ready" && !!fix && photos.length < maxPhotos && !capturing;
 
     // ── Proximity badge helpers ──────────────────────────────────
@@ -708,6 +765,20 @@ export default function CleanerGeoCam({
                                 <button onClick={cancel} className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-semibold transition-colors">
                                     Go back
                                 </button>
+                                <label
+                                    htmlFor="dev-cleanup-upload-denied"
+                                    className="w-full mt-2.5 py-2.5 rounded-xl bg-emerald-600/80 hover:bg-emerald-600 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                    <span>Upload test proof (Simulate GPS)</span>
+                                </label>
+                                <input
+                                    id="dev-cleanup-upload-denied"
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={handleSimulatedUpload}
+                                />
                             </>
                         )}
                     </div>
@@ -747,8 +818,23 @@ export default function CleanerGeoCam({
                 )}
 
                 <div className="flex items-center justify-between">
-                    {/* Left spacer — no gallery upload for cleaners (anti-cheat) */}
-                    <div className="w-20" />
+                    {/* Left control — Test/Defense Simulator (allows uploading proof with simulated target GPS) */}
+                    <div className="w-20 flex items-center">
+                        <label
+                            htmlFor="dev-cleanup-upload"
+                            title="Testing/Defense Mode: Upload proof photo with simulated on-site GPS"
+                            className="w-11 h-11 rounded-xl bg-black/40 border border-white/20 text-white/90 hover:text-white flex items-center justify-center hover:bg-black/60 transition-colors cursor-pointer shadow-md"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        </label>
+                        <input
+                            id="dev-cleanup-upload"
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleSimulatedUpload}
+                        />
+                    </div>
 
                     <button
                         onClick={handleShutter}

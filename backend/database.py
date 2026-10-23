@@ -14,7 +14,7 @@ if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
     SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 # SQLite needs check_same_thread=False for FastAPI concurrency, Postgres doesn't
-connect_args = {"check_same_thread": False} if SQLALCHEMY_DATABASE_URL.startswith("sqlite") else {}
+connect_args = {"check_same_thread": False, "timeout": 30} if SQLALCHEMY_DATABASE_URL.startswith("sqlite") else {}
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL, connect_args=connect_args

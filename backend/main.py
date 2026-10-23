@@ -2703,12 +2703,13 @@ def _apply_report_filters(
     if reporter_id:
         query = query.filter(models.Report.reporter_id == reporter_id)
 
-    if status:
+    if status and status.lower() != "all":
         query = query.filter(models.Report.status == status.lower())
-    elif not reporter_id:
-        # Hide rejected and confirmed-duplicate reports from active queues by default.
+    elif not reporter_id and (not status or status.lower() != "all"):
+        # Hide rejected, ai-rejected, and confirmed-duplicate reports from active public queues by default.
         query = query.filter(models.Report.status.notin_([
             models.ReportStatus.REJECTED,
+            models.ReportStatus.AI_REJECTED,
             models.ReportStatus.DUPLICATE,
         ]))
     if date_from:
@@ -4355,6 +4356,7 @@ async def get_heatmaps(
     query = db.query(models.Report).filter(
         models.Report.status.in_([
             models.ReportStatus.PENDING,
+            models.ReportStatus.AI_VERIFIED,
             models.ReportStatus.VERIFIED,
             models.ReportStatus.ASSIGNED,
             models.ReportStatus.IN_PROGRESS,
