@@ -310,11 +310,13 @@ export default function CleanupVerificationCard({
                     <div className="font-bold text-foreground mt-0.5 flex items-center justify-center gap-1">
                         <Sparkles size={11} className="text-emerald-500" />
                         <span>
-                            {details.remaining_ratio !== undefined
-                                ? details.remaining_ratio <= 0.05
-                                    ? "Clean (0%)"
-                                    : `${Math.round(details.remaining_ratio * 100)}% left`
-                                : "Clean"}
+                            {parsed.layers?.find((l) => l.layer === "layer_3_mrcnn")?.status === "bypassed"
+                                ? "VLM Scene Check"
+                                : details.remaining_ratio !== undefined
+                                    ? details.remaining_ratio <= 0.05
+                                        ? "Clean (0%)"
+                                        : `${Math.round(details.remaining_ratio * 100)}% left`
+                                    : "Clean"}
                         </span>
                     </div>
                 </div>
@@ -361,6 +363,7 @@ export default function CleanupVerificationCard({
                             parsed.layers.map((layer) => {
                                 const isPassed = layer.status === "passed";
                                 const isFailed = layer.status === "failed";
+                                const isBypassed = layer.status === "bypassed";
 
                                 return (
                                     <div
@@ -368,9 +371,11 @@ export default function CleanupVerificationCard({
                                         className={`p-2.5 rounded-lg border ${
                                             isFailed
                                                 ? "bg-red-500/5 border-red-500/20"
-                                                : isPassed
-                                                    ? "bg-emerald-500/5 border-emerald-500/20"
-                                                    : "bg-foreground/5 border-border"
+                                                : isBypassed
+                                                    ? "bg-amber-500/5 border-amber-500/20"
+                                                    : isPassed
+                                                        ? "bg-emerald-500/5 border-emerald-500/20"
+                                                        : "bg-foreground/5 border-border"
                                         }`}
                                     >
                                         <div className="flex items-center justify-between font-semibold text-[11px]">
@@ -383,14 +388,16 @@ export default function CleanupVerificationCard({
                                             </span>
                                             <span
                                                 className={`text-[10px] font-bold uppercase ${
-                                                    isPassed
-                                                        ? "text-emerald-500"
-                                                        : isFailed
-                                                            ? "text-red-500"
-                                                            : "text-muted-foreground"
+                                                    isFailed
+                                                        ? "text-red-500"
+                                                        : isBypassed
+                                                            ? "text-amber-500"
+                                                            : isPassed
+                                                                ? "text-emerald-500"
+                                                                : "text-muted-foreground"
                                                 }`}
                                             >
-                                                {layer.status}
+                                                {isBypassed ? "Temporarily Off" : layer.status}
                                             </span>
                                         </div>
 

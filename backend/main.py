@@ -2197,14 +2197,19 @@ async def _bg_verify_resolve(report_id: int, user_id: int) -> None:
 
         conf = db.query(models.SystemConfig).filter(models.SystemConfig.key == "ai_confidence_threshold").first()
         threshold = float(conf.value) if conf else 0.5
-        results = await verify_images_async([b for b, _ in pairs], threshold)
-        # ANY photo still showing waste = cleanup failed (inverted: waste detected = bad)
-        mrcnn_waste_detected = any(r.get("verified") for r in results)
+        conf_mrcnn = db.query(models.SystemConfig).filter(models.SystemConfig.key == "enable_cleanup_mrcnn").first()
+        enable_cleanup_mrcnn = (conf_mrcnn.value.lower() == "true") if conf_mrcnn else True
 
-        for (_, row), result in zip(pairs, results):
-            if row is not None:
-                row.ai_confidence = result.get("confidence")
-                row.ai_verified = bool(result.get("verified", False))
+        if enable_cleanup_mrcnn:
+            results = await verify_images_async([b for b, _ in pairs], threshold)
+            mrcnn_waste_detected = any(r.get("verified") for r in results)
+            for (_, row), result in zip(pairs, results):
+                if row is not None:
+                    row.ai_confidence = result.get("confidence")
+                    row.ai_verified = bool(result.get("verified", False))
+        else:
+            results = []
+            mrcnn_waste_detected = False
 
         # ── VLM Layer 1 Before-vs-After Verification ──
         original_bytes = None
@@ -2262,6 +2267,7 @@ async def _bg_verify_resolve(report_id: int, user_id: int) -> None:
             remaining_ratio=rem_ratio,
             vlm_result=cleanup_vlm_res.model_dump() if cleanup_vlm_res else None,
             guide_used=report.cleanup_guide_used if report.cleanup_guide_used is not None else True,
+            mrcnn_enabled=enable_cleanup_mrcnn,
         )
         report.cleanup_verification_result = json.dumps(decision)
 
@@ -2330,13 +2336,19 @@ async def _bg_verify_complete(work_order_id: int, user_id: int) -> None:
 
         conf = db.query(models.SystemConfig).filter(models.SystemConfig.key == "ai_confidence_threshold").first()
         threshold = float(conf.value) if conf else 0.5
-        results = await verify_images_async([b for b, _ in pairs], threshold)
-        mrcnn_waste_detected = any(r.get("verified") for r in results)
+        conf_mrcnn = db.query(models.SystemConfig).filter(models.SystemConfig.key == "enable_cleanup_mrcnn").first()
+        enable_cleanup_mrcnn = (conf_mrcnn.value.lower() == "true") if conf_mrcnn else True
 
-        for (_, row), result in zip(pairs, results):
-            if row is not None:
-                row.ai_confidence = result.get("confidence")
-                row.ai_verified = bool(result.get("verified", False))
+        if enable_cleanup_mrcnn:
+            results = await verify_images_async([b for b, _ in pairs], threshold)
+            mrcnn_waste_detected = any(r.get("verified") for r in results)
+            for (_, row), result in zip(pairs, results):
+                if row is not None:
+                    row.ai_confidence = result.get("confidence")
+                    row.ai_verified = bool(result.get("verified", False))
+        else:
+            results = []
+            mrcnn_waste_detected = False
 
         # ── VLM Layer 1 Before-vs-After Verification ──
         original_bytes = None
@@ -2423,6 +2435,7 @@ async def _bg_verify_complete(work_order_id: int, user_id: int) -> None:
             mrcnn_confidence=mrcnn_conf,
             mrcnn_detections_count=mrcnn_count,
             annotated_image_url=annotated_mask_url,
+            mrcnn_enabled=enable_cleanup_mrcnn,
         )
         wo.cleanup_verification_result = json.dumps(decision)
         report.cleanup_verification_result = json.dumps(decision)
@@ -5375,12 +5388,17 @@ async def get_export_images_zip(current_user: models.User = Depends(get_current_
     return FileResponse(path, media_type="application/zip", filename=f"ecowatch_images_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip")
 
 class SystemConfigUpdate(BaseModel):
-    ai_confidence_threshold: float
+    ai_confidence_threshold: Optional[float] = None
+    enable_cleanup_mrcnn: Optional[bool] = None
 
 @app.get("/admin/system-config")
 async def get_system_config(db: Session = Depends(get_db)):
-    conf = db.query(models.SystemConfig).filter(models.SystemConfig.key == "ai_confidence_threshold").first()
-    return {"ai_confidence_threshold": float(conf.value) if conf else 0.5}
+    conf_thresh = db.query(models.SystemConfig).filter(models.SystemConfig.key == "ai_confidence_threshold").first()
+    conf_mrcnn = db.query(models.SystemConfig).filter(models.SystemConfig.key == "enable_cleanup_mrcnn").first()
+    return {
+        "ai_confidence_threshold": float(conf_thresh.value) if conf_thresh else 0.5,
+        "enable_cleanup_mrcnn": (conf_mrcnn.value.lower() == "true") if conf_mrcnn else True,
+    }
 
 @app.patch("/admin/system-config")
 async def update_system_config(
@@ -5391,16 +5409,35 @@ async def update_system_config(
     if current_user.role != "cenro":
         raise HTTPException(status_code=403, detail="Only CENRO can update system config")
     
-    conf = db.query(models.SystemConfig).filter(models.SystemConfig.key == "ai_confidence_threshold").first()
-    if not conf:
-        conf = models.SystemConfig(key="ai_confidence_threshold", value=str(update.ai_confidence_threshold), updated_by=current_user.id)
-        db.add(conf)
-    else:
-        conf.value = str(update.ai_confidence_threshold)
-        conf.updated_by = current_user.id
+    if update.ai_confidence_threshold is not None:
+        conf = db.query(models.SystemConfig).filter(models.SystemConfig.key == "ai_confidence_threshold").first()
+        if not conf:
+            conf = models.SystemConfig(key="ai_confidence_threshold", value=str(update.ai_confidence_threshold), updated_by=current_user.id)
+            db.add(conf)
+        else:
+            conf.value = str(update.ai_confidence_threshold)
+            conf.updated_by = current_user.id
+
+    if update.enable_cleanup_mrcnn is not None:
+        val_str = "true" if update.enable_cleanup_mrcnn else "false"
+        conf_m = db.query(models.SystemConfig).filter(models.SystemConfig.key == "enable_cleanup_mrcnn").first()
+        if not conf_m:
+            conf_m = models.SystemConfig(key="enable_cleanup_mrcnn", value=val_str, updated_by=current_user.id)
+            db.add(conf_m)
+        else:
+            conf_m.value = val_str
+            conf_m.updated_by = current_user.id
     
     db.commit()
-    return {"message": "System configuration updated successfully", "ai_confidence_threshold": update.ai_confidence_threshold}
+
+    # Re-fetch latest
+    conf_thresh = db.query(models.SystemConfig).filter(models.SystemConfig.key == "ai_confidence_threshold").first()
+    conf_mrcnn = db.query(models.SystemConfig).filter(models.SystemConfig.key == "enable_cleanup_mrcnn").first()
+    return {
+        "message": "System configuration updated successfully",
+        "ai_confidence_threshold": float(conf_thresh.value) if conf_thresh else 0.5,
+        "enable_cleanup_mrcnn": (conf_mrcnn.value.lower() == "true") if conf_mrcnn else True,
+    }
 
 
 @app.get("/analytics/insights-export")

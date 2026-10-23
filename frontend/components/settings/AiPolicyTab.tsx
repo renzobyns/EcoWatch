@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 
 export function AiPolicyTab() {
     const [threshold, setThreshold] = useState(0.5);
+    const [enableCleanupMrcnn, setEnableCleanupMrcnn] = useState(true);
     const [loading, setLoading] = useState(true);
     
     useEffect(() => {
@@ -14,6 +15,9 @@ export function AiPolicyTab() {
                 const data = await api("/admin/system-config");
                 if (data && typeof data.ai_confidence_threshold === "number") {
                     setThreshold(data.ai_confidence_threshold);
+                }
+                if (data && typeof data.enable_cleanup_mrcnn === "boolean") {
+                    setEnableCleanupMrcnn(data.enable_cleanup_mrcnn);
                 }
             } catch (err) {
                 console.error("Failed to fetch system config", err);
@@ -34,6 +38,20 @@ export function AiPolicyTab() {
             toast.success("AI threshold updated successfully!");
         } catch {
             toast.error("Failed to update AI threshold on server");
+        }
+    };
+
+    const updateCleanupMrcnn = async (val: boolean) => {
+        setEnableCleanupMrcnn(val);
+        try {
+            await api("/admin/system-config", {
+                method: "PATCH",
+                body: JSON.stringify({ enable_cleanup_mrcnn: val })
+            });
+            toast.success(val ? "Mask R-CNN enabled for cleanup!" : "Mask R-CNN bypassed for cleanup (VLM-only mode)!");
+        } catch {
+            setEnableCleanupMrcnn(!val); // revert on error
+            toast.error("Failed to update cleanup AI policy on server");
         }
     };
 
@@ -84,6 +102,38 @@ export function AiPolicyTab() {
 
                 <div className="w-full h-px bg-border/50"></div>
 
+                {/* Mask R-CNN Cleanup Toggle */}
+                <div className="flex items-center justify-between">
+                    <div className="pr-4">
+                        <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-foreground">Mask R-CNN on Cleanup Proofs</p>
+                            {!enableCleanupMrcnn ? (
+                                <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                                    Temporarily Off
+                                </span>
+                            ) : (
+                                <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
+                                    Active
+                                </span>
+                            )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            When enabled, Mask R-CNN runs instance segmentation on cleanup photos. When toggled OFF, cleanup relies exclusively on Gemini Flash VLM Before-vs-After reasoning.
+                        </p>
+                    </div>
+                    <label className="relative inline-flex items-center shrink-0 cursor-pointer">
+                        <input 
+                            type="checkbox" 
+                            className="sr-only peer" 
+                            checked={enableCleanupMrcnn} 
+                            onChange={(e) => updateCleanupMrcnn(e.target.checked)} 
+                        />
+                        <div className="w-11 h-6 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                    </label>
+                </div>
+
+                <div className="w-full h-px bg-border/50"></div>
+
                 {/* Auto-Reject */}
                 <div className="flex items-center justify-between opacity-50 cursor-not-allowed group relative">
                     <div>
@@ -104,6 +154,12 @@ export function AiPolicyTab() {
                     <div className="flex justify-between py-2 border-b border-border/50 text-sm">
                         <span className="text-muted-foreground">Model Architecture</span>
                         <span className="font-medium text-foreground">Mask R-CNN (TensorFlow)</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b border-border/50 text-sm">
+                        <span className="text-muted-foreground">Cleanup Verification Mode</span>
+                        <span className={`font-medium ${enableCleanupMrcnn ? "text-emerald-500" : "text-amber-500"}`}>
+                            {enableCleanupMrcnn ? "Mask R-CNN + Gemini Flash" : "Gemini Flash Only (Mask R-CNN Off)"}
+                        </span>
                     </div>
                     <div className="flex justify-between py-2 border-b border-border/50 text-sm">
                         <span className="text-muted-foreground">Running Mode</span>

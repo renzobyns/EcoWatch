@@ -184,6 +184,34 @@ class TestCleanupVerifier(unittest.TestCase):
         dec5 = cv.synthesize_cleanup_decision(good_quality, good_loc, False, 0.02, gps_distance_m=350.0)
         self.assertEqual(dec5["verdict"], "REJECT")
 
+        # 6. SIFT inliers high (48) + Mask R-CNN 0%, but Gemini VLM explicitly flags wall/not cleaned -> MUST REJECT
+        vlm_wall_reject = {
+            "cleaned": False,
+            "confidence": "high",
+            "verdict": "reject",
+            "reason_code": "SCENE_MISMATCH",
+            "description": "The cleanup image shows a close-up of a smooth painted wall rather than the street.",
+        }
+        dec6 = cv.synthesize_cleanup_decision(good_quality, good_loc, False, 0.0, vlm_result=vlm_wall_reject)
+        self.assertEqual(dec6["verdict"], "REJECT")
+        self.assertEqual(dec6["decided_by"], "layer_4_vlm")
+        self.assertEqual(dec6["reason_code"], "SCENE_MISMATCH")
+
+        # 7. Mask R-CNN disabled (mrcnn_enabled=False) -> Layer 3 bypassed, VLM decides
+        vlm_clean_pass = {
+            "cleaned": True,
+            "confidence": "high",
+            "verdict": "approve",
+            "reason_code": "ALL_CLEANED",
+            "description": "Site verified clean.",
+        }
+        dec7 = cv.synthesize_cleanup_decision(good_quality, good_loc, False, 0.0, vlm_result=vlm_clean_pass, mrcnn_enabled=False)
+        self.assertEqual(dec7["verdict"], "PASS")
+        self.assertEqual(dec7["decided_by"], "layer_4_vlm")
+        l3 = next(l for l in dec7["layers"] if l["layer"] == "layer_3_mrcnn")
+        self.assertEqual(l3["status"], "bypassed")
+        self.assertEqual(l3["reason_code"], "BYPASSED")
+
 
 if __name__ == "__main__":
     unittest.main()

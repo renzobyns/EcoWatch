@@ -355,6 +355,7 @@ def synthesize_cleanup_decision(
     mrcnn_confidence: float = 0.0,
     mrcnn_detections_count: int = 0,
     annotated_image_url: Optional[str] = None,
+    mrcnn_enabled: bool = True,
 ) -> Dict[str, Any]:
     """
     Master Decision Engine: Combines Phase 1 through Phase 5 signals into an
@@ -436,7 +437,7 @@ def synthesize_cleanup_decision(
                 requires_retake = guide_used
 
     # ── 4. Waste Remaining Evaluation (Mask R-CNN + Remaining Ratio) ──
-    if verdict == "PASS":
+    if verdict == "PASS" and mrcnn_enabled:
         if remaining_ratio > 0.35:
             verdict = "REJECT"
             phase = "phase_4_garbage_remaining"
@@ -445,21 +446,24 @@ def synthesize_cleanup_decision(
             summary_message = f"AI detected significant waste still remaining ({int(remaining_ratio * 100)}% of original volume). Please clean thoroughly and retake."
             requires_retake = True
 
-    # ── 5. VLM Second Opinion for Borderline Cases ──
+    # ── 5. VLM Second Opinion & Multimodal Scene Analysis ──
     if verdict == "PASS":
         is_borderline = (
             loc_status == "borderline"
             or (15 <= inliers < 30)
             or (0.10 <= remaining_ratio <= 0.35)
             or (not guide_used)
+            or (not mrcnn_enabled)
         )
 
-        if is_borderline and vlm_result:
+        if vlm_result:
             vlm_cleaned = bool(vlm_result.get("cleaned", False))
             vlm_conf = vlm_result.get("confidence", "low")
             vlm_desc = vlm_result.get("description") or vlm_result.get("remarks") or ""
             vlm_code = vlm_result.get("reason_code", "UNCERTAIN")
 
+            # CRITICAL: If Gemini VLM explicitly flagged that the site is NOT cleaned
+            # or the photo shows a completely different surface/wall, NEVER auto-pass!
             if not vlm_cleaned:
                 verdict = "REJECT"
                 phase = "phase_5_vlm"
@@ -467,15 +471,18 @@ def synthesize_cleanup_decision(
                 reason_code = vlm_code if vlm_code != "ALL_CLEANED" else "WASTE_STILL_DETECTED"
                 summary_message = f"Visual verification noted: {vlm_desc}"
                 requires_retake = True
-            elif vlm_conf == "low":
+            elif vlm_conf == "low" and is_borderline:
                 verdict = "REVIEW"
                 phase = "phase_5_vlm"
                 decided_by = "layer_4_vlm"
                 reason_code = "UNCERTAIN"
                 summary_message = f"Visual verification gave low confidence: {vlm_desc}. Routed for supervisor review."
                 requires_retake = False
+            elif not mrcnn_enabled and vlm_cleaned:
+                decided_by = "layer_4_vlm"
+                summary_message = f"Site verified clean via Gemini Flash VLM (Mask R-CNN bypassed in CENRO settings)."
 
-        if verdict == "PASS" and mrcnn_waste_detected and remaining_ratio >= 0.10:
+        if verdict == "PASS" and mrcnn_enabled and mrcnn_waste_detected and remaining_ratio >= 0.10:
             verdict = "REVIEW"
             phase = "phase_4_mrcnn"
             decided_by = "layer_3_mrcnn"
@@ -530,15 +537,16 @@ def synthesize_cleanup_decision(
         {
             "layer": "layer_3_mrcnn",
             "name": "Waste Detection (Mask R-CNN)",
-            "status": "skipped" if l1_status == "failed" else ("failed" if remaining_ratio > 0.35 or (mrcnn_waste_detected and remaining_ratio >= 0.10) else "passed"),
-            "reason_code": "WASTE_STILL_DETECTED" if (remaining_ratio > 0.35 or (mrcnn_waste_detected and remaining_ratio >= 0.10)) else "OK",
-            "summary": f"Residual waste area: {int(remaining_ratio * 100)}%" if remaining_ratio > 0.10 else "No remaining waste detected.",
+            "status": "skipped" if l1_status == "failed" else ("bypassed" if not mrcnn_enabled else ("failed" if remaining_ratio > 0.35 or (mrcnn_waste_detected and remaining_ratio >= 0.10) else "passed")),
+            "reason_code": "BYPASSED" if not mrcnn_enabled else ("WASTE_STILL_DETECTED" if (remaining_ratio > 0.35 or (mrcnn_waste_detected and remaining_ratio >= 0.10)) else "OK"),
+            "summary": "Temporarily disabled in CENRO AI Policy. Cleanliness evaluated via Gemini Flash VLM." if not mrcnn_enabled else (f"Residual waste area: {int(remaining_ratio * 100)}%" if remaining_ratio > 0.10 else "No remaining waste detected."),
             "maskrcnn": {
-                "waste_detected": mrcnn_waste_detected,
-                "confidence": round(float(mrcnn_confidence), 3),
-                "remaining_ratio_pct": round(remaining_ratio * 100, 1),
-                "detections_count": mrcnn_detections_count,
-                "annotated_image_url": annotated_image_url,
+                "waste_detected": False if not mrcnn_enabled else mrcnn_waste_detected,
+                "confidence": 0.0 if not mrcnn_enabled else round(float(mrcnn_confidence), 3),
+                "remaining_ratio_pct": 0.0 if not mrcnn_enabled else round(remaining_ratio * 100, 1),
+                "detections_count": 0 if not mrcnn_enabled else mrcnn_detections_count,
+                "annotated_image_url": None if not mrcnn_enabled else annotated_image_url,
+                "bypassed": not mrcnn_enabled,
             },
         },
         {
