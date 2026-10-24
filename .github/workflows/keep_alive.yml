@@ -1,0 +1,23 @@
+name: Keep Backend Alive
+
+on:
+  schedule:
+    # Run every 10 minutes
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  ping-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping EcoWatch Backend API
+        run: |
+          echo "Pinging Hugging Face Space backend..."
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" --max-time 45 -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) EcoWatch-HealthCheck" https://renzobyns-ecowatch-backend.hf.space/health)
+          echo "$RESPONSE"
+          STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS" | cut -d':' -f2)
+          if [ "$STATUS" -eq 200 ]; then
+            echo "Backend is awake and healthy! (Status 200)"
+          else
+            echo "Warning: Backend responded with status $STATUS"
+          fi
