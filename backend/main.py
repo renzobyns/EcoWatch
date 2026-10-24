@@ -742,7 +742,9 @@ async def save_upload(
         upload_url = f"{supabase_url}/storage/v1/object/{bucket_name}/{filename}"
         headers = {
             "Authorization": f"Bearer {supabase_key}",
-            "Content-Type": content_type
+            "apikey": supabase_key,
+            "Content-Type": content_type,
+            "x-upsert": "true",
         }
         try:
             response = requests.post(upload_url, headers=headers, data=contents, timeout=15)
@@ -1852,7 +1854,9 @@ def _save_mask_bytes(mask_bytes: bytes) -> Optional[Tuple[str, int]]:
         upload_url = f"{supabase_url}/storage/v1/object/{bucket_name}/{mask_filename}"
         headers = {
             "Authorization": f"Bearer {supabase_key}",
-            "Content-Type": "image/jpeg"
+            "apikey": supabase_key,
+            "Content-Type": "image/jpeg",
+            "x-upsert": "true",
         }
         try:
             response = requests.post(upload_url, headers=headers, data=mask_bytes, timeout=15)
