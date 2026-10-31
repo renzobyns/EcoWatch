@@ -31,7 +31,7 @@ def run_tests():
     brgy_headers = {"X-User-Id": str(barangay_admin.id)}
     cenro_headers = {"X-User-Id": str(cenro_admin.id)}
 
-    target_brgy = barangay_admin.barangay_assignment or "Muzon"
+    target_brgy = barangay_admin.barangay_assignment or "Muzon Proper"
 
     # Create dummy reports for testing
     rep1 = models.Report(

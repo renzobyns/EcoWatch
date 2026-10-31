@@ -8,13 +8,16 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import Script from "next/script";
 import { Analytics } from '@vercel/analytics/next';
 import SessionManager from "@/components/SessionManager";
+import NetworkStatusListener from "@/components/NetworkStatusListener";
 
 export const metadata: Metadata = {
   title: "EcoWatch SJDM | Sustainable Environmental Monitoring",
   description: "Advanced geospatial reporting and monitoring for San Jose del Monte.",
   icons: {
     icon: "/logo.png",
+    apple: "/logo.png",
   },
+  manifest: "/manifest.json",
 };
 
 // Injected synchronously in <head> to prevent FOUC on first paint.
@@ -35,6 +38,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <meta name="theme-color" content="#10B981" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <Script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" strategy="afterInteractive" />
         <Script id="google-translate-init" strategy="afterInteractive">
@@ -102,6 +109,7 @@ export default function RootLayout({
           <ThemeProvider>
             <ShortcutsProvider>
               <SessionManager />
+              <NetworkStatusListener />
               <div id="google_translate_element" suppressHydrationWarning></div>
               <Navbar />
               <main className="pt-20">

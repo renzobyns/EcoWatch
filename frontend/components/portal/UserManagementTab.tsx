@@ -292,7 +292,7 @@ export const UserManagementTab = forwardRef<UserManagementRef, UserManagementTab
     };
 
     const downloadImportTemplate = () => {
-        const csv = "email,full_name,role,barangay_assignment,phone_number\ncitizen@example.com,Juan dela Cruz,citizen,,09171234567\ncoord@example.com,Maria Santos,barangay,Muzon,\ncleaner@example.com,Pedro Reyes,cleaner,Muzon,";
+        const csv = "email,full_name,role,barangay_assignment,phone_number\ncitizen@example.com,Juan dela Cruz,citizen,,09171234567\ncoord@example.com,Maria Santos,barangay,Muzon Proper,\ncleaner@example.com,Pedro Reyes,cleaner,Muzon Proper,";
         downloadString(csv, "ecowatch_import_template.csv");
     };
 

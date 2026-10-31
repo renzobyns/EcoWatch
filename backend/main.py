@@ -270,11 +270,11 @@ raw_origins = os.getenv(
 )
 allowed_origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
 
-# Enable CORS for the frontend (explicit origins + all Vercel deployments)
+# Enable CORS for the frontend (explicit origins + Vercel deployments + dev tunnels & local LAN)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_origin_regex=r"https://.*\.vercel\.app|https://.*\.devtunnels\.ms|https://.*\.app\.github\.dev|https://.*\.ngrok-free\.app|https://.*\.trycloudflare\.com|http://(192\.168|10|172\.(1[6-9]|2\d|3[01]))\.\d+\.\d+(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -74,7 +74,7 @@ def seed():
             password_hash=hash_pw("password123"),
             full_name="Maria Santos",
             role="barangay",
-            barangay_assignment="Muzon",
+            barangay_assignment="Muzon Proper",
             phone_number="+63 917 123 4567",
             is_verified=True
         ),
@@ -90,10 +90,19 @@ def seed():
             password_hash=hash_pw("password123"),
             full_name="Pedro Cruz",
             role="cleaner",
-            barangay_assignment="Muzon",
+            barangay_assignment="Muzon Proper",
             phone_number="+63 917 555 0102",
             is_verified=True
         ),
+        # Dedicated accounts for all 4 Muzon barangays
+        models.User(email="muzon_proper@test.com", password_hash=hash_pw("password123"), full_name="Muzon Proper Admin", role="barangay", barangay_assignment="Muzon Proper", is_verified=True),
+        models.User(email="muzon_east@test.com", password_hash=hash_pw("password123"), full_name="Muzon East Admin", role="barangay", barangay_assignment="Muzon East", is_verified=True),
+        models.User(email="muzon_west@test.com", password_hash=hash_pw("password123"), full_name="Muzon West Admin", role="barangay", barangay_assignment="Muzon West", is_verified=True),
+        models.User(email="muzon_south@test.com", password_hash=hash_pw("password123"), full_name="Muzon South Admin", role="barangay", barangay_assignment="Muzon South", is_verified=True),
+        models.User(email="cleaner_proper@test.com", password_hash=hash_pw("password123"), full_name="Muzon Proper Cleaner", role="cleaner", barangay_assignment="Muzon Proper", is_verified=True),
+        models.User(email="cleaner_east@test.com", password_hash=hash_pw("password123"), full_name="Muzon East Cleaner", role="cleaner", barangay_assignment="Muzon East", is_verified=True),
+        models.User(email="cleaner_west@test.com", password_hash=hash_pw("password123"), full_name="Muzon West Cleaner", role="cleaner", barangay_assignment="Muzon West", is_verified=True),
+        models.User(email="cleaner_south@test.com", password_hash=hash_pw("password123"), full_name="Muzon South Cleaner", role="cleaner", barangay_assignment="Muzon South", is_verified=True),
     ]
     
     for user in users:
@@ -171,25 +180,55 @@ def seed():
         return models.Report(**defaults)
     
     test_reports = [
-        # ── MUZON: Hotspot cluster (5 reports, mixed statuses) ──
-        make_report(lat=14.8150, lon=121.0250, barangay="Muzon",
+        # ── MUZON PROPER: Commercial & market zone reports (assumes cleaner assignments) ──
+        make_report(lat=14.8040, lon=121.0341, barangay="Muzon Proper",
+                    status=models.ReportStatus.ASSIGNED, notes="Garbage near Muzon commercial area",
+                    deployed_at=now - timedelta(hours=3)),
+        make_report(lat=14.8042, lon=121.0343, barangay="Muzon Proper",
+                    status=models.ReportStatus.IN_PROGRESS, notes="Active cleanup along Main Road",
+                    deployed_at=now - timedelta(hours=2)),
+        make_report(lat=14.8038, lon=121.0339, barangay="Muzon Proper",
+                    status=models.ReportStatus.FAILED_CLEANUP, notes="Needs redo at commercial strip",
+                    deployed_at=now - timedelta(hours=6)),
+        make_report(lat=14.8045, lon=121.0345, barangay="Muzon Proper",
+                    status=models.ReportStatus.VERIFIED, notes="Bags of trash by sidewalk",
+                    reporter_id=citizen.id),
+
+        # ── MUZON WEST: Dense hotspot cluster (SJDM Heights / river zone) ──
+        make_report(lat=14.8150, lon=121.0250, barangay="Muzon West",
                     status=models.ReportStatus.VERIFIED, notes="Dump near river",
                     reporter_id=citizen.id),
-        make_report(lat=14.8151, lon=121.0251, barangay="Muzon",
+        make_report(lat=14.8151, lon=121.0251, barangay="Muzon West",
                     status=models.ReportStatus.ASSIGNED, notes="Large pile at bridge",
                     deployed_at=now - timedelta(hours=3)),
-        make_report(lat=14.8153, lon=121.0253, barangay="Muzon",
+        make_report(lat=14.8153, lon=121.0253, barangay="Muzon West",
                     status=models.ReportStatus.IN_PROGRESS, notes="Cleaner actively cleaning roadside",
                     deployed_at=now - timedelta(hours=2)),
-        make_report(lat=14.8152, lon=121.0252, barangay="Muzon",
+        make_report(lat=14.8152, lon=121.0252, barangay="Muzon West",
                     status=models.ReportStatus.RESOLVED, notes="Cleaned up pile",
                     deployed_at=now - timedelta(hours=8),
                     resolved_at=now - timedelta(hours=2)),
-        make_report(lat=14.8149, lon=121.0249, barangay="Muzon",
+        make_report(lat=14.8149, lon=121.0249, barangay="Muzon West",
                     status=models.ReportStatus.PENDING, notes="Possible dump site"),
-        make_report(lat=14.81505, lon=121.02505, barangay="Muzon",
+        make_report(lat=14.81505, lon=121.02505, barangay="Muzon West",
                     status=models.ReportStatus.VERIFIED, notes="Bags of waste near creek",
                     reporter_id=citizen.id),
+
+        # ── MUZON EAST: Benito Nieto cluster ──
+        make_report(lat=14.8110, lon=121.0389, barangay="Muzon East",
+                    status=models.ReportStatus.VERIFIED, notes="Litter near Benito Nieto school",
+                    reporter_id=citizen.id),
+        make_report(lat=14.8112, lon=121.0391, barangay="Muzon East",
+                    status=models.ReportStatus.ASSIGNED, notes="Trash accumulation along residential street",
+                    deployed_at=now - timedelta(hours=4)),
+
+        # ── MUZON SOUTH: Pabahay 2000 cluster ──
+        make_report(lat=14.7924, lon=121.0359, barangay="Muzon South",
+                    status=models.ReportStatus.VERIFIED, notes="Dump site near Pabahay 2000",
+                    reporter_id=citizen.id),
+        make_report(lat=14.7926, lon=121.0361, barangay="Muzon South",
+                    status=models.ReportStatus.ASSIGNED, notes="Illegal dumping by creek",
+                    deployed_at=now - timedelta(hours=2)),
         
         # ── DULONG BAYAN: Secondary hotspot (3 reports) ──
         make_report(lat=14.8197, lon=121.0478, barangay="Dulong Bayan",
@@ -220,7 +259,7 @@ def seed():
         # ── ANONYMOUS REPORTS (no reporter_id) ──
         make_report(lat=14.8200, lon=121.0460, barangay="Dulong Bayan",
                     status=models.ReportStatus.VERIFIED, notes="Anonymous tip — waste in vacant lot"),
-        make_report(lat=14.8160, lon=121.0255, barangay="Muzon",
+        make_report(lat=14.8160, lon=121.0255, barangay="Muzon West",
                     status=models.ReportStatus.FAILED_CLEANUP, notes="Cleanup attempt failed",
                     deployed_at=now - timedelta(hours=6)),
     ]
@@ -263,7 +302,7 @@ def seed():
 
     muzon_deployed = [
         r for r in test_reports
-        if r.barangay == "Muzon"
+        if r.barangay == "Muzon Proper"
         and r.status in (models.ReportStatus.ASSIGNED, models.ReportStatus.IN_PROGRESS, models.ReportStatus.FAILED_CLEANUP)
     ]
 

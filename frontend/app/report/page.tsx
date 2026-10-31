@@ -5,10 +5,21 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import exifr from "exifr";
+import { formatDistanceToNow } from "date-fns";
+import { Camera, Trash2, ArrowRight, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { GeoPhoto } from "@/components/GeoTagCamera";
 import { api, ApiError } from "@/lib/api";
+import { getBarangayOffline } from "@/lib/geo";
+import {
+    saveCitizenDraft,
+    getCitizenDraft,
+    clearCitizenDraft,
+    addOutboxReport,
+    storedPhotoToFile,
+    type CitizenDraft,
+} from "@/lib/offlineStore";
 
 const GeoTagCamera = dynamic(() => import("@/components/GeoTagCamera"), { ssr: false });
 
@@ -62,9 +73,69 @@ export default function ReportPage() {
 
     const [mapExpanded, setMapExpanded] = useState(false);
     const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+    const [outboxQueued, setOutboxQueued] = useState(false);
+    const [restoredDraft, setRestoredDraft] = useState<CitizenDraft | null>(null);
 
     useEffect(() => {
         setIsAndroid(/Android/i.test(navigator.userAgent));
+    }, []);
+
+    // ── Check for unsubmitted offline draft ─────────────────────
+    useEffect(() => {
+        if (!authChecked) return;
+        getCitizenDraft().then((draft) => {
+            if (draft && draft.photos && draft.photos.length > 0) {
+                setRestoredDraft(draft);
+                setShowCamera(false);
+                setStep("source");
+            }
+        });
+    }, [authChecked]);
+
+    // ── Auto-save draft whenever evidence or notes change ───────
+    useEffect(() => {
+        if (photos.length > 0) {
+            saveCitizenDraft(
+                photos.map((p) => ({
+                    file: p.file,
+                    lat: p.lat,
+                    lon: p.lon,
+                    barangay: p.barangay,
+                    source: p.source,
+                })),
+                notes,
+                deviceLat,
+                deviceLon
+            );
+        }
+    }, [photos, notes, deviceLat, deviceLon]);
+
+    const handleResumeDraft = useCallback(() => {
+        if (!restoredDraft) return;
+        const mapped: ReportPhoto[] = restoredDraft.photos.map((sp) => {
+            const file = storedPhotoToFile(sp);
+            return {
+                file,
+                lat: sp.lat,
+                lon: sp.lon,
+                barangay: sp.barangay,
+                source: sp.source,
+                previewUrl: URL.createObjectURL(file),
+            };
+        });
+        setPhotos(mapped);
+        setNotes(restoredDraft.notes || "");
+        if (restoredDraft.deviceLat != null) setDeviceLat(restoredDraft.deviceLat);
+        if (restoredDraft.deviceLon != null) setDeviceLon(restoredDraft.deviceLon);
+        setRestoredDraft(null);
+        setShowCamera(false);
+        setStep("review");
+        setError(null);
+    }, [restoredDraft]);
+
+    const handleDiscardDraft = useCallback(async () => {
+        await clearCitizenDraft();
+        setRestoredDraft(null);
     }, []);
 
     // ── Login gate ─────────────────────────────────────────────
@@ -169,22 +240,12 @@ export default function ReportPage() {
             return "This photo has no location data. Please use the in-app camera instead.";
         }
 
-        // Inside SJDM?
-        let brgy: string | null = null;
-        try {
-            const res = await fetch(`${API_URL}/report/validate-location`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ lat: gps.latitude, lon: gps.longitude }),
-            });
-            if (!res.ok) {
-                return "This photo was taken outside San Jose del Monte, so it can't be reported here.";
-            }
-            const data = await res.json();
-            brgy = data.barangay ?? null;
-        } catch {
-            return "Could not verify the photo's location. Check your connection and try again.";
+        // Inside SJDM? (Zero-network offline ray-casting check)
+        const local = getBarangayOffline(gps.latitude, gps.longitude);
+        if (!local.insideSJDM) {
+            return "This photo was taken outside San Jose del Monte, so it can't be reported here.";
         }
+        const brgy = local.barangay;
 
         const photo: ReportPhoto = {
             file,
@@ -231,7 +292,10 @@ export default function ReportPage() {
         URL.revokeObjectURL(photos[index].previewUrl);
         const next = photos.filter((_, i) => i !== index);
         setPhotos(next);
-        if (next.length === 0) setStep("source");
+        if (next.length === 0) {
+            clearCitizenDraft();
+            setStep("source");
+        }
     };
 
     // ── Submit ─────────────────────────────────────────────────
@@ -248,6 +312,35 @@ export default function ReportPage() {
         setIsSubmitting(true);
         setError(null);
 
+        // Check if device is offline before sending request
+        if (typeof navigator !== "undefined" && !navigator.onLine) {
+            try {
+                await addOutboxReport({
+                    lat,
+                    lon,
+                    deviceLat: deviceLat ?? null,
+                    deviceLon: deviceLon ?? null,
+                    notes: notes || undefined,
+                    barangay,
+                    photos: photos.map((p) => ({
+                        blob: p.file,
+                        fileName: p.file.name,
+                        fileType: p.file.type || "image/jpeg",
+                    })),
+                    reporterId,
+                });
+                await clearCitizenDraft();
+                setOutboxQueued(true);
+                return;
+            } catch (queueErr) {
+                console.error("Failed to queue offline report:", queueErr);
+                setError("Could not save report offline. Please try again.");
+                return;
+            } finally {
+                setIsSubmitting(false);
+            }
+        }
+
         const formData = new FormData();
         formData.append("lat", lat.toString());
         formData.append("lon", lon.toString());
@@ -263,6 +356,7 @@ export default function ReportPage() {
         try {
             const data = await api("/report/submit", { method: "POST", body: formData });
             if (data?.tracking_url) {
+                await clearCitizenDraft();
                 router.push(data.tracking_url);
             } else {
                 setError(data?.message || "Failed to submit report.");
@@ -273,8 +367,27 @@ export default function ReportPage() {
             } else if (err instanceof ApiError) {
                 setError(err.message || "Failed to submit report.");
             } else {
-                console.error("Submit error:", err);
-                setError("Network error. Could not connect to server.");
+                console.warn("Submit network error, queueing to Outbox:", err);
+                try {
+                    await addOutboxReport({
+                        lat,
+                        lon,
+                        deviceLat: deviceLat ?? null,
+                        deviceLon: deviceLon ?? null,
+                        notes: notes || undefined,
+                        barangay,
+                        photos: photos.map((p) => ({
+                            blob: p.file,
+                            fileName: p.file.name,
+                            fileType: p.file.type || "image/jpeg",
+                        })),
+                        reporterId,
+                    });
+                    await clearCitizenDraft();
+                    setOutboxQueued(true);
+                } catch {
+                    setError("Network connection failed and report could not be stored offline.");
+                }
             }
         } finally {
             setIsSubmitting(false);
@@ -297,6 +410,65 @@ export default function ReportPage() {
                     </div>
                     <div className="w-full h-20 rounded-xl bg-foreground/5 animate-pulse mt-2" />
                     <div className="w-full h-20 rounded-xl bg-foreground/5 animate-pulse" />
+                </div>
+            </div>
+        );
+    }
+
+    if (outboxQueued) {
+        return (
+            <div className="min-h-screen bg-background pt-8 pb-12 px-4 flex flex-col items-center justify-center">
+                <div className="w-full max-w-md glass p-6 md:p-8 rounded-2xl border border-primary/40 shadow-2xl text-center flex flex-col items-center animate-in zoom-in-95 duration-300">
+                    <div className="w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-500 flex items-center justify-center mb-4 shadow-lg shadow-amber-500/10">
+                        <WifiOff className="w-8 h-8" />
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 text-xs font-bold uppercase tracking-wider mb-2 border border-amber-500/20">
+                        Saved to Outbox Queue
+                    </span>
+                    <h2 className="text-2xl font-bold text-foreground mb-2">Report Saved Locally</h2>
+                    <p className="text-sm text-foreground/70 mb-6 leading-relaxed">
+                        You appear to be offline or in a low-signal area. Your {photos.length} geo-tagged evidence photo(s) are safely stored in your phone&apos;s memory.
+                    </p>
+
+                    <div className="w-full bg-foreground/5 p-4 rounded-xl border border-border/40 text-left mb-6 space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                            <span className="text-foreground/60">Location:</span>
+                            <span className="font-semibold text-foreground">{barangay || "San Jose del Monte"}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                            <span className="text-foreground/60">Photos:</span>
+                            <span className="font-semibold text-foreground">{photos.length} captured</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                            <span className="text-foreground/60">Status:</span>
+                            <span className="font-bold text-primary flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                                Auto-sync when online
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2.5 w-full">
+                        <Button
+                            onClick={() => router.push("/")}
+                            className="w-full py-3 bg-primary text-primary-foreground font-bold rounded-xl shadow-lg hover:opacity-90 transition-opacity"
+                        >
+                            Return to Home
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setOutboxQueued(false);
+                                setPhotos([]);
+                                setNotes("");
+                                setStep("source");
+                                setShowCamera(true);
+                            }}
+                            className="w-full py-3 text-xs text-foreground/70 hover:text-foreground"
+                        >
+                            Submit Another Report
+                        </Button>
+                    </div>
                 </div>
             </div>
         );
@@ -376,6 +548,44 @@ export default function ReportPage() {
             </div>
 
             <div className="w-full max-w-lg glass p-6 md:p-7 rounded-2xl border border-border shadow-2xl relative overflow-hidden">
+                {/* Unsubmitted Offline Draft Recovery Banner */}
+                {restoredDraft && (
+                    <div className="mb-5 p-4 rounded-xl glass border border-primary/40 bg-primary/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2">
+                        <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-xl bg-primary/20 text-primary flex items-center justify-center shrink-0">
+                                <Camera className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-xs font-bold text-foreground">
+                                    Unsubmitted draft found ({restoredDraft.photos.length} photo{restoredDraft.photos.length > 1 ? "s" : ""})
+                                </p>
+                                <p className="text-[11px] text-foreground/60">
+                                    Saved {formatDistanceToNow(restoredDraft.updatedAt, { addSuffix: true })}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 w-full sm:w-auto justify-end shrink-0">
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handleDiscardDraft}
+                                className="text-xs h-8 px-2.5 text-foreground/70 hover:text-red-500"
+                            >
+                                <Trash2 className="w-3.5 h-3.5 mr-1" />
+                                Discard
+                            </Button>
+                            <Button
+                                size="sm"
+                                onClick={handleResumeDraft}
+                                className="text-xs h-8 px-3 bg-primary text-primary-foreground font-semibold hover:opacity-90 shadow-md"
+                            >
+                                Resume
+                                <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
                 {error && (
                     <div className="mb-5 p-3.5 rounded-lg bg-red-500/10 border border-red-500/20 flex items-start gap-3">
                         <svg className="text-red-500 shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>

@@ -1,0 +1,25 @@
+{
+  "name": "EcoWatch SJDM — Environmental Monitoring",
+  "short_name": "EcoWatch",
+  "description": "Geolocation-based illegal dumping monitor for San Jose del Monte, Bulacan.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0B0F17",
+  "theme_color": "#10B981",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["utilities", "government", "productivity"]
+}

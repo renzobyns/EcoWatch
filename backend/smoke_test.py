@@ -183,12 +183,12 @@ def s1_health_and_auth() -> dict:
         users[role] = u
 
     # Per-barangay account (proves seed_test_data.py created the 118 extras)
-    muzon_brgy = login("muzon@barangay.com")
+    muzon_brgy = login("muzonproper@barangay.com")
     if muzon_brgy:
-        ok(f"login(muzon@barangay.com) -> id={muzon_brgy['id']} "
+        ok(f"login(muzonproper@barangay.com) -> id={muzon_brgy['id']} "
            f"barangay={muzon_brgy.get('barangay_assignment')}")
-        check(muzon_brgy.get("barangay_assignment") == "Muzon",
-              "muzon@barangay.com is assigned to 'Muzon'",
+        check(muzon_brgy.get("barangay_assignment") == "Muzon Proper",
+              "muzonproper@barangay.com is assigned to 'Muzon Proper'",
               f"got {muzon_brgy.get('barangay_assignment')!r}")
 
     # Wrong password rejected
@@ -207,12 +207,12 @@ def s2_spatial_routing() -> None:
     section("2. RAY-CASTING — POINT-IN-POLYGON BARANGAY ROUTING")
 
     # Muzon coords from the seed data
-    r = post("/report/validate-location", json={"lat": 14.8150, "lon": 121.0250})
+    r = post("/report/validate-location", json={"lat": 14.8040, "lon": 121.0341})
     if r.status_code == 200:
         body = r.json()
         brgy = body.get("barangay")
-        check(brgy == "Muzon",
-              f"Muzon coords (14.8150, 121.0250) -> 'Muzon'",
+        check(brgy == "Muzon Proper",
+              f"Muzon coords (14.8040, 121.0341) -> 'Muzon Proper'",
               f"got {brgy!r}, full: {body}")
     else:
         fail("validate-location for Muzon coords",
@@ -293,7 +293,7 @@ def s3_dbscan_heatmap() -> None:
         and abs(c.get("lon", 0) - 121.025) < 0.005
     ]
     check(len(muzon_clusters) >= 1,
-          "DBSCAN found at least one cluster near Muzon (14.815, 121.025)",
+          "DBSCAN found at least one cluster near Muzon West (14.815, 121.025)",
           f"all cluster centers: {[(c.get('lat'), c.get('lon')) for c in clusters]}")
 
 
@@ -310,7 +310,7 @@ def s4_report_submit_pipeline(users: dict) -> Optional[dict]:
     test_image = os.path.join(UPLOADS_DIR, images[0])
     info(f"using test image: {os.path.basename(test_image)}")
 
-    lat, lon = 14.8155, 121.0252  # inside Muzon
+    lat, lon = 14.8040, 121.0341  # inside Muzon Proper
     with open(test_image, "rb") as f:
         raw = f.read()
 
@@ -370,8 +370,8 @@ def s4_report_submit_pipeline(users: dict) -> Optional[dict]:
     check(tracking_id and tracking_id.startswith("EW-"),
           f"tracking_id is EW-XXXX format ({tracking_id!r})")
     check(slug and len(slug) >= 6, f"tracking_slug present ({slug!r})")
-    check(barangay == "Muzon",
-          f"ray-casting assigned report to Muzon (got {barangay!r})")
+    check(barangay == "Muzon Proper",
+          f"ray-casting assigned report to Muzon Proper (got {barangay!r})")
     check(initial_status == "pending",
           f"initial status is 'pending' before AI runs (got {initial_status!r})")
     check(verification_pending is True,
@@ -448,9 +448,9 @@ def s6_rbac(users: dict) -> None:
     info("Frontend portals do client-side scoping for the read endpoints.")
 
     # Barangay queue is publicly readable (intentional)
-    r = requests.get(f"{BASE}/reports/barangay/Muzon", timeout=10)
+    r = requests.get(f"{BASE}/reports/barangay/Muzon%20Proper", timeout=10)
     check(r.status_code == 200,
-          "GET /reports/barangay/Muzon is publicly readable (no auth needed)",
+          "GET /reports/barangay/Muzon%20Proper is publicly readable (no auth needed)",
           f"got {r.status_code}")
 
     # Mutation endpoint without auth -> 401 (using /assign, the cleaner-workflow
@@ -536,8 +536,8 @@ def s7_cross_portal_visibility(users: dict, report: Optional[dict]) -> None:
         else:
             fail(f"{label} ?status=rejected fetch", f"{r2.status_code}")
 
-    report_visible_at("/reports/barangay/Muzon",
-                      "Muzon barangay queue",
+    report_visible_at("/reports/barangay/Muzon%20Proper",
+                      "Muzon Proper barangay queue",
                       users["barangay"]["id"])
     report_visible_at("/reports/recent?limit=200",
                       "CENRO city-wide feed",
@@ -607,7 +607,7 @@ def s10_duplicate_detection(users: dict) -> None:
 
     citizen_id = users.get("citizen", {}).get("id", 1)
     brgy_id = users.get("barangay", {}).get("id")
-    lat, lon = 14.8155, 121.0252  # inside Muzon
+    lat, lon = 14.8040, 121.0341  # inside Muzon Proper
     geo = _with_geotag(raw, lat, lon)
 
     def submit():
@@ -668,11 +668,11 @@ def s10_duplicate_detection(users: dict) -> None:
                   f"report B status is 'duplicate' (got {rm.json().get('status')!r})")
 
         # Duplicate report should drop out of the active barangay queue.
-        rq = get("/reports/barangay/Muzon?limit=200", user_id=brgy_id)
+        rq = get("/reports/barangay/Muzon%20Proper?limit=200", user_id=brgy_id)
         if rq.status_code == 200:
             queue_ids = [r["id"] for r in rq.json()]
             check(id_b not in queue_ids,
-                  f"duplicate report B ({id_b}) removed from active Muzon queue")
+                  f"duplicate report B ({id_b}) removed from active Muzon Proper queue")
 
 
 # ─── main ────────────────────────────────────────────────────────────

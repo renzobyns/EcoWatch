@@ -537,7 +537,7 @@
 - [ ] Add achievement/streak system ("5 cleanups in a row!")
 
 ### System-Wide
-- [ ] PWA support (manifest.json + service worker)
+- [x] PWA support (manifest.json + service worker)
 - [ ] Web Push notifications (VAPID)
 - [ ] Full i18n (Filipino translation)
 - [ ] Announcement/news system (CENRO broadcasts to all roles)
@@ -545,6 +545,13 @@
 - [ ] Dark mode audit on every page/component/modal
 - [ ] Unsaved changes warnings on forms
 - [ ] Offline caching for map tiles (especially for cleaners in field)
+
+### 📴 Offline Resilience & Outbox Queue (MC-008)
+- [x] IndexedDB draft storage for citizen report photos and notes
+- [x] IndexedDB draft storage for cleaner before/after resolution photos
+- [x] Client-side zero-network ray-casting using local sjdm_barangays.geojson
+- [x] Outbox queue with auto-retry sync on online window event
+- [x] PWA service worker + app shell caching for /report and /cleaner portals
 
 ---
 

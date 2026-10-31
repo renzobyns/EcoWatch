@@ -9,6 +9,12 @@ import { slaDeadlineLabel, slaDeadlineColor, SLA_PILL_CLASSES } from "@/lib/sla"
 import { formatDateTime } from "@/lib/date-utils";
 import type { CleanerGeoPhoto } from "@/components/CleanerGeoCam";
 import CleanupVerificationCard from "@/components/portal/CleanupVerificationCard";
+import {
+    saveCleanerDraft,
+    getCleanerDraft,
+    clearCleanerDraft,
+    storedPhotoToFile,
+} from "@/lib/offlineStore";
 
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
 const CleanerGeoCam = dynamic(() => import("@/components/CleanerGeoCam"), { ssr: false });
@@ -47,6 +53,31 @@ export function CleanerJobDrawer({
     useEffect(() => {
         setMounted(true);
     }, []);
+
+    // ── Restore cleaner draft if browser refreshed ───────────────
+    useEffect(() => {
+        if (!workOrder?.id) return;
+        getCleanerDraft(workOrder.id).then((draft) => {
+            if (draft && draft.photos && draft.photos.length > 0) {
+                const restored: CleanerGeoPhoto[] = draft.photos.map((sp) => ({
+                    file: storedPhotoToFile(sp),
+                    lat: sp.lat,
+                    lon: sp.lon,
+                    accuracy: sp.accuracy,
+                    timestamp: sp.timestamp,
+                    distanceFromReport: sp.distanceFromReport,
+                    source: sp.source,
+                    guideUsed: sp.guideUsed,
+                    overlayStyle: sp.overlayStyle as "ghost" | "corner" | "edge" | undefined,
+                    sessionId: sp.sessionId,
+                }));
+                setReviewPhotos(restored);
+                setReviewPreviews(restored.map((p) => URL.createObjectURL(p.file)));
+                setShowReview(true);
+                toast.info("Restored unsubmitted cleanup proof from local device storage.");
+            }
+        });
+    }, [workOrder?.id]);
 
     // Close drawer on Escape
     useEffect(() => {
@@ -101,6 +132,9 @@ export function CleanerJobDrawer({
         setReviewPreviews(previews);
         setCameraOpen(false);
         setShowReview(true);
+        if (workOrder?.id) {
+            saveCleanerDraft(workOrder.id, photos);
+        }
     };
 
     const handleCameraBack = () => {
@@ -125,17 +159,26 @@ export function CleanerJobDrawer({
         const guideUsed = reviewPhotos[0]?.guideUsed ?? true;
         const sessionId = reviewPhotos[0]?.sessionId;
         await onComplete(workOrder.id, files, lat, lon, guideUsed, sessionId);
+        if (workOrder?.id) {
+            await clearCleanerDraft(workOrder.id);
+        }
         cleanupReviewState();
         setShowReview(false);
     };
 
     const handleRetake = () => {
+        if (workOrder?.id) {
+            clearCleanerDraft(workOrder.id);
+        }
         cleanupReviewState();
         setShowReview(false);
         setCameraOpen(true);
     };
 
     const handleCancelReview = () => {
+        if (workOrder?.id) {
+            clearCleanerDraft(workOrder.id);
+        }
         cleanupReviewState();
         setShowReview(false);
     };

@@ -44,7 +44,7 @@ class TestCleanupPipelineIntegration(unittest.TestCase):
             self.report = models.Report(
                 tracking_id=f"EW-{uid}",
                 tracking_url=f"/track/{uid}",
-                barangay="Muzon",
+                barangay="Muzon Proper",
                 lat=14.8150,
                 lon=121.0250,
                 status=models.ReportStatus.IN_PROGRESS,

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import piexif from "piexifjs";
+import { getBarangayOffline } from "@/lib/geo";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://renzobyns-ecowatch-backend.hf.space";
 
@@ -111,26 +112,20 @@ export default function GeoTagCamera({ onComplete, onBack, onTriggerUpload, maxP
     }, []);
 
     // Resolve barangay (and SJDM membership) whenever the fix moves meaningfully.
-    const resolveBarangay = useCallback(async (lat: number, lon: number) => {
-        const reqId = ++barangayReqRef.current;
+    // 100% offline client-side ray-casting (zero network latency, works in dead zones).
+    const resolveBarangay = useCallback((lat: number, lon: number) => {
         try {
-            const res = await fetch(`${API_URL}/report/validate-location`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ lat, lon }),
-            });
-            if (reqId !== barangayReqRef.current) return; // stale response
-            if (res.ok) {
-                const data = await res.json();
-                setBarangay(data.barangay ?? null);
+            const local = getBarangayOffline(lat, lon);
+            if (local.insideSJDM) {
+                setBarangay(local.barangay);
                 setPhase((p) => (p === "denied" || p === "no-camera" ? p : "ready"));
             } else {
                 setBarangay(null);
                 setPhase("outside");
             }
         } catch {
-            // Network hiccup — keep the last known barangay; don't block shooting.
-            if (reqId === barangayReqRef.current) setBarangay((b) => b);
+            // Keep previous state if any edge case
+            setBarangay((b) => b);
         }
     }, []);
 

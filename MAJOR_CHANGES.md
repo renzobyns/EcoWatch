@@ -211,7 +211,7 @@ PASS / REVIEW / REJECT
 
 ---
 
-## 📜 Master Registry of Major System Changes
+## 📜 Detailed Log of Major System Changes
 
 ### 5️⃣ Generation 5: Cleanup Verification Result Transparency (MC-006)
 * **Status**: Completed
@@ -231,6 +231,47 @@ In the initial MC-005 implementation, the multi-phase anti-fraud engine ran in t
 
 ---
 
+### 6️⃣ Generation 6: Muzon 4-Way Administrative & Geospatial Partitioning (MC-007)
+* **Status**: Completed
+* **Planned**: October 24, 2026
+* **Execution**: October 24, 2026
+
+#### Problem Statement & Rationale:
+Following Republic Act No. 11896 and its March 25, 2023 ratification by plebiscite, Barangay Muzon was officially divided into four separate and independent barangays: Muzon Proper, Muzon East, Muzon West, and Muzon South. EcoWatch was originally built on the legacy 59-barangay dataset where Muzon was a single monolithic entity. This skewed DBSCAN hotspot density, overwhelmed a single test admin account, and prevented localized work order assignment to distinct Sangguniang Barangay units and cleanup trucks.
+
+#### Architectural Enhancements:
+1. **Cadastral Tessellation & GeoJSON Modernization**:
+   Partitions the unified Muzon polygon into 4 contiguous, airtight sub-polygons anchored to real COMELEC plebiscite community hubs (Muzon High School, Benito Nieto, SJDM Heights, Pabahay 2000), expanding the city dataset from 59 to 62 barangays.
+2. **Dynamic Spatial Dispatch**:
+   `spatial_utils.py` point-in-polygon automatically routes GPS coordinates to the specific Muzon quadrant with zero latency overhead.
+3. **Multi-Barangay Administrative Isolation**:
+   Replaces single Muzon accounts with discrete portals and cleaners for Muzon Proper, East, West, and South, while maintaining backwards-compatible aliases.
+
+---
+
+### 7️⃣ Generation 7: Offline-First Resilience & Outbox Synchronization (MC-008)
+* **Status**: Completed
+* **Planned**: October 31, 2026
+* **Execution**: October 31, 2026
+
+#### Problem Statement & Rationale:
+In field operations across San Jose del Monte (e.g. riverbanks, isolated agricultural sitios, or unpaved valleys), cellular data signals frequently fluctuate or drop to zero. Previously:
+1. **Volatile In-Memory Photo State**: Captured photos were held solely in temporary React component state. When low-RAM mobile browsers (common on budget Android devices used by waste cleaners) experienced memory pressure while accessing camera feeds, tabs refreshed or closed, permanently losing all captured photos and forcing users to retake everything.
+2. **Network Dependency for Boundary Checks**: `GeoTagCamera.tsx` issued `POST /report/validate-location` over HTTP to check SJDM barangay boundaries on every GPS update. When offline, this network call failed, blocking or confusing the capture workflow.
+3. **Synchronous Upload Failure**: Citizens or cleaners submitting reports in low-connectivity areas encountered hard network failure alerts, without any mechanism to queue submissions or automatically retry once cellular signal was restored.
+
+#### Architectural Enhancements:
+1. **Persistent Photo Drafts via IndexedDB**:
+   Stores captured JPEG blobs, EXIF metadata, GPS fixes, and timestamps directly into client-side IndexedDB immediately upon shutter click. Drafts survive browser crashes, tab reloads, and power cycles with a 1-click restore or discard prompt.
+2. **Zero-Network Client-Side Geofencing**:
+   Transfers polygon boundary validation directly to the client browser by evaluating `sjdm_barangays.geojson` using local point-in-polygon ray-casting. Validates SJDM jurisdiction and barangay assignment 100% offline with zero HTTP latency.
+3. **Outbox Sync Queue & Background Reconnection Handler**:
+   When submissions fail due to network drops, payloads are held in a local "Outbox" queue. The browser registers `navigator.onLine` and `window.addEventListener('online')` triggers to automatically dispatch pending reports without requiring manual user resubmission.
+4. **App Shell Offline Caching (PWA)**:
+   Pre-caches core portal application shells (HTML, CSS, JS, Leaflet assets, and boundaries) to allow opening `/report` and `/cleaner` portals in complete offline or airplane mode.
+
+---
+
 ## 📜 Master Registry of Major System Changes
 
 | ID | Change Title | Planned Date | Execution Date | Status | Primary Impact |
@@ -241,6 +282,8 @@ In the initial MC-005 implementation, the multi-phase anti-fraud engine ran in t
 | **MC-004** | **Three-Layer Hierarchical Verification (Gemini VLM + Mask R-CNN + CENRO)** | 2026-10-16 | 2026-10-16 | Completed | Added Layer 1 VLM pre-filter, multi-photo batching, and automated before/after cleanup verification. |
 | **MC-005** | **Cleanup Verification Pipeline (6-Phase Anti-Fraud Proofing)** | 2026-10-18 | — | In Progress | Guided capture, quality checks, SIFT location matching, Mask R-CNN comparison, VLM judge, CENRO audit. Branch: `feat/cleanup-verification-pipeline`. |
 | **MC-006** | **Cleanup Verification Result Transparency** | 2026-10-23 | 2026-10-23 | Completed | Exposes multi-layer verification results (integrity, SIFT landmarks, Mask R-CNN, VLM) to cleaners with actionable retake guidance, role-based visibility, and CENRO manual override. |
+| **MC-007** | **Muzon 4-Way Administrative & Geospatial Partitioning** | 2026-10-24 | 2026-10-24 | Completed | Subdivides Muzon into 4 barangays (62 total), updates GeoJSON boundaries, ray-casting routing, dedicated barangay & cleaner portals. |
+| **MC-008** | **Offline-First Resilience & Outbox Synchronization** | 2026-10-31 | 2026-10-31 | Completed | IndexedDB photo/draft persistence, client-side zero-network ray-casting, background auto-retry sync queue for interrupted connections. |
 
 ---
 

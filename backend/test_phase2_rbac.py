@@ -64,14 +64,14 @@ def test_rbac_governance():
     print("\n[TEST] 4. CENRO Promoting Citizen to Barangay Officer (Expected: 200 OK)")
     r = requests.put(
         f"{BASE_URL}/users/{citizen_id}",
-        json={"role": "barangay", "barangay_assignment": "Muzon"},
+        json={"role": "barangay", "barangay_assignment": "Muzon Proper"},
         headers={"X-User-Id": str(cenro["id"])},
         timeout=5
     )
     assert r.status_code == 200, f"Expected 200, got {r.status_code}: {r.text}"
     updated = r.json()
     assert updated["role"] == "barangay", f"Expected role 'barangay', got {updated['role']}"
-    assert updated["barangay_assignment"] == "Muzon", f"Expected 'Muzon', got {updated['barangay_assignment']}"
+    assert updated["barangay_assignment"] == "Muzon Proper", f"Expected 'Muzon', got {updated['barangay_assignment']}"
     print(f"  ✓ Successfully promoted citizen to Barangay Officer for Muzon")
 
     # 5. Test CENRO self-demotion prevention (Expected: 400 Bad Request)

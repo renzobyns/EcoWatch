@@ -1,3 +1,5 @@
+import rawGeoJson from "./sjdm_barangays.json";
+
 export type LngLat = [number, number];
 export type LinearRing = LngLat[];
 export type PolygonCoords = LinearRing[];
@@ -31,24 +33,27 @@ export interface NearbyBarangay {
     centroidLon: number;
 }
 
-let cache: BarangayFeatureCollection | null = null;
-let pending: Promise<BarangayFeatureCollection> | null = null;
+const cache: BarangayFeatureCollection = rawGeoJson as unknown as BarangayFeatureCollection;
 const centroidCache = new Map<string, [number, number]>();
 
 export async function loadBarangays(): Promise<BarangayFeatureCollection> {
-    if (cache) return cache;
-    if (pending) return pending;
-    pending = fetch("/data/sjdm_barangays.geojson")
-        .then((res) => {
-            if (!res.ok) throw new Error(`Failed to load barangay boundaries (${res.status})`);
-            return res.json() as Promise<BarangayFeatureCollection>;
-        })
-        .then((fc) => {
-            cache = fc;
-            pending = null;
-            return fc;
-        });
-    return pending;
+    return cache;
+}
+
+/**
+ * Validates whether GPS coordinates are within San Jose del Monte
+ * and resolves the exact Barangay 100% offline using ray-casting.
+ * Zero network dependencies, 0 ms computation.
+ */
+export function getBarangayOffline(
+    lat: number,
+    lon: number
+): { insideSJDM: boolean; barangay: string | null; pcode: string | null } {
+    const match = pointInBarangay(lat, lon, cache);
+    if (match) {
+        return { insideSJDM: true, barangay: match.name, pcode: match.pcode };
+    }
+    return { insideSJDM: false, barangay: null, pcode: null };
 }
 
 function pointInRing(lon: number, lat: number, ring: LinearRing): boolean {
