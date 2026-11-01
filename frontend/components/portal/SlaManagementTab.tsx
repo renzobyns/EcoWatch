@@ -178,7 +178,7 @@ export function SlaManagementTab({
             </div>
 
             {/* Row 1 - 4 KPI cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 shrink-0 animate-slide-up">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 shrink-0 animate-slide-up">
                 <KpiCard
                     label="Active Breaches"
                     value={cw ? cw.active_breaches.toString() : "—"}
@@ -233,40 +233,97 @@ export function SlaManagementTab({
                                 subtitle="All cleanup work orders are on schedule."
                             />
                         ) : (
-                            <table className="w-full text-left text-sm">
-                                <thead>
-                                    <tr className="border-b border-border bg-muted/50 text-xs text-muted-foreground font-medium tracking-tight">
-                                        <th className="py-3 px-4 rounded-tl-lg">Report ID</th>
-                                        <th className="py-3 px-4">Barangay</th>
-                                        <th className="py-3 px-4">Priority</th>
-                                        <th className="py-3 px-4">Overdue</th>
-                                        <th className="py-3 px-4">Cleaner</th>
-                                        <th className="py-3 px-4 rounded-tr-lg">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
+                            <>
+                                {/* Mobile Card List (< md) */}
+                                <div className="md:hidden space-y-3">
                                     {breached.slice(0, 8).map((wo) => (
-                                        <tr key={wo.id} className="border-b border-border/50 hover:bg-muted/50">
-                                            <td className="py-3 px-4 font-mono text-xs text-foreground">{wo.report_tracking_id || `WO-${wo.id}`}</td>
-                                            <td className="py-3 px-4 text-foreground/80">{wo.report_barangay || "—"}</td>
-                                            <td className="py-3 px-4">
-                                                <span className={`px-2 py-0.5 rounded text-[10px] font-semibold tracking-tight border ${PRIORITY_PILL[wo.priority] || "bg-muted text-muted-foreground border-border"}`}>
-                                                    {wo.priority}
-                                                </span>
-                                            </td>
-                                            <td className="py-3 px-4 text-red-600 dark:text-red-400 font-medium text-sm">
-                                                {formatOverdue(wo.overdue_hours || 0, wo.overdue_days || 0)}
-                                            </td>
-                                            <td className="py-3 px-4 text-foreground/80 text-xs">{wo.assigned_cleaner_name || "Unassigned"}</td>
-                                            <td className="py-3 px-4">
-                                                <span className={`px-2 py-0.5 rounded text-[10px] font-semibold tracking-tight ${WO_STATUS_PILL[wo.status] || "bg-muted text-muted-foreground"}`}>
+                                        <div
+                                            key={wo.id}
+                                            onClick={() => {
+                                                if (typeof window !== "undefined") {
+                                                    window.dispatchEvent(new CustomEvent("ecowatch:open-target", {
+                                                        detail: { report_id: wo.report_id, work_order_id: wo.id, kind: "work_order" }
+                                                    }));
+                                                }
+                                            }}
+                                            className="p-3.5 rounded-xl bg-background/60 border border-border/80 hover:border-red-500/40 active:scale-[0.99] transition-all space-y-2.5 shadow-sm cursor-pointer"
+                                        >
+                                            <div className="flex items-center justify-between gap-2">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <span className="font-mono text-xs font-bold text-foreground truncate">
+                                                        {wo.report_tracking_id || `WO-${wo.id}`}
+                                                    </span>
+                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold tracking-tight border shrink-0 ${PRIORITY_PILL[wo.priority] || "bg-muted text-muted-foreground border-border"}`}>
+                                                        {wo.priority}
+                                                    </span>
+                                                </div>
+                                                <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase bg-destructive/10 text-destructive border border-destructive/20 shrink-0">
                                                     BREACHED
                                                 </span>
-                                            </td>
-                                        </tr>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-border/40">
+                                                <div>
+                                                    <span className="text-muted-foreground block text-[10px]">Barangay</span>
+                                                    <span className="font-medium text-foreground truncate block">{wo.report_barangay || "—"}</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-muted-foreground block text-[10px]">Cleaner</span>
+                                                    <span className="font-medium text-foreground/80 truncate block">{wo.assigned_cleaner_name || "Unassigned"}</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between pt-1 px-2.5 py-1.5 rounded-lg bg-destructive/10 text-destructive border border-destructive/20">
+                                                <span className="text-[11px] font-medium flex items-center gap-1.5">
+                                                    <AlertTriangle size={13} strokeWidth={2.5} />
+                                                    Time Overdue
+                                                </span>
+                                                <span className="font-bold text-xs font-mono">
+                                                    {formatOverdue(wo.overdue_hours || 0, wo.overdue_days || 0)}
+                                                </span>
+                                            </div>
+                                        </div>
                                     ))}
-                                </tbody>
-                            </table>
+                                </div>
+
+                                {/* Desktop Table (>= md) */}
+                                <div className="hidden md:block">
+                                    <table className="w-full text-left text-sm">
+                                        <thead>
+                                            <tr className="border-b border-border bg-muted/50 text-xs text-muted-foreground font-medium tracking-tight">
+                                                <th className="py-3 px-4 rounded-tl-lg">Report ID</th>
+                                                <th className="py-3 px-4">Barangay</th>
+                                                <th className="py-3 px-4">Priority</th>
+                                                <th className="py-3 px-4">Overdue</th>
+                                                <th className="py-3 px-4">Cleaner</th>
+                                                <th className="py-3 px-4 rounded-tr-lg">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {breached.slice(0, 8).map((wo) => (
+                                                <tr key={wo.id} className="border-b border-border/50 hover:bg-muted/50">
+                                                    <td className="py-3 px-4 font-mono text-xs text-foreground">{wo.report_tracking_id || `WO-${wo.id}`}</td>
+                                                    <td className="py-3 px-4 text-foreground/80">{wo.report_barangay || "—"}</td>
+                                                    <td className="py-3 px-4">
+                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold tracking-tight border ${PRIORITY_PILL[wo.priority] || "bg-muted text-muted-foreground border-border"}`}>
+                                                            {wo.priority}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-red-600 dark:text-red-400 font-medium text-sm">
+                                                        {formatOverdue(wo.overdue_hours || 0, wo.overdue_days || 0)}
+                                                    </td>
+                                                    <td className="py-3 px-4 text-foreground/80 text-xs">{wo.assigned_cleaner_name || "Unassigned"}</td>
+                                                    <td className="py-3 px-4">
+                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold tracking-tight ${WO_STATUS_PILL[wo.status] || "bg-muted text-muted-foreground"}`}>
+                                                            BREACHED
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
                         )}
                         {breached.length > 8 && (
                             <p className="text-[11px] text-foreground/50 mt-3 italic">+ {breached.length - 8} more breaches not shown — see full table below.</p>
@@ -467,42 +524,84 @@ export function SlaManagementTab({
                             subtitle="Work orders will populate this table as they are created."
                         />
                     ) : (
-                        <table className="w-full text-left text-sm">
-                            <thead>
-                                <tr className="border-b border-border bg-muted/50 text-xs text-muted-foreground font-medium tracking-tight">
-                                    <th className="py-3 px-4 rounded-tl-lg">Barangay</th>
-                                    <th className="py-3 px-4 text-right">Total WOs</th>
-                                    <th className="py-3 px-4 text-right">Completed</th>
-                                    <th className="py-3 px-4 text-right">On-Time</th>
-                                    <th className="py-3 px-4 text-right">Compliance</th>
-                                    <th className="py-3 px-4 text-right">Avg Days</th>
-                                    <th className="py-3 px-4 text-right rounded-tr-lg">Active Breaches</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                        <>
+                            {/* Mobile Barangay Cards (< md) */}
+                            <div className="md:hidden space-y-2.5">
                                 {byBarangay.map((b) => (
-                                    <tr key={b.barangay} className="border-b border-border/50 hover:bg-muted/50">
-                                        <td className="py-3 px-4 font-semibold text-foreground">{b.barangay}</td>
-                                        <td className="py-3 px-4 text-right text-foreground/70">{b.total_wos}</td>
-                                        <td className="py-3 px-4 text-right text-foreground/70">{b.total_completed}</td>
-                                        <td className="py-3 px-4 text-right text-foreground/70">{b.on_time}</td>
-                                        <td className={`py-3 px-4 text-right font-bold ${complianceColor(b.compliance_rate, slaPolicy.compliance_target)}`}>
-                                            {b.compliance_rate}%
-                                        </td>
-                                        <td className="py-3 px-4 text-right text-foreground/70">{b.avg_resolution_days}d</td>
-                                        <td className="py-3 px-4 text-right">
-                                            {b.active_breaches > 0 ? (
-                                                <span className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-tight bg-red-500/20 text-red-600 dark:text-red-400">
+                                    <div
+                                        key={b.barangay}
+                                        className="p-3 rounded-xl bg-background/60 border border-border/80 space-y-2 shadow-sm"
+                                    >
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="font-semibold text-sm text-foreground truncate">{b.barangay}</span>
+                                            <span className={`px-2 py-0.5 rounded-md text-xs font-bold font-mono ${complianceColor(b.compliance_rate, slaPolicy.compliance_target)} bg-background border border-border/60`}>
+                                                {b.compliance_rate}%
+                                            </span>
+                                        </div>
+                                        <div className="grid grid-cols-4 gap-1.5 pt-1 border-t border-border/40 text-center">
+                                            <div className="p-1 rounded bg-muted/40">
+                                                <span className="text-[9px] text-muted-foreground block">Total</span>
+                                                <span className="font-semibold text-xs text-foreground">{b.total_wos}</span>
+                                            </div>
+                                            <div className="p-1 rounded bg-muted/40">
+                                                <span className="text-[9px] text-muted-foreground block">On-Time</span>
+                                                <span className="font-semibold text-xs text-emerald-600 dark:text-emerald-400">{b.on_time}</span>
+                                            </div>
+                                            <div className="p-1 rounded bg-muted/40">
+                                                <span className="text-[9px] text-muted-foreground block">Avg Days</span>
+                                                <span className="font-semibold text-xs text-foreground/80">{b.avg_resolution_days}d</span>
+                                            </div>
+                                            <div className="p-1 rounded bg-muted/40">
+                                                <span className="text-[9px] text-muted-foreground block">Breaches</span>
+                                                <span className={`font-semibold text-xs ${b.active_breaches > 0 ? "text-destructive" : "text-muted-foreground"}`}>
                                                     {b.active_breaches}
                                                 </span>
-                                            ) : (
-                                                <span className="text-foreground/30">—</span>
-                                            )}
-                                        </td>
-                                    </tr>
+                                            </div>
+                                        </div>
+                                    </div>
                                 ))}
-                            </tbody>
-                        </table>
+                            </div>
+
+                            {/* Desktop Table (>= md) */}
+                            <div className="hidden md:block">
+                                <table className="w-full text-left text-sm">
+                                    <thead>
+                                        <tr className="border-b border-border bg-muted/50 text-xs text-muted-foreground font-medium tracking-tight">
+                                            <th className="py-3 px-4 rounded-tl-lg">Barangay</th>
+                                            <th className="py-3 px-4 text-right">Total WOs</th>
+                                            <th className="py-3 px-4 text-right">Completed</th>
+                                            <th className="py-3 px-4 text-right">On-Time</th>
+                                            <th className="py-3 px-4 text-right">Compliance</th>
+                                            <th className="py-3 px-4 text-right">Avg Days</th>
+                                            <th className="py-3 px-4 text-right rounded-tr-lg">Active Breaches</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {byBarangay.map((b) => (
+                                            <tr key={b.barangay} className="border-b border-border/50 hover:bg-muted/50">
+                                                <td className="py-3 px-4 font-semibold text-foreground">{b.barangay}</td>
+                                                <td className="py-3 px-4 text-right text-foreground/70">{b.total_wos}</td>
+                                                <td className="py-3 px-4 text-right text-foreground/70">{b.total_completed}</td>
+                                                <td className="py-3 px-4 text-right text-foreground/70">{b.on_time}</td>
+                                                <td className={`py-3 px-4 text-right font-bold ${complianceColor(b.compliance_rate, slaPolicy.compliance_target)}`}>
+                                                    {b.compliance_rate}%
+                                                </td>
+                                                <td className="py-3 px-4 text-right text-foreground/70">{b.avg_resolution_days}d</td>
+                                                <td className="py-3 px-4 text-right">
+                                                    {b.active_breaches > 0 ? (
+                                                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-tight bg-red-500/20 text-red-600 dark:text-red-400">
+                                                            {b.active_breaches}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-foreground/30">—</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
                     )}
                 </div>
             </div>
@@ -521,12 +620,12 @@ function KpiCard({ label, value, icon, tone = "default" }: { label: string; valu
         default: "bg-primary/10 text-primary border border-primary/20",
     } as const;
     return (
-        <div className="bg-card border border-border shadow-sm p-5 rounded-lg flex items-center justify-between gap-4">
-            <div className="min-w-0">
-                <div className="text-sm font-medium text-muted-foreground mb-1 truncate">{label}</div>
-                <div className="text-2xl font-bold tracking-tight text-foreground">{value}</div>
+        <div className="bg-card border border-border shadow-sm p-3.5 sm:p-5 rounded-xl flex items-center justify-between gap-2 sm:gap-4">
+            <div className="min-w-0 flex-1">
+                <div className="text-xs sm:text-sm font-medium text-muted-foreground mb-0.5 sm:mb-1 truncate">{label}</div>
+                <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{value}</div>
             </div>
-            <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 ${toneClasses[tone]}`}>
+            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0 ${toneClasses[tone]}`}>
                 {icon}
             </div>
         </div>
