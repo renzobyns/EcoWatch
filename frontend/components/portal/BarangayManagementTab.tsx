@@ -137,7 +137,7 @@ export function BarangayManagementTab({
             </div>
 
             {/* KPI Strip */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 shrink-0 animate-slide-up">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 shrink-0 animate-slide-up">
                 <KpiCard
                     label="Total Barangays"
                     value={cityWide?.total_barangays ?? "—"}
@@ -167,7 +167,7 @@ export function BarangayManagementTab({
             {/* Toolbar */}
             <div className="flex flex-wrap items-center gap-3 shrink-0">
                 {/* Search */}
-                <div className="relative flex-1 min-w-[200px] max-w-xs">
+                <div className="relative w-full sm:w-auto sm:flex-1 sm:min-w-[200px] sm:max-w-xs">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" />
                     <input
                         value={search}
@@ -281,7 +281,46 @@ export function BarangayManagementTab({
             {/* Table View */}
             {viewMode === "table" && (
                 <div className="bg-card rounded-lg border border-border shadow-sm overflow-hidden animate-slide-up">
-                    <div className="overflow-x-auto">
+                    {/* Mobile Card List (<md) */}
+                    <div className="md:hidden divide-y divide-border">
+                        {loading ? (
+                            Array.from({ length: 5 }).map((_, i) => (
+                                <div key={i} className="p-4 space-y-2 animate-pulse">
+                                    <div className="h-4 w-28 bg-muted rounded" />
+                                    <div className="h-3 w-20 bg-muted rounded" />
+                                </div>
+                            ))
+                        ) : paginated.length === 0 ? (
+                            <div className="p-8 text-center text-muted-foreground text-sm font-medium">No barangays match these filters.</div>
+                        ) : (
+                            paginated.map(row => (
+                                <div key={row.barangay} onClick={() => onSelectBarangay(row)} className="p-3.5 space-y-2 hover:bg-muted/40 transition-colors cursor-pointer">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div className="font-semibold text-sm text-foreground">{row.barangay}</div>
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                            row.status === "healthy" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20" :
+                                            row.status === "at_risk" ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20" :
+                                            row.status === "breached" ? "bg-destructive/10 text-destructive border border-destructive/20" :
+                                            "bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20"
+                                        }`}>
+                                            {row.status === "healthy" ? "Healthy" : row.status === "at_risk" ? "At Risk" : row.status === "breached" ? "Breached" : "No Admin"}
+                                        </span>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground flex items-center justify-between">
+                                        <span>Admin: {row.admin ? row.admin.full_name : "Unassigned"}</span>
+                                        <span>{row.total_reports} reports</span>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-1 pt-1.5 border-t border-border/40 text-center text-[11px]">
+                                        <div><span className="text-muted-foreground">Pending: </span><span className="font-semibold text-yellow-600">{row.pending}</span></div>
+                                        <div><span className="text-muted-foreground">Resolved: </span><span className="font-semibold text-emerald-600">{row.resolved}</span></div>
+                                        <div><span className="text-muted-foreground">Breaches: </span><span className="font-semibold text-destructive">{row.active_breaches}</span></div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                    {/* Desktop Table (>=md) */}
+                    <div className="hidden md:block overflow-x-auto">
                         {loading ? (
                             <div className="p-6"><SkeletonRows count={8} /></div>
                         ) : paginated.length === 0 ? (

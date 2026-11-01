@@ -208,7 +208,7 @@ function HeroKpi({
 }) {
     return (
         <div
-            className={`bg-card rounded-lg border border-border shadow-sm p-5 flex flex-col gap-3 group ${onClick ? "cursor-pointer hover:border-primary/50 transition-colors" : ""}`}
+            className={`bg-card rounded-xl border border-border shadow-sm p-3.5 sm:p-5 flex flex-col gap-2.5 sm:gap-3 group ${onClick ? "cursor-pointer hover:border-primary/50 transition-colors" : ""}`}
             onClick={onClick}
         >
             <div className="flex items-center justify-between">
@@ -219,7 +219,7 @@ function HeroKpi({
                 <div className={`w-9 h-9 rounded-md flex items-center justify-center bg-primary/10 text-primary`}>{icon}</div>
             </div>
             <div className="flex items-baseline gap-1.5">
-                <span className={`text-3xl font-bold tracking-tight text-foreground`}>{value}</span>
+                <span className={`text-2xl sm:text-3xl font-bold tracking-tight text-foreground`}>{value}</span>
                 {suffix && <span className={`text-base font-medium text-muted-foreground`}>{suffix}</span>}
             </div>
             <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
@@ -350,7 +350,7 @@ export function AnalyticsTab({
             </div>
 
             {/* Row 1 - Hero KPIs */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 shrink-0 animate-slide-up">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 shrink-0 animate-slide-up">
                 {showSkeleton ? (
                     <KpiSkeleton count={4} />
                 ) : data ? (
@@ -428,7 +428,7 @@ export function AnalyticsTab({
                             <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500" />Rejected</span>
                         </div>
                     </div>
-                    <div className="relative z-10 h-72">
+                    <div className="relative z-10 h-60 sm:h-72">
                         {showSkeleton ? (
                             <div className="h-full bg-foreground/5 rounded-2xl animate-pulse" />
                         ) : trendChartData.length === 0 ? (

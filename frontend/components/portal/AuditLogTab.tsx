@@ -176,7 +176,7 @@ export function AuditLogTab({ user }: { user: any }) {
             </div>
 
             {/* KPI Strip */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 shrink-0 animate-slide-up">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 shrink-0 animate-slide-up">
                 <KpiCard
                     label="Total Events (Filtered)"
                     value={totalEvents}
@@ -205,7 +205,7 @@ export function AuditLogTab({ user }: { user: any }) {
 
             {/* Toolbar */}
             <div className="flex flex-wrap items-center gap-3 shrink-0">
-                <div className="relative flex-1 min-w-[200px] max-w-xs">
+                <div className="relative w-full sm:w-auto sm:flex-1 sm:min-w-[200px] sm:max-w-xs">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" />
                     <input
                         type="text"

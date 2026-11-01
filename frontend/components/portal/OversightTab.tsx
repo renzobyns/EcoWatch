@@ -195,7 +195,7 @@ export function OversightTab({ user, barangays, onReportClick }: OversightTabPro
             </div>
 
             {/* KPI Strip */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 shrink-0 animate-slide-up relative z-20">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0 animate-slide-up relative z-20">
                 <KpiCard
                     label="Total Found (Current Filters)"
                     value={totalReports}
@@ -280,7 +280,7 @@ export function OversightTab({ user, barangays, onReportClick }: OversightTabPro
 
             {/* Toolbar */}
             <div className="flex flex-wrap items-center gap-3 shrink-0">
-                <div className="relative flex-1 min-w-[200px] max-w-xs">
+                <div className="relative w-full sm:w-auto sm:flex-1 sm:min-w-[200px] sm:max-w-xs">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" />
                     <input
                         value={search}
@@ -348,7 +348,60 @@ export function OversightTab({ user, barangays, onReportClick }: OversightTabPro
             {/* Main View Area */}
             {viewMode === "table" ? (
                 <div className="bg-card rounded-xl border border-border flex flex-col overflow-hidden animate-slide-up shadow-sm">
-                    <div className="overflow-x-auto">
+                    {/* Mobile Card List (<md) */}
+                    <div className="md:hidden divide-y divide-border">
+                        {loading ? (
+                            Array.from({ length: 5 }).map((_, i) => (
+                                <div key={i} className="p-4 space-y-2 animate-pulse">
+                                    <div className="h-4 w-28 bg-muted rounded" />
+                                    <div className="h-3 w-20 bg-muted rounded" />
+                                </div>
+                            ))
+                        ) : paginated.length === 0 ? (
+                            <div className="p-8 text-center text-muted-foreground text-sm font-medium">No reports match the current filters.</div>
+                        ) : (
+                            paginated.map(report => {
+                                const sla = slaInfo(report.created_at, report.status);
+                                return (
+                                    <div key={report.id} onClick={() => onReportClick(report)} className="p-3.5 space-y-2 hover:bg-muted/40 transition-colors cursor-pointer">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <div className="flex items-center gap-1.5 min-w-0">
+                                                <span className="font-mono text-xs font-bold text-foreground truncate">{report.tracking_id}</span>
+                                                {report.possible_duplicate_flag && report.status !== 'duplicate' && (
+                                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold tracking-tight bg-amber-500/20 text-amber-500">⚠ DUP</span>
+                                                )}
+                                            </div>
+                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shrink-0 ${
+                                                report.status === 'resolved' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' :
+                                                report.status === 'verified' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' :
+                                                report.status === 'ai_verified' ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30' :
+                                                report.status === 'ai_rejected' ? 'bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30' :
+                                                report.status === 'assigned' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20' :
+                                                report.status === 'in_progress' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' :
+                                                report.status === 'pending' ? 'bg-destructive/10 text-destructive border border-destructive/20' :
+                                                report.status === 'failed_cleanup' ? 'bg-destructive/10 text-destructive border border-destructive/20' :
+                                                report.status === 'rejected' ? 'bg-muted text-muted-foreground border border-border' :
+                                                'bg-muted text-foreground border border-border'
+                                            }`}>
+                                                {report.status.replace(/_/g, " ")}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                            <span>{report.barangay || 'Unassigned'}</span>
+                                            <div className="flex items-center gap-2">
+                                                {sla && (
+                                                    <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${SLA_PILL_CLASSES[sla.color]}`}>{sla.days}d</span>
+                                                )}
+                                                <span>{formatDate(report.created_at)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                    {/* Desktop Table (>=md) */}
+                    <div className="hidden md:block overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="border-b border-border text-xs text-muted-foreground font-medium bg-muted/20">

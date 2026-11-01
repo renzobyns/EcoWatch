@@ -405,7 +405,7 @@ export const UserManagementTab = forwardRef<UserManagementRef, UserManagementTab
             </div>
 
             {/* KPI Strip */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 shrink-0 animate-slide-up">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 shrink-0 animate-slide-up">
                 <KpiCard label="Total Accounts" value={totalAccounts} icon={<Users size={22} />} tone="blue" />
                 <KpiCard label="Active CENRO Admins" value={activeCenro} icon={<Shield size={22} />} tone="emerald" />
                 <KpiCard label="Active Barangay Admins" value={activeBarangay} icon={<ShieldAlert size={22} />} tone="yellow" />
@@ -414,7 +414,7 @@ export const UserManagementTab = forwardRef<UserManagementRef, UserManagementTab
 
             {/* Filters */}
             <div className="flex flex-wrap items-center gap-3 shrink-0">
-                <div className="relative flex-1 min-w-[200px] max-w-xs">
+                <div className="relative w-full sm:w-auto sm:flex-1 sm:min-w-[200px] sm:max-w-xs">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={14} />
                     <input 
                         type="text" 
@@ -457,7 +457,56 @@ export const UserManagementTab = forwardRef<UserManagementRef, UserManagementTab
             {/* Main View Area */}
             {viewMode === "table" ? (
                 <div className="bg-card rounded-xl border border-border flex flex-col overflow-hidden animate-slide-up shadow-sm">
-                    <div className="overflow-x-auto">
+                    {/* Mobile Card List (<md) */}
+                    <div className="md:hidden divide-y divide-border">
+                        {usersLoading ? (
+                            Array.from({ length: 5 }).map((_, i) => (
+                                <div key={i} className="p-4 space-y-2 animate-pulse">
+                                    <div className="h-4 w-28 bg-muted rounded" />
+                                    <div className="h-3 w-20 bg-muted rounded" />
+                                </div>
+                            ))
+                        ) : displayedUsers.length === 0 ? (
+                            <div className="p-8 text-center text-muted-foreground text-sm font-medium">No accounts match the current filters.</div>
+                        ) : (
+                            displayedUsers.map((u) => (
+                                <div key={u.id} className="p-3.5 space-y-2.5 hover:bg-muted/40 transition-colors">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                            <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0 uppercase">
+                                                {u.full_name.charAt(0)}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className="text-sm font-semibold text-foreground truncate">{u.full_name}</div>
+                                                <div className="text-xs text-muted-foreground truncate">{u.email}</div>
+                                            </div>
+                                        </div>
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shrink-0 ${
+                                            u.is_active ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-destructive/10 text-destructive border border-destructive/20'
+                                        }`}>
+                                            {u.is_active ? 'Active' : 'Disabled'}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border/40">
+                                        <div className="flex items-center gap-2">
+                                            <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase bg-muted text-foreground border border-border">{u.role}</span>
+                                            <span>{u.barangay_assignment || 'Unassigned'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            <button onClick={() => openEditUser(u)} className="px-2 py-1 bg-muted hover:bg-foreground/10 text-foreground rounded text-[11px] font-medium transition-colors">
+                                                Edit
+                                            </button>
+                                            <button onClick={() => openResetPassword(u)} className="px-2 py-1 bg-muted hover:bg-foreground/10 text-foreground rounded text-[11px] font-medium transition-colors">
+                                                Reset
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                    {/* Desktop Table (>=md) */}
+                    <div className="hidden md:block overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="border-b border-border text-xs text-muted-foreground font-medium tracking-tight bg-muted/20">
