@@ -173,7 +173,7 @@ export function PortalShell({
                 collapsed={collapsed}
                 onToggleCollapsed={toggleCollapsed}
             />
-            <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
                 <div className="relative z-40">
                     <PortalTopbar
                         role={role}
@@ -183,7 +183,7 @@ export function PortalShell({
                         onOpenMobileMenu={() => setMobileMenuOpen(true)}
                     />
                 </div>
-                <div role="region" aria-label="Portal content" className={`relative flex-1 ${scrollable ? "overflow-y-auto" : "overflow-hidden"} ${activeKey === "map_view" ? "p-0" : "px-3 sm:px-4 md:px-8 pt-4 sm:pt-6 pb-24 md:pb-6"}`}>
+                <div role="region" aria-label="Portal content" className={`relative flex-1 overflow-x-hidden ${scrollable ? "overflow-y-auto" : "overflow-hidden"} ${activeKey === "map_view" ? "p-0" : "px-3 sm:px-4 md:px-8 pt-4 sm:pt-6 pb-24 md:pb-6"}`}>
                     {children}
                 </div>
 
@@ -361,10 +361,10 @@ export function PortalShell({
                                                 >
                                                     <div className={`relative w-14 h-14 rounded-2xl flex items-center justify-center mb-2 transition-all ${
                                                         isActive
-                                                            ? "bg-primary text-primary-foreground shadow-md shadow-primary/30"
+                                                            ? "bg-primary text-white shadow-md shadow-primary/30"
                                                             : "bg-muted/80 text-foreground/80"
                                                     }`}>
-                                                        <Icon className="size-6" strokeWidth={isActive ? 2.5 : 2} />
+                                                        <Icon className={`size-6 ${isActive ? "text-white" : "text-foreground/80"}`} strokeWidth={isActive ? 2.5 : 2} />
                                                         {Boolean(item.badge && item.badge > 0) && (
                                                             <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-background shadow-sm">
                                                                 {item.badge}

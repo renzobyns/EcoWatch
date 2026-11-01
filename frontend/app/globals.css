@@ -64,6 +64,7 @@
   --color-muted-foreground: var(--muted-fg);
   --color-border: var(--border);
   --color-primary: #10b981;
+  --color-primary-foreground: #ffffff;
   --color-primary-dark: #065f46;
   --color-secondary: #34d399;
   --color-accent: #fbbf24;
