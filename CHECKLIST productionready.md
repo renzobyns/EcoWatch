@@ -528,6 +528,7 @@
 - [x] GoTyme-inspired mobile navigation & bottom menu drawer (`PortalShell.tsx`)
 - [x] SLA Management mobile layout: 2x2 KPI grid, responsive incident breach cards, and per-barangay cards (`SlaManagementTab.tsx`)
 - [x] Evidence Gallery mobile layout: 2x2 KPI grid, full-width search/dropdowns, and 4:3 high-res photo viewer with 3-way segmented switcher (`EvidenceGalleryTab.tsx`)
+- [x] Full 9-Tab CENRO mobile audit & responsive card fallbacks (Analytics, Reports, Barangay Mgmt, User Accounts, and Audit Log)
 - [ ] Add executive summary one-pager for presentations
 - [ ] Add PDF report generation (monthly/quarterly city-wide report)
 - [ ] Add comparative analytics (month-over-month, quarter-over-quarter)
