@@ -52,7 +52,10 @@ export const UserManagementTab = forwardRef<UserManagementRef, UserManagementTab
     const [userPage, setUserPage] = useState(1);
     
     // View state
-    const [viewMode, setViewMode] = useState<"table" | "card">("table");
+    const [viewMode, setViewMode] = useState<"table" | "card">(() => {
+        if (typeof window !== "undefined" && window.innerWidth < 768) return "card";
+        return "table";
+    });
     const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
     
     // Actions Menu

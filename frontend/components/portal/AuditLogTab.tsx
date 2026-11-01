@@ -245,7 +245,49 @@ export function AuditLogTab({ user }: { user: any }) {
 
             {/* Table Area */}
             <div className="bg-card rounded-xl border border-border flex flex-col overflow-hidden animate-slide-up shadow-sm">
-                <div className="overflow-x-auto">
+                {/* Mobile Card List (<md) */}
+                <div className="md:hidden divide-y divide-border">
+                    {loading ? (
+                        Array.from({ length: 4 }).map((_, i) => (
+                            <div key={i} className="p-4 space-y-2 animate-pulse">
+                                <div className="h-4 bg-muted rounded w-1/3" />
+                                <div className="h-4 bg-muted rounded w-2/3" />
+                                <div className="h-3 bg-muted rounded w-1/2" />
+                            </div>
+                        ))
+                    ) : paginated.length === 0 ? (
+                        <div className="p-8 text-center text-muted-foreground font-medium text-sm">
+                            No audit entries match this filter.
+                        </div>
+                    ) : (
+                        paginated.map((e) => {
+                            const detailsStr = e.details && Object.keys(e.details).length ? JSON.stringify(e.details) : "";
+                            const targetLabel = (e.details?.tracking_id as string) || `${e.target_type} #${e.target_id ?? "—"}`;
+                            return (
+                                <div key={e.id} className="p-4 space-y-2 hover:bg-muted/10 transition-colors">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${ACTION_PILL_CLASSES[e.action] || 'bg-muted text-muted-foreground'}`}>
+                                            {e.action.replace(/_/g, " ")}
+                                        </span>
+                                        <span className="text-[11px] text-muted-foreground font-mono">{formatDateTime(e.created_at)}</span>
+                                    </div>
+                                    <div className="text-sm font-semibold text-foreground truncate">{e.user_email || "System"}</div>
+                                    <div className="text-xs text-muted-foreground flex items-center justify-between">
+                                        <span>Target: <strong className="font-mono text-foreground font-semibold">{targetLabel}</strong></span>
+                                    </div>
+                                    {detailsStr && (
+                                        <div className="text-[11px] text-muted-foreground font-mono bg-muted/40 p-2 rounded-lg break-all">
+                                            {detailsStr.length > 120 ? detailsStr.slice(0, 120) + "…" : detailsStr}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+
+                {/* Desktop Table View (>=md) */}
+                <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="border-b border-border text-xs text-muted-foreground font-medium bg-muted/20">

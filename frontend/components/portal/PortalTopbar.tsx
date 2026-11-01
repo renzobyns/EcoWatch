@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Menu } from "lucide-react";
 import { ProfileDropdown } from "./ProfileDropdown";
 import { NotificationDropdown } from "./NotificationDropdown";
 
@@ -9,6 +10,7 @@ interface PortalTopbarProps {
     pageBadge: string;
     notificationCount?: number;
     actions?: React.ReactNode;
+    onOpenMobileMenu?: () => void;
 }
 
 interface StoredUser { id?: number; }
@@ -18,7 +20,7 @@ function emitOpenTarget(detail: { report_id: number | null; work_order_id: numbe
     window.dispatchEvent(new CustomEvent("ecowatch:open-target", { detail }));
 }
 
-export function PortalTopbar({ role, pageBadge, notificationCount = 0, actions }: PortalTopbarProps) {
+export function PortalTopbar({ role, pageBadge, notificationCount = 0, actions, onOpenMobileMenu }: PortalTopbarProps) {
     const [userId, setUserId] = useState<number | null>(null);
     useEffect(() => {
         try {
@@ -35,7 +37,17 @@ export function PortalTopbar({ role, pageBadge, notificationCount = 0, actions }
 
     return (
         <header className="h-16 shrink-0 flex items-center justify-between border-b border-border glass px-4 md:px-6">
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+                {onOpenMobileMenu && (
+                    <button
+                        type="button"
+                        onClick={onOpenMobileMenu}
+                        aria-label="Open portal navigation"
+                        className="md:hidden w-8 h-8 rounded-lg border border-border bg-card/60 flex items-center justify-center text-foreground hover:bg-muted active:scale-95 transition-all shrink-0"
+                    >
+                        <Menu size={16} />
+                    </button>
+                )}
                 <span className="text-[11px] uppercase tracking-[0.2em] font-semibold text-foreground/50 shrink-0">
                     {role}
                 </span>

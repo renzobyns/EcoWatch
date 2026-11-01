@@ -67,7 +67,10 @@ export function OversightTab({ user, barangays, onReportClick }: OversightTabPro
     const [barangay, setBarangay] = useState("all");
     const [dateRange, setDateRange] = useState<DateRange | undefined>();
     const [sort, setSort] = useState<"newest" | "oldest">("newest");
-    const [viewMode, setViewMode] = useState<"table" | "card">("table");
+    const [viewMode, setViewMode] = useState<"table" | "card">(() => {
+        if (typeof window !== "undefined" && window.innerWidth < 768) return "card";
+        return "table";
+    });
     const [page, setPage] = useState(1);
 
     const pageSize = viewMode === "table" ? 10 : 12;

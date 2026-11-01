@@ -127,15 +127,15 @@ type TabKey =
     | 'users';
 
 const CENRO_NAV: PortalNavItem[] = [
-    { key: 'command_center', label: 'Dashboard', icon: LayoutDashboard },
-    { key: 'overview', label: 'City Map', icon: Map },
-    { key: 'oversight', label: 'Reports', icon: FileText },
-    { key: 'sla_management', label: 'SLA Management', icon: ShieldCheck },
-    { key: 'analytics', label: 'Analytics', icon: BarChart3 },
-    { key: 'barangay_management', label: 'Barangay Management', icon: Building2 },
-    { key: 'gallery', label: 'Evidence Gallery', icon: ImageIcon, sectionBreakBefore: true },
-    { key: 'audit', label: 'Audit Log', icon: History },
-    { key: 'users', label: 'Accounts', icon: BookUser },
+    { key: 'command_center', label: 'Dashboard', icon: LayoutDashboard, category: 'operations' },
+    { key: 'overview', label: 'City Map', icon: Map, category: 'operations' },
+    { key: 'oversight', label: 'Reports', icon: FileText, category: 'operations' },
+    { key: 'sla_management', label: 'SLA Management', icon: ShieldCheck, category: 'performance' },
+    { key: 'analytics', label: 'Analytics', icon: BarChart3, category: 'performance' },
+    { key: 'barangay_management', label: 'Barangay Management', icon: Building2, category: 'performance' },
+    { key: 'gallery', label: 'Evidence Gallery', icon: ImageIcon, sectionBreakBefore: true, category: 'admin' },
+    { key: 'audit', label: 'Audit Log', icon: History, category: 'admin' },
+    { key: 'users', label: 'Accounts', icon: BookUser, category: 'admin' },
 ];
 
 
@@ -668,7 +668,7 @@ function CenroDashboardInner() {
                 router.replace('?tab=' + k, { scroll: false });
             }}
             notificationCount={unreadCount}
-            scrollable={activeTab !== 'command_center'}
+            scrollable={true}
             actions={activeTab === 'command_center' ? (
                 <button
                     onClick={handleExportAnalytics}
@@ -746,7 +746,7 @@ function CenroDashboardInner() {
                     /* COMMAND CENTER TAB */
                     loading ? (
                         /* Dashboard skeleton — only shown when on the Dashboard tab */
-                        <div className="flex-1 grid grid-cols-1 lg:grid-cols-[2.5fr_1fr] gap-6 overflow-hidden pb-4 animate-pulse">
+                        <div className="flex-1 grid grid-cols-1 lg:grid-cols-[2.5fr_1fr] gap-6 overflow-visible lg:overflow-hidden pb-4 animate-pulse">
                             <div className="flex flex-col gap-4 min-h-0">
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0 w-full">
                                     {Array.from({ length: 4 }).map((_, i) => (
@@ -786,7 +786,7 @@ function CenroDashboardInner() {
                             </div>
                         </div>
                     ) : (
-                    <div className="flex-1 grid grid-cols-1 lg:grid-cols-[2.5fr_1fr] gap-6 overflow-hidden pb-4">
+                    <div className="flex-1 grid grid-cols-1 lg:grid-cols-[2.5fr_1fr] gap-6 overflow-visible lg:overflow-hidden pb-4">
 
                         {/* Left: Main Content */}
                         <div className="flex flex-col gap-4 min-h-0">
@@ -1169,7 +1169,7 @@ function CenroDashboardInner() {
                             </div>
 
                             {/* Right: Map */}
-                            <div className="flex-[3] rounded-lg border border-border bg-card shadow-sm overflow-hidden relative z-0 min-h-[400px]">
+                            <div className="w-full h-[420px] sm:h-[520px] lg:h-full lg:flex-[3] rounded-lg border border-border bg-card shadow-sm overflow-hidden relative z-0 shrink-0">
                                 <div className="absolute top-3 left-3 z-[1000] bg-background/80 backdrop-blur-md px-2 py-1 rounded text-[11px] font-medium text-foreground border border-border pointer-events-none shadow-sm flex items-center gap-1.5">
                                     <span className="relative flex h-2 w-2">
                                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>

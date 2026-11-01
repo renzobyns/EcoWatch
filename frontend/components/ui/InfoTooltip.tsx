@@ -39,21 +39,21 @@ export function InfoTooltip({
       <button
         type="button"
         aria-label={label}
-        className="text-foreground/40 hover:text-foreground/80 focus:text-foreground/80 focus:outline-none transition-colors cursor-help"
+        className="w-7 h-7 -m-1.5 flex items-center justify-center rounded-full text-foreground/40 hover:text-foreground/80 focus:text-foreground/80 focus:outline-none transition-colors cursor-help"
       >
         <Info size={13} strokeWidth={2.5} />
       </button>
       <span
         role="tooltip"
         className={cn(
-          "pointer-events-none absolute z-[9999] w-64 rounded-xl border border-border bg-background/95 backdrop-blur-xl p-3 text-left text-[11px] leading-relaxed text-foreground/80 shadow-2xl shadow-black/40",
+          "pointer-events-none absolute z-[9999] w-64 max-w-[calc(100vw-2.5rem)] break-words rounded-xl border border-border bg-background/95 backdrop-blur-xl p-3 text-left text-[11px] leading-relaxed text-foreground/80 shadow-2xl shadow-black/40",
           "opacity-0 transition-all duration-150",
           "group-hover/info:opacity-100",
           "group-focus-within/info:opacity-100",
           side === "bottom" ? "top-full mt-2 translate-y-0.5 group-hover/info:translate-y-0 group-focus-within/info:translate-y-0" : 
           side === "top" ? "bottom-full mb-2 -translate-y-0.5 group-hover/info:translate-y-0 group-focus-within/info:translate-y-0" : 
-          side === "right" ? "left-full ml-3 top-0 translate-x-1 group-hover/info:translate-x-0 group-focus-within/info:translate-x-0" :
-          "right-full mr-3 top-0 -translate-x-1 group-hover/info:translate-x-0 group-focus-within/info:translate-x-0",
+          side === "right" ? "left-0 sm:left-full top-full sm:top-0 sm:ml-3 mt-2 sm:mt-0 translate-y-1 sm:translate-y-0 sm:translate-x-1 group-hover/info:translate-y-0 group-focus-within/info:translate-y-0" :
+          "right-0 sm:right-full top-full sm:top-0 sm:mr-3 mt-2 sm:mt-0 -translate-y-1 sm:translate-y-0 sm:-translate-x-1 group-hover/info:translate-y-0 group-focus-within/info:translate-y-0",
           (side === "top" || side === "bottom") && align === "left" ? "left-0" : 
           (side === "top" || side === "bottom") && align === "right" ? "right-0" : "",
           panelClassName
