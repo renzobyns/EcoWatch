@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, ArrowLeft, ShieldCheck, Leaf, Map, BarChart3, User, Mail, Check } from "lucide-react";
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
@@ -11,6 +12,8 @@ import { Input } from "@/components/ui/input";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://renzobyns-ecowatch-backend.hf.space";
 
 export default function SignUpPage() {
+    const router = useRouter();
+    const [checkingAuth, setCheckingAuth] = useState(true);
     const [fullName, setFullName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -28,6 +31,44 @@ export default function SignUpPage() {
     const hasNumber = /[0-9]/.test(password);
     const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
     const isPasswordValid = hasMinLength && hasUppercase && hasNumber && passwordsMatch;
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const stored = localStorage.getItem("ecowatch_user");
+            if (stored) {
+                try {
+                    const user = JSON.parse(stored);
+                    if (user && user.role) {
+                        const params = new URLSearchParams(window.location.search);
+                        const redirect = params.get("redirect");
+                        const safeRedirect =
+                            redirect &&
+                            redirect.startsWith("/") &&
+                            !redirect.startsWith("//") &&
+                            !redirect.startsWith("/\\")
+                                ? redirect
+                                : null;
+
+                        if (user.role === "barangay") {
+                            router.replace("/barangay");
+                        } else if (user.role === "cenro") {
+                            router.replace("/cenro");
+                        } else if (user.role === "cleaner") {
+                            router.replace("/cleaner");
+                        } else if (safeRedirect) {
+                            router.replace(safeRedirect);
+                        } else {
+                            router.replace("/");
+                        }
+                        return;
+                    }
+                } catch {
+                    localStorage.removeItem("ecowatch_user");
+                }
+            }
+            setCheckingAuth(false);
+        }
+    }, [router]);
 
     const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
         if (!credentialResponse.credential) return;
@@ -102,6 +143,17 @@ export default function SignUpPage() {
             setLoading(false);
         }
     };
+
+    if (checkingAuth) {
+        return (
+            <div className="h-[calc(100vh-5rem)] bg-background flex items-center justify-center">
+                <div className="flex flex-col items-center gap-3">
+                    <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                    <p className="text-xs text-muted-foreground animate-pulse">Checking session...</p>
+                </div>
+            </div>
+        );
+    }
 
     if (success) {
         return (

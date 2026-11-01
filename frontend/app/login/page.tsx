@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Leaf, Eye, EyeOff, ShieldCheck, Map, BarChart3, Clock } from "lucide-react";
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
@@ -9,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export default function LoginPage() {
+    const router = useRouter();
+    const [checkingAuth, setCheckingAuth] = useState(true);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
@@ -20,11 +23,55 @@ export default function LoginPage() {
     useEffect(() => {
         if (typeof window !== "undefined") {
             const params = new URLSearchParams(window.location.search);
-            if (params.get("expired") === "1" || params.get("session_expired") === "true") {
+            const isExpired = params.get("expired") === "1" || params.get("session_expired") === "true";
+            if (isExpired) {
                 setSessionExpiredNotice(true);
+
+                try {
+                    localStorage.removeItem("ecowatch_user");
+                    localStorage.removeItem("ecowatch_last_active");
+                } catch {}
+                setCheckingAuth(false);
+                return;
             }
+
+            // Guest-only guard: redirect already authenticated users to their portal
+            const stored = localStorage.getItem("ecowatch_user");
+            if (stored) {
+                try {
+                    const user = JSON.parse(stored);
+                    if (user && user.role) {
+                        const redirect = params.get("redirect");
+                        const safeRedirect =
+                            redirect &&
+                            redirect.startsWith("/") &&
+                            !redirect.startsWith("//") &&
+                            !redirect.startsWith("/\\")
+                                ? redirect
+                                : null;
+
+                        if (user.role === "barangay") {
+                            router.replace("/barangay");
+                        } else if (user.role === "cenro") {
+                            router.replace("/cenro");
+                        } else if (user.role === "cleaner") {
+                            router.replace("/cleaner");
+                        } else if (safeRedirect) {
+                            router.replace(safeRedirect);
+                        } else {
+                            router.replace("/");
+                        }
+                        return;
+                    }
+                } catch {
+                    localStorage.removeItem("ecowatch_user");
+                }
+            }
+
+            setCheckingAuth(false);
+
         }
-    }, []);
+    }, [router]);
 
     const handleResend = async () => {
         setResending(true);
@@ -117,6 +164,17 @@ export default function LoginPage() {
             setLoading(false);
         }
     };
+
+    if (checkingAuth) {
+        return (
+            <div className="h-[calc(100vh-5rem)] bg-background flex items-center justify-center">
+                <div className="flex flex-col items-center gap-3">
+                    <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                    <p className="text-xs text-muted-foreground animate-pulse">Checking session...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="h-[calc(100vh-5rem)] bg-background flex overflow-hidden">
