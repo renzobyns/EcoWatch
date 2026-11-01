@@ -955,11 +955,11 @@ function BarangayPortalInner() {
                 }}
             notificationCount={unreadCount}
         >
-            <div className="max-w-[1600px] mx-auto h-full flex flex-col gap-5">
+            <div className="max-w-[1600px] mx-auto min-h-full flex flex-col gap-5">
 
                 {/* DASHBOARD VIEW */}
                 {activeView === 'dashboard' && (
-                    <div className="flex flex-col gap-6 flex-1 min-h-0 animate-slide-up pb-8 w-full shrink-0">
+                    <div className="flex flex-col gap-5 sm:gap-6 flex-1 animate-slide-up pb-8 w-full">
                         {/* Header */}
                         <div className="flex items-start justify-between gap-4 flex-wrap shrink-0">
                             <div>
@@ -976,7 +976,7 @@ function BarangayPortalInner() {
                         </div>
 
                         {/* KPI Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4 shrink-0">
                             <KpiCard
                                 label="Pending Reports"
                                 value={stats.pending}
@@ -1001,7 +1001,7 @@ function BarangayPortalInner() {
                         </div>
 
                         {/* Recent Reports Container */}
-                        <div className="bg-card border border-border rounded-xl shadow-sm flex flex-col flex-1 min-h-[400px]">
+                        <div className="bg-card border border-border rounded-xl shadow-sm flex flex-col flex-1 min-h-[350px] shrink-0">
                             <div className="p-6 pb-4 border-b border-border flex items-center justify-between">
                                 <h2 className="text-base font-bold text-foreground">Recent Reports</h2>
                                 <button
@@ -1110,7 +1110,7 @@ function BarangayPortalInner() {
                     );
 
                     return (
-                        <div className="flex flex-col gap-5 flex-1 min-h-0 animate-slide-up pb-8 w-full shrink-0">
+                        <div className="flex flex-col gap-5 flex-1 animate-slide-up pb-8 w-full">
                             {/* Header */}
                             <div className="flex items-start justify-between gap-4 flex-wrap shrink-0">
                                 <div>
@@ -1137,7 +1137,7 @@ function BarangayPortalInner() {
                             </div>
 
                             {/* KPI Metrics Row (Section 5 Standard) */}
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 shrink-0">
                                 <div className="bg-card border border-border p-4 rounded-xl shadow-sm flex items-center justify-between">
                                     <div>
                                         <p className="text-xs font-medium text-muted-foreground">Total In Queue</p>
@@ -1718,7 +1718,7 @@ function BarangayPortalInner() {
                     const woTotalPages = Math.ceil(filtered.length / WO_PAGE_SIZE) || 1;
 
                     return (
-                        <div className="flex flex-col gap-6 flex-1 min-h-0 animate-slide-up pb-8 w-full shrink-0">
+                        <div className="flex flex-col gap-5 sm:gap-6 flex-1 animate-slide-up pb-8 w-full">
                             {/* Header */}
                             <div className="flex items-start justify-between gap-4 flex-wrap shrink-0">
                                 <div>
@@ -1745,7 +1745,7 @@ function BarangayPortalInner() {
                             </div>
 
                             {/* KPI Strip */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4 shrink-0">
+                            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2.5 sm:gap-4 shrink-0">
                                 <KpiCard
                                     label="Active Work Orders"
                                     value={kpiActive}
@@ -1889,7 +1889,7 @@ function BarangayPortalInner() {
 
                             {/* Main View Area */}
                             {woViewMode === "table" ? (
-                                <div className="bg-card rounded-xl border border-border flex flex-col overflow-hidden animate-slide-up shadow-sm">
+                                <div className="bg-card rounded-xl border border-border flex flex-col overflow-hidden animate-slide-up shadow-sm shrink-0">
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-left border-collapse">
                                             <thead>
@@ -1999,7 +1999,7 @@ function BarangayPortalInner() {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-slide-up">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-slide-up shrink-0">
                                     {woLoading ? (
                                         Array.from({ length: 8 }).map((_, i) => (
                                             <div key={i} className="h-40 bg-card rounded-xl border border-border animate-pulse" />
@@ -2315,7 +2315,7 @@ function BarangayPortalInner() {
                     const kpiDisabled = barangayUsers.filter(u => !u.is_active).length;
 
                     return (
-                        <div className="flex flex-col gap-6 flex-1 min-h-0 animate-slide-up pb-8 w-full shrink-0" onClick={() => userActionsMenu !== null && setUserActionsMenu(null)}>
+                        <div className="flex flex-col gap-5 sm:gap-6 flex-1 animate-slide-up pb-8 w-full" onClick={() => userActionsMenu !== null && setUserActionsMenu(null)}>
                             {/* Header */}
                             <div className="flex items-start justify-between gap-4 flex-wrap shrink-0">
                                 <div>
@@ -2333,7 +2333,7 @@ function BarangayPortalInner() {
                             </div>
 
                             {/* KPI Grid */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4 shrink-0">
                                 <KpiCard
                                     label="Total Cleaners"
                                     value={kpiTotal}
@@ -2397,7 +2397,7 @@ function BarangayPortalInner() {
 
                             {/* Main View Area */}
                             {userViewMode === "table" ? (
-                                <div className="bg-card rounded-xl border border-border flex flex-col animate-slide-up shadow-sm overflow-hidden md:overflow-visible">
+                                <div className="bg-card rounded-xl border border-border flex flex-col animate-slide-up shadow-sm overflow-hidden md:overflow-visible shrink-0">
                                     <div className="overflow-x-auto md:overflow-visible">
                                         <table className="w-full text-left border-collapse">
                                             <thead>
@@ -2480,7 +2480,7 @@ function BarangayPortalInner() {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-slide-up">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-slide-up shrink-0">
                                     {userLoading ? (
                                         Array.from({ length: 8 }).map((_, i) => (
                                             <div key={i} className="h-40 bg-card rounded-xl border border-border animate-pulse" />
@@ -2575,7 +2575,7 @@ function BarangayPortalInner() {
                     const paginatedReports = displayReports.slice((reportPage - 1) * REPORT_PAGE_SIZE, reportPage * REPORT_PAGE_SIZE);
                     const reportTotalPages = Math.ceil(displayReports.length / REPORT_PAGE_SIZE) || 1;
                     return (
-                        <div className="flex flex-col gap-6 flex-1 min-h-0 animate-slide-up pb-8 w-full shrink-0">
+                        <div className="flex flex-col gap-5 sm:gap-6 flex-1 animate-slide-up pb-8 w-full">
                             {/* Header */}
                             <div className="flex items-start justify-between gap-4 flex-wrap shrink-0">
                                 <div>
@@ -2602,7 +2602,7 @@ function BarangayPortalInner() {
                             </div>
 
                             {/* KPI Strip */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 shrink-0">
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 shrink-0">
                                 <KpiCard
                                     label="Total Reports"
                                     value={reports.length}
@@ -2635,7 +2635,7 @@ function BarangayPortalInner() {
 
                             {/* Toolbar */}
                             <div className="flex flex-wrap items-center gap-3 shrink-0">
-                                <div className="relative flex-1 min-w-[200px] max-w-xs">
+                                <div className="relative w-full sm:w-auto sm:flex-1 min-w-[200px] sm:max-w-xs">
                                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" />
                                     <input
                                         value={search}
@@ -2691,7 +2691,7 @@ function BarangayPortalInner() {
 
                             {/* Main View Area */}
                             {reportViewMode === "table" ? (
-                                <div className="bg-card rounded-xl border border-border flex flex-col overflow-hidden animate-slide-up shadow-sm">
+                                <div className="bg-card rounded-xl border border-border flex flex-col overflow-hidden animate-slide-up shadow-sm shrink-0">
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-left border-collapse">
                                             <thead>
@@ -2790,7 +2790,7 @@ function BarangayPortalInner() {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-slide-up">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-slide-up shrink-0">
                                     {tableLoading ? (
                                         Array.from({ length: 8 }).map((_, i) => (
                                             <div key={i} className="h-40 bg-card rounded-xl border border-border animate-pulse" />

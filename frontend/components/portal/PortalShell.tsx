@@ -129,7 +129,7 @@ export function PortalShell({
                         actions={actions}
                     />
                 </div>
-                <div role="region" aria-label="Portal content" className={`relative flex-1 ${scrollable ? "overflow-y-auto" : "overflow-hidden"} ${activeKey === "map_view" ? "p-0" : "px-4 md:px-8 py-6 md:pb-6"}`}>
+                <div role="region" aria-label="Portal content" className={`relative flex-1 ${scrollable ? "overflow-y-auto" : "overflow-hidden"} ${activeKey === "map_view" ? "p-0" : "px-3 sm:px-4 md:px-8 pt-4 sm:pt-6 pb-24 md:pb-6"}`}>
                     {children}
                 </div>
 
