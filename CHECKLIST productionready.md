@@ -525,6 +525,9 @@
 - [ ] Add smart assignment suggestions ("Cleaner B has fewer active jobs")
 
 ### CENRO Improvements
+- [x] GoTyme-inspired mobile navigation & bottom menu drawer (`PortalShell.tsx`)
+- [x] SLA Management mobile layout: 2x2 KPI grid, responsive incident breach cards, and per-barangay cards (`SlaManagementTab.tsx`)
+- [x] Evidence Gallery mobile layout: 2x2 KPI grid, full-width search/dropdowns, and 4:3 high-res photo viewer with 3-way segmented switcher (`EvidenceGalleryTab.tsx`)
 - [ ] Add executive summary one-pager for presentations
 - [ ] Add PDF report generation (monthly/quarterly city-wide report)
 - [ ] Add comparative analytics (month-over-month, quarter-over-quarter)
@@ -563,6 +566,7 @@
 | 2026-10-14 | HF Backend Deployed | Synced latest backend (2-layer verification, /reports/pending-review, psycopg) to Hugging Face space |
 | 2026-10-16 | 3-Layer VLM Verification planned | Added Gemini Flash VLM as Layer 1 pre-filter (MC-004). Branch: `feat/3-layer-verification-vlm`. API key configured and verified. |
 | 2026-10-18 | Cleanup Verification Pipeline planned | MC-005: 6-Phase anti-fraud cleanup proofing. Branch: `feat/cleanup-verification-pipeline`. Existing VLM cleanup verification enhanced with quality gate, SIFT location matching, guided capture, CENRO audit queue. |
+| 2026-11-01 | CENRO Mobile UX Redesign & Tab Audits | GoTyme-inspired bottom nav bar + menu modal; fixed horizontal overflow blowout; converted SLA Management to 2x2 KPI grid + mobile breach incident cards; converted Evidence Gallery to 2x2 KPIs + 4:3 high-res photo viewer with 3-way segmented pill switcher (Original / AI Mask / Proof). |
 
 ---
 
