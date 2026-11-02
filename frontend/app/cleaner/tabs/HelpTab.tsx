@@ -5,7 +5,13 @@ import { Phone, Mail, BookOpen, HelpCircle, ChevronDown } from "lucide-react";
 import { api } from "@/lib/api";
 
 interface HelpTabProps {
-    user: any;
+    user: {
+        id?: number;
+        barangay_assignment?: string | null;
+        full_name?: string | null;
+        email?: string | null;
+        role?: string | null;
+    } | null;
 }
 
 interface BarangayAdmin {
@@ -100,7 +106,7 @@ export function HelpTab({ user }: HelpTabProps) {
                                 </p>
                             </div>
                         </div>
-                        <div className="space-y-1.5 pl-15">
+                        <div className="space-y-1.5 pl-14 sm:pl-16">
                             {supervisor.phone_number && (
                                 <p className="text-sm text-foreground/80 flex items-center gap-2">
                                     <Phone className="size-3.5 text-primary" />
@@ -141,25 +147,35 @@ export function HelpTab({ user }: HelpTabProps) {
                     How to Use
                 </h3>
                 <ol className="space-y-2.5 text-sm text-foreground/80">
-                    <li className="flex gap-3">
-                        <span className="shrink-0 size-6 rounded-full bg-primary/20 text-primary font-bold text-xs flex items-center justify-center">1</span>
-                        Open <strong className="text-foreground">My Jobs</strong> to see what your barangay has dispatched to you.
+                    <li className="flex items-start gap-3">
+                        <span className="shrink-0 size-6 rounded-full bg-primary/20 text-primary font-bold text-xs flex items-center justify-center mt-0.5">1</span>
+                        <p className="flex-1 leading-relaxed">
+                            Open <strong className="text-foreground">My Jobs</strong> to see what your barangay has dispatched to you.
+                        </p>
                     </li>
-                    <li className="flex gap-3">
-                        <span className="shrink-0 size-6 rounded-full bg-primary/20 text-primary font-bold text-xs flex items-center justify-center">2</span>
-                        Tap <strong className="text-foreground">Start</strong> when you're on-site and ready to begin.
+                    <li className="flex items-start gap-3">
+                        <span className="shrink-0 size-6 rounded-full bg-primary/20 text-primary font-bold text-xs flex items-center justify-center mt-0.5">2</span>
+                        <p className="flex-1 leading-relaxed">
+                            Tap <strong className="text-foreground">Start</strong> when you&apos;re on-site and ready to begin.
+                        </p>
                     </li>
-                    <li className="flex gap-3">
-                        <span className="shrink-0 size-6 rounded-full bg-primary/20 text-primary font-bold text-xs flex items-center justify-center">3</span>
-                        After cleaning, tap <strong className="text-foreground">Upload Photo</strong> and capture a clear shot of the area.
+                    <li className="flex items-start gap-3">
+                        <span className="shrink-0 size-6 rounded-full bg-primary/20 text-primary font-bold text-xs flex items-center justify-center mt-0.5">3</span>
+                        <p className="flex-1 leading-relaxed">
+                            After cleaning, tap <strong className="text-foreground">Upload Photo</strong> and capture a clear shot of the area.
+                        </p>
                     </li>
-                    <li className="flex gap-3">
-                        <span className="shrink-0 size-6 rounded-full bg-primary/20 text-primary font-bold text-xs flex items-center justify-center">4</span>
-                        Our AI verifies — if clean, the job auto-closes as <strong className="text-green-400">Resolved</strong>.
+                    <li className="flex items-start gap-3">
+                        <span className="shrink-0 size-6 rounded-full bg-primary/20 text-primary font-bold text-xs flex items-center justify-center mt-0.5">4</span>
+                        <p className="flex-1 leading-relaxed">
+                            Our AI verifies — if clean, the job auto-closes as <strong className="text-green-400">Resolved</strong>.
+                        </p>
                     </li>
-                    <li className="flex gap-3">
-                        <span className="shrink-0 size-6 rounded-full bg-primary/20 text-primary font-bold text-xs flex items-center justify-center">5</span>
-                        If AI still sees waste, status flips to <strong className="text-yellow-400">Needs Redo</strong>. Clean again and re-upload.
+                    <li className="flex items-start gap-3">
+                        <span className="shrink-0 size-6 rounded-full bg-primary/20 text-primary font-bold text-xs flex items-center justify-center mt-0.5">5</span>
+                        <p className="flex-1 leading-relaxed">
+                            If AI still sees waste, status flips to <strong className="text-yellow-400">Needs Redo</strong>. Clean again and re-upload.
+                        </p>
                     </li>
                 </ol>
             </section>

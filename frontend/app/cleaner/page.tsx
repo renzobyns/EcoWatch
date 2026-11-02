@@ -265,8 +265,9 @@ function CleanerPortalInner() {
                 router.replace('?tab=' + k, { scroll: false });
             }}
             notificationCount={unreadCount}
+            scrollable={activeView !== "map_view"}
         >
-            <div className="max-w-[1600px] mx-auto min-h-full flex flex-col gap-5">
+            <div className={`w-full mx-auto ${activeView === "map_view" ? "h-full flex-1 flex flex-col" : "max-w-[1600px] min-h-full flex flex-col gap-5"}`}>
                 {activeView === "dashboard" && (
                     <DashboardTab
                         user={user}

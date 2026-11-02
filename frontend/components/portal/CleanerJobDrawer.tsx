@@ -113,12 +113,14 @@ export function CleanerJobDrawer({
     const isReadOnly = status === "verified" || status === "completed";
     const hasCoords = workOrder.report_lat != null && workOrder.report_lon != null;
 
-    const isCompleted = status === "completed";
+    const isCompleted = status === "completed" || status === "verified" || status === "resolved";
     const sla = workOrder.sla_deadline && !isCompleted ? slaDeadlineLabel(workOrder.sla_deadline) : null;
     const slaColor = workOrder.sla_deadline && !isCompleted ? slaDeadlineColor(workOrder.sla_deadline) : null;
     const completedOnTime =
-        isCompleted && workOrder.completed_at && workOrder.sla_deadline
-            ? new Date(workOrder.completed_at) <= new Date(workOrder.sla_deadline)
+        isCompleted && workOrder.sla_deadline
+            ? workOrder.completed_at
+                ? new Date(workOrder.completed_at) <= new Date(workOrder.sla_deadline)
+                : true
             : null;
 
     const gmapsHref = hasCoords
@@ -521,7 +523,7 @@ export function CleanerJobDrawer({
 
                 {/* Footer: action buttons (hidden during review — review has its own buttons) */}
                 {!isReadOnly && !showReview && (
-                    <div className="shrink-0 border-t border-border p-5">
+                    <div className="shrink-0 border-t border-border p-4 sm:p-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:pb-5">
                         {status === "assigned" && (
                             <button
                                 type="button"
@@ -557,7 +559,7 @@ export function CleanerJobDrawer({
                     </div>
                 )}
                 {isReadOnly && !showReview && (
-                    <div className="shrink-0 border-t border-border p-5">
+                    <div className="shrink-0 border-t border-border p-4 sm:p-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:pb-5">
                         <button
                             type="button"
                             onClick={onClose}

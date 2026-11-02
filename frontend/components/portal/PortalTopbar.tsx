@@ -51,9 +51,9 @@ export function PortalTopbar({ role, pageBadge, notificationCount = 0, actions, 
                 <span className="text-[11px] uppercase tracking-[0.2em] font-semibold text-foreground/50 shrink-0">
                     {role}
                 </span>
-                <span className="h-5 w-px bg-border shrink-0" />
+                <span className="hidden sm:inline-block h-5 w-px bg-border shrink-0" />
                 {pageBadge && (
-                    <span className="px-3 py-1 rounded-full bg-primary/15 text-primary text-[11px] font-bold uppercase tracking-widest border border-primary/30 truncate">
+                    <span className="hidden sm:inline-flex px-3 py-1 rounded-full bg-primary/15 text-primary text-[11px] font-bold uppercase tracking-widest border border-primary/30 truncate">
                         {pageBadge}
                     </span>
                 )}

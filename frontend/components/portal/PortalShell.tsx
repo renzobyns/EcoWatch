@@ -164,7 +164,7 @@ export function PortalShell({
     const hasAnyBadge = nav.some(item => Boolean(item.badge && item.badge > 0));
 
     return (
-        <div className="-mt-16 h-screen w-full flex bg-background overflow-hidden">
+        <div className="-mt-20 h-[100dvh] sm:h-screen w-full flex bg-background overflow-hidden">
             <PortalSidebar
                 brand={brand}
                 nav={nav}
@@ -183,7 +183,7 @@ export function PortalShell({
                         onOpenMobileMenu={() => setMobileMenuOpen(true)}
                     />
                 </div>
-                <div role="region" aria-label="Portal content" className={`relative flex-1 overflow-x-hidden ${scrollable ? "overflow-y-auto" : "overflow-hidden"} ${activeKey === "map_view" ? "p-0" : "px-3 sm:px-4 md:px-8 pt-4 sm:pt-6 pb-24 md:pb-6"}`}>
+                <div role="region" aria-label="Portal content" className={`relative flex-1 ${activeKey === "map_view" ? "flex flex-col h-full overflow-hidden p-0" : "overflow-x-hidden " + (scrollable ? "overflow-y-auto" : "overflow-hidden") + " px-3 sm:px-4 md:px-8 pt-4 sm:pt-6 pb-24 md:pb-6"}`}>
                     {children}
                 </div>
 
