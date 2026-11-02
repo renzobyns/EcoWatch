@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bell, Briefcase, AlertTriangle, CheckCircle2, ArrowRightLeft, Shield, Sparkles,
+import { Bell, Briefcase, AlertTriangle, CheckCircle2, ArrowRightLeft, Shield, Sparkles, X,
          Clock, Flame, MapPin, AlertOctagon, ShieldAlert, Zap, Hourglass } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { toast } from "sonner";
@@ -161,18 +161,35 @@ export function NotificationDropdown({
                     />
                     <div
                         role="menu"
-                        className="fixed inset-x-3 top-16 z-50 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[380px] max-h-[calc(100dvh-6rem)] sm:max-h-[480px] bg-card rounded-xl border border-border shadow-2xl shadow-black/40 overflow-hidden backdrop-blur-xl flex flex-col animate-in fade-in sm:zoom-in-95 duration-200"
+                        className="fixed inset-x-3 top-16 bottom-[calc(env(safe-area-inset-bottom)+5rem)] z-50 sm:bottom-auto sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[380px] sm:max-h-[480px] bg-card rounded-xl border border-border shadow-2xl shadow-black/40 overflow-hidden backdrop-blur-xl flex flex-col animate-in fade-in sm:zoom-in-95 duration-200"
                     >
                     <div className="p-4 border-b border-border flex items-center justify-between">
-                        <div className="text-sm font-bold text-foreground">Notifications</div>
-                        <button
-                            type="button"
-                            onClick={handleMarkAll}
-                            disabled={markAllPending || !items || items.every((i) => i.is_read)}
-                            className="text-[11px] uppercase tracking-widest font-bold text-primary hover:text-primary/80 disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                            {markAllPending ? "..." : "Mark all"}
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <div className="text-sm font-bold text-foreground">Notifications</div>
+                            {unreadCount > 0 && (
+                                <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold">
+                                    {unreadCount}
+                                </span>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-2.5">
+                            <button
+                                type="button"
+                                onClick={handleMarkAll}
+                                disabled={markAllPending || !items || items.every((i) => i.is_read)}
+                                className="text-[11px] uppercase tracking-widest font-bold text-primary hover:text-primary/80 disabled:opacity-30 disabled:cursor-not-allowed px-1.5 py-1 rounded"
+                            >
+                                {markAllPending ? "..." : "Mark all"}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setOpen(false)}
+                                className="size-8 rounded-lg flex items-center justify-center text-foreground/50 hover:text-foreground hover:bg-foreground/5 active:scale-95 transition-all"
+                                aria-label="Close notifications"
+                            >
+                                <X className="size-4" />
+                            </button>
+                        </div>
                     </div>
 
                     <div className="flex-1 overflow-y-auto">
