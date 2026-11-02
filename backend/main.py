@@ -2790,10 +2790,22 @@ def _apply_report_filters(
     if reporter_id:
         query = query.filter(models.Report.reporter_id == reporter_id)
 
-    if status and status.lower() != "all":
-        query = query.filter(models.Report.status == status.lower())
-    elif not reporter_id and (not status or status.lower() != "all"):
-        # Hide rejected, ai-rejected, and confirmed-duplicate reports from active public queues by default.
+    status_lower = status.lower() if status else None
+    if status_lower in ("archived", "filtered"):
+        # Explicit non-actionable/filtered reports (rejected, ai-rejected, duplicates)
+        query = query.filter(models.Report.status.in_([
+            models.ReportStatus.REJECTED,
+            models.ReportStatus.AI_REJECTED,
+            models.ReportStatus.DUPLICATE,
+        ]))
+    elif status_lower == "all":
+        # Return entire history / all statuses without exclusion
+        pass
+    elif status_lower and status_lower != "operational":
+        query = query.filter(models.Report.status == status_lower)
+    elif not reporter_id:
+        # Default (or explicitly "operational"):
+        # Hide rejected, ai-rejected, and confirmed-duplicate reports from active operational queues.
         query = query.filter(models.Report.status.notin_([
             models.ReportStatus.REJECTED,
             models.ReportStatus.AI_REJECTED,
@@ -2824,7 +2836,7 @@ async def get_recent_reports(
     db: Session = Depends(get_db),
 ):
     """Fetch reports for map display. Filters: status, date range, search (tracking_id or notes)."""
-    limit = min(max(limit, 1), 200)
+    limit = min(max(limit, 1), 1000)
     offset = max(offset, 0)
     query = _apply_report_filters(
         db.query(models.Report).options(joinedload(models.Report.report_photos)),

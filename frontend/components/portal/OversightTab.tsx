@@ -10,8 +10,13 @@ import { toast } from "sonner";
 import { KpiCard } from "@/components/portal/KpiCard";
 import { QueueReport } from "@/components/portal/ReportDetailDrawer"; // Assuming QueueReport is exported there
 
-const STATUS_OPTIONS = [
-    { value: "all", label: "All Statuses" },
+const SCOPE_OPTIONS = [
+    { value: "operational", label: "Operational Reports (Active / Actionable)" },
+    { value: "all", label: "All Submissions (Entire Database)" },
+    { value: "archived", label: "Filtered / Archived (AI Rejected & Duplicates)" },
+];
+
+const INDIVIDUAL_STATUS_OPTIONS = [
     { value: "pending", label: "Pending" },
     { value: "ai_verified", label: "AI Verified (Pending Review)" },
     { value: "ai_rejected", label: "AI Rejected (Pending Review)" },
@@ -21,7 +26,8 @@ const STATUS_OPTIONS = [
     { value: "resolved", label: "Resolved" },
     { value: "pending_review", label: "Pending Review (Cleanup Review)" },
     { value: "failed_cleanup", label: "Failed Cleanup" },
-    { value: "rejected", label: "Rejected" },
+    { value: "rejected", label: "Rejected (Manual)" },
+    { value: "duplicate", label: "Duplicate" },
 ];
 
 const SLA_PILL_CLASSES: Record<string, string> = {
@@ -63,7 +69,7 @@ export function OversightTab({ user, barangays, onReportClick }: OversightTabPro
     // Filters
     const [search, setSearch] = useState("");
     const debouncedSearch = useDebounce(search, 300);
-    const [status, setStatus] = useState("all");
+    const [status, setStatus] = useState("operational");
     const [barangay, setBarangay] = useState("all");
     const [dateRange, setDateRange] = useState<DateRange | undefined>();
     const [sort, setSort] = useState<"newest" | "oldest">("newest");
@@ -78,7 +84,7 @@ export function OversightTab({ user, barangays, onReportClick }: OversightTabPro
     const buildQuery = () => {
         const params = new URLSearchParams();
         if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
-        if (status !== "all") params.set("status", status);
+        if (status) params.set("status", status);
         if (dateRange?.from) {
             const y = dateRange.from.getFullYear();
             const m = String(dateRange.from.getMonth() + 1).padStart(2, '0');
@@ -159,12 +165,20 @@ export function OversightTab({ user, barangays, onReportClick }: OversightTabPro
     const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
     const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
 
-    // KPIs
-    const totalReports = reports.length;
-    const pendingCount = reports.filter(r => r.status === 'pending' || r.status === 'verified').length;
-    const activeCount = reports.filter(r => r.status === 'assigned' || r.status === 'in_progress').length;
-    const resolvedCount = reports.filter(r => r.status === 'resolved').length;
+    // KPIs (scoped to active filtered subset)
+    const totalReports = filtered.length;
+    const pendingCount = filtered.filter(r => r.status === 'pending' || r.status === 'verified').length;
+    const activeCount = filtered.filter(r => r.status === 'assigned' || r.status === 'in_progress').length;
+    const resolvedCount = filtered.filter(r => r.status === 'resolved').length;
     const resRate = totalReports ? Math.round((resolvedCount / totalReports) * 100) : 0;
+
+    const getKpiLabel = () => {
+        if (status === "operational") return "Operational Found";
+        if (status === "all") return "Total Submissions (All)";
+        if (status === "archived") return "Filtered / Archived";
+        const found = INDIVIDUAL_STATUS_OPTIONS.find(s => s.value === status);
+        return `Found: ${found ? found.label : status}`;
+    };
 
     return (
         <div className="flex flex-col gap-6 pb-8 w-full shrink-0">
@@ -197,16 +211,23 @@ export function OversightTab({ user, barangays, onReportClick }: OversightTabPro
             {/* KPI Strip */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0 animate-slide-up relative z-20">
                 <KpiCard
-                    label="Total Found (Current Filters)"
+                    label={getKpiLabel()}
                     value={totalReports}
                     icon={<ListChecks size={22} />}
                     tone="blue"
                     tooltipAlign="left"
                     tooltip={
                         <div className="space-y-1">
-                            <p className="font-semibold text-foreground text-xs">Total Found</p>
+                            <p className="font-semibold text-foreground text-xs">{getKpiLabel()}</p>
                             <p className="text-[11px] text-muted-foreground leading-normal">
-                                Total count of illegal dumping reports matching the active search query, status, barangay, and date filters across San Jose del Monte.
+                                {status === "operational"
+                                    ? "Reports requiring operational attention across San Jose del Monte (excludes AI-rejected and confirmed duplicates)."
+                                    : status === "all"
+                                    ? "Total reports across the entire city database matching the Analytics tab (includes active cleanups, AI-filtered submissions, and duplicates)."
+                                    : status === "archived"
+                                    ? "Non-actionable reports filtered out from active cleanup queues (AI rejected, duplicates, and manual rejections)."
+                                    : `Total reports currently matching the filter '${status}'.`
+                                }
                             </p>
                             <p className="text-[10px] text-muted-foreground/80 pt-1 border-t border-border">
                                 Sourced live from the reports queue.
@@ -293,11 +314,18 @@ export function OversightTab({ user, barangays, onReportClick }: OversightTabPro
                 <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value)}
-                    className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                    className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-medium"
                 >
-                    {STATUS_OPTIONS.map((s) => (
-                        <option key={s.value} value={s.value}>{s.label}</option>
-                    ))}
+                    <optgroup label="── Scope Views ──">
+                        {SCOPE_OPTIONS.map((s) => (
+                            <option key={s.value} value={s.value}>{s.label}</option>
+                        ))}
+                    </optgroup>
+                    <optgroup label="── Individual Statuses ──">
+                        {INDIVIDUAL_STATUS_OPTIONS.map((s) => (
+                            <option key={s.value} value={s.value}>{s.label}</option>
+                        ))}
+                    </optgroup>
                 </select>
 
                 <select

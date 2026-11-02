@@ -364,6 +364,7 @@ export function AnalyticsTab({
                             higherIsBetter={false}
                             priorLabel={`Prior: ${data.kpis.prior.reports}`}
                             onClick={onDrilldown ? () => onDrilldown("reports") : undefined}
+                            tooltipText="Total citizen submissions in window (includes active, AI-filtered, and duplicates)"
                             tooltipAlign="left"
                             deltaTooltip={getTooltipText(data.kpis.delta.reports_pct, data.kpis.prior.reports.toString())}
                         />
