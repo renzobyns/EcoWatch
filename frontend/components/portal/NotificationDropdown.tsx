@@ -154,10 +154,15 @@ export function NotificationDropdown({
             </button>
 
             {open && (
-                <div
-                    role="menu"
-                    className="absolute right-0 top-full mt-2 w-[360px] max-h-[480px] bg-card rounded-xl border border-border shadow-2xl shadow-black/40 overflow-hidden z-50 backdrop-blur-xl flex flex-col"
-                >
+                <>
+                    <div
+                        className="sm:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-xs"
+                        onClick={() => setOpen(false)}
+                    />
+                    <div
+                        role="menu"
+                        className="fixed inset-x-3 top-16 z-50 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[380px] max-h-[calc(100dvh-6rem)] sm:max-h-[480px] bg-card rounded-xl border border-border shadow-2xl shadow-black/40 overflow-hidden backdrop-blur-xl flex flex-col animate-in fade-in sm:zoom-in-95 duration-200"
+                    >
                     <div className="p-4 border-b border-border flex items-center justify-between">
                         <div className="text-sm font-bold text-foreground">Notifications</div>
                         <button
@@ -232,6 +237,7 @@ export function NotificationDropdown({
                         )}
                     </div>
                 </div>
+                </>
             )}
         </div>
     );
