@@ -266,6 +266,7 @@ function CleanerPortalInner() {
             }}
             notificationCount={unreadCount}
             scrollable={activeView !== "map_view"}
+            mobileNavStyle="standard"
         >
             <div className={`w-full mx-auto ${activeView === "map_view" ? "h-full flex-1 flex flex-col" : "max-w-[1600px] min-h-full flex flex-col gap-5"}`}>
                 {activeView === "dashboard" && (

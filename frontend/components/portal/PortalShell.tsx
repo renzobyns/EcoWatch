@@ -36,6 +36,7 @@ interface PortalShellProps {
     notificationCount?: number;
     actions?: React.ReactNode;
     scrollable?: boolean;
+    mobileNavStyle?: "gotyme" | "standard" | "auto";
     children: ReactNode;
 }
 
@@ -56,6 +57,7 @@ export function PortalShell({
     notificationCount,
     actions,
     scrollable = true,
+    mobileNavStyle = "auto",
     children,
 }: PortalShellProps) {
     const [collapsed, setCollapsed] = useState(false);
@@ -162,6 +164,7 @@ export function PortalShell({
     }, [nav, activeKey, primarySlotItem]);
 
     const hasAnyBadge = nav.some(item => Boolean(item.badge && item.badge > 0));
+    const isGotymeNav = mobileNavStyle === "gotyme" || (mobileNavStyle === "auto" && nav.length > 5);
 
     return (
         <div className="-mt-20 h-[100dvh] sm:h-screen w-full flex bg-background overflow-hidden">
@@ -180,7 +183,7 @@ export function PortalShell({
                         pageBadge={pageBadge}
                         notificationCount={notificationCount}
                         actions={actions}
-                        onOpenMobileMenu={() => setMobileMenuOpen(true)}
+                        onOpenMobileMenu={isGotymeNav ? () => setMobileMenuOpen(true) : undefined}
                     />
                 </div>
                 <div role="region" aria-label="Portal content" className={`relative flex-1 ${activeKey === "map_view" ? "flex flex-col h-full overflow-hidden p-0" : "overflow-x-hidden " + (scrollable ? "overflow-y-auto" : "overflow-hidden") + " px-3 sm:px-4 md:px-8 pt-4 sm:pt-6 pb-24 md:pb-6"}`}>
@@ -188,7 +191,7 @@ export function PortalShell({
                 </div>
 
                 {/* Mobile Bottom Navigation */}
-                {nav.length > 4 ? (
+                {isGotymeNav ? (
                     /* GoTyme Bank-Inspired 3-Element Floating Dock */
                     <div className="md:hidden fixed inset-x-0 bottom-0 z-50 bg-background/95 backdrop-blur-md border-t border-border flex items-center justify-around px-4 py-2 shadow-[0_-4px_25px_-5px_rgba(0,0,0,0.15)] pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
                         {/* Slot 1: Primary Tab (Dashboard) */}
@@ -269,7 +272,7 @@ export function PortalShell({
                     </div>
                 ) : (
                     /* Standard Compact Bottom Bar for Portals with <=4 items */
-                    <div className="md:hidden fixed inset-x-0 bottom-0 z-50 bg-background/95 backdrop-blur-md border-t border-border flex items-center justify-around px-2 py-1.5 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.15)] pb-[env(safe-area-inset-bottom)]">
+                    <div className="md:hidden fixed inset-x-0 bottom-0 z-50 bg-background/95 backdrop-blur-md border-t border-border flex items-center justify-around px-1 py-1 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.15)] pb-[calc(env(safe-area-inset-bottom)+0.25rem)]">
                         {nav.map((item) => {
                             const Icon = item.icon;
                             const isActive = item.key === activeKey;
@@ -277,7 +280,7 @@ export function PortalShell({
                                 <button
                                     key={item.key}
                                     onClick={() => onNavChange(item.key)}
-                                    className={`flex flex-col items-center justify-center w-full max-w-[5rem] h-14 gap-1 rounded-xl transition-all ${
+                                    className={`flex flex-col items-center justify-center flex-1 max-w-[5rem] h-14 gap-0.5 rounded-xl transition-all ${
                                         isActive 
                                             ? "text-primary" 
                                             : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
@@ -291,7 +294,7 @@ export function PortalShell({
                                             </span>
                                         )}
                                     </div>
-                                    <span className={`text-[10px] leading-none tracking-tight ${isActive ? "font-semibold" : "font-medium"}`}>
+                                    <span className={`text-[10px] leading-tight tracking-tight text-center truncate max-w-[64px] ${isActive ? "font-semibold" : "font-medium"}`}>
                                         {item.label}
                                     </span>
                                 </button>
