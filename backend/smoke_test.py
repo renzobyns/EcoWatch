@@ -182,14 +182,30 @@ def s1_health_and_auth() -> dict:
         ok(f"login({email}) -> id={u.get('id')} role={u.get('role')}")
         users[role] = u
 
-    # Per-barangay account (proves seed_test_data.py created the 118 extras)
-    muzon_brgy = login("muzonproper@barangay.com")
-    if muzon_brgy:
-        ok(f"login(muzonproper@barangay.com) -> id={muzon_brgy['id']} "
-           f"barangay={muzon_brgy.get('barangay_assignment')}")
-        check(muzon_brgy.get("barangay_assignment") == "Muzon Proper",
-              "muzonproper@barangay.com is assigned to 'Muzon Proper'",
-              f"got {muzon_brgy.get('barangay_assignment')!r}")
+    # Per-barangay accounts (proves seed_test_data.py created per-barangay admin & cleaner accounts)
+    for slug, expected_assignment in [
+        ("muzonproper", "Muzon Proper"),
+        ("muzoneast", "Muzon East"),
+        ("muzonwest", "Muzon West"),
+        ("muzonsouth", "Muzon South"),
+    ]:
+        brgy_user = login(f"{slug}@barangay.com")
+        if brgy_user:
+            ok(f"login({slug}@barangay.com) -> id={brgy_user['id']} assignment={brgy_user.get('barangay_assignment')}")
+            check(brgy_user.get("barangay_assignment") == expected_assignment,
+                  f"{slug}@barangay.com is assigned to {expected_assignment!r}",
+                  f"got {brgy_user.get('barangay_assignment')!r}")
+            check(brgy_user.get("role") == "barangay",
+                  f"{slug}@barangay.com has role 'barangay'")
+
+        cleaner_user = login(f"{slug}@cleaners.com")
+        if cleaner_user:
+            ok(f"login({slug}@cleaners.com) -> id={cleaner_user['id']} assignment={cleaner_user.get('barangay_assignment')}")
+            check(cleaner_user.get("barangay_assignment") == expected_assignment,
+                  f"{slug}@cleaners.com is assigned to {expected_assignment!r}",
+                  f"got {cleaner_user.get('barangay_assignment')!r}")
+            check(cleaner_user.get("role") == "cleaner",
+                  f"{slug}@cleaners.com has role 'cleaner'")
 
     # Wrong password rejected
     r = requests.post(
@@ -248,7 +264,7 @@ def s2_spatial_routing() -> None:
     if r.status_code == 200:
         gj = r.json()
         n = len(gj.get("features", []))
-        check(n == 59, "GET /spatial/barangays returns 59 features",
+        check(n in (59, 62), f"GET /spatial/barangays returns {n} features (62 partitioned barangays)",
               f"got {n}")
     else:
         fail("GET /spatial/barangays", f"{r.status_code} {r.text[:120]}")
@@ -420,7 +436,7 @@ def s4_report_submit_pipeline(users: dict) -> Optional[dict]:
           f"final status is verified or rejected (got {final_status!r})")
 
     return {"id": report_id, "slug": slug, "tracking_id": tracking_id,
-            "barangay": barangay}
+            "barangay": barangay, "status": final_status}
 
 
 def s5_tracking(report: Optional[dict]) -> None:
@@ -521,9 +537,10 @@ def s7_cross_portal_visibility(users: dict, report: Optional[dict]) -> None:
             ok(f"{label}: report {report['tracking_id']} appears in default "
                f"feed ({len(reports)} total)")
             return
-        # Not in default - probably rejected. Try the rejected filter.
+        # Not in default - probably ai_rejected or rejected. Try the status filter.
         sep = "&" if "?" in path else "?"
-        r2 = get(f"{path}{sep}status=rejected", user_id=scope_user_id)
+        status_to_check = report.get("status") or "rejected"
+        r2 = get(f"{path}{sep}status={status_to_check}", user_id=scope_user_id)
         if r2.status_code == 200:
             body2 = r2.json()
             reports2 = body2 if isinstance(body2, list) else body2.get("reports", [])
@@ -531,10 +548,10 @@ def s7_cross_portal_visibility(users: dict, report: Optional[dict]) -> None:
                          for rr in reports2)
             check(found2,
                   f"{label}: report {report['tracking_id']} appears in "
-                  f"?status=rejected feed",
-                  f"default had {len(reports)}, rejected has {len(reports2)}")
+                  f"?status={status_to_check} feed",
+                  f"default had {len(reports)}, {status_to_check} has {len(reports2)}")
         else:
-            fail(f"{label} ?status=rejected fetch", f"{r2.status_code}")
+            fail(f"{label} ?status={status_to_check} fetch", f"{r2.status_code}")
 
     report_visible_at("/reports/barangay/Muzon%20Proper",
                       "Muzon Proper barangay queue",

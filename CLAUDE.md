@@ -92,8 +92,10 @@ Auth is local email/password (bcrypt). Session is stored in `localStorage` as `e
 
 **Test accounts** (after running `seed_test_data.py`):
 - `citizen@test.com` / `password123`
-- `barangay@test.com` / `password123` (assigned to Muzon)
+- `barangay@test.com` / `password123` (assigned to Muzon Proper)
 - `cenro@test.com` / `password123`
+- `cleaner@test.com` / `password123` (assigned to Muzon Proper)
+- Per-barangay: `<slug>@barangay.com` / `<slug>@cleaners.com` for all 62 barangays (e.g. `muzonproper@barangay.com`, `muzoneast@barangay.com`, `muzonwest@barangay.com`, `muzonsouth@barangay.com`). All passwords: `password123`.
 
 ---
 

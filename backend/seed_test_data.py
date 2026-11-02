@@ -59,7 +59,7 @@ def seed():
     print("🗑️  Cleared existing data.")
 
     # ─────────────────────────────────────────────
-    # SEED USERS (1 citizen, 1 barangay, 1 cenro, 1 cleaner)
+    # SEED USERS (4 core demo accounts)
     # ─────────────────────────────────────────────
     users = [
         models.User(
@@ -94,15 +94,6 @@ def seed():
             phone_number="+63 917 555 0102",
             is_verified=True
         ),
-        # Dedicated accounts for all 4 Muzon barangays
-        models.User(email="muzon_proper@test.com", password_hash=hash_pw("password123"), full_name="Muzon Proper Admin", role="barangay", barangay_assignment="Muzon Proper", is_verified=True),
-        models.User(email="muzon_east@test.com", password_hash=hash_pw("password123"), full_name="Muzon East Admin", role="barangay", barangay_assignment="Muzon East", is_verified=True),
-        models.User(email="muzon_west@test.com", password_hash=hash_pw("password123"), full_name="Muzon West Admin", role="barangay", barangay_assignment="Muzon West", is_verified=True),
-        models.User(email="muzon_south@test.com", password_hash=hash_pw("password123"), full_name="Muzon South Admin", role="barangay", barangay_assignment="Muzon South", is_verified=True),
-        models.User(email="cleaner_proper@test.com", password_hash=hash_pw("password123"), full_name="Muzon Proper Cleaner", role="cleaner", barangay_assignment="Muzon Proper", is_verified=True),
-        models.User(email="cleaner_east@test.com", password_hash=hash_pw("password123"), full_name="Muzon East Cleaner", role="cleaner", barangay_assignment="Muzon East", is_verified=True),
-        models.User(email="cleaner_west@test.com", password_hash=hash_pw("password123"), full_name="Muzon West Cleaner", role="cleaner", barangay_assignment="Muzon West", is_verified=True),
-        models.User(email="cleaner_south@test.com", password_hash=hash_pw("password123"), full_name="Muzon South Cleaner", role="cleaner", barangay_assignment="Muzon South", is_verified=True),
     ]
     
     for user in users:
@@ -115,17 +106,20 @@ def seed():
     
     citizen = users[0]
     
-    print(f"👤 Created {len(users)} test users:")
+    print(f"👤 Created {len(users)} core demo users:")
     for u in users:
         print(f"   → {u.email} ({u.role}) — password: password123")
 
     # ─────────────────────────────────────────────
-    # SEED PER-BARANGAY ACCOUNTS (1 barangay officer + 1 cleaner per barangay)
+    # SEED PER-BARANGAY ACCOUNTS (1 barangay admin + 1 cleaner per barangay)
     # Email pattern: <slug>@barangay.com  /  <slug>@cleaners.com
     # Slug = lowercased name with non-alphanumeric stripped
     #   "Minuyan Proper"  -> minuyanproper@barangay.com / minuyanproper@cleaners.com
-    #   "Santo Niño"      -> santonino@barangay.com    / santonino@cleaners.com
-    # Lets the demo log in as ANY barangay's account without manual setup.
+    #   "Muzon Proper"    -> muzonproper@barangay.com   / muzonproper@cleaners.com
+    #   "Muzon East"      -> muzoneast@barangay.com     / muzoneast@cleaners.com
+    #   "Muzon West"      -> muzonwest@barangay.com     / muzonwest@cleaners.com
+    #   "Muzon South"     -> muzonsouth@barangay.com    / muzonsouth@cleaners.com
+    # Lets the demo log in as ANY barangay's admin or cleaner without manual setup.
     # ─────────────────────────────────────────────
     all_barangays = get_all_barangays()
     per_brgy_users = []
@@ -134,7 +128,7 @@ def seed():
         per_brgy_users.append(models.User(
             email=f"{slug}@barangay.com",
             password_hash=hash_pw("password123"),
-            full_name=f"{brgy_name} Barangay Officer",
+            full_name=f"{brgy_name} Admin",
             role="barangay",
             barangay_assignment=brgy_name,
             is_verified=True
@@ -148,17 +142,42 @@ def seed():
             is_verified=True
         ))
 
+    # Also register underscore aliases for the 4 Muzon partitions
+    # so both muzonproper@barangay.com and muzon_proper@barangay.com work seamlessly.
+    muzon_aliases = [
+        ("Muzon Proper", "muzon_proper"),
+        ("Muzon East", "muzon_east"),
+        ("Muzon West", "muzon_west"),
+        ("Muzon South", "muzon_south"),
+    ]
+    for brgy_name, alias_slug in muzon_aliases:
+        per_brgy_users.append(models.User(
+            email=f"{alias_slug}@barangay.com",
+            password_hash=hash_pw("password123"),
+            full_name=f"{brgy_name} Admin (Alias)",
+            role="barangay",
+            barangay_assignment=brgy_name,
+            is_verified=True
+        ))
+        per_brgy_users.append(models.User(
+            email=f"{alias_slug}@cleaners.com",
+            password_hash=hash_pw("password123"),
+            full_name=f"{brgy_name} Cleaner (Alias)",
+            role="cleaner",
+            barangay_assignment=brgy_name,
+            is_verified=True
+        ))
+
     for user in per_brgy_users:
         db.add(user)
     db.commit()
 
     print(f"\n🏘️  Seeded {len(per_brgy_users)} per-barangay accounts "
-          f"({len(all_barangays)} barangays × 2 roles, password: password123)")
-    print(f"   Examples:")
-    for sample in all_barangays[:3]:
-        s = slugify_barangay(sample)
-        print(f"   → {s}@barangay.com  /  {s}@cleaners.com  ({sample})")
-    print(f"   ...and {len(all_barangays) - 3} more.")
+          f"({len(all_barangays)} barangays × 2 roles + 4 Muzon aliases, password: password123)")
+    print(f"   Examples for 4 Muzon Barangays:")
+    for muzon_sample in ["Muzon Proper", "Muzon East", "Muzon West", "Muzon South"]:
+        s = slugify_barangay(muzon_sample)
+        print(f"   → {s}@barangay.com  /  {s}@cleaners.com  ({muzon_sample} Admin & Cleaner)")
 
     # ─────────────────────────────────────────────
     # SEED REPORTS (various statuses, barangays)
@@ -193,6 +212,15 @@ def seed():
         make_report(lat=14.8045, lon=121.0345, barangay="Muzon Proper",
                     status=models.ReportStatus.VERIFIED, notes="Bags of trash by sidewalk",
                     reporter_id=citizen.id),
+        make_report(lat=14.8041, lon=121.0342, barangay="Muzon Proper",
+                    status=models.ReportStatus.ASSIGNED, notes="Litter near transport terminal",
+                    deployed_at=now - timedelta(hours=4)),
+        make_report(lat=14.8043, lon=121.0344, barangay="Muzon Proper",
+                    status=models.ReportStatus.IN_PROGRESS, notes="Active debris clearing at market ditch",
+                    deployed_at=now - timedelta(hours=1)),
+        make_report(lat=14.8039, lon=121.0340, barangay="Muzon Proper",
+                    status=models.ReportStatus.FAILED_CLEANUP, notes="Secondary cleanup needed at grocery alley",
+                    deployed_at=now - timedelta(hours=5)),
 
         # ── MUZON WEST: Dense hotspot cluster (SJDM Heights / river zone) ──
         make_report(lat=14.8150, lon=121.0250, barangay="Muzon West",
@@ -291,34 +319,32 @@ def seed():
         print(f"   → {brgy}: {count}")
 
     # ─────────────────────────────────────────────
-    # SEED WORK ORDERS (for the cleaner test account)
+    # SEED WORK ORDERS (across Muzon & demo accounts)
     # ─────────────────────────────────────────────
-    cleaner = next(u for u in users if u.role == "cleaner")
+    cleaner_accounts = db.query(models.User).filter(models.User.role == "cleaner").all()
+    cleaners_by_email = {c.email: c for c in cleaner_accounts}
 
-    # Pull the Muzon ASSIGNED/IN_PROGRESS/FAILED_CLEANUP reports for cleaner WOs
+    cleaner_demo = cleaners_by_email.get("cleaner@test.com")
+    cleaner_muzon_proper = cleaners_by_email.get("muzonproper@cleaners.com")
+    cleaner_muzon_west = cleaners_by_email.get("muzonwest@cleaners.com")
+    cleaner_muzon_east = cleaners_by_email.get("muzoneast@cleaners.com")
+    cleaner_muzon_south = cleaners_by_email.get("muzonsouth@cleaners.com")
+    cleaner_dulong_bayan = cleaners_by_email.get("dulongbayan@cleaners.com")
+
     db.commit()
     for report in test_reports:
         db.refresh(report)
 
-    muzon_deployed = [
-        r for r in test_reports
-        if r.barangay == "Muzon Proper"
-        and r.status in (models.ReportStatus.ASSIGNED, models.ReportStatus.IN_PROGRESS, models.ReportStatus.FAILED_CLEANUP)
-    ]
-
     sla_priority_days = {"low": 7, "medium": 3, "high": 1}
-    wo_specs = [
-        # (priority, status, started_offset_hours, completed_offset_hours)
-        ("high", models.WorkOrderStatus.ASSIGNED, None, None),
-        ("medium", models.WorkOrderStatus.IN_PROGRESS, 1, None),
-        ("medium", models.WorkOrderStatus.NEEDS_REDO, 6, 2),
-    ]
     work_orders = []
-    for report, (priority, status, started_off, completed_off) in zip(muzon_deployed, wo_specs):
+
+    def assign_wo(rep, cln, priority, status, started_off=None, completed_off=None):
+        if not rep or not cln:
+            return
         created_at = now - timedelta(hours=4)
         wo = models.WorkOrder(
-            report_id=report.id,
-            assigned_cleaner_id=cleaner.id,
+            report_id=rep.id,
+            assigned_cleaner_id=cln.id,
             priority=priority,
             sla_deadline=created_at + timedelta(days=sla_priority_days[priority]),
             status=status,
@@ -328,49 +354,114 @@ def seed():
         )
         db.add(wo)
         work_orders.append(wo)
+
+    # 1. Cleaner test account (cleaner@test.com) -> First 3 Muzon Proper reports
+    # (guarantees smoke tests check len(wos) >= 3 passes)
+    muzon_proper_deployed = [
+        r for r in test_reports
+        if r.barangay == "Muzon Proper" and r.status in (
+            models.ReportStatus.ASSIGNED, models.ReportStatus.IN_PROGRESS, models.ReportStatus.FAILED_CLEANUP
+        )
+    ]
+    wo_specs = [
+        ("high", models.WorkOrderStatus.ASSIGNED, None, None),
+        ("medium", models.WorkOrderStatus.IN_PROGRESS, 1, None),
+        ("medium", models.WorkOrderStatus.NEEDS_REDO, 6, 2),
+    ]
+    for rep, (prio, st, st_off, comp_off) in zip(muzon_proper_deployed[:3], wo_specs):
+        assign_wo(rep, cleaner_demo, prio, st, st_off, comp_off)
+
+    # 2. Muzon Proper Cleaner (muzonproper@cleaners.com) -> Remaining Muzon Proper reports
+    for rep, (prio, st, st_off, comp_off) in zip(muzon_proper_deployed[3:6], wo_specs):
+        assign_wo(rep, cleaner_muzon_proper, prio, st, st_off, comp_off)
+
+    # 3. Muzon West Cleaner (muzonwest@cleaners.com)
+    muzon_west_deployed = [
+        r for r in test_reports
+        if r.barangay == "Muzon West" and r.status in (
+            models.ReportStatus.ASSIGNED, models.ReportStatus.IN_PROGRESS, models.ReportStatus.FAILED_CLEANUP
+        )
+    ]
+    for rep, (prio, st, st_off, comp_off) in zip(muzon_west_deployed, wo_specs):
+        assign_wo(rep, cleaner_muzon_west, prio, st, st_off, comp_off)
+
+    # 4. Muzon East Cleaner (muzoneast@cleaners.com)
+    muzon_east_deployed = [
+        r for r in test_reports
+        if r.barangay == "Muzon East" and r.status in (
+            models.ReportStatus.ASSIGNED, models.ReportStatus.IN_PROGRESS, models.ReportStatus.FAILED_CLEANUP
+        )
+    ]
+    for rep in muzon_east_deployed:
+        assign_wo(rep, cleaner_muzon_east, "medium", models.WorkOrderStatus.ASSIGNED)
+
+    # 5. Muzon South Cleaner (muzonsouth@cleaners.com)
+    muzon_south_deployed = [
+        r for r in test_reports
+        if r.barangay == "Muzon South" and r.status in (
+            models.ReportStatus.ASSIGNED, models.ReportStatus.IN_PROGRESS, models.ReportStatus.FAILED_CLEANUP
+        )
+    ]
+    for rep in muzon_south_deployed:
+        assign_wo(rep, cleaner_muzon_south, "high", models.WorkOrderStatus.ASSIGNED)
+
+    # 6. Dulong Bayan Cleaner (dulongbayan@cleaners.com)
+    dulong_bayan_deployed = [
+        r for r in test_reports
+        if r.barangay == "Dulong Bayan" and r.status in (
+            models.ReportStatus.ASSIGNED, models.ReportStatus.IN_PROGRESS, models.ReportStatus.FAILED_CLEANUP
+        )
+    ]
+    for rep in dulong_bayan_deployed:
+        assign_wo(rep, cleaner_dulong_bayan, "medium", models.WorkOrderStatus.ASSIGNED)
+
     db.commit()
     for wo in work_orders:
         db.refresh(wo)
 
-    print(f"\n🛠️  Created {len(work_orders)} work orders for {cleaner.email}:")
+    print(f"\n🛠️  Created {len(work_orders)} work orders across all deployed barangays.")
     for wo in work_orders:
-        print(f"   → WO #{wo.id}  priority={wo.priority}  status={wo.status}")
+        cln_email = getattr(wo.assigned_cleaner, 'email', str(wo.assigned_cleaner_id))
+        print(f"   → WO #{wo.id} [{wo.report.barangay if wo.report else '?'}] for {cln_email} — priority={wo.priority} status={wo.status}")
 
     # ─────────────────────────────────────────────
-    # SEED SAMPLE NOTIFICATIONS (so the bell isn't empty on first load)
+    # SEED SAMPLE NOTIFICATIONS (for cleaners)
     # ─────────────────────────────────────────────
     sample_notifications = []
-    if work_orders:
-        # First WO got a fresh assignment
-        wo0 = work_orders[0]
-        sample_notifications.append(models.Notification(
-            user_id=cleaner.id,
-            kind="job_assigned",
-            title=f"New job assigned: {wo0.report.tracking_id if wo0.report else f'#{wo0.id}'}",
-            body=f"Priority: {wo0.priority.upper()}. Deadline: {wo0.sla_deadline.strftime('%b %d %I:%M %p')}",
-            work_order_id=wo0.id,
-            report_id=wo0.report_id,
-            is_read=False,
-            created_at=now - timedelta(minutes=10),
-        ))
-    if len(work_orders) >= 3:
-        # Third WO was marked needs_redo
-        wo2 = work_orders[2]
-        sample_notifications.append(models.Notification(
-            user_id=cleaner.id,
-            kind="needs_redo",
-            title=f"Cleanup needs redo: {wo2.report.tracking_id if wo2.report else f'#{wo2.id}'}",
-            body="AI still detected waste. Please clean more thoroughly and try again.",
-            work_order_id=wo2.id,
-            report_id=wo2.report_id,
-            is_read=False,
-            created_at=now - timedelta(hours=2),
-        ))
+    for cleaner_target in [cleaner_demo, cleaner_muzon_proper, cleaner_muzon_west]:
+        if not cleaner_target:
+            continue
+        c_wos = [w for w in work_orders if w.assigned_cleaner_id == cleaner_target.id]
+        if c_wos:
+            w0 = c_wos[0]
+            sample_notifications.append(models.Notification(
+                user_id=cleaner_target.id,
+                kind="job_assigned",
+                title=f"New job assigned: {w0.report.tracking_id if w0.report else f'#{w0.id}'}",
+                body=f"Priority: {w0.priority.upper()}. Deadline: {w0.sla_deadline.strftime('%b %d %I:%M %p')}",
+                work_order_id=w0.id,
+                report_id=w0.report_id,
+                is_read=False,
+                created_at=now - timedelta(minutes=10),
+            ))
+        redo_wos = [w for w in c_wos if w.status == models.WorkOrderStatus.NEEDS_REDO]
+        if redo_wos:
+            wr = redo_wos[0]
+            sample_notifications.append(models.Notification(
+                user_id=cleaner_target.id,
+                kind="needs_redo",
+                title=f"Cleanup needs redo: {wr.report.tracking_id if wr.report else f'#{wr.id}'}",
+                body="AI still detected waste. Please clean more thoroughly and try again.",
+                work_order_id=wr.id,
+                report_id=wr.report_id,
+                is_read=False,
+                created_at=now - timedelta(hours=2),
+            ))
 
     for n in sample_notifications:
         db.add(n)
     db.commit()
-    print(f"\n🔔 Seeded {len(sample_notifications)} sample notifications for cleaner.")
+    print(f"\n🔔 Seeded {len(sample_notifications)} sample notifications for cleaners.")
 
     print(f"\n✅ Seed complete! Open ecowatch.db in DB Browser to verify.")
     db.close()

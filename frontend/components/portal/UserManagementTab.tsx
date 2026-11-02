@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, forwardRef, useImperativeHandle } from "react";
+import { createPortal } from "react-dom";
 import { Search, UserPlus, Upload, Download, MoreVertical, ShieldCheck, FileText, AlertCircle, Users, Shield, List, LayoutGrid, ShieldAlert, FileMinus } from "lucide-react";
 import { api, ApiError, API_URL } from "@/lib/api";
 import { toast } from "sonner";
@@ -80,10 +81,23 @@ export const UserManagementTab = forwardRef<UserManagementRef, UserManagementTab
 
     const [disabling, setDisabling] = useState<Set<number>>(new Set());
     const [reactivating, setReactivating] = useState<Set<number>>(new Set());
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     useImperativeHandle(ref, () => ({
         openCreateForBarangay: (barangay: string) => {
-            setCreateForm({ email: "", full_name: "", phone_number: "", barangay_assignment: barangay, role: "barangay" });
+            setCreatedCredential(null);
+            const slug = barangay ? barangay.toLowerCase().replace(/[^a-z0-9]/g, "") : "";
+            setCreateForm({
+                email: slug ? `${slug}@barangay.com` : "",
+                full_name: barangay ? `${barangay} Admin` : "",
+                phone_number: "",
+                barangay_assignment: barangay || "",
+                role: "barangay",
+            });
             setShowCreateUserModal(true);
         },
         openEditForBarangay: (admin: BarangayUser | Record<string, unknown>, barangay: string) => {
@@ -676,8 +690,8 @@ export const UserManagementTab = forwardRef<UserManagementRef, UserManagementTab
                 </div>
 
             {/* CREATE MODAL */}
-            {showCreateUserModal && (
-                <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+            {mounted && showCreateUserModal && createPortal(
+                <div className="fixed inset-0 z-[2100] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-lg flex flex-col max-h-[90vh]">
                         <div className="p-6 border-b border-border">
                             <h2 className="text-xl font-bold text-foreground">Add New User</h2>
@@ -742,12 +756,13 @@ export const UserManagementTab = forwardRef<UserManagementRef, UserManagementTab
                             )}
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* EDIT MODAL */}
-            {showEditUserModal && (
-                <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+            {mounted && showEditUserModal && createPortal(
+                <div className="fixed inset-0 z-[2100] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-lg flex flex-col max-h-[90vh]">
                         <div className="p-6 border-b border-border">
                             <h2 className="text-xl font-bold text-foreground">Edit Account Details</h2>
@@ -814,12 +829,13 @@ export const UserManagementTab = forwardRef<UserManagementRef, UserManagementTab
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* ROLE CHANGE CONFIRMATION MODAL */}
-            {showRoleConfirmModal && editTarget && (
-                <div className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+            {mounted && showRoleConfirmModal && editTarget && createPortal(
+                <div className="fixed inset-0 z-[2200] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-card w-full max-w-sm rounded-2xl border border-border shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-200">
                         <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center mx-auto">
                             <ShieldAlert size={24} />
@@ -854,12 +870,13 @@ export const UserManagementTab = forwardRef<UserManagementRef, UserManagementTab
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* RESET PASSWORD MODAL */}
-            {showResetPasswordModal && resetTarget && (
-                <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+            {mounted && showResetPasswordModal && resetTarget && createPortal(
+                <div className="fixed inset-0 z-[2100] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-card w-full max-w-sm rounded-2xl border border-border shadow-lg flex flex-col">
                         <div className="p-6 text-center">
                             {resetCredential ? (
@@ -893,12 +910,13 @@ export const UserManagementTab = forwardRef<UserManagementRef, UserManagementTab
                             )}
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* IMPORT MODAL */}
-            {showImportModal && (
-                <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+            {mounted && showImportModal && createPortal(
+                <div className="fixed inset-0 z-[2100] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-card w-full max-w-xl rounded-2xl border border-border shadow-lg flex flex-col">
                         <div className="p-6 border-b border-border">
                             <h2 className="text-xl font-bold text-foreground">Bulk Import Accounts</h2>
@@ -1012,7 +1030,8 @@ export const UserManagementTab = forwardRef<UserManagementRef, UserManagementTab
                             )}
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

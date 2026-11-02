@@ -83,12 +83,25 @@ export default function Navbar() {
 
                         {!user && (
                             <>
-                                <Button onClick={() => setSettingsOpen(true)} variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground">
+                                <Button 
+                                    onClick={() => setSettingsOpen(true)} 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    type="button"
+                                    aria-label="Settings"
+                                    className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground"
+                                >
                                     <Settings size={18} />
                                 </Button>
-                                <Button asChild variant="outline" size="sm" className="h-9 rounded-xl shadow-sm">
-                                    <Link href="/login">Log In</Link>
-                                </Button>
+                                {pathname === '/login' ? (
+                                    <Button asChild variant="outline" size="sm" className="h-9 rounded-xl shadow-sm">
+                                        <Link href="/signup">Sign Up</Link>
+                                    </Button>
+                                ) : (
+                                    <Button asChild variant="outline" size="sm" className="h-9 rounded-xl shadow-sm">
+                                        <Link href="/login">Log In</Link>
+                                    </Button>
+                                )}
                             </>
                         )}
                         
@@ -183,7 +196,7 @@ export default function Navbar() {
         <SettingsModal 
             open={settingsOpen} 
             onClose={() => setSettingsOpen(false)} 
-            role={user?.role as any || "guest"} 
+            role={(user?.role as "cenro" | "barangay" | "cleaner" | "citizen" | "guest") || "guest"} 
         />
     </>
 );

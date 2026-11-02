@@ -271,8 +271,10 @@ WorkOrder tracks assigned cleaner, priority, and SLA deadline (configurable per 
 
 ### Test accounts (after `seed_test_data.py`)
 - `citizen@test.com` / `password123`
-- `barangay@test.com` / `password123` (assigned to Muzon)
+- `barangay@test.com` / `password123` (assigned to Muzon Proper)
 - `cenro@test.com` / `password123`
+- `cleaner@test.com` / `password123` (assigned to Muzon Proper)
+- Per-barangay: `<slug>@barangay.com` / `<slug>@cleaners.com` for all 62 barangays (e.g. `muzonproper@barangay.com`, `muzoneast@barangay.com`, `muzonwest@barangay.com`, `muzonsouth@barangay.com`). All passwords: `password123`.
 
 ### AI / ML notes
 - Model: `backend/models/mask_rcnn_garbage.h5` — gitignored, download from HuggingFace.

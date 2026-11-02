@@ -63,6 +63,33 @@ function MapController({ focusedBarangay, geoData }: { focusedBarangay: string |
     const map = useMap();
 
     useEffect(() => {
+        map.invalidateSize();
+        const t1 = setTimeout(() => map.invalidateSize(), 150);
+        const t2 = setTimeout(() => map.invalidateSize(), 400);
+
+        const container = map.getContainer();
+        let resizeObserver: ResizeObserver | null = null;
+        if (typeof ResizeObserver !== "undefined" && container) {
+            resizeObserver = new ResizeObserver(() => {
+                map.invalidateSize();
+            });
+            resizeObserver.observe(container);
+        }
+
+        const handleResize = () => {
+            map.invalidateSize();
+        };
+        window.addEventListener("resize", handleResize);
+
+        return () => {
+            clearTimeout(t1);
+            clearTimeout(t2);
+            window.removeEventListener("resize", handleResize);
+            if (resizeObserver) resizeObserver.disconnect();
+        };
+    }, [map]);
+
+    useEffect(() => {
         if (!focusedBarangay) {
             // Reset to city view
             map.setView([14.82, 121.05], 12);

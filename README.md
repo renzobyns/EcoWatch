@@ -337,21 +337,25 @@ API docs at http://localhost:8000/docs (Swagger UI).
 | Role | Email | Password | Notes |
 |---|---|---|---|
 | Citizen | `citizen@test.com` | `password123` | Public reporting only |
-| Barangay | `barangay@test.com` | `password123` | Assigned to **Muzon** |
+| Barangay | `barangay@test.com` | `password123` | Assigned to **Muzon Proper** (Quick demo alias) |
 | CENRO | `cenro@test.com` | `password123` | City-wide oversight |
-| Cleaner | `cleaner@test.com` | `password123` | Assigned to **Muzon** (has WorkOrders) |
+| Cleaner | `cleaner@test.com` | `password123` | Assigned to **Muzon Proper** (has WorkOrders) |
 
-**Per-barangay accounts** — every one of the **59 SJDM barangays** gets a default barangay officer + cleaner account, so you can log in as any barangay without manually creating users (useful when a panelist asks "show me Minuyan Proper's portal").
+**Per-barangay accounts** — every one of the **62 SJDM barangays** (including all 4 partitioned Muzon barangays: Muzon Proper, Muzon East, Muzon West, Muzon South) gets a default barangay admin + cleaner account, so you can log in as any barangay without manual setup:
 
 | Pattern | Example | Role |
 |---|---|---|
-| `<slug>@barangay.com` | `minuyanproper@barangay.com` | barangay (assigned to that barangay) |
-| `<slug>@cleaners.com` | `minuyanproper@cleaners.com` | cleaner (assigned to that barangay) |
+| `<slug>@barangay.com` | `muzonproper@barangay.com` | barangay (Admin assigned to that barangay) |
+| `<slug>@cleaners.com` | `muzonproper@cleaners.com` | cleaner (Cleaner assigned to that barangay) |
 
 **Slug rule:** lowercased barangay name with all non-alphanumeric characters stripped. A few examples:
 
 | Barangay | Slug | Accounts |
 |---|---|---|
+| Muzon Proper | `muzonproper` | `muzonproper@barangay.com`, `muzonproper@cleaners.com` |
+| Muzon East | `muzoneast` | `muzoneast@barangay.com`, `muzoneast@cleaners.com` |
+| Muzon West | `muzonwest` | `muzonwest@barangay.com`, `muzonwest@cleaners.com` |
+| Muzon South | `muzonsouth` | `muzonsouth@barangay.com`, `muzonsouth@cleaners.com` |
 | Minuyan Proper | `minuyanproper` | `minuyanproper@barangay.com`, `minuyanproper@cleaners.com` |
 | San Roque | `sanroque` | `sanroque@barangay.com`, `sanroque@cleaners.com` |
 | Sto. Cristo | `stocristo` | `stocristo@barangay.com`, `stocristo@cleaners.com` |
@@ -359,7 +363,7 @@ API docs at http://localhost:8000/docs (Swagger UI).
 | Francisco Homes-Guijo | `franciscohomesguijo` | `franciscohomesguijo@barangay.com`, … |
 | Bagong Buhay II | `bagongbuhayii` | `bagongbuhayii@barangay.com`, … |
 
-All passwords are `password123`. Total seeded: 4 quick-demo + 118 per-barangay = **122 accounts**.
+All passwords are `password123`. Total seeded: 4 quick-demo + 124 per-barangay + 8 Muzon aliases = **136 accounts**.
 
 > The full source-of-truth list of barangays is [`data/sjdm_barangays.geojson`](data/sjdm_barangays.geojson) (`ADM4_EN` field). The seeder loops over it, so the account list always matches the GeoJSON.
 

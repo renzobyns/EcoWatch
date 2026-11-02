@@ -456,7 +456,13 @@ function CenroDashboardInner() {
             const qs = params.toString();
             const data = await api(`/analytics/barangay-overview${qs ? `?${qs}` : ""}`);
             setBarangayCityWide(data.city_wide ?? null);
-            setBarangayOverview(Array.isArray(data.barangays) ? data.barangays : []);
+            const bList = Array.isArray(data.barangays) ? data.barangays : [];
+            setBarangayOverview(bList);
+            setSelectedBarangayRow(prev => {
+                if (!prev) return null;
+                const found = bList.find((b: BarangayOverviewRow) => b.barangay === prev.barangay);
+                return found || prev;
+            });
         } catch (err) {
             const msg = err instanceof ApiError ? err.message : "Could not load barangay data. Please refresh.";
             setBarangayError(msg);
@@ -680,7 +686,8 @@ function CenroDashboardInner() {
                 </button>
             ) : undefined}
         >
-            <div className="max-w-[1600px] mx-auto min-h-full flex flex-col">
+            <div className={`max-w-[1600px] mx-auto w-full ${activeTab === 'overview' ? 'h-full flex-1 flex flex-col' : 'min-h-full flex flex-col'}`}>
+
 
                 {/* ANALYTICS TAB */}
                 {activeTab === 'analytics' && (
@@ -1075,7 +1082,7 @@ function CenroDashboardInner() {
                 {activeTab === 'overview' && (
                     /* OVERVIEW TAB (Map + Stats) */
                     loading ? (
-                        <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0 animate-pulse">
+                        <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0 lg:h-[calc(100vh-8.5rem)] lg:min-h-[550px] animate-pulse">
                             {/* Left: Stats Column Skeleton */}
                             <div className="flex-1 lg:max-w-xs flex flex-col gap-3">
                                 <div className="rounded-lg border border-border bg-card p-4 flex flex-col gap-3 h-24 justify-center">
@@ -1100,15 +1107,15 @@ function CenroDashboardInner() {
                                 </div>
                             </div>
                             {/* Right: Map Skeleton */}
-                            <div className="flex-[3] rounded-lg border border-border bg-card relative min-h-[400px]">
+                            <div className="flex-[3] rounded-lg border border-border bg-card relative min-h-[400px] lg:h-full lg:min-h-[550px]">
                                 <div className="absolute inset-0 bg-muted/30 animate-pulse" />
                                 <div className="absolute top-3 left-3 h-5 w-32 bg-muted rounded-full" />
                             </div>
                         </div>
                     ) : (
-                        <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0">
+                        <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0 lg:h-[calc(100vh-8.5rem)] lg:min-h-[550px]">
                             {/* Left: Stats Column */}
-                            <div className="flex-1 lg:max-w-xs flex flex-col gap-3 relative z-30">
+                            <div className="flex-1 lg:max-w-xs flex flex-col gap-3 relative z-30 lg:h-full">
                                 <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm flex flex-col">
                                     <div className="p-4 pb-2 flex items-center justify-between">
                                         <h3 className="text-xs font-medium text-muted-foreground tracking-tight">Total Reports</h3>
@@ -1169,7 +1176,7 @@ function CenroDashboardInner() {
                             </div>
 
                             {/* Right: Map */}
-                            <div className="w-full h-[420px] sm:h-[520px] lg:h-full lg:flex-[3] rounded-lg border border-border bg-card shadow-sm overflow-hidden relative z-0 shrink-0">
+                            <div className="w-full h-[420px] sm:h-[520px] lg:h-full lg:min-h-[550px] lg:flex-[3] rounded-lg border border-border bg-card shadow-sm overflow-hidden relative z-0 shrink-0">
                                 <div className="absolute top-3 left-3 z-[1000] bg-background/80 backdrop-blur-md px-2 py-1 rounded text-[11px] font-medium text-foreground border border-border pointer-events-none shadow-sm flex items-center gap-1.5">
                                     <span className="relative flex h-2 w-2">
                                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -1214,12 +1221,12 @@ function CenroDashboardInner() {
                     />
                 )}
 
-                {activeTab === 'users' && (
+                <div className={activeTab === 'users' ? 'block' : 'hidden'}>
                     <UserManagementTab 
                         ref={userManagementRef}
                         onBarangayAdminChange={() => fetchBarangayOverview(barangayDateRange)}
                     />
-                )}
+                </div>
             </div>
 
             <ReportDetailDrawer
