@@ -996,17 +996,17 @@ export const UserManagementTab = forwardRef<UserManagementRef, UserManagementTab
                                                     <tr key={i}>
                                                         <td className="px-3 py-2 font-mono text-xs">{r.email}</td>
                                                         <td className="px-3 py-2">
-                                                            {r.status === "success" ? (
+                                                            {r.status === "success" || r.status === "created" ? (
                                                                 <span className="text-xs font-semibold text-emerald-500">Success</span>
                                                             ) : (
                                                                 <span className="text-xs font-semibold text-destructive">Failed</span>
                                                             )}
                                                         </td>
                                                         <td className="px-3 py-2 text-xs text-muted-foreground">
-                                                            {r.status === "success" ? (
+                                                            {r.status === "success" || r.status === "created" ? (
                                                                 <span className="font-mono text-foreground font-medium">Temp PW: {r.temporary_password}</span>
                                                             ) : (
-                                                                r.error || "Unknown error"
+                                                                r.error || (Array.isArray(r.errors) ? r.errors.join(", ") : "Unknown error")
                                                             )}
                                                         </td>
                                                     </tr>

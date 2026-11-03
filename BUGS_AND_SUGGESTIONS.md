@@ -13,29 +13,29 @@
 
 | ID | Type | Title | Module | Status |
 |---|---|---|---|---|
-| **#1** | 🐛 Bug | Cleanup Resolution Proof displayed on failed cleanup | Public Tracker (`/track/[id]`) | `[ ]` Open |
-| **#2** | 🐛 Bug | "Pending / Verified" KPI in CENRO shows 0 (`ai_verified` omitted) | CENRO Oversight (`OversightTab.tsx`) | `[ ]` Open |
+| **#1** | 🐛 Bug | Cleanup Resolution Proof displayed on failed cleanup | Public Tracker (`/track/[id]`) | `[/]` Fixed by Agent |
+| **#2** | 🐛 Bug | "Pending / Verified" KPI in CENRO shows 0 (`ai_verified` omitted) | CENRO Oversight (`OversightTab.tsx`) | `[/]` Fixed by Agent |
 | **#3** | 🐛 Bug | Severe light mode contrast failures (WCAG AA/AAA) | Detail Drawer & Drilldown Modal | `[ ]` Open |
-| **#4** | 🐛 Bug | No toast notification after clicking "Confirm Duplicate" | Report Drawer (`ReportDetailDrawer.tsx`) | `[ ]` Open |
+| **#4** | 🐛 Bug | No toast notification after clicking "Confirm Duplicate" | Report Drawer (`ReportDetailDrawer.tsx`) | `[/]` Fixed by Agent |
 | **#5** | 🎨 UI/UX | Drawer "Timeline" tab is an unformatted raw text dump | Report Drawer (`ReportDetailDrawer.tsx`) | `[ ]` Open |
-| **#6** | 🐛 Bug | Able to reassign Barangay jurisdiction on resolved reports | Report Drawer & Backend API | `[ ]` Open |
+| **#6** | 🐛 Bug | Able to reassign Barangay jurisdiction on resolved reports | Report Drawer & Backend API | `[/]` Fixed by Agent |
 | **#7** | 🚀 Feature | CENRO Emergency Dispatch / Direct Work Order Creation | CENRO Drawer & Backend Work Orders | `[ ]` Open |
-| **#8** | 🐛 Bug | Resolution Rate in Analytics shows 100% (`ai_verified` omitted) | Backend Analytics (`analytics.py`) | `[ ]` Open |
-| **#9** | 🐛 Bug | Premature day rounding displays 2.4h instead of 16m (D:H:M:S format) | Backend Analytics & Frontend KPI | `[ ]` Open |
+| **#8** | 🐛 Bug | Resolution Rate in Analytics shows 100% (`ai_verified` omitted) | Backend Analytics (`analytics.py`) | `[/]` Fixed by Agent |
+| **#9** | 🐛 Bug | Premature day rounding displays 2.4h instead of 16m (D:H:M:S format) | Backend Analytics & Frontend KPI | `[ ]` In Progress |
 | **#10** | 🐛 Bug | "Reassign Admin" opens personal edit form instead of selector | Barangay Management Drawer | `[ ]` Open |
-| **#11** | 🐛 Bug | Bulk import shows "Failed: Unknown error" & hides passwords | User Management (`UserManagementTab.tsx`) | `[ ]` Open |
+| **#11** | 🐛 Bug | Bulk import shows "Failed: Unknown error" & hides passwords | User Management (`UserManagementTab.tsx`) | `[/]` Fixed by Agent |
 | **#12** | 🎨 UI/UX | "Add New User" modal form is too static and unpolished | User Management (`UserManagementTab.tsx`) | `[ ]` Open |
 | **#13** | 🎨 UI/UX | Barangay Dashboard "Recent Reports" is plain and sparse | Barangay Dashboard (`barangay/page.tsx`) | `[ ]` Open |
 | **#14** | 🐛 Bug | Barangay Review tab permanently stuck on skeletal loader | Barangay Review (`barangay/page.tsx`) | `[ ]` Open |
 | **#15** | 🐛 Bug | Barangay Map View completely blank / not rendering | Barangay Map (`barangay/page.tsx`) | `[ ]` Open |
-| **#16** | 🐛 Bug | "Open" column in Barangay reports shows dashes (`—`) | SLA Helper (`lib/sla.ts`) & Barangay | `[ ]` Open |
+| **#16** | 🐛 Bug | "Open" column in Barangay reports shows dashes (`—`) | SLA Helper (`lib/sla.ts`) & Barangay | `[/]` In Progress |
 | **#17** | 🎨 UI/UX | Remove redundant "Manage" button in Barangay table | Barangay Reports (`barangay/page.tsx`) | `[ ]` Open |
 
 ---
 
 ## Detailed Items
 
-### - [ ] 🐛 Bug #1: "Cleanup Resolution Proof" shows on public tracking page when cleanup failed (`failed_cleanup`)
+### - [/] 🐛 Bug #1: "Cleanup Resolution Proof" shows on public tracking page when cleanup failed (`failed_cleanup`)
 
 * **Page:** Public Tracker (`frontend/app/track/[id]/page.tsx:378`)
 * **Screenshots:**
@@ -48,7 +48,7 @@
 
 ---
 
-### - [ ] 🐛 Bug #2: "Pending / Verified" KPI in CENRO shows 0 because it omits `ai_verified`
+### - [/] 🐛 Bug #2: "Pending / Verified" KPI in CENRO shows 0 because it omits `ai_verified`
 
 * **Page:** CENRO Portal (`frontend/components/portal/OversightTab.tsx:170` & `frontend/app/cenro/page.tsx:617, 636`)
 * **Screenshots:**
@@ -82,7 +82,7 @@
 
 ---
 
-### - [ ] 🐛 Bug #4: No toast notification after clicking "Confirm Duplicate"
+### - [/] 🐛 Bug #4: No toast notification after clicking "Confirm Duplicate"
 
 * **Page:** Report Detail Drawer (`frontend/components/portal/ReportDetailDrawer.tsx:622`)
 * **What happens:** Clicking "Confirm Duplicate" successfully marks the duplicate via API and closes the drawer, but emits **no toast confirmation**, leaving the admin confused about whether it saved.
@@ -109,7 +109,7 @@
 
 ---
 
-### - [ ] 🐛 Bug #6: Able to change / reassign Barangay on already `resolved` reports
+### - [/] 🐛 Bug #6: Able to change / reassign Barangay on already `resolved` reports
 
 * **Page:** Report Detail Drawer (`frontend/components/portal/ReportDetailDrawer.tsx:578`) & Backend API (`backend/main.py:3915`)
 * **Screenshots:**
@@ -136,7 +136,7 @@
 
 ---
 
-### - [ ] 🐛 Bug #8: Resolution Rate in Analytics shows 100% because `ai_verified` is omitted from denominator
+### - [/] 🐛 Bug #8: Resolution Rate in Analytics shows 100% because `ai_verified` is omitted from denominator
 
 * **File:** `backend/analytics.py:115`
 * **Screenshots:**
@@ -174,7 +174,7 @@
 
 ---
 
-### - [ ] 🐛 Bug #11: Bulk Import Accounts shows rows as "Failed: Unknown error" and hides passwords
+### - [/] 🐛 Bug #11: Bulk Import Accounts shows rows as "Failed: Unknown error" and hides passwords
 
 * **Page:** User Management (`frontend/components/portal/UserManagementTab.tsx:999-1009`) & Backend (`backend/main.py:1491`)
 * **Screenshots:**

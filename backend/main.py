@@ -3923,6 +3923,9 @@ async def reassign_report(
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
 
+    if report.status in (models.ReportStatus.RESOLVED, models.ReportStatus.REJECTED, "duplicate"):
+        raise HTTPException(status_code=400, detail="Cannot reassign a closed or resolved report")
+
     old_barangay = report.barangay
     report.barangay = new_barangay
     write_audit(db, user.id, "reassign", report.id, {

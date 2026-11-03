@@ -569,14 +569,17 @@ export function ReportDetailDrawer({
                         <select
                             value={newBarangay}
                             onChange={(e) => setNewBarangay(e.target.value)}
-                            className="flex-1 bg-transparent border border-border rounded-md px-3 h-9 text-sm text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                            disabled={actionLoading || ['resolved', 'rejected', 'duplicate'].includes(report.status)}
+                            className="flex-1 bg-transparent border border-border rounded-md px-3 h-9 text-sm text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            title={['resolved', 'rejected', 'duplicate'].includes(report.status) ? "Closed reports cannot be reassigned" : undefined}
                         >
                             {barangays.map(b => <option key={b} value={b}>{b}</option>)}
                         </select>
                         <button
                             onClick={onReassign}
-                            disabled={actionLoading || newBarangay === report.barangay}
+                            disabled={actionLoading || newBarangay === report.barangay || ['resolved', 'rejected', 'duplicate'].includes(report.status)}
                             className="px-4 h-9 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium tracking-tight rounded-md shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                            title={['resolved', 'rejected', 'duplicate'].includes(report.status) ? "Closed reports cannot be reassigned" : undefined}
                         >
                             Update Route
                         </button>
@@ -619,6 +622,7 @@ function DuplicateAlert({ report, onConfirmed }: { report: QueueReport; onConfir
                 method: "POST",
                 body: JSON.stringify({ duplicate_of_id: originalId }),
             });
+            toast.success("Marked as duplicate. Report removed from active queue.");
             onConfirmed();
         } catch (e) {
             setErr(e instanceof ApiError ? e.message : "Failed to mark as duplicate.");

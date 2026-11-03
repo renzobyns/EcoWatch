@@ -112,7 +112,7 @@ def get_heatmap_clusters(reports, eps=0.001, min_samples=2):
 # Insights aggregation - powers /analytics/insights
 # ---------------------------------------------------------
 
-_RESOLUTION_DENOM_STATUSES = {"resolved", "verified", "assigned", "in_progress", "failed_cleanup"}
+_RESOLUTION_DENOM_STATUSES = {"resolved", "verified", "assigned", "in_progress", "failed_cleanup", "ai_verified"}
 _AI_REJECTED_THRESHOLD = 0.5
 
 
@@ -155,7 +155,7 @@ def _summarize_window(reports, wo_compliance_records, start, end):
     resolved_with_time = [r for r in in_window if r.status == "resolved" and r.resolved_at and r.created_at]
     if resolved_with_time:
         secs = sum((r.resolved_at - r.created_at).total_seconds() for r in resolved_with_time)
-        avg_resolve_days = round(secs / len(resolved_with_time) / 86400, 2)
+        avg_resolve_days = round(secs / len(resolved_with_time) / 86400, 4)
     else:
         avg_resolve_days = 0.0
 
@@ -434,7 +434,7 @@ def compute_drilldown(reports, work_orders, metric, key=None, start=None, end=No
     if metric == "avg_resolve_days":
         resolved_timed = [r for r in in_window if r.status == "resolved" and r.resolved_at and r.created_at]
         if resolved_timed:
-            avg_days = round(sum((r.resolved_at - r.created_at).total_seconds() for r in resolved_timed) / len(resolved_timed) / 86400, 2)
+            avg_days = round(sum((r.resolved_at - r.created_at).total_seconds() for r in resolved_timed) / len(resolved_timed) / 86400, 4)
         else:
             avg_days = 0.0
         return {

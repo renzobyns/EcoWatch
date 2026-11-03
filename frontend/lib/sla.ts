@@ -19,7 +19,7 @@ export function slaInfo(
     createdAt: string,
     status: string
 ): { days: number; color: SLAColor } | null {
-    const active = ["pending", "verified", "assigned", "in_progress", "failed_cleanup"].includes(status);
+    const active = ["pending", "verified", "assigned", "in_progress", "failed_cleanup", "ai_verified", "ai_rejected"].includes(status);
     if (!active) return null;
     const days = Math.floor((Date.now() - new Date(createdAt).getTime()) / 86400000);
     const color: SLAColor = days <= 2 ? "green" : days <= 4 ? "yellow" : "red";
@@ -72,4 +72,42 @@ export function slaDeadlineColor(deadline: string | Date): SLAColor {
         // 3+ days
         return "green";
     }
+}
+
+/**
+ * Format elapsed open time as DD:HH:MM:SS format.
+ * E.g., "00:00:16:00" for 16 minutes.
+ */
+export function formatDurationDHMS(
+    createdAt: string | Date | number,
+    resolvedAt?: string | Date | number | null
+): string {
+    const start = typeof createdAt === "number" ? createdAt : new Date(createdAt).getTime();
+    const end = resolvedAt
+        ? (typeof resolvedAt === "number" ? resolvedAt : new Date(resolvedAt).getTime())
+        : Date.now();
+    const diffMs = Math.max(0, end - start);
+
+    const totalSecs = Math.floor(diffMs / 1000);
+    const days = Math.floor(totalSecs / 86400);
+    const hours = Math.floor((totalSecs % 86400) / 3600);
+    const minutes = Math.floor((totalSecs % 3600) / 60);
+    const seconds = totalSecs % 60;
+
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${pad(days)}:${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+}
+
+/**
+ * Format average resolve days into DD:HH:MM:SS string.
+ */
+export function formatDaysToDHMS(daysDecimal: number): string {
+    const totalSecs = Math.max(0, Math.round(daysDecimal * 86400));
+    const days = Math.floor(totalSecs / 86400);
+    const hours = Math.floor((totalSecs % 86400) / 3600);
+    const minutes = Math.floor((totalSecs % 3600) / 60);
+    const seconds = totalSecs % 60;
+
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${pad(days)}:${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
 }

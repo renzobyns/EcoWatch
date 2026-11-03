@@ -614,7 +614,7 @@ function CenroDashboardInner() {
                 total_reports: b.total,
                 resolved: b.resolved,
                 active: reports.filter((r) => r.barangay === b.name && (r.status === 'assigned' || r.status === 'in_progress')).length,
-                pending: reports.filter((r) => r.barangay === b.name && (r.status === 'pending' || r.status === 'verified')).length,
+                pending: reports.filter((r) => r.barangay === b.name && (r.status === 'pending' || r.status === 'verified' || r.status === 'ai_verified' || r.status === 'ai_rejected')).length,
                 resolution_rate: b.rate.toFixed(1),
             }));
             const csv = buildAnalyticsCsv(overview, ranking);
@@ -633,7 +633,7 @@ function CenroDashboardInner() {
         resolved: reports.filter(r => r.status === 'resolved').length,
         active: reports.filter(r => r.status === 'assigned' || r.status === 'in_progress').length,
         failed: reports.filter(r => r.status === 'failed_cleanup').length,
-        pending: reports.filter(r => r.status === 'pending' || r.status === 'verified').length,
+        pending: reports.filter(r => r.status === 'pending' || r.status === 'verified' || r.status === 'ai_verified' || r.status === 'ai_rejected').length,
     };
     const pending = stats.pending;
     const successRate = stats.total > 0 ? Number(((stats.resolved / stats.total) * 100).toFixed(1)) : 0;

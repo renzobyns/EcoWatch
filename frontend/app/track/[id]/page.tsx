@@ -374,8 +374,8 @@ export default function TrackReportPage() {
                                 );
                             })()}
 
-                            {/* Cleanup Photo & Before-After Slider (if resolved or failed) */}
-                            {report.cleanup_image_url && (
+                            {/* Cleanup Photo & Before-After Slider (only when resolved) */}
+                            {report.status === "resolved" && report.cleanup_image_url && (
                                 <div className="mt-4 space-y-2">
                                     <div className="flex items-center gap-2 text-foreground/80">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
@@ -404,6 +404,14 @@ export default function TrackReportPage() {
                                             <div className="hidden absolute inset-0 flex items-center justify-center text-xs text-foreground/40 uppercase tracking-widest text-center px-4 bg-muted border border-border">Image unavailable</div>
                                         </div>
                                     )}
+                                </div>
+                            )}
+
+                            {/* Informational Retry Notice on Failed Cleanup */}
+                            {isFailed && (
+                                <div className="mt-4 p-3.5 rounded-xl border border-destructive/20 bg-destructive/5 flex items-center gap-2.5 text-xs text-destructive">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                    <span>AI verification rejected the recent cleanup attempt. The barangay team has been notified to re-clean the site.</span>
                                 </div>
                             )}
                         </div>

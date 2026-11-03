@@ -167,7 +167,7 @@ export function OversightTab({ user, barangays, onReportClick }: OversightTabPro
 
     // KPIs (scoped to active filtered subset)
     const totalReports = filtered.length;
-    const pendingCount = filtered.filter(r => r.status === 'pending' || r.status === 'verified').length;
+    const pendingCount = filtered.filter(r => r.status === 'pending' || r.status === 'verified' || r.status === 'ai_verified' || r.status === 'ai_rejected').length;
     const activeCount = filtered.filter(r => r.status === 'assigned' || r.status === 'in_progress').length;
     const resolvedCount = filtered.filter(r => r.status === 'resolved').length;
     const resRate = totalReports ? Math.round((resolvedCount / totalReports) * 100) : 0;
