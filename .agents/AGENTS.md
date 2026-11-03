@@ -219,6 +219,51 @@ Always verify layout across these breakpoints:
 
 ---
 
+## 12 · Visual Bug & Suggestion Triage Protocol
+
+Whenever the user submits a bug or design improvement with screenshots:
+
+1. **Intake & Rename Screenshot**:
+   - Save the image to docs/bug-tracker/screenshots/.
+   - Name it using concrete, descriptive naming:
+     - bug{ID}-{module}-{slug}.png for bugs
+     - sug{ID}-{module}-{slug}.png for UI suggestions / polish
+     - feat{ID}-{module}-{slug}.png for feature requests
+   - **Real examples**:
+     - bug01-track-failed-cleanup-proof.png
+     - bug02-cenro-pending-verified-zero.png
+     - bug03-drawer-contrast-buttons.png
+     - sug05-drawer-timeline-raw-dump.png
+     - bug08-analytics-resolution-rate-100.png
+     - bug09-analytics-avg-time-2.4h.png
+     - bug10-barangay-reassign-admin-form.png
+     - bug11-bulk-import-failed-status.png
+     - sug12-cenro-add-user-modal-modernize.png
+
+2. **Connect to Markdown Tracker (BUGS_AND_SUGGESTIONS.md)**:
+   - Create or append the entry in root BUGS_AND_SUGGESTIONS.md.
+   - Each item includes:
+     - Checkbox: [ ] (Pending)
+     - Type & Severity: (🐛 Bug / 🎨 UI Suggestion / 🚀 Feature Enhancement)
+     - Target Files & Line Numbers
+     - Embedded Screenshot: ![Description](./docs/bug-tracker/screenshots/...)
+     - Root Cause / Current Behavior
+     - Fix / Action Plan
+     - User Verification Steps
+
+3. **Status Lifecycle**:
+   - [ ] **Open / Pending**: Reported by user, awaiting implementation.
+   - [/] **Fixed by Agent**: Code updated and verified via 
+pm run build / tests. Awaiting user visual test.
+   - [x] **Confirmed Good by User**: Explicitly tested and approved by user.
+
+4. **User Confirmation & Auto-Cleanup Rule**:
+   - **NEVER** close or delete an item without explicit confirmation from the user.
+   - Once the user confirms (*"it's good / fixed"*), mark [x] (or remove the resolved entry from the active list).
+   - **Delete the associated screenshot file** from docs/bug-tracker/screenshots/ upon user approval to keep the repository lightweight and prevent git image bloat.
+
+---
+
 ## Reference · Architecture Details
 
 <details>
