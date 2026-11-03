@@ -3326,17 +3326,17 @@ async def resolve_report(
 async def create_work_order(
     req: CreateWorkOrderRequest,
     db: Session = Depends(get_db),
-    user: models.User = Depends(require_role("barangay")),
+    user: models.User = Depends(require_role("barangay", "cenro")),
 ):
-    """Barangay creates a work order from a VERIFIED report. Sets Report status to ASSIGNED."""
+    """Barangay or CENRO creates a work order from a VERIFIED or AI_VERIFIED report. Sets Report status to ASSIGNED."""
     report = db.query(models.Report).filter(models.Report.id == req.report_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
 
-    if report.barangay != user.barangay_assignment:
+    if user.role == "barangay" and report.barangay != user.barangay_assignment:
         raise HTTPException(status_code=403, detail="Cannot create work order for a report outside your barangay")
 
-    if report.status != models.ReportStatus.VERIFIED:
+    if report.status not in (models.ReportStatus.VERIFIED, models.ReportStatus.AI_VERIFIED):
         raise HTTPException(
             status_code=400,
             detail=f"Cannot create work order. Report status is '{report.status}', must be 'verified'."

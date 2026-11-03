@@ -2,12 +2,19 @@
 
 import { useState, useEffect, useMemo, forwardRef, useImperativeHandle } from "react";
 import { createPortal } from "react-dom";
-import { Search, UserPlus, Upload, Download, MoreVertical, ShieldCheck, FileText, AlertCircle, Users, Shield, List, LayoutGrid, ShieldAlert, FileMinus } from "lucide-react";
+import { Search, Mail, Phone, MapPin, Building2, Sparkles, UserPlus, Upload, Download, MoreVertical, ShieldCheck, FileText, AlertCircle, Users, Shield, List, LayoutGrid, ShieldAlert, FileMinus } from "lucide-react";
 import { api, ApiError, API_URL } from "@/lib/api";
 import { toast } from "sonner";
 import { formatDateTime } from "@/lib/date-utils";
 import { KpiCard } from "@/components/portal/KpiCard";
 import { BARANGAYS } from "@/lib/barangays";
+
+const ROLE_PRESETS = [
+    { value: "cenro", label: "CENRO Admin", desc: "City oversight & audit", icon: Shield },
+    { value: "barangay", label: "Barangay Admin", desc: "Jurisdiction queue & review", icon: Building2 },
+    { value: "cleaner", label: "Cleanup Worker", desc: "Field crew member", icon: Sparkles },
+    { value: "citizen", label: "Citizen", desc: "Resident reporter", icon: Users },
+];
 
 export interface BarangayUser {
     id: number;
@@ -711,33 +718,88 @@ export const UserManagementTab = forwardRef<UserManagementRef, UserManagementTab
                             ) : (
                                 <>
                                     <div>
-                                        <label className="text-xs font-semibold text-muted-foreground uppercase mb-1 block">Full Name</label>
-                                        <input type="text" value={createForm.full_name} onChange={e => setCreateForm({ ...createForm, full_name: e.target.value })} className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" placeholder="e.g. Juan dela Cruz" />
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase mb-1.5 block">Full Name</label>
+                                        <div className="relative">
+                                            <Users size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                                            <input
+                                                type="text"
+                                                value={createForm.full_name}
+                                                onChange={e => setCreateForm({ ...createForm, full_name: e.target.value })}
+                                                className="w-full pl-9 pr-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                                placeholder="e.g. Juan dela Cruz"
+                                            />
+                                        </div>
                                     </div>
                                     <div>
-                                        <label className="text-xs font-semibold text-muted-foreground uppercase mb-1 block">Email Address</label>
-                                        <input type="email" value={createForm.email} onChange={e => setCreateForm({ ...createForm, email: e.target.value })} className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" placeholder="juan@example.com" />
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase mb-1.5 block">Email Address</label>
+                                        <div className="relative">
+                                            <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                                            <input
+                                                type="email"
+                                                value={createForm.email}
+                                                onChange={e => setCreateForm({ ...createForm, email: e.target.value })}
+                                                className="w-full pl-9 pr-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                                placeholder="juan@example.com"
+                                            />
+                                        </div>
                                     </div>
                                     <div>
-                                        <label className="text-xs font-semibold text-muted-foreground uppercase mb-1 block">Phone Number (Optional)</label>
-                                        <input type="tel" value={createForm.phone_number} onChange={e => setCreateForm({ ...createForm, phone_number: e.target.value })} className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" placeholder="0917..." />
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase mb-1.5 block">Phone Number (Optional)</label>
+                                        <div className="relative">
+                                            <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                                            <input
+                                                type="tel"
+                                                value={createForm.phone_number}
+                                                onChange={e => setCreateForm({ ...createForm, phone_number: e.target.value })}
+                                                className="w-full pl-9 pr-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                                placeholder="0917 123 4567"
+                                            />
+                                        </div>
                                     </div>
                                     <div>
-                                        <label className="text-xs font-semibold text-muted-foreground uppercase mb-1 block">Role</label>
-                                        <select value={createForm.role} onChange={e => setCreateForm({ ...createForm, role: e.target.value, barangay_assignment: "" })} className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors">
-                                            <option value="cenro">CENRO Admin (City-wide)</option>
-                                            <option value="barangay">Barangay Admin</option>
-                                            <option value="cleaner">Cleanup Worker</option>
-                                            <option value="citizen">Citizen</option>
-                                        </select>
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase mb-2 block">Account Role</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {ROLE_PRESETS.map((opt) => {
+                                                const Icon = opt.icon;
+                                                const isSelected = createForm.role === opt.value;
+                                                return (
+                                                    <button
+                                                        key={opt.value}
+                                                        type="button"
+                                                        onClick={() => setCreateForm({ ...createForm, role: opt.value, barangay_assignment: "" })}
+                                                        className={`p-2.5 rounded-xl border text-left flex flex-col gap-1 transition-all ${
+                                                            isSelected
+                                                                ? "bg-primary/10 border-primary ring-2 ring-primary/20 text-foreground"
+                                                                : "bg-background border-border hover:bg-muted text-muted-foreground hover:text-foreground"
+                                                        }`}
+                                                    >
+                                                        <div className="flex items-center justify-between w-full">
+                                                            <Icon size={16} className={isSelected ? "text-primary" : "text-muted-foreground"} />
+                                                            {isSelected && <span className="size-1.5 rounded-full bg-primary" />}
+                                                        </div>
+                                                        <div className="font-semibold text-xs mt-0.5 text-foreground">{opt.label}</div>
+                                                        <div className="text-[10px] text-muted-foreground leading-tight">{opt.desc}</div>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                     {["barangay", "cleaner"].includes(createForm.role) && (
                                         <div>
-                                            <label className="text-xs font-semibold text-muted-foreground uppercase mb-1 block">Assigned Barangay <span className="text-destructive">*</span></label>
-                                            <select value={createForm.barangay_assignment} onChange={e => setCreateForm({ ...createForm, barangay_assignment: e.target.value })} className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors">
-                                                <option value="">Select Barangay</option>
-                                                {BARANGAYS.map(b => <option key={b} value={b}>{b}</option>)}
-                                            </select>
+                                            <label className="text-xs font-semibold text-muted-foreground uppercase mb-1.5 block">
+                                                Assigned Barangay <span className="text-destructive">*</span>
+                                            </label>
+                                            <div className="relative">
+                                                <MapPin size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                                                <select
+                                                    value={createForm.barangay_assignment}
+                                                    onChange={e => setCreateForm({ ...createForm, barangay_assignment: e.target.value })}
+                                                    className="w-full pl-9 pr-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                                >
+                                                    <option value="">Select Barangay</option>
+                                                    {BARANGAYS.map(b => <option key={b} value={b}>{b}</option>)}
+                                                </select>
+                                            </div>
                                         </div>
                                     )}
                                 </>

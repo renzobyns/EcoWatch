@@ -64,6 +64,15 @@ def find_nearby_reports(report, db, radius_m: float = 100, within_days: int = 7)
     return matches
 
 
+def _format_seconds_dhms(total_seconds: float) -> str:
+    secs = max(0, int(round(total_seconds)))
+    days = secs // 86400
+    hours = (secs % 86400) // 3600
+    mins = (secs % 3600) // 60
+    s = secs % 60
+    return f"{days:02d}:{hours:02d}:{mins:02d}:{s:02d}"
+
+
 def get_heatmap_clusters(reports, eps=0.001, min_samples=2):
     """
     Applies DBSCAN clustering on report coordinates to identify
@@ -434,21 +443,25 @@ def compute_drilldown(reports, work_orders, metric, key=None, start=None, end=No
     if metric == "avg_resolve_days":
         resolved_timed = [r for r in in_window if r.status == "resolved" and r.resolved_at and r.created_at]
         if resolved_timed:
-            avg_days = round(sum((r.resolved_at - r.created_at).total_seconds() for r in resolved_timed) / len(resolved_timed) / 86400, 4)
+            total_secs = sum((r.resolved_at - r.created_at).total_seconds() for r in resolved_timed) / len(resolved_timed)
+            avg_days = round(total_secs / 86400, 4)
+            formatted_dhms = _format_seconds_dhms(total_secs)
         else:
             avg_days = 0.0
+            formatted_dhms = "00:00:00:00"
+        plural = 's' if len(resolved_timed) != 1 else ''
         return {
             "kind": "reports",
             "title": "Avg Time to Resolve",
-            "headline": f"{avg_days}d",
-            "formula": f"mean of {len(resolved_timed)} resolve times = {avg_days}d",
+            "headline": f"{formatted_dhms} (D:H:M:S)",
+            "formula": f"Mean resolution time ({len(resolved_timed)} report{plural}) = {formatted_dhms}",
             "breakdown": [
-                {"label": "Resolved with timing", "count": len(resolved_timed), "tone": "yellow"},
+                {"label": "Resolved with timing", "count": len(resolved_timed), "tone": "emerald"},
             ],
             "report_rows": resolved_timed,
             "wo_rows": [],
             "row_detail": {
-                r.id: f"{round((r.resolved_at - r.created_at).total_seconds() / 86400, 1)}d"
+                r.id: _format_seconds_dhms((r.resolved_at - r.created_at).total_seconds())
                 for r in resolved_timed
             },
         }

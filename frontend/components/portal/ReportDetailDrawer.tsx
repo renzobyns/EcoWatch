@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, FileText, Camera, Shield, Clock, MapPin, User, Mail, Phone, ExternalLink, ClipboardList, RefreshCw, ShieldCheck, CheckCircle2, Sparkles } from "lucide-react";
+import {
+    X, FileText, Camera, Shield, Clock, MapPin, User, Mail, Phone, ExternalLink, ClipboardList, RefreshCw, ShieldCheck, CheckCircle2, Sparkles, Truck
+} from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { TrustBadge } from "@/components/TrustBadge";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
@@ -138,30 +140,30 @@ interface Props {
 // ─── Pill maps ────────────────────────────────────────────────────────────────
 
 const STATUS_PILL: Record<string, string> = {
-    pending: "bg-red-500/20 text-red-400",
-    ai_verified: "bg-amber-500/20 text-amber-400",
-    ai_rejected: "bg-red-500/20 text-red-400",
-    verified: "bg-emerald-500/20 text-emerald-400",
-    assigned: "bg-yellow-500/20 text-yellow-400",
-    in_progress: "bg-blue-500/20 text-blue-400",
-    resolved: "bg-green-500/20 text-green-400",
-    rejected: "bg-foreground/5 text-foreground/40",
-    failed_cleanup: "bg-red-900/30 text-red-400",
-    pending_review: "bg-purple-500/20 text-purple-400",
+    pending: "bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30 font-semibold",
+    ai_verified: "bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30 font-semibold",
+    ai_rejected: "bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30 font-semibold",
+    verified: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30 font-semibold",
+    assigned: "bg-blue-500/15 text-blue-800 dark:text-blue-300 border border-blue-500/30 font-semibold",
+    in_progress: "bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30 font-semibold",
+    resolved: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30 font-semibold",
+    rejected: "bg-foreground/10 text-foreground/70 border border-border font-semibold",
+    failed_cleanup: "bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30 font-semibold",
+    pending_review: "bg-purple-500/15 text-purple-800 dark:text-purple-300 border border-purple-500/30 font-semibold",
 };
 
 const WO_STATUS_PILL: Record<string, string> = {
-    assigned: "bg-blue-500/15 border-blue-500/30 text-blue-300",
-    in_progress: "bg-yellow-500/15 border-yellow-500/30 text-yellow-300",
-    completed: "bg-emerald-500/15 border-emerald-500/30 text-emerald-300",
-    verified: "bg-emerald-500/20 border-emerald-500/40 text-emerald-200",
-    needs_redo: "bg-red-500/15 border-red-500/30 text-red-300",
+    assigned: "bg-blue-500/15 border-blue-500/30 text-blue-800 dark:text-blue-300 font-semibold",
+    in_progress: "bg-amber-500/15 border-amber-500/30 text-amber-800 dark:text-amber-300 font-semibold",
+    completed: "bg-emerald-500/15 border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-semibold",
+    verified: "bg-emerald-500/20 border-emerald-500/40 text-emerald-900 dark:text-emerald-200 font-semibold",
+    needs_redo: "bg-red-500/15 border-red-500/30 text-red-800 dark:text-red-300 font-semibold",
 };
 
 const WO_PRIORITY_PILL: Record<string, string> = {
-    low: "bg-foreground/10 border-border text-foreground/50",
-    medium: "bg-yellow-500/15 border-yellow-500/30 text-yellow-300",
-    high: "bg-red-500/15 border-red-500/30 text-red-300",
+    low: "bg-foreground/10 border-border text-foreground/70 font-semibold",
+    medium: "bg-amber-500/15 border-amber-500/30 text-amber-800 dark:text-amber-300 font-semibold",
+    high: "bg-red-500/15 border-red-500/30 text-red-800 dark:text-red-300 font-semibold",
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -547,10 +549,13 @@ export function ReportDetailDrawer({
                     )}
                     {activeTab === "work_orders" && (
                         <WorkOrdersTab
+                            report={report}
                             detail={detail}
                             loading={detailLoading}
                             error={detailError}
                             onRetry={fetchDetail}
+                            userRole={userRole}
+                            onUpdated={onUpdated}
                         />
                     )}
                     {activeTab === "timeline" && (
@@ -652,7 +657,7 @@ function DuplicateAlert({ report, onConfirmed }: { report: QueueReport; onConfir
                         <button
                             onClick={() => confirm(m.id)}
                             disabled={marking}
-                            className="shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 disabled:opacity-50 transition-colors"
+                            className="shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-900 dark:text-amber-300 border border-amber-600/30 hover:bg-amber-500/30 disabled:opacity-50 transition-colors shadow-sm"
                         >
                             {marking ? "…" : "Confirm Duplicate"}
                         </button>
@@ -1190,24 +1195,169 @@ function EvidenceTab({
     );
 }
 
-function WorkOrdersTab({ detail, loading, error, onRetry }: {
+function WorkOrdersTab({ report, detail, loading, error, onRetry, userRole, onUpdated }: {
+    report: QueueReport;
     detail: ReportDetailPayload | null;
     loading: boolean;
     error: string | null;
     onRetry: () => void;
+    userRole?: string;
+    onUpdated?: () => void;
 }) {
+    const [showDispatch, setShowDispatch] = useState(false);
+    const [cleaners, setCleaners] = useState<any[]>([]);
+    const [cleanersLoading, setCleanersLoading] = useState(false);
+    const [selectedCleanerId, setSelectedCleanerId] = useState<number | "">("");
+    const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
+    const [dispatchNotes, setDispatchNotes] = useState("");
+    const [dispatching, setDispatching] = useState(false);
+
+    const canDispatch = ["cenro", "barangay"].includes(userRole ?? "") && !["resolved", "rejected", "duplicate"].includes(report.status);
+
+    const loadCleaners = async () => {
+        setCleanersLoading(true);
+        try {
+            const data = await api("/users");
+            if (Array.isArray(data)) {
+                // Filter cleaners assigned to this barangay or unassigned
+                const list = data.filter((u: any) => u.role === "cleaner" && u.is_active && (!u.barangay_assignment || u.barangay_assignment === report.barangay));
+                setCleaners(list);
+                if (list.length > 0) setSelectedCleanerId(list[0].id);
+            }
+        } catch {
+            // fallback
+        } finally {
+            setCleanersLoading(false);
+        }
+    };
+
+    const handleCreateWorkOrder = async () => {
+        if (!selectedCleanerId) {
+            toast.error("Please select a cleaner to assign.");
+            return;
+        }
+        setDispatching(true);
+        try {
+            await api("/work-orders", {
+                method: "POST",
+                body: JSON.stringify({
+                    report_id: report.id,
+                    assigned_cleaner_id: Number(selectedCleanerId),
+                    priority,
+                    notes: dispatchNotes.trim() || undefined,
+                }),
+            });
+            toast.success(`Work order deployed to cleaner.`);
+            setShowDispatch(false);
+            setDispatchNotes("");
+            onRetry();
+            onUpdated?.();
+        } catch (e) {
+            toast.error(e instanceof ApiError ? e.message : "Failed to deploy work order.");
+        } finally {
+            setDispatching(false);
+        }
+    };
+
     if (loading) return <TabLoading />;
     if (error) return <TabError message={error} onRetry={onRetry} />;
 
     const workOrders = detail?.work_orders ?? [];
-    if (workOrders.length === 0) {
-        return <TabEmpty message="No work orders assigned to this report yet." />;
-    }
 
     return (
-        <div className="flex flex-col gap-2">
-            {workOrders.map((wo) => (
-                <div key={wo.id} className="bg-card rounded-lg border border-border shadow-sm p-3">
+        <div className="flex flex-col gap-3">
+            {/* Direct Dispatch Section for CENRO / Barangay */}
+            {canDispatch && (
+                <div className="bg-muted/40 border border-border rounded-xl p-3 flex flex-col gap-2.5">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Truck size={16} className="text-primary" />
+                            <span className="text-xs font-bold text-foreground">Emergency Dispatch</span>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (!showDispatch && cleaners.length === 0) loadCleaners();
+                                setShowDispatch(!showDispatch);
+                            }}
+                            className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 transition-colors"
+                        >
+                            {showDispatch ? "Cancel" : "+ Deploy Cleaner"}
+                        </button>
+                    </div>
+
+                    {showDispatch && (
+                        <div className="pt-2 border-t border-border flex flex-col gap-2 animate-in fade-in">
+                            <div>
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                                    Assigned Cleaner ({report.barangay})
+                                </label>
+                                {cleanersLoading ? (
+                                    <div className="text-xs text-muted-foreground py-1">Loading available cleaners...</div>
+                                ) : cleaners.length === 0 ? (
+                                    <div className="text-xs text-muted-foreground py-1">No active cleaners assigned to {report.barangay}.</div>
+                                ) : (
+                                    <select
+                                        value={selectedCleanerId}
+                                        onChange={(e) => setSelectedCleanerId(Number(e.target.value))}
+                                        className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background text-xs text-foreground focus:outline-none focus:border-primary"
+                                    >
+                                        {cleaners.map((c) => (
+                                            <option key={c.id} value={c.id}>
+                                                {c.full_name} ({c.email})
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                                        Priority
+                                    </label>
+                                    <select
+                                        value={priority}
+                                        onChange={(e) => setPriority(e.target.value as any)}
+                                        className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background text-xs text-foreground focus:outline-none focus:border-primary"
+                                    >
+                                        <option value="low">Low (Standard)</option>
+                                        <option value="medium">Medium (Moderate)</option>
+                                        <option value="high">High (Urgent SLA)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                                        Instructions (Optional)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. Bring shovel & bags..."
+                                        value={dispatchNotes}
+                                        onChange={(e) => setDispatchNotes(e.target.value)}
+                                        className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background text-xs text-foreground focus:outline-none focus:border-primary"
+                                    />
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={handleCreateWorkOrder}
+                                disabled={dispatching || !selectedCleanerId}
+                                className="w-full mt-1 py-1.5 px-3 rounded-lg text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors shadow-sm"
+                            >
+                                {dispatching ? "Deploying..." : "Confirm & Deploy Work Order"}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {workOrders.length === 0 ? (
+                <TabEmpty message="No work orders assigned to this report yet." />
+            ) : (
+                workOrders.map((wo) => (
+                    <div key={wo.id} className="bg-card rounded-lg border border-border shadow-sm p-3">
                     <div className="flex items-center justify-between gap-2 mb-2">
                         <div className="flex items-center gap-1.5 flex-wrap">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-semibold tracking-tight border ${WO_PRIORITY_PILL[wo.priority] ?? WO_PRIORITY_PILL.medium}`}>
@@ -1270,7 +1420,7 @@ function WorkOrdersTab({ detail, loading, error, onRetry }: {
                         </div>
                     )}
                 </div>
-            ))}
+            )))}
         </div>
     );
 }
@@ -1288,32 +1438,69 @@ function TimelineTab({ entries, loading, error, onRetry }: {
     }
 
     return (
-        <div className="flex flex-col gap-2">
+        <div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-border/60">
             {entries.map((e) => {
-                const detailKeys = Object.keys(e.details ?? {});
+                const action = e.action.toLowerCase();
+                const d = e.details ?? {};
+                const isReassign = action === "reassign";
+                const isForceClose = action.includes("force_close") || action.includes("resolve");
+                const isVerify = action.includes("verify");
+                const isDup = action.includes("duplicate");
+
+                const badgeTone = isForceClose
+                    ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-500/30"
+                    : isReassign
+                    ? "bg-blue-500/15 text-blue-800 dark:text-blue-300 border-blue-500/30"
+                    : isVerify
+                    ? "bg-purple-500/15 text-purple-800 dark:text-purple-300 border-purple-500/30"
+                    : isDup
+                    ? "bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30"
+                    : "bg-muted text-foreground/80 border-border";
+
                 return (
-                    <div key={e.id} className="bg-card rounded-lg border border-border shadow-sm p-3">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                            <span className="text-sm font-semibold tracking-tight text-foreground">
-                                {titleCase(e.action)}
-                            </span>
-                            <span className="text-xs text-muted-foreground shrink-0">
-                                {formatRelative(e.created_at)}
-                            </span>
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                            By <span className="font-medium text-foreground">{e.user_email ?? "System"}</span>
-                        </div>
-                        {detailKeys.length > 0 && (
-                            <div className="mt-2 grid grid-cols-1 gap-0.5">
-                                {detailKeys.map((k) => (
-                                    <div key={k} className="text-[10px] text-foreground/60">
-                                        <span className="text-muted-foreground font-medium mr-2">{k.replace(/_/g, " ")}:</span>
-                                        <span className="text-foreground font-medium break-all">{String(e.details[k])}</span>
-                                    </div>
-                                ))}
+                    <div key={e.id} className="relative group">
+                        {/* Dot on timeline */}
+                        <div className="absolute -left-6 top-1.5 size-2.5 rounded-full bg-primary ring-4 ring-card border border-primary/40" />
+
+                        <div className="bg-card rounded-xl border border-border shadow-xs p-3.5 flex flex-col gap-2 hover:border-primary/40 transition-colors">
+                            {/* Header row */}
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${badgeTone}`}>
+                                    {titleCase(e.action)}
+                                </span>
+                                <span className="text-[11px] font-medium text-muted-foreground" title={formatDate(e.created_at)}>
+                                    {formatRelative(e.created_at)}
+                                </span>
                             </div>
-                        )}
+
+                            {/* Author */}
+                            <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                <span>Action by</span>
+                                <span className="font-semibold text-foreground">{e.user_email ?? "System Automations"}</span>
+                            </div>
+
+                            {/* Meaningful Context & Transitions */}
+                            {isReassign && d.from && d.to && (
+                                <div className="flex items-center gap-2 text-xs pt-1 border-t border-border/50">
+                                    <span className="px-2 py-0.5 rounded bg-muted text-muted-foreground font-medium">{String(d.from)}</span>
+                                    <span className="text-muted-foreground">➔</span>
+                                    <span className="px-2 py-0.5 rounded bg-primary/10 text-primary font-bold">{String(d.to)}</span>
+                                </div>
+                            )}
+
+                            {d.previous_status && (
+                                <div className="text-xs text-muted-foreground pt-1 border-t border-border/50 flex items-center gap-1.5">
+                                    <span>Prior status:</span>
+                                    <span className="font-semibold text-foreground capitalize">{String(d.previous_status).replace(/_/g, " ")}</span>
+                                </div>
+                            )}
+
+                            {(d.reason || d.notes) && (
+                                <div className="text-xs italic bg-muted/40 border-l-2 border-primary/50 px-3 py-1.5 rounded-r text-foreground/80">
+                                    &ldquo;{String(d.reason || d.notes)}&rdquo;
+                                </div>
+                            )}
+                        </div>
                     </div>
                 );
             })}

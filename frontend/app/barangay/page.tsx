@@ -4,10 +4,10 @@ import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { Search, Download, LayoutDashboard, FileText, Map, ClipboardList, BookUser, MoreVertical, FileDown, Eye, EyeOff, Edit2, Key, UserCheck, UserX, Plus, ChevronRight, ChevronLeft, ArrowUpDown, Check, LayoutGrid, List, RefreshCw, AlertTriangle, ListChecks, Hourglass, CheckCircle2, ShieldCheck, Maximize2, X, XCircle } from "lucide-react";
+import { Search, Camera, Clock, Download, LayoutDashboard, FileText, Map, ClipboardList, BookUser, MoreVertical, FileDown, Eye, EyeOff, Edit2, Key, UserCheck, UserX, Plus, ChevronRight, ChevronLeft, ArrowUpDown, Check, LayoutGrid, List, RefreshCw, AlertTriangle, ListChecks, Hourglass, CheckCircle2, ShieldCheck, Maximize2, X, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
-import { slaInfo, SLA_PILL_CLASSES, slaDeadlineColor, slaDeadlineLabel } from "@/lib/sla";
+import { slaInfo, SLA_PILL_CLASSES, formatDurationDHMS, slaDeadlineColor, slaDeadlineLabel } from "@/lib/sla";
 import { formatDate, formatDateTime, formatRelative } from "@/lib/date-utils";
 import { PortalShell, type PortalNavItem } from "@/components/portal/PortalShell";
 import { TrustBadge } from "@/components/TrustBadge";
@@ -1030,34 +1030,68 @@ function BarangayPortalInner() {
                                         No reports yet.
                                     </div>
                                 ) : (
-                                    <ul className="space-y-2">
+                                    <ul className="space-y-2.5">
                                         {recentReports.map(r => {
                                             const sla = slaInfo(r.created_at, r.status);
                                             return (
-                                                <li key={r.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-colors border border-transparent hover:border-border cursor-pointer" onClick={() => {
-                                                    setSelectedReport(r);
-                                                    setCleanupPreview(null);
-                                                    setCleanupImage(null);
-                                                    setDeploymentNotes("");
-                                                }}>
+                                                <li
+                                                    key={r.id}
+                                                    className="group flex items-center justify-between gap-4 p-3 rounded-xl bg-background/50 hover:bg-muted/60 transition-all border border-border/60 hover:border-border cursor-pointer shadow-xs"
+                                                    onClick={() => {
+                                                        setSelectedReport(r);
+                                                        setCleanupPreview(null);
+                                                        setCleanupImage(null);
+                                                        setDeploymentNotes("");
+                                                    }}
+                                                >
                                                     <div className="flex items-center gap-3 min-w-0">
-                                                        <span className="font-mono text-sm font-bold text-foreground truncate">{r.tracking_id}</span>
-                                                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                                                            r.status === 'resolved' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' :
-                                                            r.status === 'assigned' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20' :
-                                                            r.status === 'in_progress' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' :
-                                                            r.status === 'verified' ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20' :
-                                                            r.status === 'pending' ? 'bg-destructive/10 text-destructive border border-destructive/20' :
-                                                            r.status === 'failed_cleanup' ? 'bg-destructive/10 text-destructive border border-destructive/20' :
-                                                            r.status === 'rejected' ? 'bg-muted text-muted-foreground border border-border' :
-                                                            'bg-muted text-foreground border border-border'
-                                                        }`}>{r.status.replace('_', ' ')}</span>
+                                                        <div className="relative size-11 rounded-lg overflow-hidden bg-muted shrink-0 border border-border flex items-center justify-center">
+                                                            {r.image_url ? (
+                                                                <img
+                                                                    src={r.image_url.startsWith("http") ? r.image_url : `${API_URL}${r.image_url}`}
+                                                                    alt={r.tracking_id}
+                                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                                                    loading="lazy"
+                                                                />
+                                                            ) : (
+                                                                <Camera size={16} className="text-muted-foreground/40" />
+                                                            )}
+                                                        </div>
+                                                        <div className="min-w-0 flex flex-col gap-0.5">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-mono text-sm font-bold text-foreground">{r.tracking_id}</span>
+                                                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                                                                    r.status === 'resolved' ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30' :
+                                                                    r.status === 'verified' ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30' :
+                                                                    r.status === 'ai_verified' ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30' :
+                                                                    r.status === 'ai_rejected' ? 'bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30' :
+                                                                    r.status === 'assigned' ? 'bg-blue-500/15 text-blue-800 dark:text-blue-300 border border-blue-500/30' :
+                                                                    r.status === 'in_progress' ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30' :
+                                                                    r.status === 'pending' ? 'bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30' :
+                                                                    r.status === 'failed_cleanup' ? 'bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30' :
+                                                                    'bg-muted text-foreground/70 border border-border'
+                                                                }`}>
+                                                                    {r.status.replace(/_/g, ' ')}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 text-xs text-muted-foreground truncate">
+                                                                <span>{formatDate(r.created_at)}</span>
+                                                                {r.notes && (
+                                                                    <>
+                                                                        <span>•</span>
+                                                                        <span className="truncate max-w-[240px] sm:max-w-[360px] text-foreground/70 italic">&ldquo;{r.notes}&rdquo;</span>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    {sla && (
-                                                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0 ${SLA_PILL_CLASSES[sla.color]}`}>
-                                                            {sla.days}d open
+                                                    <div className="flex items-center gap-2 shrink-0">
+                                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-mono text-xs font-bold bg-muted border border-border text-foreground/80">
+                                                            <Clock size={11} className="opacity-70" />
+                                                            {formatDurationDHMS(r.created_at, r.resolved_at)}
                                                         </span>
-                                                    )}
+                                                        <ChevronRight size={14} className="text-muted-foreground/50 group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
+                                                    </div>
                                                 </li>
                                             );
                                         })}
@@ -1264,7 +1298,7 @@ function BarangayPortalInner() {
                             </div>
 
                             {/* Main List / Grid */}
-                            {reviewLoading ? (
+                            {reviewLoading && reviewReports.length === 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                                     {[1, 2, 3, 4, 5, 6].map(i => (
                                         <div key={i} className="bg-card rounded-xl border border-border p-4 animate-pulse flex flex-col gap-3">
@@ -1602,7 +1636,7 @@ function BarangayPortalInner() {
 
                 {/* MAP VIEW */}
                 {activeView === 'map_view' && (
-                    <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden relative flex-1 min-h-[500px] animate-slide-up">
+                    <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden relative w-full h-[calc(100vh-140px)] min-h-[600px] animate-slide-up">
                         <div className="absolute top-6 left-6 z-[1000] bg-background/90 backdrop-blur-sm border border-border px-4 py-2 rounded-lg text-sm font-medium text-foreground shadow-sm pointer-events-none">
                             <span className="flex items-center gap-2">
                                 <span className="relative flex h-2 w-2">
@@ -2700,22 +2734,21 @@ function BarangayPortalInner() {
                                                     <th className="p-4">Date</th>
                                                     <th className="p-4">Status</th>
                                                     <th className="p-4">Open</th>
-                                                    <th className="p-4">AI Score</th>
-                                                    <th className="p-4 text-right">Action</th>
+                                                    <th className="p-4 text-right">AI Score</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {tableLoading ? (
                                                     Array.from({ length: 5 }).map((_, i) => (
                                                         <tr key={i} className="border-b border-border">
-                                                            {Array.from({ length: 6 }).map((__, j) => (
+                                                            {Array.from({ length: 5 }).map((__, j) => (
                                                                 <td key={j} className="p-4"><div className="h-4 bg-muted rounded animate-pulse" /></td>
                                                             ))}
                                                         </tr>
                                                     ))
                                                 ) : paginatedReports.length === 0 ? (
                                                     <tr>
-                                                        <td colSpan={6} className="p-12 text-center text-muted-foreground font-medium">No reports match the current filters.</td>
+                                                        <td colSpan={5} className="p-12 text-center text-muted-foreground font-medium">No reports match the current filters.</td>
                                                     </tr>
                                                 ) : (
                                                     paginatedReports.map(report => {
@@ -2756,30 +2789,23 @@ function BarangayPortalInner() {
                                                                 </td>
                                                                 <td className="p-4">
                                                                     {sla ? (
-                                                                        <span className={`px-2 py-1 rounded-md text-xs font-bold ${SLA_PILL_CLASSES[sla.color]}`}>{sla.days}d</span>
+                                                                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-mono text-xs font-bold ${SLA_PILL_CLASSES[sla.color]}`}>
+                                                                            <Clock size={11} className="opacity-70" />
+                                                                            {formatDurationDHMS(report.created_at, report.resolved_at)}
+                                                                        </span>
+                                                                    ) : report.status === "resolved" ? (
+                                                                        <span className="inline-flex items-center gap-1 font-mono text-xs text-muted-foreground">
+                                                                            {formatDurationDHMS(report.created_at, report.resolved_at)}
+                                                                        </span>
                                                                     ) : (
                                                                         <span className="text-muted-foreground text-sm">—</span>
                                                                     )}
                                                                 </td>
-                                                                <td className="p-4 text-sm font-medium text-foreground">
+                                                                <td className="p-4 text-right text-sm font-medium text-foreground">
                                                                     {report.ai_confidence ? `${(report.ai_confidence * 100).toFixed(0)}%` : 'N/A'}
                                                                     {(report as any).needs_human_review && (
                                                                         <span title="Low-trust photo — needs human review" className="text-yellow-500 ml-1 text-xs">⚠</span>
                                                                     )}
-                                                                </td>
-                                                                <td className="p-4 text-right">
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            setSelectedReport(report);
-                                                                            setCleanupPreview(null);
-                                                                            setCleanupImage(null);
-                                                                            setDeploymentNotes("");
-                                                                        }}
-                                                                        className="px-3 py-1.5 bg-background border border-border text-foreground text-xs font-medium rounded-lg hover:bg-muted transition-colors"
-                                                                    >
-                                                                        Manage
-                                                                    </button>
                                                                 </td>
                                                             </tr>
                                                         );

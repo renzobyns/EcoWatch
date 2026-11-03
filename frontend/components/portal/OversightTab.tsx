@@ -483,7 +483,14 @@ export function OversightTab({ user, barangays, onReportClick }: OversightTabPro
                                                 </td>
                                                 <td className="p-4">
                                                     {sla ? (
-                                                        <span className={`px-2 py-1 rounded-md text-xs font-bold ${SLA_PILL_CLASSES[sla.color]}`}>{sla.days}d</span>
+                                                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-mono text-xs font-bold ${SLA_PILL_CLASSES[sla.color]}`}>
+                                                            <Clock size={11} className="opacity-70" />
+                                                            {formatDurationDHMS(report.created_at, report.resolved_at)}
+                                                        </span>
+                                                    ) : report.status === "resolved" ? (
+                                                        <span className="inline-flex items-center gap-1 font-mono text-xs text-muted-foreground">
+                                                            {formatDurationDHMS(report.created_at, report.resolved_at)}
+                                                        </span>
                                                     ) : (
                                                         <span className="text-muted-foreground text-sm">—</span>
                                                     )}

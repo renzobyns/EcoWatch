@@ -31,23 +31,25 @@ interface Props {
 }
 
 const TONE_CHIP: Record<string, string> = {
-    blue:    "bg-blue-500/15 text-blue-300 border-blue-500/30",
-    emerald: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-    yellow:  "bg-yellow-500/15 text-yellow-300 border-yellow-500/30",
-    red:     "bg-red-500/15 text-red-300 border-red-500/30",
-    violet:  "bg-violet-500/15 text-violet-300 border-violet-500/30",
+    blue:    "bg-blue-500/15 text-blue-800 dark:text-blue-300 border-blue-500/30",
+    emerald: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-500/30",
+    yellow:  "bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30",
+    red:     "bg-red-500/15 text-red-800 dark:text-red-300 border-red-500/30",
+    violet:  "bg-violet-500/15 text-violet-800 dark:text-violet-300 border-violet-500/30",
 };
 
 const DETAIL_TONE: Record<string, string> = {
-    resolved:        "text-emerald-300",
-    "on-time":       "text-emerald-300",
-    late:            "text-red-300",
-    rejected:        "text-red-300",
-    failed_cleanup:  "text-red-300",
-    pending:         "text-yellow-300",
-    verified:        "text-blue-300",
-    assigned:        "text-blue-300",
-    in_progress:     "text-yellow-300",
+    resolved:        "text-emerald-700 dark:text-emerald-300 font-semibold",
+    "on-time":       "text-emerald-700 dark:text-emerald-300 font-semibold",
+    late:            "text-red-700 dark:text-red-300 font-semibold",
+    rejected:        "text-red-700 dark:text-red-300 font-semibold",
+    failed_cleanup:  "text-red-700 dark:text-red-300 font-semibold",
+    pending:         "text-amber-800 dark:text-amber-300 font-semibold",
+    verified:        "text-blue-700 dark:text-blue-300 font-semibold",
+    ai_verified:     "text-amber-800 dark:text-amber-300 font-semibold",
+    ai_rejected:     "text-red-700 dark:text-red-300 font-semibold",
+    assigned:        "text-blue-700 dark:text-blue-300 font-semibold",
+    in_progress:     "text-amber-800 dark:text-amber-300 font-semibold",
 };
 
 const COL_LABEL: Record<string, string> = {
@@ -73,18 +75,20 @@ function fmtDate(val: string | number | boolean | null | undefined): string {
 
 function StatusPill({ value }: { value: string }) {
     const map: Record<string, string> = {
-        resolved:        "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-        verified:        "bg-blue-500/15 text-blue-300 border-blue-500/30",
-        assigned:        "bg-blue-500/15 text-blue-300 border-blue-500/30",
-        in_progress:     "bg-yellow-500/15 text-yellow-300 border-yellow-500/30",
-        pending:         "bg-foreground/10 text-foreground/60 border-border",
-        rejected:        "bg-red-500/15 text-red-300 border-red-500/30",
-        failed_cleanup:  "bg-red-500/15 text-red-300 border-red-500/30",
-        completed:       "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+        resolved:        "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-500/30",
+        verified:        "bg-blue-500/15 text-blue-800 dark:text-blue-300 border-blue-500/30",
+        ai_verified:     "bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30",
+        ai_rejected:     "bg-red-500/15 text-red-800 dark:text-red-300 border-red-500/30",
+        assigned:        "bg-blue-500/15 text-blue-800 dark:text-blue-300 border-blue-500/30",
+        in_progress:     "bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30",
+        pending:         "bg-foreground/10 text-foreground/70 border-border",
+        rejected:        "bg-red-500/15 text-red-800 dark:text-red-300 border-red-500/30",
+        failed_cleanup:  "bg-red-500/15 text-red-800 dark:text-red-300 border-red-500/30",
+        completed:       "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-500/30",
     };
-    const cls = map[value] ?? "bg-foreground/10 text-foreground/60 border-border";
+    const cls = map[value] ?? "bg-foreground/10 text-foreground/70 border-border";
     return (
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${cls}`}>
+        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${cls}`}>
             {value.replace(/_/g, " ")}
         </span>
     );
@@ -98,11 +102,14 @@ function CellValue({ col, val }: { col: string; val: string | number | boolean |
     }
     if (col === "_detail") {
         const s = String(val);
-        const tone = DETAIL_TONE[s] ?? "text-foreground/60";
+        if (s.includes(":")) {
+            return <span className="font-mono text-xs font-semibold text-foreground/90">{s}</span>;
+        }
+        const tone = DETAIL_TONE[s] ?? "text-foreground/70";
         return <span className={`text-xs font-bold uppercase tracking-wide ${tone}`}>{s.replace(/_/g, " ")}</span>;
     }
     if (col === "priority") {
-        const t = val === "high" ? "text-red-300" : val === "medium" ? "text-yellow-300" : "text-blue-300";
+        const t = val === "high" ? "text-red-700 dark:text-red-300 font-semibold" : val === "medium" ? "text-amber-800 dark:text-amber-300 font-semibold" : "text-blue-700 dark:text-blue-300 font-semibold";
         return <span className={`text-xs font-bold uppercase ${t}`}>{String(val)}</span>;
     }
     if (col === "tracking_id") {

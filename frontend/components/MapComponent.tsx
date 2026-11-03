@@ -375,7 +375,12 @@ export default function SJDMMap({
     const mapBg = theme === "dark" ? "#09090b" : "#e8efe9";
 
     if (loading) {
-        return null;
+        return (
+            <div className="relative w-full h-full flex flex-col items-center justify-center gap-3" style={{ background: mapBg }}>
+                <div className="size-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <p className="text-xs text-muted-foreground font-medium">Loading map boundaries & reports...</p>
+            </div>
+        );
     }
 
     return (

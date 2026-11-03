@@ -9,6 +9,7 @@ import {
     ChevronRight, Clock, FileDown, Filter, Minus, RefreshCw, Sparkles, Target, TrendingDown, TrendingUp, Zap,
 } from "lucide-react";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
+import { formatDaysToDHMS } from "@/lib/sla";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { DateRange } from "react-day-picker";
 
@@ -219,8 +220,8 @@ function HeroKpi({
                 <div className={`w-9 h-9 rounded-md flex items-center justify-center bg-primary/10 text-primary`}>{icon}</div>
             </div>
             <div className="flex items-baseline gap-1.5">
-                <span className={`text-2xl sm:text-3xl font-bold tracking-tight text-foreground`}>{value}</span>
-                {suffix && <span className={`text-base font-medium text-muted-foreground`}>{suffix}</span>}
+                <span className={`text-2xl sm:text-3xl font-bold tracking-tight text-foreground font-mono`}>{value}</span>
+                {suffix && <span className={`text-xs font-semibold text-muted-foreground tracking-wider`}>{suffix}</span>}
             </div>
             <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
                 <DeltaArrow
@@ -385,16 +386,17 @@ export function AnalyticsTab({
                         />
                         <HeroKpi
                             label="Avg Time to Resolve"
-                            value={(data.kpis.current.avg_resolve_days * 24).toFixed(1)}
-                            suffix="h"
+                            value={formatDaysToDHMS(data.kpis.current.avg_resolve_days)}
+                            suffix="D:H:M:S"
                             icon={<Clock size={18} />}
                             accent="yellow"
                             delta={data.kpis.delta.avg_resolve_days_pct}
                             higherIsBetter={false}
-                            priorLabel={`Prior: ${(data.kpis.prior.avg_resolve_days * 24).toFixed(1)}h`}
+                            priorLabel={`Prior: ${data.kpis.prior.avg_resolve_days > 0 ? formatDaysToDHMS(data.kpis.prior.avg_resolve_days) : "00:00:00:00"}`}
                             onClick={onDrilldown ? () => onDrilldown("avg_resolve_days") : undefined}
+                            tooltipText="Mean elapsed duration from submission to resolution (Days:Hours:Minutes:Seconds)"
                             tooltipAlign="center"
-                            deltaTooltip={getTooltipText(data.kpis.delta.avg_resolve_days_pct, `${(data.kpis.prior.avg_resolve_days * 24).toFixed(1)}h`)}
+                            deltaTooltip={getTooltipText(data.kpis.delta.avg_resolve_days_pct, data.kpis.prior.avg_resolve_days > 0 ? formatDaysToDHMS(data.kpis.prior.avg_resolve_days) : "00:00:00:00")}
                         />
                         <HeroKpi
                             label="SLA Compliance"
@@ -486,7 +488,7 @@ export function AnalyticsTab({
                             <>
                                 <PvpRow label="Reports" current={data.kpis.current.reports} prior={data.kpis.prior.reports} delta={data.kpis.delta.reports_pct} suffix="" deltaSuffix="%" higherIsBetter={false} tooltipAlign="right" deltaTooltip={getTooltipText(data.kpis.delta.reports_pct, data.kpis.prior.reports.toString())} />
                                 <PvpRow label="Resolution" current={data.kpis.current.resolution_rate} prior={data.kpis.prior.resolution_rate} delta={data.kpis.delta.resolution_rate_pts} suffix="%" deltaSuffix="pts" higherIsBetter tooltipAlign="right" deltaTooltip={getTooltipText(data.kpis.delta.resolution_rate_pts, `${data.kpis.prior.resolution_rate.toFixed(1)}%`, "pts")} />
-                                <PvpRow label="Resolve Time" current={data.kpis.current.avg_resolve_days * 24} prior={data.kpis.prior.avg_resolve_days * 24} delta={data.kpis.delta.avg_resolve_days_pct} suffix="h" deltaSuffix="%" higherIsBetter={false} tooltipAlign="right" deltaTooltip={getTooltipText(data.kpis.delta.avg_resolve_days_pct, `${(data.kpis.prior.avg_resolve_days * 24).toFixed(1)}h`)} />
+                                <PvpRow label="Resolve Time" current={data.kpis.current.avg_resolve_days} prior={data.kpis.prior.avg_resolve_days} customCurrent={formatDaysToDHMS(data.kpis.current.avg_resolve_days)} customPrior={formatDaysToDHMS(data.kpis.prior.avg_resolve_days)} delta={data.kpis.delta.avg_resolve_days_pct} suffix="" deltaSuffix="%" higherIsBetter={false} tooltipAlign="right" deltaTooltip={getTooltipText(data.kpis.delta.avg_resolve_days_pct, formatDaysToDHMS(data.kpis.prior.avg_resolve_days))} />
                                 <PvpRow label="SLA" current={data.kpis.current.sla_compliance} prior={data.kpis.prior.sla_compliance} delta={data.kpis.delta.sla_compliance_pts} suffix="%" deltaSuffix="pts" higherIsBetter tooltipAlign="right" deltaTooltip={getTooltipText(data.kpis.delta.sla_compliance_pts, data.kpis.prior.sla_compliance != null ? `${data.kpis.prior.sla_compliance.toFixed(1)}%` : "N/A", "pts")} />
                                 <div className="text-[10px] text-foreground/40 italic pt-2 border-t border-border">
                                     Comparison: prior {data.window.days}-day window
@@ -674,7 +676,7 @@ export function AnalyticsTab({
                                                     {row.resolution_rate.toFixed(1)}%
                                                 </span>
                                             </td>
-                                            <td className="py-3 pr-3 text-right text-muted-foreground">{row.avg_resolve_days > 0 ? `${(row.avg_resolve_days * 24).toFixed(1)}h` : "-"}</td>
+                                            <td className="py-3 pr-3 text-right text-muted-foreground font-mono text-xs">{row.avg_resolve_days > 0 ? formatDaysToDHMS(row.avg_resolve_days) : "—"}</td>
                                             <td className="py-3 text-right">
                                                 <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                                                     <TrendArrow trend={row.trend} />
@@ -748,11 +750,13 @@ export function AnalyticsTab({
 }
 
 function PvpRow({
-    label, current, prior, delta, suffix, deltaSuffix, higherIsBetter, deltaTooltip, tooltipAlign
+    label, current, prior, customCurrent, customPrior, delta, suffix, deltaSuffix, higherIsBetter, deltaTooltip, tooltipAlign
 }: {
     label: string;
     current: number | null;
     prior: number | null;
+    customCurrent?: string;
+    customPrior?: string;
     delta: number | null;
     suffix: string;
     deltaSuffix: string;
@@ -761,12 +765,14 @@ function PvpRow({
     tooltipAlign?: "left" | "center" | "right";
 }) {
     const fmt = (v: number | null) => v != null ? `${v.toFixed(label === "Reports" ? 0 : 1)}${suffix}` : "N/A";
+    const curDisplay = customCurrent ?? fmt(current);
+    const priorDisplay = customPrior ?? fmt(prior);
     return (
         <div className="flex items-center justify-between gap-3 p-4 rounded-lg bg-muted/50 border border-border">
             <div>
                 <div className="text-sm font-medium text-muted-foreground mb-1">{label}</div>
-                <div className="text-lg font-bold text-foreground">{fmt(current)}</div>
-                <div className="text-xs text-muted-foreground mt-0.5">vs {fmt(prior)}</div>
+                <div className="text-lg font-bold text-foreground font-mono">{curDisplay}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">vs {priorDisplay}</div>
             </div>
             <DeltaArrow
                 value={delta}

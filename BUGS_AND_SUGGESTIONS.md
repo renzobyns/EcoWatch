@@ -15,21 +15,21 @@
 |---|---|---|---|---|
 | **#1** | 🐛 Bug | Cleanup Resolution Proof displayed on failed cleanup | Public Tracker (`/track/[id]`) | `[/]` Fixed by Agent |
 | **#2** | 🐛 Bug | "Pending / Verified" KPI in CENRO shows 0 (`ai_verified` omitted) | CENRO Oversight (`OversightTab.tsx`) | `[/]` Fixed by Agent |
-| **#3** | 🐛 Bug | Severe light mode contrast failures (WCAG AA/AAA) | Detail Drawer & Drilldown Modal | `[ ]` Open |
+| **#3** | 🐛 Bug | Severe light mode contrast failures (WCAG AA/AAA) | Detail Drawer & Drilldown Modal | `[/]` Fixed by Agent |
 | **#4** | 🐛 Bug | No toast notification after clicking "Confirm Duplicate" | Report Drawer (`ReportDetailDrawer.tsx`) | `[/]` Fixed by Agent |
-| **#5** | 🎨 UI/UX | Drawer "Timeline" tab is an unformatted raw text dump | Report Drawer (`ReportDetailDrawer.tsx`) | `[ ]` Open |
+| **#5** | 🎨 UI/UX | Drawer "Timeline" tab is an unformatted raw text dump | Report Drawer (`ReportDetailDrawer.tsx`) | `[/]` Fixed by Agent |
 | **#6** | 🐛 Bug | Able to reassign Barangay jurisdiction on resolved reports | Report Drawer & Backend API | `[/]` Fixed by Agent |
-| **#7** | 🚀 Feature | CENRO Emergency Dispatch / Direct Work Order Creation | CENRO Drawer & Backend Work Orders | `[ ]` Open |
+| **#7** | 🚀 Feature | CENRO Emergency Dispatch / Direct Work Order Creation | CENRO Drawer & Backend Work Orders | `[/]` Fixed by Agent |
 | **#8** | 🐛 Bug | Resolution Rate in Analytics shows 100% (`ai_verified` omitted) | Backend Analytics (`analytics.py`) | `[/]` Fixed by Agent |
-| **#9** | 🐛 Bug | Premature day rounding displays 2.4h instead of 16m (D:H:M:S format) | Backend Analytics & Frontend KPI | `[ ]` In Progress |
-| **#10** | 🐛 Bug | "Reassign Admin" opens personal edit form instead of selector | Barangay Management Drawer | `[ ]` Open |
+| **#9** | 🐛 Bug | Premature day rounding displays 2.4h instead of 16m (D:H:M:S format) | Backend Analytics & Frontend KPI | `[/]` Fixed by Agent |
+| **#10** | 🐛 Bug | "Reassign Admin" opens personal edit form instead of selector | Barangay Management Drawer | `[/]` Fixed by Agent |
 | **#11** | 🐛 Bug | Bulk import shows "Failed: Unknown error" & hides passwords | User Management (`UserManagementTab.tsx`) | `[/]` Fixed by Agent |
-| **#12** | 🎨 UI/UX | "Add New User" modal form is too static and unpolished | User Management (`UserManagementTab.tsx`) | `[ ]` Open |
-| **#13** | 🎨 UI/UX | Barangay Dashboard "Recent Reports" is plain and sparse | Barangay Dashboard (`barangay/page.tsx`) | `[ ]` Open |
-| **#14** | 🐛 Bug | Barangay Review tab permanently stuck on skeletal loader | Barangay Review (`barangay/page.tsx`) | `[ ]` Open |
-| **#15** | 🐛 Bug | Barangay Map View completely blank / not rendering | Barangay Map (`barangay/page.tsx`) | `[ ]` Open |
-| **#16** | 🐛 Bug | "Open" column in Barangay reports shows dashes (`—`) | SLA Helper (`lib/sla.ts`) & Barangay | `[/]` In Progress |
-| **#17** | 🎨 UI/UX | Remove redundant "Manage" button in Barangay table | Barangay Reports (`barangay/page.tsx`) | `[ ]` Open |
+| **#12** | 🎨 UI/UX | "Add New User" modal form is too static and unpolished | User Management (`UserManagementTab.tsx`) | `[/]` Fixed by Agent |
+| **#13** | 🎨 UI/UX | Barangay Dashboard "Recent Reports" is plain and sparse | Barangay Dashboard (`barangay/page.tsx`) | `[/]` Fixed by Agent |
+| **#14** | 🐛 Bug | Barangay Review tab permanently stuck on skeletal loader | Barangay Review (`barangay/page.tsx`) | `[/]` Fixed by Agent |
+| **#15** | 🐛 Bug | Barangay Map View completely blank / not rendering | Barangay Map (`barangay/page.tsx`) | `[/]` Fixed by Agent |
+| **#16** | 🐛 Bug | "Open" column in Barangay reports shows dashes (`—`) | SLA Helper (`lib/sla.ts`) & Barangay | `[/]` Fixed by Agent |
+| **#17** | 🎨 UI/UX | Remove redundant "Manage" button in Barangay table | Barangay Reports (`barangay/page.tsx`) | `[/]` Fixed by Agent |
 
 ---
 
@@ -63,7 +63,7 @@
 
 ---
 
-### - [ ] 🐛 Bug #3: Severe contrast & legibility issues in light mode (Accessibility)
+### - [/] 🐛 Bug #3: Severe contrast & legibility issues in light mode (Accessibility)
 
 * **Pages:** `ReportDetailDrawer.tsx:142, 651` & `AnalyticsDrilldownModal.tsx:33-46`
 * **Screenshots:**
@@ -92,7 +92,7 @@
 
 ---
 
-### - [ ] 🎨 Improvement #5: Unformatted raw text dump in Drawer "Timeline" tab
+### - [/] 🎨 Improvement #5: Unformatted raw text dump in Drawer "Timeline" tab
 
 * **Page:** Report Detail Drawer (`frontend/components/portal/ReportDetailDrawer.tsx:1274-1315`)
 * **Screenshots:**
@@ -123,7 +123,7 @@
 
 ---
 
-### - [ ] 🚀 Feature #7: CENRO Emergency Dispatch / Direct Work Order Creation
+### - [/] 🚀 Feature #7: CENRO Emergency Dispatch / Direct Work Order Creation
 
 * **Page:** CENRO Drawer Work Orders Tab & Backend API (`backend/main.py:3325`)
 * **Screenshots:**
@@ -148,7 +148,7 @@
 
 ---
 
-### - [ ] 🐛 Bug #9: Premature day-rounding causes Avg Resolution Time to display "2.4h" instead of actual minutes
+### - [/] 🐛 Bug #9: Premature day-rounding causes Avg Resolution Time to display "2.4h" instead of actual minutes
 
 * **Files:** `backend/analytics.py:158` & `frontend/components/portal/AnalyticsTab.tsx:388`
 * **Screenshots:**
@@ -163,7 +163,7 @@
 
 ---
 
-### - [ ] 🐛 Bug #10: "Reassign Admin" opens "Edit Account Details" form instead of a reassignment selector
+### - [/] 🐛 Bug #10: "Reassign Admin" opens "Edit Account Details" form instead of a reassignment selector
 
 * **Page:** CENRO Barangay Management (`frontend/app/cenro/page.tsx:324` & `BarangayDetailDrawer.tsx:359`)
 * **Screenshots:**
@@ -187,7 +187,7 @@
 
 ---
 
-### - [ ] 🎨 Improvement #12: Redesign static "Add New User" and "Edit Account" forms to modern EcoWatch standards
+### - [/] 🎨 Improvement #12: Redesign static "Add New User" and "Edit Account" forms to modern EcoWatch standards
 
 * **Page:** User Management (`frontend/components/portal/UserManagementTab.tsx:692-750`)
 * **Screenshots:**
@@ -202,7 +202,7 @@
 
 ---
 
-### - [ ] 🎨 Improvement #13: Barangay Dashboard "Recent Reports" is plain and sparse
+### - [/] 🎨 Improvement #13: Barangay Dashboard "Recent Reports" is plain and sparse
 
 * **Page:** Barangay Dashboard (`frontend/app/barangay/page.tsx:1005-1065`)
 * **Screenshots:**
@@ -218,7 +218,7 @@
 
 ---
 
-### - [ ] 🐛 Bug #14: Barangay Review tab permanently stuck on skeletal loader
+### - [/] 🐛 Bug #14: Barangay Review tab permanently stuck on skeletal loader
 
 * **Page:** Barangay Review Tab (`frontend/app/barangay/page.tsx:1267-1286`)
 * **Screenshots:**
@@ -230,7 +230,7 @@
 
 ---
 
-### - [ ] 🐛 Bug #15: Barangay Map View completely blank / not rendering
+### - [/] 🐛 Bug #15: Barangay Map View completely blank / not rendering
 
 * **Page:** Barangay Map View (`frontend/app/barangay/page.tsx:1604-1624` & `MapComponent.tsx:377`)
 * **Screenshots:**
@@ -244,7 +244,7 @@
 
 ---
 
-### - [ ] 🐛 Bug #16: "Open" column in Barangay reports shows dashes (`—`)
+### - [/] 🐛 Bug #16: "Open" column in Barangay reports shows dashes (`—`)
 
 * **Page:** Barangay Reports Tab (`frontend/app/barangay/page.tsx:2757-2763`) & `frontend/lib/sla.ts:22`
 * **Screenshots:**
@@ -256,7 +256,7 @@
 
 ---
 
-### - [ ] 🎨 Improvement #17: Remove redundant "Manage" button in Barangay reports table
+### - [/] 🎨 Improvement #17: Remove redundant "Manage" button in Barangay reports table
 
 * **Page:** Barangay Reports Tab (`frontend/app/barangay/page.tsx:2770-2783`)
 * **What happens:** The table row has an action column with a "Manage" button, but the entire `<tr>` row is already clickable.

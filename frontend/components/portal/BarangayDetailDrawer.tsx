@@ -3,10 +3,11 @@
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import {
-    X, Building2, Mail, Phone, Clock, AlertTriangle,
+    X, Search, Building2, Mail, Phone, Clock, AlertTriangle,
     Shield, Users, FileText, MapPin, Map, RefreshCw, Inbox
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
+import { toast } from "sonner";
 import type { BarangayOverviewRow } from "./BarangayManagementTab";
 import { formatRelative, formatDate } from "@/lib/date-utils";
 
@@ -348,7 +349,7 @@ export function BarangayDetailDrawer({
                 <div className="p-4 border-t border-border shrink-0 flex gap-3 bg-card">
                     {!barangay.admin ? (
                         <button
-                            onClick={() => onAssignAdmin(barangay.barangay)}
+                            onClick={() => setShowReassignModal(true)}
                             className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-xl transition-colors shadow-sm"
                         >
                             Assign Admin
@@ -356,7 +357,7 @@ export function BarangayDetailDrawer({
                     ) : (
                         <>
                             <button
-                                onClick={() => onReassignAdmin(barangay.admin!.id)}
+                                onClick={() => setShowReassignModal(true)}
                                 className="flex-1 py-2.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-sm font-medium rounded-xl transition-colors"
                             >
                                 Reassign Admin
@@ -378,6 +379,18 @@ export function BarangayDetailDrawer({
                     </button>
                 </div>
             </div>
+
+            {showReassignModal && (
+                <ReassignBarangayAdminModal
+                    barangayName={barangay.barangay}
+                    currentAdmin={barangay.admin}
+                    onClose={() => setShowReassignModal(false)}
+                    onSuccess={() => {
+                        setShowReassignModal(false);
+                        onClose();
+                    }}
+                />
+            )}
         </>
     );
 }
@@ -724,6 +737,224 @@ function BoundaryTab({
                 </div>
                 <div className="text-lg font-bold text-foreground mb-1">{barangay.barangay}</div>
                 <div className="text-sm text-muted-foreground">San Jose del Monte, Bulacan</div>
+            </div>
+        </div>
+    );
+}
+
+function ReassignBarangayAdminModal({
+    barangayName,
+    currentAdmin,
+    onClose,
+    onSuccess,
+}: {
+    barangayName: string;
+    currentAdmin: BarangayOverviewRow["admin"] | null;
+    onClose: () => void;
+    onSuccess: () => void;
+}) {
+    const [users, setUsers] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState("");
+    const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+    const [demotePrevious, setDemotePrevious] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
+
+    useEffect(() => {
+        let active = true;
+        setLoading(true);
+        api("/users")
+            .then((data) => {
+                if (active && Array.isArray(data)) {
+                    setUsers(data);
+                }
+            })
+            .catch((err) => {
+                toast.error(err instanceof ApiError ? err.message : "Failed to load users");
+            })
+            .finally(() => {
+                if (active) setLoading(false);
+            });
+        return () => { active = false; };
+    }, []);
+
+    const candidates = (users || []).filter((u: any) => {
+        if (u.id === currentAdmin?.id) return false;
+        if (u.role === "cenro") return false;
+        const q = search.trim().toLowerCase();
+        if (!q) return true;
+        return (
+            (u.full_name && u.full_name.toLowerCase().includes(q)) ||
+            (u.email && u.email.toLowerCase().includes(q))
+        );
+    });
+
+    const selectedUser = users.find((u) => u.id === selectedUserId);
+
+    const handleConfirm = async () => {
+        if (!selectedUserId) {
+            toast.error("Please select a user to assign as admin.");
+            return;
+        }
+        setSubmitting(true);
+        try {
+            await api(`/users/${selectedUserId}`, {
+                method: "PUT",
+                body: JSON.stringify({
+                    role: "barangay",
+                    barangay_assignment: barangayName,
+                }),
+            });
+
+            if (currentAdmin && demotePrevious) {
+                await api(`/users/${currentAdmin.id}`, {
+                    method: "PUT",
+                    body: JSON.stringify({
+                        role: "citizen",
+                        barangay_assignment: null,
+                    }),
+                });
+            }
+
+            toast.success(`Successfully assigned ${selectedUser?.full_name || "user"} as Admin of ${barangayName}`);
+            onSuccess();
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Failed to reassign admin");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[2200] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+            <div className="bg-card w-full max-w-lg rounded-2xl border border-border shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+                <div className="p-5 border-b border-border flex items-center justify-between">
+                    <div>
+                        <h2 className="text-lg font-bold text-foreground">Reassign Barangay Admin</h2>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                            Jurisdiction: <span className="font-semibold text-foreground">{barangayName}</span>
+                        </p>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    >
+                        <X size={18} />
+                    </button>
+                </div>
+
+                <div className="p-5 overflow-y-auto space-y-4">
+                    <div className="bg-muted/40 border border-border rounded-xl p-3 flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Current Admin</span>
+                            {currentAdmin ? (
+                                <div className="mt-0.5">
+                                    <div className="text-sm font-semibold text-foreground truncate">{currentAdmin.full_name}</div>
+                                    <div className="text-xs text-muted-foreground font-mono truncate">{currentAdmin.email}</div>
+                                </div>
+                            ) : (
+                                <div className="text-xs text-muted-foreground italic mt-0.5">No admin assigned yet</div>
+                            )}
+                        </div>
+                        {currentAdmin && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 shrink-0">
+                                Active Admin
+                            </span>
+                        )}
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-semibold text-muted-foreground uppercase mb-1.5 block">
+                            Select New Admin from Platform Users
+                        </label>
+                        <div className="relative mb-2">
+                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                            <input
+                                type="text"
+                                placeholder="Search candidate by name or email..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="w-full pl-9 pr-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                            />
+                        </div>
+
+                        <div className="border border-border rounded-xl max-h-52 overflow-y-auto divide-y divide-border/60 bg-background/50">
+                            {loading ? (
+                                <div className="p-6 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+                                    <RefreshCw size={14} className="animate-spin text-primary" />
+                                    Loading users...
+                                </div>
+                            ) : candidates.length === 0 ? (
+                                <div className="p-6 text-center text-xs text-muted-foreground">
+                                    No eligible candidates found.
+                                </div>
+                            ) : (
+                                candidates.map((u: any) => {
+                                    const isSelected = selectedUserId === u.id;
+                                    return (
+                                        <div
+                                            key={u.id}
+                                            onClick={() => setSelectedUserId(u.id)}
+                                            className={`p-3 flex items-center justify-between gap-3 cursor-pointer transition-colors ${
+                                                isSelected ? "bg-primary/10 border-l-4 border-l-primary" : "hover:bg-muted/50"
+                                            }`}
+                                        >
+                                            <div className="min-w-0">
+                                                <div className="text-xs font-semibold text-foreground truncate">{u.full_name}</div>
+                                                <div className="text-[11px] text-muted-foreground font-mono truncate">{u.email}</div>
+                                            </div>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-muted text-foreground/70 border border-border">
+                                                    {u.role}
+                                                    {u.barangay_assignment ? ` · ${u.barangay_assignment}` : ""}
+                                                </span>
+                                                <div className={`size-4 rounded-full border flex items-center justify-center ${
+                                                    isSelected ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/30"
+                                                }`}>
+                                                    {isSelected && <span className="size-1.5 rounded-full bg-white" />}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </div>
+
+                    {currentAdmin && (
+                        <label className="flex items-center gap-2 p-3 rounded-xl border border-border/60 bg-muted/20 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={demotePrevious}
+                                onChange={(e) => setDemotePrevious(e.target.checked)}
+                                className="rounded border-border text-primary focus:ring-primary size-4"
+                            />
+                            <div className="text-xs text-foreground">
+                                <span className="font-semibold">Demote previous admin ({currentAdmin.full_name})</span>
+                                <p className="text-[11px] text-muted-foreground">Changes their role to citizen and clears jurisdiction.</p>
+                            </div>
+                        </label>
+                    )}
+                </div>
+
+                <div className="p-4 border-t border-border flex items-center justify-end gap-3 bg-muted/20">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        disabled={submitting}
+                        className="px-4 py-2 bg-transparent text-muted-foreground hover:text-foreground text-xs font-semibold rounded-xl transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleConfirm}
+                        disabled={!selectedUserId || submitting}
+                        className="px-5 py-2 bg-primary text-primary-foreground text-xs font-bold rounded-xl hover:bg-primary/90 transition-all shadow-sm disabled:opacity-50 flex items-center gap-2"
+                    >
+                        {submitting ? "Reassigning..." : "Confirm Reassignment"}
+                    </button>
+                </div>
             </div>
         </div>
     );
