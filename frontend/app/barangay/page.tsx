@@ -955,148 +955,195 @@ function BarangayPortalInner() {
                 }}
             notificationCount={unreadCount}
         >
-            <div className="max-w-[1600px] mx-auto min-h-full flex flex-col gap-5">
+            <div className="w-full min-h-full flex flex-col gap-5">
 
                 {/* DASHBOARD VIEW */}
                 {activeView === 'dashboard' && (
-                    <div className="flex flex-col gap-5 sm:gap-6 flex-1 animate-slide-up pb-8 w-full">
-                        {/* Header */}
-                        <div className="flex items-start justify-between gap-4 flex-wrap shrink-0">
-                            <div>
-                                <h1 className="text-2xl font-bold text-foreground tracking-tight">
-                                    {user.barangay_assignment} <span className="text-primary">Dashboard</span>
-                                </h1>
-                                <p className="text-sm text-foreground/50 mt-1">Jurisdiction overview &middot; {new Date().toLocaleDateString()}</p>
+                    <div className="flex-1 grid grid-cols-1 lg:grid-cols-[2.5fr_1fr] gap-6 overflow-visible lg:overflow-hidden pb-4 animate-slide-up w-full">
+                        {/* Left Main Column: Welcome / Stats / Map */}
+                        <div className="flex flex-col gap-4 min-h-0">
+                            {/* Header */}
+                            <div className="flex items-start justify-between gap-4 flex-wrap shrink-0">
+                                <div>
+                                    <h1 className="text-2xl font-bold text-foreground tracking-tight">
+                                        {user.barangay_assignment} <span className="text-primary">Dashboard</span>
+                                    </h1>
+                                    <p className="text-sm text-foreground/50 mt-1">Jurisdiction overview &middot; {new Date().toLocaleDateString()}</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button onClick={fetchPortalData} disabled={loading} className="p-2 bg-muted/50 border border-border text-foreground rounded-lg hover:bg-muted transition-colors" title="Refresh data">
+                                        <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+                                    </button>
+                                </div>
                             </div>
-                            <div className="flex gap-2">
-                                <button onClick={fetchPortalData} disabled={loading} className="p-2 bg-muted/50 border border-border text-foreground rounded-lg hover:bg-muted transition-colors" title="Refresh data">
-                                    <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-                                </button>
+
+                            {/* KPI Grid */}
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 shrink-0">
+                                <KpiCard
+                                    label="Pending Reports"
+                                    value={stats.pending}
+                                    icon={<AlertTriangle size={22} />}
+                                    tone={stats.pending > 0 ? "yellow" : "emerald"}
+                                    loading={loading}
+                                />
+                                <KpiCard
+                                    label="Teams Deployed"
+                                    value={stats.deployed}
+                                    icon={<Hourglass size={22} />}
+                                    tone="blue"
+                                    loading={loading}
+                                />
+                                <KpiCard
+                                    label="Total Resolved"
+                                    value={stats.resolved}
+                                    icon={<CheckCircle2 size={22} />}
+                                    tone={stats.resolved > 0 ? "emerald" : "neutral"}
+                                    loading={loading}
+                                />
+                            </div>
+
+                            {/* Jurisdiction Live Map Hero */}
+                            <div className="flex-1 rounded-xl border border-border bg-card text-card-foreground shadow-sm overflow-hidden relative min-h-[350px] lg:min-h-[440px] z-0">
+                                <div className="absolute top-3 left-3 z-[1000] bg-background/80 backdrop-blur-md px-2.5 py-1 rounded text-[11px] font-medium text-foreground border border-border pointer-events-none shadow-sm flex items-center gap-1.5">
+                                    <span className="relative flex h-2 w-2">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                    </span>
+                                    <span>{user.barangay_assignment} Live Map</span>
+                                </div>
+                                <MapComponent
+                                    height="100%"
+                                    reports={reports}
+                                    heatmaps={[]}
+                                    focusedBarangay={user.barangay_assignment}
+                                    onBarangayClick={() => {}}
+                                    filterClassName="top-3 right-3"
+                                />
                             </div>
                         </div>
 
-                        {/* KPI Grid */}
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4 shrink-0">
-                            <KpiCard
-                                label="Pending Reports"
-                                value={stats.pending}
-                                icon={<AlertTriangle size={22} />}
-                                tone={stats.pending > 0 ? "yellow" : "emerald"}
-                                loading={loading}
-                            />
-                            <KpiCard
-                                label="Teams Deployed"
-                                value={stats.deployed}
-                                icon={<Hourglass size={22} />}
-                                tone="blue"
-                                loading={loading}
-                            />
-                            <KpiCard
-                                label="Total Resolved"
-                                value={stats.resolved}
-                                icon={<CheckCircle2 size={22} />}
-                                tone={stats.resolved > 0 ? "emerald" : "neutral"}
-                                loading={loading}
-                            />
-                        </div>
-
-                        {/* Recent Reports Container */}
-                        <div className="bg-card border border-border rounded-xl shadow-sm flex flex-col flex-1 min-h-[350px] shrink-0">
-                            <div className="p-6 pb-4 border-b border-border flex items-center justify-between">
-                                <h2 className="text-base font-bold text-foreground">Recent Reports</h2>
-                                <button
-                                    onClick={() => setActiveView('reports')}
-                                    className="text-sm font-medium text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
-                                >
-                                    View All <ChevronRight size={14} />
-                                </button>
-                            </div>
-                            <div className="p-6 pt-4 flex-1 overflow-auto">
-                                {tableLoading ? (
-                                    <div className="space-y-4">
-                                        {[1, 2, 3, 4, 5].map(i => (
-                                            <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-foreground/5 animate-pulse">
-                                                <div className="flex items-center gap-3 w-1/2">
-                                                    <div className="w-24 h-4 bg-foreground/10 rounded-md"></div>
-                                                    <div className="w-16 h-4 bg-foreground/10 rounded-md"></div>
+                        {/* Right Column: Jurisdiction Feed & Cleaners Status */}
+                        <div className="flex flex-col gap-4 overflow-y-auto pr-1 scrollbar-thin">
+                            {/* Recent Reports Container */}
+                            <div className="bg-card border border-border rounded-xl shadow-sm flex flex-col flex-1 min-h-[420px]">
+                                <div className="p-4 pb-3 border-b border-border flex items-center justify-between">
+                                    <div>
+                                        <h2 className="text-sm font-bold text-foreground">Recent Reports</h2>
+                                        <p className="text-[11px] text-muted-foreground">Latest filings in {user.barangay_assignment}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setActiveView('reports')}
+                                        className="text-xs font-medium text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
+                                    >
+                                        View All <ChevronRight size={13} />
+                                    </button>
+                                </div>
+                                <div className="p-4 flex-1 overflow-auto">
+                                    {tableLoading ? (
+                                        <div className="space-y-3">
+                                            {[1, 2, 3, 4, 5].map(i => (
+                                                <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-foreground/5 animate-pulse">
+                                                    <div className="flex items-center gap-3 w-1/2">
+                                                        <div className="w-20 h-4 bg-foreground/10 rounded-md"></div>
+                                                        <div className="w-14 h-4 bg-foreground/10 rounded-md"></div>
+                                                    </div>
+                                                    <div className="w-12 h-4 bg-foreground/10 rounded-md"></div>
                                                 </div>
-                                                <div className="w-12 h-4 bg-foreground/10 rounded-md"></div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : recentReports.length === 0 ? (
-                                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-sm py-10">
-                                        <FileText className="mb-3 opacity-20" size={32} />
-                                        No reports yet.
-                                    </div>
-                                ) : (
-                                    <ul className="space-y-2.5">
-                                        {recentReports.map(r => {
-                                            const sla = slaInfo(r.created_at, r.status);
-                                            return (
-                                                <li
-                                                    key={r.id}
-                                                    className="group flex items-center justify-between gap-4 p-3 rounded-xl bg-background/50 hover:bg-muted/60 transition-all border border-border/60 hover:border-border cursor-pointer shadow-xs"
-                                                    onClick={() => {
-                                                        setSelectedReport(r);
-                                                        setCleanupPreview(null);
-                                                        setCleanupImage(null);
-                                                        setDeploymentNotes("");
-                                                    }}
-                                                >
-                                                    <div className="flex items-center gap-3 min-w-0">
-                                                        <div className="relative size-11 rounded-lg overflow-hidden bg-muted shrink-0 border border-border flex items-center justify-center">
-                                                            {r.image_url ? (
-                                                                <img
-                                                                    src={r.image_url.startsWith("http") ? r.image_url : `${API_URL}${r.image_url}`}
-                                                                    alt={r.tracking_id}
-                                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                                                                    loading="lazy"
-                                                                />
-                                                            ) : (
-                                                                <Camera size={16} className="text-muted-foreground/40" />
-                                                            )}
-                                                        </div>
-                                                        <div className="min-w-0 flex flex-col gap-0.5">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="font-mono text-sm font-bold text-foreground">{r.tracking_id}</span>
-                                                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                                                                    r.status === 'resolved' ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30' :
-                                                                    r.status === 'verified' ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30' :
-                                                                    r.status === 'ai_verified' ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30' :
-                                                                    r.status === 'ai_rejected' ? 'bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30' :
-                                                                    r.status === 'assigned' ? 'bg-blue-500/15 text-blue-800 dark:text-blue-300 border border-blue-500/30' :
-                                                                    r.status === 'in_progress' ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30' :
-                                                                    r.status === 'pending' ? 'bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30' :
-                                                                    r.status === 'failed_cleanup' ? 'bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30' :
-                                                                    'bg-muted text-foreground/70 border border-border'
-                                                                }`}>
-                                                                    {r.status.replace(/_/g, ' ')}
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2 text-xs text-muted-foreground truncate">
-                                                                <span>{formatDate(r.created_at)}</span>
-                                                                {r.notes && (
-                                                                    <>
-                                                                        <span>•</span>
-                                                                        <span className="truncate max-w-[240px] sm:max-w-[360px] text-foreground/70 italic">&ldquo;{r.notes}&rdquo;</span>
-                                                                    </>
+                                            ))}
+                                        </div>
+                                    ) : recentReports.length === 0 ? (
+                                        <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-sm py-12">
+                                            <FileText className="mb-3 opacity-20" size={32} />
+                                            No reports yet.
+                                        </div>
+                                    ) : (
+                                        <ul className="space-y-2.5">
+                                            {recentReports.map(r => {
+                                                const sla = slaInfo(r.created_at, r.status);
+                                                return (
+                                                    <li
+                                                        key={r.id}
+                                                        className="group flex items-center justify-between gap-3 p-2.5 rounded-xl bg-background/50 hover:bg-muted/60 transition-all border border-border/60 hover:border-border cursor-pointer shadow-xs"
+                                                        onClick={() => {
+                                                            setSelectedReport(r);
+                                                            setCleanupPreview(null);
+                                                            setCleanupImage(null);
+                                                            setDeploymentNotes("");
+                                                        }}
+                                                    >
+                                                        <div className="flex items-center gap-2.5 min-w-0">
+                                                            <div className="relative size-10 rounded-lg overflow-hidden bg-muted shrink-0 border border-border flex items-center justify-center">
+                                                                {r.image_url ? (
+                                                                    <img
+                                                                        src={r.image_url.startsWith("http") ? r.image_url : `${API_URL}${r.image_url}`}
+                                                                        alt={r.tracking_id}
+                                                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                                                        loading="lazy"
+                                                                    />
+                                                                ) : (
+                                                                    <Camera size={15} className="text-muted-foreground/40" />
                                                                 )}
                                                             </div>
+                                                            <div className="min-w-0 flex flex-col gap-0.5">
+                                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                                    <span className="font-mono text-xs font-bold text-foreground">{r.tracking_id}</span>
+                                                                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
+                                                                        r.status === 'resolved' ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30' :
+                                                                        r.status === 'verified' ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30' :
+                                                                        r.status === 'ai_verified' ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30' :
+                                                                        r.status === 'ai_rejected' ? 'bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30' :
+                                                                        r.status === 'assigned' ? 'bg-blue-500/15 text-blue-800 dark:text-blue-300 border border-blue-500/30' :
+                                                                        r.status === 'in_progress' ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30' :
+                                                                        r.status === 'pending' ? 'bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30' :
+                                                                        r.status === 'failed_cleanup' ? 'bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30' :
+                                                                        'bg-muted text-foreground/70 border border-border'
+                                                                    }`}>
+                                                                        {r.status.replace(/_/g, ' ')}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground truncate">
+                                                                    <span>{formatDate(r.created_at)}</span>
+                                                                    {r.notes && (
+                                                                        <>
+                                                                            <span>•</span>
+                                                                            <span className="truncate max-w-[140px] text-foreground/70 italic">&ldquo;{r.notes}&rdquo;</span>
+                                                                        </>
+                                                                    )}
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 shrink-0">
-                                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-mono text-xs font-bold bg-muted border border-border text-foreground/80">
-                                                            <Clock size={11} className="opacity-70" />
-                                                            {formatDurationDHMS(r.created_at, r.resolved_at)}
-                                                        </span>
-                                                        <ChevronRight size={14} className="text-muted-foreground/50 group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
-                                                    </div>
-                                                </li>
-                                            );
-                                        })}
-                                    </ul>
-                                )}
+                                                        <div className="flex items-center gap-1.5 shrink-0">
+                                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[10px] font-bold bg-muted border border-border text-foreground/80">
+                                                                <Clock size={10} className="opacity-70" />
+                                                                {formatDurationDHMS(r.created_at, r.resolved_at)}
+                                                            </span>
+                                                            <ChevronRight size={13} className="text-muted-foreground/50 group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
+                                                        </div>
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Cleaners Team Quick Summary */}
+                            <div className="rounded-xl border border-border bg-card p-4 shadow-sm flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
+                                        {cleaners.filter(c => c.is_active).length}
+                                    </div>
+                                    <div>
+                                        <div className="text-xs font-bold text-foreground">Active Field Cleaners</div>
+                                        <div className="text-[11px] text-muted-foreground">Ready for deployment</div>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setActiveView('accounts')}
+                                    className="px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold transition-colors"
+                                >
+                                    Manage
+                                </button>
                             </div>
                         </div>
                     </div>
