@@ -30,6 +30,9 @@
 | **#15** | 🐛 Bug | Barangay Map View completely blank / not rendering | Barangay Map (`barangay/page.tsx`) | `[/]` Fixed by Agent |
 | **#16** | 🐛 Bug | "Open" column in Barangay reports shows dashes (`—`) | SLA Helper (`lib/sla.ts`) & Barangay | `[/]` Fixed by Agent |
 | **#17** | 🎨 UI/UX | Remove redundant "Manage" button in Barangay table | Barangay Reports (`barangay/page.tsx`) | `[/]` Fixed by Agent |
+| **#18** | 🐛 Bug | Drawer "AI Verified" banner & pill persist after human verify | CENRO Portal & Drawer (`ReportDetailDrawer.tsx` / `cenro/page.tsx`) | `[ ]` Open / Pending |
+| **#19** | 🐛 Bug | Report marked as duplicate still shows AI Verified banner & cannot be approved | CENRO Drawer & Backend (`ReportDetailDrawer.tsx` / `backend/main.py:4145`) | `[ ]` Open / Pending |
+| **#20** | 🐛 Bug | "Reassign Admin" crashes with 500 error page (`setShowReassignModal is not defined`) | Barangay Drawer (`BarangayDetailDrawer.tsx`) | `[/]` Fixed by Agent |
 
 ---
 
@@ -262,3 +265,54 @@
 * **What happens:** The table row has an action column with a "Manage" button, but the entire `<tr>` row is already clickable.
 * **Fix Plan:** Remove the "Manage" column/button to declutter the table and let the clickable row handle opening the report drawer/modal.
 * **Verification Step:** Open Barangay Reports table; verify no redundant "Manage" column exists and clicking any row opens the report details.
+
+
+---
+
+### - [ ] 🐛 Bug #18: Drawer "AI Verified" confirmation banner and status pill persist after human verification
+
+* **Page:** CENRO Portal & Drawer (`frontend/components/portal/ReportDetailDrawer.tsx` & `frontend/app/cenro/page.tsx:1242-1247`)
+* **Screenshots:**
+  ![Human Verify Action Succeeded But Banner Persists](./docs/bug-tracker/screenshots/bug17-drawer-confirm-approve-stuck-ai-verified.png)
+* **What happens:** In CENRO, clicking **"Confirm & Approve"** successfully creates a `HUMAN VERIFY` audit log item in the timeline ("Action by cenro@test.com, Prior status: Ai Verified"). However, the top drawer status pill stays at `AI VERIFIED` and the `AI VERIFIED — CONFIRMATION NEEDED` action banner with the "Confirm & Approve" and "Reject" buttons remains visible.
+* **Root Cause:**
+  1. In `cenro/page.tsx:1242-1247`, `onUpdated` only sets `{ verification_pending: true }` in `reports` and `selectedReport` without updating `status: 'verified'` or refetching `fetchReports()`.
+  2. In `ReportDetailDrawer.tsx:297`, `handleDrawerHumanVerify` calls `onUpdated?.()` and `fetchDetail()`, but `report.status` comes directly from the parent prop `report`, which never had its `status` updated to `data.new_status` (`'verified'`).
+* **Fix Plan:**
+  1. In `ReportDetailDrawer.tsx`, pass the API response (`data.new_status`) to `onUpdated` or update local drawer state so `report.status` immediately switches to `'verified'` (or `'rejected'`), dismissing the Layer 2 confirmation banner.
+  2. In `cenro/page.tsx:1242`, update `selectedReport.status` and `reports` list with the new status, and trigger a refresh of CENRO oversight data.
+* **Verification Step:** Open an `ai_verified` report in CENRO drawer, click "Confirm & Approve"; verify toast succeeds, the banner immediately vanishes, the header pill changes from `AI VERIFIED` to `VERIFIED`, and the timeline reflects the change without page reload.
+
+
+---
+
+### - [ ] 🐛 Bug #19: Report marked as duplicate still shows AI Verified banner and fails human verification
+
+* **Page:** CENRO Detail Drawer (`frontend/components/portal/ReportDetailDrawer.tsx`) & Backend (`backend/main.py:4145`)
+* **Screenshots:**
+  ![Drawer Shows AI Verified Banner With Duplicate Section](./docs/bug-tracker/screenshots/bug19-duplicate-drawer-shows-confirm-approve.png)
+  ![Human Verify Fails When Report Is Duplicate](./docs/bug-tracker/screenshots/bug19-duplicate-human-verify-error-toast.png)
+* **What happens:** When report `EW-0004` has status `duplicate` (or has a possible duplicate marked), the drawer top banner still renders `AI VERIFIED — CONFIRMATION NEEDED` with `Confirm & Approve` and `Reject` buttons. When CENRO clicks **"Confirm & Approve"** to override/human-verify it, a red toast error fires:
+  > *"Report status is 'duplicate', not eligible for human verification. Only 'ai_verified' and 'ai_rejected' reports can be human-verified."*
+* **Root Cause:**
+  1. **Frontend Desync**: After `mark-duplicate` succeeds or when viewing a duplicate report where `report.status === 'duplicate'`, the drawer was either initialized with stale `status: 'ai_verified'` or the drawer banner does not check if `report.status === 'duplicate'`.
+  2. **Workflow Gap**: If a report was marked as duplicate (or is flagged as a duplicate) but CENRO legitimately wants to override the duplicate decision or human-verify it as a genuine distinct report, the backend rejects it with 400 because `human_verify_report` strictly allows only `ai_verified` and `ai_rejected`.
+  3. **Duplicate Confirmation UI**: When a duplicate is confirmed via `Confirm Duplicate`, the drawer stays open on `ai_verified` instead of immediately reflecting `duplicate` status and hiding the `Confirm & Approve` banner, or offering an "Unmark Duplicate / Re-verify" action.
+* **Fix Plan:**
+  1. Hide the Layer 2 `AI VERIFIED — CONFIRMATION NEEDED` action banner when `report.status === 'duplicate'`.
+  2. If CENRO needs to override/unmark a duplicate so it can be approved as a distinct incident, provide an explicit "Unmark Duplicate" / "Reactivate for Review" workflow in the backend (`/reports/{id}/unmark-duplicate` or allow `human-verify` to unmark duplicate with CENRO role and note).
+  3. When `Confirm Duplicate` is clicked, immediately sync `report.status = 'duplicate'` and refresh the drawer/parent view so conflicting actions are removed.
+* **Verification Step:** Open an `ai_verified` report with a possible duplicate. If marked duplicate, the Layer 2 confirmation banner should immediately disappear. If CENRO chooses to review or override a duplicate, the system should cleanly allow reactivating and verifying without 400 errors.
+
+
+---
+
+### - [/] 🐛 Bug #20: Clicking "Reassign Admin" crashes the CENRO page with Next.js Error 500 ("Something Went Off-Grid")
+
+* **Page:** CENRO Barangay Management Drawer (`frontend/components/portal/BarangayDetailDrawer.tsx:122`)
+* **Screenshots:**
+  ![Reassign Admin Crash 500 Off-Grid](./docs/bug-tracker/screenshots/bug20-reassign-admin-crash-500.png)
+* **What happens:** In CENRO portal under Barangay Management, opening a barangay detail drawer and clicking **"Reassign Admin"** (or **"Assign Admin"**) crashes the entire page into Next.js 500 error boundary: *"Something Went Off-Grid: An unexpected anomaly occurred while processing your request."*
+* **Root Cause:** In `BarangayDetailDrawer.tsx:352, 360`, the button `onClick` called `setShowReassignModal(true)`, but the state declaration `const [showReassignModal, setShowReassignModal] = useState(false);` was missing from the component body, triggering a runtime `ReferenceError: setShowReassignModal is not defined`.
+* **Fix Plan:** Added `const [showReassignModal, setShowReassignModal] = useState(false);` to `BarangayDetailDrawer`.
+* **Verification Step:** Open CENRO -> Barangay Management -> Click any barangay -> Click "Reassign Admin"; verify the candidate selection modal opens cleanly without crashing.

@@ -119,6 +119,7 @@ export function BarangayDetailDrawer({
     onViewOnMap,
 }: Props) {
     const [activeTab, setActiveTab] = useState<DrawerTab>("overview");
+    const [showReassignModal, setShowReassignModal] = useState(false);
 
     const [reports, setReports] = useState<any[]>([]);
     const [reportsLoading, setReportsLoading] = useState(false);
