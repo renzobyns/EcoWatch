@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { Search, FileText, LayoutGrid, List, FileDown, RefreshCw, AlertTriangle, ListChecks, Hourglass, CheckCircle2 } from "lucide-react";
+import { Search, FileText, LayoutGrid, List, FileDown, RefreshCw, AlertTriangle, ListChecks, Hourglass, CheckCircle2, Clock } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { DateRange } from "react-day-picker";
 import { formatDate } from "@/lib/date-utils";
+import { formatDurationDHMS } from "@/lib/sla";
 import { toast } from "sonner";
 import { KpiCard } from "@/components/portal/KpiCard";
 import { QueueReport } from "@/components/portal/ReportDetailDrawer"; // Assuming QueueReport is exported there
