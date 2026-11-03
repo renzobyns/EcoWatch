@@ -1239,10 +1239,12 @@ function CenroDashboardInner() {
                 onClose={() => setSelectedReport(null)}
                 onReassign={() => selectedReport && handleReassign(selectedReport.id)}
                 onForceClose={() => selectedReport && handleForceClose(selectedReport.id)}
-                onUpdated={() => {
+                onUpdated={(updatedFields) => {
                     if (selectedReport) {
-                        setReports(prev => prev.map(r => r.id === selectedReport.id ? { ...r, verification_pending: true } : r));
-                        setSelectedReport((prev: any) => prev ? { ...prev, verification_pending: true } : null);
+                        const nextFields = updatedFields || { verification_pending: true };
+                        setReports(prev => prev.map(r => r.id === selectedReport.id ? { ...r, ...nextFields } : r));
+                        setSelectedReport((prev: any) => prev ? { ...prev, ...nextFields } : null);
+                        fetchOverviewData();
                     }
                 }}
                 userRole={user?.role}

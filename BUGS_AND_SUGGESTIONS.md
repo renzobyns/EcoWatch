@@ -30,8 +30,8 @@
 | **#15** | 🐛 Bug | Barangay Map View completely blank / not rendering | Barangay Map (`barangay/page.tsx`) | `[/]` Fixed by Agent |
 | **#16** | 🐛 Bug | "Open" column in Barangay reports shows dashes (`—`) | SLA Helper (`lib/sla.ts`) & Barangay | `[/]` Fixed by Agent |
 | **#17** | 🎨 UI/UX | Remove redundant "Manage" button in Barangay table | Barangay Reports (`barangay/page.tsx`) | `[/]` Fixed by Agent |
-| **#18** | 🐛 Bug | Drawer "AI Verified" banner & pill persist after human verify | CENRO Portal & Drawer (`ReportDetailDrawer.tsx` / `cenro/page.tsx`) | `[ ]` Open / Pending |
-| **#19** | 🐛 Bug | Report marked as duplicate still shows AI Verified banner & cannot be approved | CENRO Drawer & Backend (`ReportDetailDrawer.tsx` / `backend/main.py:4145`) | `[ ]` Open / Pending |
+| **#18** | 🐛 Bug | Drawer "AI Verified" banner & pill persist after human verify | CENRO Portal & Drawer (`ReportDetailDrawer.tsx` / `cenro/page.tsx`) | `[/]` Fixed by Agent |
+| **#19** | 🐛 Bug | Report marked as duplicate still shows AI Verified banner & cannot be approved | CENRO Drawer & Backend (`ReportDetailDrawer.tsx` / `backend/main.py:4145`) | `[/]` Fixed by Agent |
 | **#20** | 🐛 Bug | "Reassign Admin" crashes with 500 error page (`setShowReassignModal is not defined`) | Barangay Drawer (`BarangayDetailDrawer.tsx`) | `[/]` Fixed by Agent |
 
 ---
@@ -269,7 +269,7 @@
 
 ---
 
-### - [ ] 🐛 Bug #18: Drawer "AI Verified" confirmation banner and status pill persist after human verification
+### - [/] 🐛 Bug #18: Drawer "AI Verified" confirmation banner and status pill persist after human verification
 
 * **Page:** CENRO Portal & Drawer (`frontend/components/portal/ReportDetailDrawer.tsx` & `frontend/app/cenro/page.tsx:1242-1247`)
 * **Screenshots:**
@@ -286,7 +286,7 @@
 
 ---
 
-### - [ ] 🐛 Bug #19: Report marked as duplicate still shows AI Verified banner and fails human verification
+### - [/] 🐛 Bug #19: Report marked as duplicate still shows AI Verified banner and fails human verification
 
 * **Page:** CENRO Detail Drawer (`frontend/components/portal/ReportDetailDrawer.tsx`) & Backend (`backend/main.py:4145`)
 * **Screenshots:**

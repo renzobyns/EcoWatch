@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import {
-    X, FileText, Camera, Shield, Clock, MapPin, User, Mail, Phone, ExternalLink, ClipboardList, RefreshCw, ShieldCheck, CheckCircle2, Sparkles, Truck
+    X, FileText, Camera, Shield, Clock, MapPin, User, Mail, Phone, ExternalLink, ClipboardList, RefreshCw, ShieldCheck, CheckCircle2, Sparkles, Truck, AlertTriangle
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { TrustBadge } from "@/components/TrustBadge";
@@ -133,7 +133,7 @@ interface Props {
     onClose: () => void;
     onReassign: () => void;
     onForceClose: () => void;
-    onUpdated?: () => void;
+    onUpdated?: (updatedFields?: Partial<QueueReport>) => void;
     userRole?: string;
 }
 
@@ -150,6 +150,7 @@ const STATUS_PILL: Record<string, string> = {
     rejected: "bg-foreground/10 text-foreground/70 border border-border font-semibold",
     failed_cleanup: "bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30 font-semibold",
     pending_review: "bg-purple-500/15 text-purple-800 dark:text-purple-300 border border-purple-500/30 font-semibold",
+    duplicate: "bg-zinc-500/15 text-zinc-700 dark:text-zinc-400 border border-zinc-500/30 font-semibold",
 };
 
 const WO_STATUS_PILL: Record<string, string> = {
@@ -221,6 +222,11 @@ export function ReportDetailDrawer({
     actionLoading, onClose, onReassign, onForceClose, onUpdated, userRole,
 }: Props) {
     const [activeTab, setActiveTab] = useState<DrawerTab>("overview");
+    const [activeReport, setActiveReport] = useState<QueueReport | null>(report);
+
+    useEffect(() => {
+        setActiveReport(report);
+    }, [report]);
 
     const [detail, setDetail] = useState<ReportDetailPayload | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
@@ -285,19 +291,55 @@ export function ReportDetailDrawer({
     const [drawerVerifyLoading, setDrawerVerifyLoading] = useState(false);
 
     const handleDrawerHumanVerify = async (action: "approve" | "reject", reason?: string) => {
-        if (!report) return;
+        if (!currentReport) return;
         setDrawerVerifyLoading(true);
         try {
-            const data = await api(`/report/${report.id}/human-verify`, {
+            const data = await api(`/report/${currentReport.id}/human-verify`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action, reason: reason || "" }),
             });
             toast.success(data.message || `Report ${action === "approve" ? "approved" : "rejected"}.`);
-            onUpdated?.();
+            const nextStatus = data.new_status || (action === "approve" ? "verified" : "rejected");
+            const updated = {
+                ...currentReport,
+                status: nextStatus,
+                duplicate_of_id: null,
+                possible_duplicate_flag: false,
+                human_verification_action: data.verification_action || (action === "approve" ? "confirmed" : "rejected"),
+                human_verification_notes: reason || null,
+                human_verified_at: new Date().toISOString(),
+            };
+            setActiveReport(updated);
+            onUpdated?.(updated);
             fetchDetail();
         } catch (err) {
             toast.error(err instanceof ApiError ? err.message : "Verification failed");
+        } finally {
+            setDrawerVerifyLoading(false);
+        }
+    };
+
+    const handleUnmarkDuplicate = async () => {
+        if (!currentReport) return;
+        setDrawerVerifyLoading(true);
+        try {
+            const res = await api(`/reports/${currentReport.id}/unmark-duplicate`, {
+                method: "POST",
+            });
+            toast.success("Duplicate status cleared. Report restored for review.");
+            const restoredStatus = res.status || "ai_verified";
+            const updated = {
+                ...currentReport,
+                status: restoredStatus,
+                duplicate_of_id: null,
+                possible_duplicate_flag: false,
+            };
+            setActiveReport(updated);
+            onUpdated?.(updated);
+            fetchDetail();
+        } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : "Failed to unmark duplicate");
         } finally {
             setDrawerVerifyLoading(false);
         }
@@ -357,7 +399,8 @@ export function ReportDetailDrawer({
         }
     };
 
-    if (!report) return null;
+    const currentReport = activeReport || report;
+    if (!currentReport) return null;
 
     const TABS: { key: DrawerTab; label: string; icon: React.ReactNode }[] = [
         { key: "overview",    label: "Overview",    icon: <FileText size={12} /> },
@@ -366,7 +409,7 @@ export function ReportDetailDrawer({
         { key: "timeline",    label: "Timeline",    icon: <Clock size={12} /> },
     ];
 
-    const statusPillClass = STATUS_PILL[report.status] ?? "bg-foreground/10 text-foreground";
+    const statusPillClass = STATUS_PILL[currentReport.status] ?? "bg-foreground/10 text-foreground";
 
     return (
         <>
@@ -389,14 +432,14 @@ export function ReportDetailDrawer({
                     <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                             <h2 className="text-lg font-bold text-foreground leading-tight">
-                                Report {report.tracking_id ?? `#${report.id}`}
+                                Report {currentReport.tracking_id ?? `#${currentReport.id}`}
                             </h2>
                             <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-tight ${statusPillClass}`}>
-                                {report.status.replace("_", " ")}
+                                {currentReport.status.replace("_", " ")}
                             </span>
                         </div>
                         <p className="text-[11px] text-foreground/40 mt-0.5">
-                            {report.barangay ?? "Unassigned"} · Reported {formatDate(report.created_at)}
+                            {currentReport.barangay ?? "Unassigned"} · Reported {formatDate(currentReport.created_at)}
                         </p>
                     </div>
                     <button
@@ -425,10 +468,54 @@ export function ReportDetailDrawer({
                     ))}
                 </div>
 
+                {/* Duplicate Notice & Override Banner */}
+                {currentReport && currentReport.status === "duplicate" && (
+                    <div className="mx-5 mt-4 p-4 rounded-xl border bg-zinc-500/10 border-zinc-500/30 text-zinc-400 flex flex-col gap-2.5">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <AlertTriangle size={16} className="text-amber-400" />
+                                <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                                    Flagged as Duplicate
+                                </span>
+                            </div>
+                            <span className="text-[10px] font-semibold text-muted-foreground uppercase">
+                                Archived
+                            </span>
+                        </div>
+                        <p className="text-xs text-foreground/80 leading-relaxed">
+                            This report was confirmed as a duplicate of an earlier incident and removed from active operations.
+                        </p>
+                        {userRole === "cenro" && (
+                            <div className="flex items-center gap-2 pt-1">
+                                <button
+                                    onClick={() => {
+                                        const reason = prompt("Enter override reason for unmarking duplicate:", "Distinct dumping incident / Not a duplicate");
+                                        if (reason && reason.trim().length >= 3) {
+                                            handleDrawerHumanVerify("approve", reason.trim());
+                                        }
+                                    }}
+                                    disabled={drawerVerifyLoading}
+                                    className="flex-1 py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                >
+                                    <CheckCircle2 size={13} />
+                                    {drawerVerifyLoading ? "Processing..." : "Override & Re-Verify"}
+                                </button>
+                                <button
+                                    onClick={handleUnmarkDuplicate}
+                                    disabled={drawerVerifyLoading}
+                                    className="py-1.5 px-3 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border rounded-lg text-xs font-bold transition-all disabled:opacity-50"
+                                >
+                                    Unmark Duplicate
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {/* Human Verification Action Banner (Layer 2) */}
-                {report && (report.status === "ai_verified" || report.status === "ai_rejected") && (
+                {currentReport && (currentReport.status === "ai_verified" || currentReport.status === "ai_rejected") && (
                     <div className={`mx-5 mt-4 p-4 rounded-xl border flex flex-col gap-2.5 ${
-                        report.status === "ai_rejected"
+                        currentReport.status === "ai_rejected"
                             ? "bg-red-500/10 border-red-500/30 text-red-500"
                             : "bg-amber-500/10 border-amber-500/30 text-amber-500"
                     }`}>
@@ -436,7 +523,7 @@ export function ReportDetailDrawer({
                             <div className="flex items-center gap-2">
                                 <ShieldCheck size={16} />
                                 <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-                                    {report.status === "ai_rejected" ? "AI Rejected — Human Review" : "AI Verified — Confirmation Needed"}
+                                    {currentReport.status === "ai_rejected" ? "AI Rejected — Human Review" : "AI Verified — Confirmation Needed"}
                                 </span>
                             </div>
                             <span className="text-[10px] font-semibold text-muted-foreground uppercase">
@@ -444,7 +531,7 @@ export function ReportDetailDrawer({
                             </span>
                         </div>
                         <p className="text-xs text-foreground/80 leading-relaxed">
-                            {report.status === "ai_rejected"
+                            {currentReport.status === "ai_rejected"
                                 ? "AI did not detect garbage. Review the evidence photo and approve if this is a genuine report."
                                 : "AI detected garbage. Confirm the report evidence to authorize cleanup deployment."}
                         </p>
@@ -455,7 +542,7 @@ export function ReportDetailDrawer({
                                 className="flex-1 py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
                             >
                                 <CheckCircle2 size={13} />
-                                {drawerVerifyLoading ? "Processing..." : report.status === "ai_rejected" ? "Override & Approve" : "Confirm & Approve"}
+                                {drawerVerifyLoading ? "Processing..." : currentReport.status === "ai_rejected" ? "Override & Approve" : "Confirm & Approve"}
                             </button>
                             <button
                                 onClick={() => {
@@ -525,17 +612,21 @@ export function ReportDetailDrawer({
                 <div className="flex-1 overflow-y-auto p-5 scrollbar-hide">
                     {activeTab === "overview" && (
                         <OverviewTab
-                            report={report}
+                            report={currentReport}
                             detail={detail}
                             loading={detailLoading}
                             error={detailError}
                             onRetry={fetchDetail}
-                            onDuplicateConfirmed={() => { onUpdated?.(); onClose(); }}
+                            onDuplicateConfirmed={() => {
+                                const dupUpdate = { ...currentReport, status: "duplicate", possible_duplicate_flag: false };
+                                setActiveReport(dupUpdate);
+                                onUpdated?.(dupUpdate);
+                            }}
                         />
                     )}
                     {activeTab === "evidence" && (
                         <EvidenceTab
-                            report={report}
+                            report={currentReport}
                             detail={detail}
                             loading={detailLoading}
                             error={detailError}
@@ -549,7 +640,7 @@ export function ReportDetailDrawer({
                     )}
                     {activeTab === "work_orders" && (
                         <WorkOrdersTab
-                            report={report}
+                            report={currentReport}
                             detail={detail}
                             loading={detailLoading}
                             error={detailError}
@@ -574,24 +665,24 @@ export function ReportDetailDrawer({
                         <select
                             value={newBarangay}
                             onChange={(e) => setNewBarangay(e.target.value)}
-                            disabled={actionLoading || ['resolved', 'rejected', 'duplicate'].includes(report.status)}
+                            disabled={actionLoading || ['resolved', 'rejected', 'duplicate'].includes(currentReport.status)}
                             className="flex-1 bg-transparent border border-border rounded-md px-3 h-9 text-sm text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                            title={['resolved', 'rejected', 'duplicate'].includes(report.status) ? "Closed reports cannot be reassigned" : undefined}
+                            title={['resolved', 'rejected', 'duplicate'].includes(currentReport.status) ? "Closed reports cannot be reassigned" : undefined}
                         >
                             {barangays.map(b => <option key={b} value={b}>{b}</option>)}
                         </select>
                         <button
                             onClick={onReassign}
-                            disabled={actionLoading || newBarangay === report.barangay || ['resolved', 'rejected', 'duplicate'].includes(report.status)}
+                            disabled={actionLoading || newBarangay === currentReport.barangay || ['resolved', 'rejected', 'duplicate'].includes(currentReport.status)}
                             className="px-4 h-9 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium tracking-tight rounded-md shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
-                            title={['resolved', 'rejected', 'duplicate'].includes(report.status) ? "Closed reports cannot be reassigned" : undefined}
+                            title={['resolved', 'rejected', 'duplicate'].includes(currentReport.status) ? "Closed reports cannot be reassigned" : undefined}
                         >
                             Update Route
                         </button>
                     </div>
                     <button
                         onClick={onForceClose}
-                        disabled={actionLoading || report.status === "resolved"}
+                        disabled={actionLoading || currentReport.status === "resolved"}
                         className="w-full h-9 bg-red-600 hover:bg-red-700 text-white text-sm font-medium tracking-tight rounded-md shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                         Force Close Ticket

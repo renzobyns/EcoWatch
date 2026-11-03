@@ -3086,6 +3086,36 @@ async def mark_report_duplicate(
     db.refresh(report)
     return ReportResponse.model_validate(report)
 
+@app.post("/reports/{report_id}/unmark-duplicate", response_model=ReportResponse)
+async def unmark_report_duplicate(
+    report_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("cenro", "barangay")),
+):
+    """Revert a report's duplicate status back to its pending or AI-verified state."""
+    report = db.query(models.Report).filter(models.Report.id == report_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    if user.role == "barangay" and report.barangay != user.barangay_assignment:
+        raise HTTPException(status_code=403, detail="Report is outside your barangay.")
+    if report.status != models.ReportStatus.DUPLICATE:
+        raise HTTPException(status_code=400, detail=f"Report is not marked as duplicate (status: '{report.status}').")
+
+    previous_dup_id = report.duplicate_of_id
+    report.duplicate_of_id = None
+    report.possible_duplicate_flag = False
+    # If the report previously passed AI, return to ai_verified so human review can proceed, otherwise pending
+    report.status = models.ReportStatus.AI_VERIFIED if (report.ai_confidence and report.ai_confidence >= 0.5) else models.ReportStatus.PENDING
+
+    write_audit(db, user.id, "unmark_duplicate", report.id, {
+        "previous_duplicate_of_id": previous_dup_id,
+        "restored_status": report.status,
+    })
+    db.commit()
+    db.refresh(report)
+    return ReportResponse.model_validate(report)
+
+
 
 @app.get("/reports/export")
 async def export_reports(
@@ -4141,12 +4171,16 @@ async def human_verify_report(
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
 
-    # Only allow human verification on ai_verified or ai_rejected reports
-    if report.status not in (models.ReportStatus.AI_VERIFIED, models.ReportStatus.AI_REJECTED):
+    # Allow human verification on ai_verified, ai_rejected, or duplicate (CENRO override)
+    allowed_statuses = [models.ReportStatus.AI_VERIFIED, models.ReportStatus.AI_REJECTED]
+    if user.role == "cenro":
+        allowed_statuses.append(models.ReportStatus.DUPLICATE)
+
+    if report.status not in allowed_statuses:
         raise HTTPException(
             status_code=400,
             detail=f"Report status is '{report.status}', not eligible for human verification. "
-                   f"Only 'ai_verified' and 'ai_rejected' reports can be human-verified.",
+                   f"Only 'ai_verified', 'ai_rejected' (or 'duplicate' for CENRO override) reports can be human-verified.",
         )
 
     # Barangay users can only verify reports in their jurisdiction
@@ -4154,7 +4188,8 @@ async def human_verify_report(
         raise HTTPException(status_code=403, detail="You can only verify reports in your barangay.")
 
     previous_status = report.status
-    is_override = (report.status == models.ReportStatus.AI_REJECTED and action == "approve")
+    is_duplicate_override = (report.status == models.ReportStatus.DUPLICATE and action == "approve")
+    is_override = ((report.status == models.ReportStatus.AI_REJECTED or is_duplicate_override) and action == "approve")
     is_ai_verified_rejection = (report.status == models.ReportStatus.AI_VERIFIED and action == "reject")
 
     # Require reason for overrides and rejections
@@ -4165,9 +4200,12 @@ async def human_verify_report(
         )
 
     # Determine new status and verification action label
+    # Determine new status and verification action label
     if action == "approve":
         report.status = models.ReportStatus.VERIFIED
-        verification_action = "overridden" if is_override else "confirmed"
+        report.duplicate_of_id = None
+        report.possible_duplicate_flag = False
+        verification_action = "duplicate_overridden" if is_duplicate_override else ("overridden" if is_override else "confirmed")
     else:
         report.status = models.ReportStatus.REJECTED
         verification_action = "rejected" if is_ai_verified_rejection else "confirmed_rejection"
