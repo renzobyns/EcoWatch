@@ -1,6 +1,7 @@
 $env:GIT_INDEX_FILE = ".git/hf_index"
 git read-tree HEAD
-git rm -rf --cached frontend
+git rm -rf --cached frontend docs
+git rm -f --cached "*.pdf"
 $tree = git write-tree
 $commit = git commit-tree $tree -m "Deploy backend to Hugging Face"
 git push huggingface "$($commit):refs/heads/main" --force
