@@ -33,6 +33,7 @@
 | **#18** | 🐛 Bug | Drawer "AI Verified" banner & pill persist after human verify | CENRO Portal & Drawer (`ReportDetailDrawer.tsx` / `cenro/page.tsx`) | `[/]` Fixed by Agent |
 | **#19** | 🐛 Bug | Report marked as duplicate still shows AI Verified banner & cannot be approved | CENRO Drawer & Backend (`ReportDetailDrawer.tsx` / `backend/main.py:4145`) | `[/]` Fixed by Agent |
 | **#20** | 🐛 Bug | "Reassign Admin" crashes with 500 error page (`setShowReassignModal is not defined`) | Barangay Drawer (`BarangayDetailDrawer.tsx`) | `[/]` Fixed by Agent |
+| **#21** | 🐛 Bug | DevOptionsModal throws `Requires role: cenro` on open & fails to toggle presentation mode without CENRO session | Dev Options (`DevOptionsModal.tsx` & Backend) | `[/]` Fixed by Agent |
 
 ---
 
@@ -316,3 +317,30 @@
 * **Root Cause:** In `BarangayDetailDrawer.tsx:352, 360`, the button `onClick` called `setShowReassignModal(true)`, but the state declaration `const [showReassignModal, setShowReassignModal] = useState(false);` was missing from the component body, triggering a runtime `ReferenceError: setShowReassignModal is not defined`.
 * **Fix Plan:** Added `const [showReassignModal, setShowReassignModal] = useState(false);` to `BarangayDetailDrawer`.
 * **Verification Step:** Open CENRO -> Barangay Management -> Click any barangay -> Click "Reassign Admin"; verify the candidate selection modal opens cleanly without crashing.
+
+---
+
+### - [/] 🐛 Bug #21: DevOptionsModal throws `Requires role: cenro` on open & presentation toggles fail for non-CENRO roles
+
+* **Page:** Global Developer Options Modal (`frontend/components/DevOptionsModal.tsx`), Public Tracking (`frontend/app/track/[id]/page.tsx`), and Backend API (`backend/main.py:5458`)
+* **Screenshots:**
+  ![Dev Options Modal](./docs/bug-tracker/screenshots/bug21-dev-options-defense-mode.jpg)
+  ![Track Page Gemini Telemetry](./docs/bug-tracker/screenshots/bug21-track-gemini-telemetry.jpg)
+* **What happens:**
+  1. Opening Developer Options (5 rapid clicks on the EcoWatch logo) as a citizen or non-CENRO user immediately crashes with console error: `Requires role: cenro at api ... at DevOptionsModal.useEffect.loadConfig`.
+  2. Toggling "Developer AI Telemetry (Gemini Display)", "Mask R-CNN on Cleanup Proofs", or "Require Email Verification" in the modal failed with HTTP 403 Forbidden because backend endpoints (`PATCH /admin/system-config`, `PUT /config/email-verification`) required CENRO authorization.
+  3. On the public tracking page (`/track/[id]`), when in Defense Mode (`geminiDisplay === false`), the status badge still leaked `NOT WASTE` instead of the expected `Low Confidence` / `Unverified` Mask R-CNN disguise.
+* **Root Cause:**
+  1. `DevOptionsModal.tsx` was calling `GET /config/email-verification`, which strictly required `require_role("cenro")`.
+  2. `GET /system-config/public` did not include `email_verification_enabled`, forcing the modal to call admin routes.
+  3. There was no unauthenticated presentation trigger endpoint (`/system-config/dev-toggle`) for panelists and demo presenters to switch Defense Mode on the fly during defense while logged in as any role.
+  4. Line 469 of `frontend/app/track/[id]/page.tsx` unconditionally rendered `{report.vlm_category.replace('_', ' ')}` without checking `geminiDisplay`.
+* **Fix Plan:**
+  1. Updated `GET /system-config/public` to include `email_verification_enabled`.
+  2. Added `POST /system-config/dev-toggle` in `backend/main.py` allowing presentation mode toggling across all three switches.
+  3. Refactored `DevOptionsModal.tsx` to read exclusively from `/system-config/public` with `{ cache: "no-store" }` and write to `/system-config/dev-toggle`.
+  4. Updated `/track/[id]/page.tsx` and `ReportDetailDrawer.tsx` to disguise `vlm_category` as `Low Confidence` (or `Verified`) when Defense Mode is active (`!geminiDisplay`).
+* **Verification Step:**
+  1. Click 5 times on the EcoWatch logo while logged in as citizen. Confirm Developer Options opens with zero `Requires role: cenro` console errors.
+  2. Toggle Defense Mode on/off. Confirm toast confirms instantly and persists to the backend database.
+  3. View report `EW-0030` (`/track/3a2bdb7e`) in Defense Mode. Confirm it renders as pure Mask R-CNN (`AI Verification (Mask R-CNN)`, `LOW CONFIDENCE`, `Model: Mask R-CNN (TensorFlow)`, `Backbone: ResNet-101 FPN`).

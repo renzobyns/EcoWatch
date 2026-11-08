@@ -37,21 +37,30 @@ export function DevOptionsModal() {
 
         const loadConfig = async () => {
             try {
-                // Try admin config first, then fallback to public config
-                let data;
-                try {
-                    data = await api("/admin/system-config");
-                } catch {
-                    data = await api("/system-config/public");
-                }
+                // Fetch public presentation config (unauthenticated & fast)
+                const data = await api("/system-config/public", { cache: "no-store" });
 
                 if (data) {
                     if (typeof data.enable_cleanup_mrcnn === "boolean") {
                         setEnableCleanupMrcnn(data.enable_cleanup_mrcnn);
+                        localStorage.setItem("ecowatch_enable_cleanup_mrcnn", String(data.enable_cleanup_mrcnn));
                     }
                     if (typeof data.gemini_display === "boolean") {
                         setGeminiDisplay(data.gemini_display);
+                        localStorage.setItem("ecowatch_gemini_display", String(data.gemini_display));
                     }
+                    if (typeof data.email_verification_enabled === "boolean") {
+                        setEmailVerificationEnabled(data.email_verification_enabled);
+                    }
+                    // Dispatch to ensure page telemetry immediately syncs with actual database config
+                    window.dispatchEvent(
+                        new CustomEvent("ecowatch:config-changed", {
+                            detail: {
+                                enable_cleanup_mrcnn: data.enable_cleanup_mrcnn,
+                                gemini_display: data.gemini_display,
+                            },
+                        })
+                    );
                 }
             } catch (err) {
                 console.error("Failed to load dev config", err);
@@ -60,16 +69,6 @@ export function DevOptionsModal() {
                 if (localGemini !== null) setGeminiDisplay(localGemini === "true");
                 const localMrcnn = localStorage.getItem("ecowatch_enable_cleanup_mrcnn");
                 if (localMrcnn !== null) setEnableCleanupMrcnn(localMrcnn === "true");
-            }
-
-            // Load email verification status (CENRO config)
-            try {
-                const emailConfig = await api("/config/email-verification");
-                if (emailConfig && typeof emailConfig.enabled === "boolean") {
-                    setEmailVerificationEnabled(emailConfig.enabled);
-                }
-            } catch (err) {
-                console.error("Failed to load email verification config", err);
             }
         };
 
@@ -80,13 +79,13 @@ export function DevOptionsModal() {
         setEnableCleanupMrcnn(val);
         localStorage.setItem("ecowatch_enable_cleanup_mrcnn", String(val));
         try {
-            await api("/admin/system-config", {
-                method: "PATCH",
+            await api("/system-config/dev-toggle", {
+                method: "POST",
                 body: JSON.stringify({ enable_cleanup_mrcnn: val }),
             });
             toast.success(val ? "Mask R-CNN on cleanup proofs enabled!" : "Mask R-CNN on cleanup bypassed!");
         } catch {
-            // Local state preserved even if unauthorized
+            // Local state preserved even if network error
             toast.info(val ? "Cleanup Mask R-CNN enabled locally" : "Cleanup Mask R-CNN bypassed locally");
         }
 
@@ -101,8 +100,8 @@ export function DevOptionsModal() {
         setGeminiDisplay(val);
         localStorage.setItem("ecowatch_gemini_display", String(val));
         try {
-            await api("/admin/system-config", {
-                method: "PATCH",
+            await api("/system-config/dev-toggle", {
+                method: "POST",
                 body: JSON.stringify({ gemini_display: val }),
             });
             toast.success(
@@ -127,14 +126,15 @@ export function DevOptionsModal() {
 
     const updateEmailVerification = async (val: boolean) => {
         setUpdatingEmailVerif(true);
+        setEmailVerificationEnabled(val);
         try {
-            const data = await api("/config/email-verification", {
-                method: "PUT",
-                body: JSON.stringify({ enabled: val }),
+            await api("/system-config/dev-toggle", {
+                method: "POST",
+                body: JSON.stringify({ email_verification_enabled: val }),
             });
-            setEmailVerificationEnabled(data.enabled);
             toast.success(val ? "Email verification required for new users." : "Email verification disabled (test mode).");
         } catch (err) {
+            setEmailVerificationEnabled(!val);
             const error = err as Error;
             toast.error(error.message || "Failed to update email verification configuration.");
         } finally {

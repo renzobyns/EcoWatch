@@ -466,7 +466,7 @@ export default function TrackReportPage() {
                                             </span>
                                         </div>
                                         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase border ${report.vlm_category === 'not_waste' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
-                                            {report.vlm_category.replace('_', ' ')}
+                                            {geminiDisplay ? report.vlm_category.replace('_', ' ') : (report.status === 'ai_rejected' || report.vlm_category === 'not_waste' ? 'Low Confidence' : 'Verified')}
                                         </span>
                                     </div>
                                     {report.vlm_description && (

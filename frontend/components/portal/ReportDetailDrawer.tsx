@@ -901,9 +901,9 @@ function OverviewTab({ report, detail, loading, error, onRetry, onDuplicateConfi
                         </div>
                         <div className="flex items-center gap-1.5">
                             <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
-                                {report.vlm_category.replace(/_/g, " ")}
+                                {geminiDisplay ? report.vlm_category.replace(/_/g, " ") : (report.status === "ai_rejected" || report.vlm_category === "not_waste" ? "Low Confidence" : "Verified")}
                             </span>
-                            {report.vlm_confidence && (
+                            {geminiDisplay && report.vlm_confidence && (
                                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
                                     report.vlm_confidence === "high"
                                         ? "bg-emerald-500/15 text-emerald-500 border border-emerald-500/30"

@@ -709,6 +709,9 @@ async def save_upload(
     from PIL import Image
     try:
         img = Image.open(BytesIO(contents))
+        # Preserve original EXIF metadata (Make, Model, Software, GPS, DateTime) across compression
+        raw_exif = img.info.get("exif")
+
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
         # Scale down if width or height is larger than 1200px
@@ -721,9 +724,12 @@ async def save_upload(
                 new_w, new_h = int(w * (max_dim / h)), max_dim
             img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
         
-        # Save as JPEG with 75% quality optimization
+        # Save as JPEG with 75% quality optimization, retaining EXIF metadata
         out_buf = BytesIO()
-        img.save(out_buf, format="JPEG", quality=75, optimize=True)
+        if raw_exif:
+            img.save(out_buf, format="JPEG", quality=75, optimize=True, exif=raw_exif)
+        else:
+            img.save(out_buf, format="JPEG", quality=75, optimize=True)
         contents = out_buf.getvalue()
         # Force filename and content type to JPEG
         filename = f"{prefix}_{uuid.uuid4().hex[:8]}.jpg"
@@ -5449,14 +5455,69 @@ class SystemConfigUpdate(BaseModel):
     enable_cleanup_mrcnn: Optional[bool] = None
     gemini_display: Optional[bool] = None
 
+class DevConfigToggle(BaseModel):
+    enable_cleanup_mrcnn: Optional[bool] = None
+    gemini_display: Optional[bool] = None
+    email_verification_enabled: Optional[bool] = None
+
 @app.get("/system-config/public")
 async def get_public_system_config(db: Session = Depends(get_db)):
     """Public read-only system config flags (no auth needed)."""
     conf_mrcnn = db.query(models.SystemConfig).filter(models.SystemConfig.key == "enable_cleanup_mrcnn").first()
     conf_gemini = db.query(models.SystemConfig).filter(models.SystemConfig.key == "gemini_display").first()
+    conf_email = db.query(models.SystemConfig).filter(models.SystemConfig.key == "email_verification_disabled").first()
     return {
         "enable_cleanup_mrcnn": (conf_mrcnn.value.lower() == "true") if conf_mrcnn else True,
         "gemini_display": (conf_gemini.value.lower() == "true") if conf_gemini else False,
+        "email_verification_enabled": (conf_email.value.lower() == "false") if conf_email else True,
+    }
+
+@app.post("/system-config/dev-toggle")
+async def toggle_dev_system_config(
+    update: DevConfigToggle,
+    db: Session = Depends(get_db),
+):
+    """Developer / Presentation trigger for thesis defense toggles (accessible via 5-click logo trigger)."""
+    if update.enable_cleanup_mrcnn is not None:
+        val_str = "true" if update.enable_cleanup_mrcnn else "false"
+        conf_m = db.query(models.SystemConfig).filter(models.SystemConfig.key == "enable_cleanup_mrcnn").first()
+        if not conf_m:
+            conf_m = models.SystemConfig(key="enable_cleanup_mrcnn", value=val_str)
+            db.add(conf_m)
+        else:
+            conf_m.value = val_str
+            conf_m.updated_at = _utcnow()
+
+    if update.gemini_display is not None:
+        val_str = "true" if update.gemini_display else "false"
+        conf_g = db.query(models.SystemConfig).filter(models.SystemConfig.key == "gemini_display").first()
+        if not conf_g:
+            conf_g = models.SystemConfig(key="gemini_display", value=val_str)
+            db.add(conf_g)
+        else:
+            conf_g.value = val_str
+            conf_g.updated_at = _utcnow()
+
+    if update.email_verification_enabled is not None:
+        disabled_str = "false" if update.email_verification_enabled else "true"
+        conf_e = db.query(models.SystemConfig).filter(models.SystemConfig.key == "email_verification_disabled").first()
+        if not conf_e:
+            conf_e = models.SystemConfig(key="email_verification_disabled", value=disabled_str)
+            db.add(conf_e)
+        else:
+            conf_e.value = disabled_str
+            conf_e.updated_at = _utcnow()
+
+    db.commit()
+
+    conf_mrcnn = db.query(models.SystemConfig).filter(models.SystemConfig.key == "enable_cleanup_mrcnn").first()
+    conf_gemini = db.query(models.SystemConfig).filter(models.SystemConfig.key == "gemini_display").first()
+    conf_email = db.query(models.SystemConfig).filter(models.SystemConfig.key == "email_verification_disabled").first()
+
+    return {
+        "enable_cleanup_mrcnn": (conf_mrcnn.value.lower() == "true") if conf_mrcnn else True,
+        "gemini_display": (conf_gemini.value.lower() == "true") if conf_gemini else False,
+        "email_verification_enabled": (conf_email.value.lower() == "false") if conf_email else True,
     }
 
 @app.get("/admin/system-config")

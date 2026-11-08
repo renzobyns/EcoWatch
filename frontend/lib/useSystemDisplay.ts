@@ -20,7 +20,7 @@ export function useSystemDisplay() {
         let mounted = true;
         const fetchConfig = async () => {
             try {
-                const res = await api("/system-config/public");
+                const res = await api("/system-config/public", { cache: "no-store" });
                 if (mounted && res && typeof res.gemini_display === "boolean") {
                     setGeminiDisplay(res.gemini_display);
                     localStorage.setItem("ecowatch_gemini_display", String(res.gemini_display));

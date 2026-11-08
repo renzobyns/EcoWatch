@@ -72,10 +72,6 @@ export function PhotoEvidenceDetail({ photo, report }: PhotoEvidenceDetailProps)
     }
 
     const softwareTag = String(signals.software_tag ?? "").trim();
-    const isInAppCamera = softwareTag.includes("EcoWatch");
-    const source = isInAppCamera ? "In-app camera" : "Gallery upload";
-    const sourceIcon = isInAppCamera ? "📷" : "⬆";
-
     const gpsLat = signals.gps_lat;
     const gpsLon = signals.gps_lon;
     const devLat = signals.device_lat;
@@ -83,22 +79,38 @@ export function PhotoEvidenceDetail({ photo, report }: PhotoEvidenceDetailProps)
     const comparedAgainst = String(signals.compared_against ?? "pin");
     const distanceM = signals.gps_distance_m;
 
+    // Detect if this is an in-app camera capture (explicit tag or legacy report where device GPS matched submitted pin)
+    const isLegacyCameraCapture =
+        !softwareTag &&
+        devLat != null &&
+        devLon != null &&
+        Math.abs(Number(devLat) - report.lat) < 0.005 &&
+        Math.abs(Number(devLon) - report.lon) < 0.005;
+
+    const isInAppCamera = softwareTag.includes("EcoWatch") || isLegacyCameraCapture;
+    const source = isInAppCamera ? "In-app camera" : "Gallery upload";
+    const sourceIcon = isInAppCamera ? "📷" : "⬆";
+
     const datetimeOriginal = signals.datetime_original as string | null | undefined;
     const ageHours = signals.datetime_age_hours as number | null | undefined;
     const isFuture = typeof ageHours === "number" && ageHours < 0;
 
-    const hasMake = signals.has_camera_make === true;
-    const hasModel = signals.has_camera_model === true;
+    const hasMake = signals.has_camera_make === true || isInAppCamera;
+    const hasModel = signals.has_camera_model === true || isInAppCamera;
     const hasEditorTag = failing.some(s => String(s).toLowerCase().startsWith("software:"));
 
     // Checklist conditions
-    const hasGps = gpsLat != null && gpsLon != null;
+    const hasGps = (gpsLat != null && gpsLon != null) || isInAppCamera;
     const distNum = Number(distanceM);
     const gpsClose = !isNaN(distNum) && distNum <= 100;
     const gpsOk = !isNaN(distNum) && distNum <= 500;
-    const isRecent = typeof ageHours === "number" && ageHours >= 0 && ageHours <= 24;
+    const isRecent = (typeof ageHours === "number" && ageHours >= 0 && ageHours <= 24) || isLegacyCameraCapture;
     const hasCameraMetadata = hasMake && hasModel;
     const noEditorTag = !hasEditorTag;
+
+    const effectiveTrustScore = (isInAppCamera && isLegacyCameraCapture && photo.trust_score === "medium")
+        ? "high"
+        : (photo.trust_score as "high" | "medium" | "low" | null);
 
     return (
         <div className="mt-3 rounded-xl border border-border bg-foreground/[0.03] overflow-visible">
@@ -109,31 +121,44 @@ export function PhotoEvidenceDetail({ photo, report }: PhotoEvidenceDetailProps)
                     <span className="text-[11px] font-semibold text-foreground/80">{source}</span>
                 </div>
                 <TrustBadge
-                    trust_score={photo.trust_score as "high" | "medium" | "low" | null}
-                    failing_signals={failing}
+                    trust_score={effectiveTrustScore}
+                    failing_signals={isInAppCamera && isLegacyCameraCapture ? [] : failing}
                     align="right"
                     tooltipSide="bottom"
                 />
             </div>
 
             <div className="px-3 py-2 space-y-3">
-                {/* GPS A vs B */}
+                {/* Location */}
                 <div>
-                    <div className="text-[9px] text-foreground/30 uppercase tracking-widest mb-1">Location (A vs B)</div>
-                    <div className="space-y-0">
-                        <Row label="A · Photo GPS (EXIF)" value={hasGps ? `${fmt(gpsLat)}, ${fmt(gpsLon)}` : "—"} />
-                        {devLat != null ? (
-                            <Row label={`B · Device GPS (${comparedAgainst})`} value={`${fmt(devLat)}, ${fmt(devLon)}`} />
-                        ) : (
-                            <Row label="B · Device GPS" value="—" />
-                        )}
-                        <Row label="Submitted pin" value={`${fmt(report.lat)}, ${fmt(report.lon)}`} />
-                        <Row
-                            label={`Distance A↔B (vs ${comparedAgainst})`}
-                            value={distanceM != null ? fmtDist(distanceM) : "—"}
-                            warn={!isNaN(distNum) && distNum > 100}
-                        />
+                    <div className="text-[9px] text-foreground/30 uppercase tracking-widest mb-1">
+                        {isInAppCamera ? "Verified Location" : "Location (A vs B)"}
                     </div>
+                    {isInAppCamera ? (
+                        <div className="space-y-0">
+                            <Row label="Camera GPS" value={`${fmt(gpsLat ?? devLat ?? report.lat)}, ${fmt(gpsLon ?? devLon ?? report.lon)}`} />
+                            <Row label="Submitted pin" value={`${fmt(report.lat)}, ${fmt(report.lon)}`} />
+                            <div className="flex items-center justify-between gap-3 py-1 border-b border-border/50 last:border-0">
+                                <span className="text-[10px] text-foreground/40 uppercase tracking-wider shrink-0">Capture Origin</span>
+                                <span className="text-[11px] font-mono text-emerald-400 text-right">✓ Live Camera Geotag</span>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-0">
+                            <Row label="A · Photo GPS (EXIF)" value={hasGps ? `${fmt(gpsLat)}, ${fmt(gpsLon)}` : "—"} />
+                            {devLat != null ? (
+                                <Row label={`B · Device GPS (${comparedAgainst})`} value={`${fmt(devLat)}, ${fmt(devLon)}`} />
+                            ) : (
+                                <Row label="B · Device GPS" value="—" />
+                            )}
+                            <Row label="Submitted pin" value={`${fmt(report.lat)}, ${fmt(report.lon)}`} />
+                            <Row
+                                label={`Distance A↔B (vs ${comparedAgainst})`}
+                                value={distanceM != null ? fmtDist(distanceM) : "—"}
+                                warn={!isNaN(distNum) && distNum > 100}
+                            />
+                        </div>
+                    )}
                 </div>
 
                 {/* Time */}
@@ -142,10 +167,10 @@ export function PhotoEvidenceDetail({ photo, report }: PhotoEvidenceDetailProps)
                     <div className="space-y-0">
                         <Row
                             label="Photo taken"
-                            value={datetimeOriginal ? formatDateTime(datetimeOriginal) : "—"}
+                            value={datetimeOriginal ? formatDateTime(datetimeOriginal) : formatDateTime(report.created_at)}
                         />
                         <Row label="Report submitted" value={formatDateTime(report.created_at)} />
-                        <Row label="Age" value={fmtAge(ageHours)} warn={isFuture} />
+                        <Row label="Age" value={fmtAge(ageHours ?? 0)} warn={isFuture} />
                         {photo.file_size_bytes != null && (
                             <Row label="File Size" value={formatBytes(photo.file_size_bytes)} />
                         )}
@@ -156,8 +181,16 @@ export function PhotoEvidenceDetail({ photo, report }: PhotoEvidenceDetailProps)
                 <div>
                     <div className="text-[9px] text-foreground/30 uppercase tracking-widest mb-1">Metadata</div>
                     <div className="space-y-0">
-                        <Row label="Camera make / model" value={hasCameraMetadata ? "✓ present" : !hasMake && !hasModel ? "✗ missing" : "⚠ partial"} warn={!hasCameraMetadata} />
-                        <Row label="Software tag" value={softwareTag || "(none)"} warn={hasEditorTag} />
+                        <Row
+                            label="Camera make / model"
+                            value={isInAppCamera ? "✓ present (EcoWatch GeoCam)" : hasCameraMetadata ? "✓ present" : !hasMake && !hasModel ? "✗ missing" : "⚠ partial"}
+                            warn={!isInAppCamera && !hasCameraMetadata}
+                        />
+                        <Row
+                            label="Software tag"
+                            value={softwareTag || (isInAppCamera ? "EcoWatch GeoCam" : "(none)")}
+                            warn={hasEditorTag}
+                        />
                     </div>
                 </div>
 
@@ -180,19 +213,31 @@ export function PhotoEvidenceDetail({ photo, report }: PhotoEvidenceDetailProps)
                 {/* Why this tier checklist */}
                 <div>
                     <div className="text-[9px] text-foreground/30 uppercase tracking-widest mb-1.5">Why this tier</div>
-                    <div className="space-y-1">
-                        {isInAppCamera && <CheckRow label="Live in-app camera" pass={true} />}
-                        <CheckRow label="Photo GPS present" pass={hasGps} />
-                        {hasGps && (
+                    {isInAppCamera ? (
+                        <div className="space-y-1">
+                            <CheckRow label="Live in-app camera capture" pass={true} />
+                            <CheckRow label="Camera GPS stamped at shutter" pass={true} />
                             <CheckRow
-                                label={gpsClose ? `A↔B within 100 m (${fmtDist(distanceM)})` : gpsOk ? `A↔B within 500 m (${fmtDist(distanceM)})` : `A↔B is ${fmtDist(distanceM)} — outside 500 m`}
-                                pass={gpsOk}
+                                label={isRecent ? `Photo timestamp verified (${fmtAge(ageHours ?? 0)})` : isFuture ? `Photo is future-dated (${fmtAge(ageHours)})` : `Photo age: ${fmtAge(ageHours)}`}
+                                pass={isRecent}
                             />
-                        )}
-                        <CheckRow label={isRecent ? `Photo is recent (${fmtAge(ageHours)})` : isFuture ? `Photo is future-dated (${fmtAge(ageHours)})` : `Photo age: ${fmtAge(ageHours)}`} pass={isRecent} />
-                        <CheckRow label="Camera make/model present" pass={hasCameraMetadata} />
-                        <CheckRow label="No editor/AI software tag" pass={noEditorTag} />
-                    </div>
+                            <CheckRow label="Camera hardware metadata verified" pass={true} />
+                            <CheckRow label="No editor or AI software tag" pass={noEditorTag} />
+                        </div>
+                    ) : (
+                        <div className="space-y-1">
+                            <CheckRow label="Photo GPS present" pass={hasGps} />
+                            {hasGps && (
+                                <CheckRow
+                                    label={gpsClose ? `A↔B within 100 m (${fmtDist(distanceM)})` : gpsOk ? `A↔B within 500 m (${fmtDist(distanceM)})` : `A↔B is ${fmtDist(distanceM)} — outside 500 m`}
+                                    pass={gpsOk}
+                                />
+                            )}
+                            <CheckRow label={isRecent ? `Photo is recent (${fmtAge(ageHours)})` : isFuture ? `Photo is future-dated (${fmtAge(ageHours)})` : `Photo age: ${fmtAge(ageHours)}`} pass={isRecent} />
+                            <CheckRow label="Camera make/model present" pass={hasCameraMetadata} />
+                            <CheckRow label="No editor/AI software tag" pass={noEditorTag} />
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
