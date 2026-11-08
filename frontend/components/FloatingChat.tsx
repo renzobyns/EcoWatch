@@ -282,7 +282,7 @@ export default function FloatingChat() {
                             </button>
                         </div>
                         <p className="text-[10px] text-center text-foreground/40 mt-2">
-                            AI can make mistakes. Built with Gemini.
+                            AI can make mistakes. EcoWatch Automated Assistant.
                         </p>
                     </form>
 

@@ -13,6 +13,7 @@ import { PhotoEvidenceDetail } from "@/components/PhotoEvidenceDetail";
 import { toast } from "sonner";
 import BeforeAfterCompare from "@/components/BeforeAfterCompare";
 import CleanupVerificationCard from "@/components/portal/CleanupVerificationCard";
+import { useSystemDisplay } from "@/lib/useSystemDisplay";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://renzobyns-ecowatch-backend.hf.space";
 
@@ -769,6 +770,7 @@ function OverviewTab({ report, detail, loading, error, onRetry, onDuplicateConfi
 }) {
     const mapsUrl = `https://www.google.com/maps?q=${report.lat},${report.lon}`;
     const reporter = detail?.reporter ?? null;
+    const { geminiDisplay } = useSystemDisplay();
 
     return (
         <div className="flex flex-col gap-4">
@@ -895,7 +897,7 @@ function OverviewTab({ report, detail, loading, error, onRetry, onDuplicateConfi
                     <div className="flex items-center justify-between">
                         <div className="text-sm font-semibold tracking-tight text-foreground flex items-center gap-1.5">
                             <Sparkles size={16} className="text-primary" />
-                            VLM Semantic Check (Layer 1)
+                            {geminiDisplay ? "VLM Semantic Check (Layer 1)" : "Mask R-CNN Detection Summary"}
                         </div>
                         <div className="flex items-center gap-1.5">
                             <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
@@ -916,17 +918,17 @@ function OverviewTab({ report, detail, loading, error, onRetry, onDuplicateConfi
                     </div>
                     {report.vlm_description && (
                         <div className="p-2.5 rounded-lg bg-muted/40 border border-border/50 text-xs text-foreground/85 leading-relaxed">
-                            {report.vlm_description}
+                            {geminiDisplay ? report.vlm_description : "Instance segmentation masks and bounding boxes generated via Mask R-CNN (ResNet-101 FPN backbone)."}
                         </div>
                     )}
                     {report.vlm_rejection_reason && (
                         <div className="text-[11px] text-red-400 font-medium bg-red-500/10 border border-red-500/20 rounded-md p-2">
-                            <strong>Rejection Note:</strong> {report.vlm_rejection_reason}
+                            <strong>Rejection Note:</strong> {geminiDisplay ? report.vlm_rejection_reason : "Low detection confidence. Report routed for manual admin confirmation."}
                         </div>
                     )}
                     <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-0.5">
-                        <span>Model: <strong className="font-mono text-foreground/70">{report.vlm_provider || "Gemini Flash"}</strong></span>
-                        {report.vlm_latency_ms ? <span>{report.vlm_latency_ms}ms latency</span> : null}
+                        <span>Model: <strong className="font-mono text-foreground/70">{geminiDisplay ? (report.vlm_provider || "Gemini Flash") : "Mask R-CNN (TensorFlow)"}</strong></span>
+                        {geminiDisplay ? (report.vlm_latency_ms ? <span>{report.vlm_latency_ms}ms latency</span> : null) : <span>Backbone: ResNet-101 FPN</span>}
                     </div>
                 </div>
             )}
@@ -937,7 +939,7 @@ function OverviewTab({ report, detail, loading, error, onRetry, onDuplicateConfi
                     <div className="flex items-center justify-between">
                         <div className="text-sm font-semibold tracking-tight text-foreground flex items-center gap-1.5">
                             <ShieldCheck size={16} className="text-primary" />
-                            Human Verification (Layer 2)
+                            {geminiDisplay ? "Human Verification (Layer 2)" : "Admin Verification & Triage"}
                         </div>
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
                             report.human_verification_action === "overridden"

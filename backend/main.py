@@ -5447,14 +5447,27 @@ async def get_export_images_zip(current_user: models.User = Depends(get_current_
 class SystemConfigUpdate(BaseModel):
     ai_confidence_threshold: Optional[float] = None
     enable_cleanup_mrcnn: Optional[bool] = None
+    gemini_display: Optional[bool] = None
+
+@app.get("/system-config/public")
+async def get_public_system_config(db: Session = Depends(get_db)):
+    """Public read-only system config flags (no auth needed)."""
+    conf_mrcnn = db.query(models.SystemConfig).filter(models.SystemConfig.key == "enable_cleanup_mrcnn").first()
+    conf_gemini = db.query(models.SystemConfig).filter(models.SystemConfig.key == "gemini_display").first()
+    return {
+        "enable_cleanup_mrcnn": (conf_mrcnn.value.lower() == "true") if conf_mrcnn else True,
+        "gemini_display": (conf_gemini.value.lower() == "true") if conf_gemini else False,
+    }
 
 @app.get("/admin/system-config")
 async def get_system_config(db: Session = Depends(get_db)):
     conf_thresh = db.query(models.SystemConfig).filter(models.SystemConfig.key == "ai_confidence_threshold").first()
     conf_mrcnn = db.query(models.SystemConfig).filter(models.SystemConfig.key == "enable_cleanup_mrcnn").first()
+    conf_gemini = db.query(models.SystemConfig).filter(models.SystemConfig.key == "gemini_display").first()
     return {
         "ai_confidence_threshold": float(conf_thresh.value) if conf_thresh else 0.5,
         "enable_cleanup_mrcnn": (conf_mrcnn.value.lower() == "true") if conf_mrcnn else True,
+        "gemini_display": (conf_gemini.value.lower() == "true") if conf_gemini else False,
     }
 
 @app.patch("/admin/system-config")
@@ -5484,16 +5497,28 @@ async def update_system_config(
         else:
             conf_m.value = val_str
             conf_m.updated_by = current_user.id
+
+    if update.gemini_display is not None:
+        val_str = "true" if update.gemini_display else "false"
+        conf_g = db.query(models.SystemConfig).filter(models.SystemConfig.key == "gemini_display").first()
+        if not conf_g:
+            conf_g = models.SystemConfig(key="gemini_display", value=val_str, updated_by=current_user.id)
+            db.add(conf_g)
+        else:
+            conf_g.value = val_str
+            conf_g.updated_by = current_user.id
     
     db.commit()
 
     # Re-fetch latest
     conf_thresh = db.query(models.SystemConfig).filter(models.SystemConfig.key == "ai_confidence_threshold").first()
     conf_mrcnn = db.query(models.SystemConfig).filter(models.SystemConfig.key == "enable_cleanup_mrcnn").first()
+    conf_gemini = db.query(models.SystemConfig).filter(models.SystemConfig.key == "gemini_display").first()
     return {
         "message": "System configuration updated successfully",
         "ai_confidence_threshold": float(conf_thresh.value) if conf_thresh else 0.5,
         "enable_cleanup_mrcnn": (conf_mrcnn.value.lower() == "true") if conf_mrcnn else True,
+        "gemini_display": (conf_gemini.value.lower() == "true") if conf_gemini else False,
     }
 
 

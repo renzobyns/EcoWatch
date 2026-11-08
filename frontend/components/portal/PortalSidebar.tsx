@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import type { PortalBrand, PortalNavItem } from "./PortalShell";
+import { useDevTrigger } from "@/lib/useDevTrigger";
 
 interface PortalSidebarProps {
     brand: PortalBrand;
@@ -22,6 +23,7 @@ export function PortalSidebar({
     collapsed,
     onToggleCollapsed,
 }: PortalSidebarProps) {
+    const { handleLogoClick } = useDevTrigger();
     return (
         <aside
             className={`${
@@ -34,7 +36,7 @@ export function PortalSidebar({
                     collapsed ? "justify-center px-2" : "px-4"
                 }`}
             >
-                <Link href="/" className="flex items-center gap-2 group">
+                <Link href="/" onClick={handleLogoClick} className="flex items-center gap-2 group">
                     <div className="w-9 h-9 rounded-lg overflow-hidden bg-white ring-1 ring-primary/40 flex items-center justify-center p-1 group-hover:scale-105 transition-transform">
                         <img
                             src="/logo.png"

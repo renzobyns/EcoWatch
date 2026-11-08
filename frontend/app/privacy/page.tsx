@@ -236,17 +236,17 @@ export default function PrivacyPolicyPage() {
                                 </div>
                                 <div>
                                     <h2 className="text-lg sm:text-xl font-bold text-foreground">3. AI & Computer Vision Processing</h2>
-                                    <p className="text-xs text-foreground/50">Three-Layer Verification Pipeline (Gemini VLM + Mask R-CNN + CENRO Review)</p>
+                                    <p className="text-xs text-foreground/50">Multi-Stage Verification Pipeline (Mask R-CNN + CENRO Review)</p>
                                 </div>
                             </div>
 
                             <div className="text-xs sm:text-sm text-foreground/80 leading-relaxed space-y-3 pt-2">
                                 <p>
-                                    EcoWatch SJDM employs a Three-Layer Hierarchical Verification Pipeline to ensure the authenticity, privacy, and efficiency of report intake and cleanup verification:
+                                    EcoWatch SJDM employs an Automated Verification Pipeline to ensure the authenticity, privacy, and efficiency of report intake and cleanup verification:
                                 </p>
                                 <ul className="space-y-2.5 list-disc list-inside text-foreground/70">
                                     <li>
-                                        <strong>Layer 1: Semantic Verification &amp; Pre-Filtering (Google Gemini Flash VLM)</strong>: Citizen report photos and worker cleanup proofs are analyzed for semantic context (differentiating actual illegal dumping from food containers, selfies, clean surfaces, or pranks). Before sending image data to Google AI services, our server <strong>strips all EXIF metadata (including GPS coordinates, device serials, and timestamps)</strong>, ensuring that only anonymized visual pixels are evaluated.
+                                        <strong>Stage 1: Semantic Verification &amp; Scene Pre-Filtering</strong>: Citizen report photos and worker cleanup proofs are analyzed for visual context (differentiating actual illegal dumping from non-waste items, selfies, or clean surfaces). Before processing image data, our server <strong>strips all EXIF metadata (including GPS coordinates, device serials, and timestamps)</strong>, ensuring that only anonymized visual pixels are evaluated.
                                     </li>
                                     <li>
                                         <strong>Layer 2: Deep Instance Segmentation (Mask R-CNN)</strong>: Confirmed waste images are processed locally by our custom-trained Mask R-CNN model to detect garbage clusters, compute segmentation confidence scores, and generate visual polygon mask overlays without relying on external cloud APIs.
@@ -294,7 +294,7 @@ export default function PrivacyPolicyPage() {
                                     </div>
                                     <div className="flex items-start gap-2.5">
                                         <CheckCircle2 size={16} className="text-primary mt-0.5 shrink-0" />
-                                        <span><strong>Infrastructure Partners:</strong> Secure cloud infrastructure (Supabase PostgreSQL, Vercel hosting, Google Gemini API for AI chat assistant) processing data under strict data protection terms.</span>
+                                        <span><strong>Infrastructure Partners:</strong> Secure cloud infrastructure (Supabase PostgreSQL, Vercel hosting, AI assistance services) processing data under strict data protection terms.</span>
                                     </div>
                                 </div>
                                 <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs flex items-start gap-2.5 mt-4">

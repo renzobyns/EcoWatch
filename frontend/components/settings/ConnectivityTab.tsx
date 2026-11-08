@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { useSystemDisplay } from "@/lib/useSystemDisplay";
 
 type ServiceStatus = {
     status: "ok" | "error" | "warning";
@@ -28,6 +29,7 @@ type HealthResponse = {
 };
 
 export function ConnectivityTab() {
+    const { geminiDisplay } = useSystemDisplay();
     const [health, setHealth] = useState<HealthResponse | null>(null);
     const [loading, setLoading] = useState(true);
     const [lastChecked, setLastChecked] = useState<string>("");
@@ -124,17 +126,17 @@ export function ConnectivityTab() {
                 {renderService("Database (PostgreSQL/SQLite)", health?.database)}
                 {renderService("Supabase Storage", health?.supabase)}
                 {renderService(
-                    "AI Layer 1 (Gemini Flash VLM)",
+                    geminiDisplay ? "AI Layer 1 (Gemini Flash VLM)" : "AI Vision Pre-Filter Service",
                     health?.vlm
                         ? {
                               ...health.vlm,
-                              message: health.vlm.message
-                                  ? `${health.vlm.message} (RPD: ${health.vlm.daily_calls ?? 0}/${health.vlm.daily_limit ?? 1400} • Cache: ${health.vlm.cache_hit_rate_pct ?? 0}%)`
-                                  : undefined,
+                              message: !geminiDisplay ? "Active (Operational)" : (health.vlm.message ? `${health.vlm.message} (RPD: ${health.vlm.daily_calls ?? 0}/${health.vlm.daily_limit ?? 1400} • Cache: ${health.vlm.cache_hit_rate_pct ?? 0}%)` : undefined),
+
+
                           }
                         : undefined
                 )}
-                {renderService("AI Layer 2 (Mask R-CNN)", health?.ai)}
+                {renderService(geminiDisplay ? "AI Layer 2 (Mask R-CNN)" : "Mask R-CNN Core (TensorFlow)", health?.ai)}
             </div>
 
             {lastChecked && (

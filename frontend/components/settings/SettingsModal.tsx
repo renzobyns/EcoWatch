@@ -9,7 +9,6 @@ import { StorageSettingsTab } from "@/components/settings/StorageSettingsTab";
 import { ConnectivityTab } from "@/components/settings/ConnectivityTab";
 import { DataExportTab } from "@/components/settings/DataExportTab";
 import { AiPolicyTab } from "@/components/settings/AiPolicyTab";
-import { DeveloperTab } from "@/components/settings/DeveloperTab";
 import { NotificationsTab } from "@/components/settings/NotificationsTab";
 
 interface SettingsModalProps {
@@ -99,7 +98,6 @@ export function SettingsModal({ open, onClose, role = "cenro" }: SettingsModalPr
                     {activeTab === "connectivity" && <ConnectivityTab />}
                     {activeTab === "export" && <DataExportTab />}
                     {activeTab === "ai_policy" && <AiPolicyTab />}
-                    {activeTab === "developer" && <DeveloperTab />}
                     {activeTab === "notifications" && <NotificationsTab />}
                 </div>
             </div>

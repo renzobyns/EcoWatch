@@ -9,6 +9,7 @@ import Script from "next/script";
 import { Analytics } from '@vercel/analytics/next';
 import SessionManager from "@/components/SessionManager";
 import NetworkStatusListener from "@/components/NetworkStatusListener";
+import { DevOptionsModal } from "@/components/DevOptionsModal";
 
 export const metadata: Metadata = {
   title: "EcoWatch SJDM | Sustainable Environmental Monitoring",
@@ -110,6 +111,7 @@ export default function RootLayout({
             <ShortcutsProvider>
               <SessionManager />
               <NetworkStatusListener />
+              <DevOptionsModal />
               <div id="google_translate_element" suppressHydrationWarning></div>
               <Navbar />
               <main className="pt-20">

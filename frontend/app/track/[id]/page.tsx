@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { useSystemDisplay } from "@/lib/useSystemDisplay";
 
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
 import BeforeAfterCompare from "@/components/BeforeAfterCompare";
@@ -26,6 +27,7 @@ const STATUS_COLORS: Record<string, { text: string, bg: string, bgLight: string,
 export default function TrackReportPage() {
     const params = useParams();
     const trackingId = params.id as string;
+    const { geminiDisplay } = useSystemDisplay();
     
     const [report, setReport] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -186,12 +188,12 @@ export default function TrackReportPage() {
                     {/* Status Banner */}
                     <div className={`p-6 text-center border-b border-border ${STATUS_COLORS[report.status]?.bgLight || 'bg-foreground/10'}`}>
                         <h2 className={`text-xl font-semibold uppercase tracking-widest ${STATUS_COLORS[report.status]?.text || 'text-foreground'}`}>
-                            {report.status === 'ai_rejected' ? "Flagged for Review (Non-Waste Detected)" : isFailed ? "Cleanup Failed" : isUnderReview ? "Under Review" : report.status}
+                            {report.status === 'ai_rejected' ? (geminiDisplay ? "Flagged for Review (Non-Waste Detected)" : "Flagged for Review (Low Confidence)") : isFailed ? "Cleanup Failed" : isUnderReview ? "Under Review" : report.status}
                         </h2>
                         <p className="text-sm text-foreground/60 mt-2 font-medium">
                             {report.status === 'pending' && "Report received, waiting for AI verification."}
                             {report.status === 'ai_verified' && "AI verification complete. Under review by Barangay admin."}
-                            {report.status === 'ai_rejected' && (report.vlm_rejection_reason || "AI detected this image may not be outdoor waste (e.g. selfie/portrait/clean area). Sent to admin for confirmation.")}
+                            {report.status === 'ai_rejected' && (geminiDisplay ? (report.vlm_rejection_reason || "AI detected this image may not be outdoor waste (e.g. selfie/portrait/clean area). Sent to admin for confirmation.") : "Low detection confidence. No illegal solid waste confirmed by Mask R-CNN. Sent to admin for manual verification.")}
                             {report.status === 'verified' && "Verified! Awaiting cleanup team assignment."}
                             {report.status === 'assigned' && "Cleanup team has been assigned to the location!"}
                             {report.status === 'in_progress' && "Cleanup is actively in progress!"}
@@ -320,11 +322,11 @@ export default function TrackReportPage() {
                                                             </div>
                                                             <div className="flex flex-col items-center text-center">
                                                                 <span className="text-[13px] font-bold text-white tracking-widest uppercase mb-1 drop-shadow-md">
-                                                                    {scanProgress < 50 ? "Layer 1: VLM Semantic Check" : "Layer 2: Mask R-CNN Scanning"}
+                                                                    {scanProgress < 50 ? (geminiDisplay ? "Layer 1: VLM Semantic Check" : "Phase 1: Feature Extraction & Screening") : (geminiDisplay ? "Layer 2: Mask R-CNN Scanning" : "Phase 2: Mask R-CNN Instance Segmentation")}
                                                                 </span>
                                                                 <span className="text-[10px] font-mono text-primary uppercase opacity-80">
                                                                     {scanProgress < 25 ? "Stripping EXIF & Preprocessing..." : 
-                                                                     scanProgress < 50 ? "Evaluating scene context (Gemini)..." : 
+                                                                     scanProgress < 50 ? (geminiDisplay ? "Evaluating scene context (Gemini)..." : "Evaluating visual features & boundaries...") : 
                                                                      scanProgress < 75 ? "Segmenting waste boundaries..." : "Finalizing output..."}
                                                                 </span>
                                                             </div>
@@ -460,7 +462,7 @@ export default function TrackReportPage() {
                                         <div className="flex items-center gap-2">
                                             <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
                                             <span className="text-[11px] font-bold uppercase tracking-wider text-primary">
-                                                AI Verification (3-Layer Pipeline)
+                                                {geminiDisplay ? "AI Verification (3-Layer Pipeline)" : "AI Verification (Mask R-CNN)"}
                                             </span>
                                         </div>
                                         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase border ${report.vlm_category === 'not_waste' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
@@ -469,18 +471,18 @@ export default function TrackReportPage() {
                                     </div>
                                     {report.vlm_description && (
                                         <p className="text-xs text-foreground/80 leading-relaxed">
-                                            <span className="font-semibold text-foreground/90">AI Scene: </span>
-                                            {report.vlm_description}
+                                            <span className="font-semibold text-foreground/90">{geminiDisplay ? "AI Scene: " : "Detection: "}</span>
+                                            {geminiDisplay ? report.vlm_description : "Instance segmentation evaluated across candidate bounding boxes."}
                                         </p>
                                     )}
                                     {report.vlm_rejection_reason && (
                                         <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs">
-                                            <strong>Flagged: </strong> {report.vlm_rejection_reason}
+                                            <strong>Flagged: </strong> {geminiDisplay ? report.vlm_rejection_reason : "Low confidence score - routed for manual confirmation."}
                                         </div>
                                     )}
                                     <div className="flex items-center justify-between pt-1 text-[10px] text-foreground/50 border-t border-primary/10">
-                                        <span>Model: {report.vlm_provider || "Gemini Flash"}</span>
-                                        {report.vlm_latency_ms && <span>Latency: {report.vlm_latency_ms}ms</span>}
+                                        <span>Model: {geminiDisplay ? (report.vlm_provider || "Gemini Flash") : "Mask R-CNN (TensorFlow)"}</span>
+                                        {geminiDisplay ? (report.vlm_latency_ms && <span>Latency: {report.vlm_latency_ms}ms</span>) : <span>Backbone: ResNet-101 FPN</span>}
                                     </div>
                                 </div>
                             )}

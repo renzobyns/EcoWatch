@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Flag, Settings } from 'lucide-react';
 import { SettingsModal } from '@/components/settings/SettingsModal';
+import { useDevTrigger } from '@/lib/useDevTrigger';
 
 const PORTAL_PREFIXES = ['/barangay', '/cenro', '/cleaner', '/profile'];
 
@@ -16,6 +17,7 @@ export default function Navbar() {
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [user, setUser] = useState<{ name: string; initial: string; role: string } | null>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const { handleLogoClick } = useDevTrigger();
 
     useEffect(() => {
         // Local-first auth: check localStorage
@@ -56,7 +58,7 @@ export default function Navbar() {
             <div className={`glass bg-background/70 backdrop-blur-xl border border-border/50 shadow-2xl rounded-2xl px-4 sm:px-6 lg:px-8 pointer-events-auto transition-all duration-300 ${user ? 'flex-1' : 'w-full'}`}>
                 <div className="flex justify-between h-14 items-center gap-4">
                     {/* Logo */}
-                    <Link href="/" className="flex items-center gap-2 group flex-shrink-0">
+                    <Link href="/" onClick={handleLogoClick} className="flex items-center gap-2 group flex-shrink-0">
                         <div className="w-8 h-8 rounded-md overflow-hidden shadow-md shadow-primary/20 bg-white flex items-center justify-center p-0.5 group-hover:scale-110 transition-transform duration-300">
                             <img src="/logo.png" alt="EcoWatch" className="w-full h-full object-contain" />
                         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useSystemDisplay } from "@/lib/useSystemDisplay";
 import {
     ShieldCheck,
     ShieldAlert,
@@ -130,6 +131,7 @@ export default function CleanupVerificationCard({
     actionLoading = false,
 }: CleanupVerificationCardProps) {
     const [expanded, setExpanded] = useState(false);
+    const { geminiDisplay } = useSystemDisplay();
     const [overrideOpen, setOverrideOpen] = useState(false);
     const [overrideAction, setOverrideAction] = useState<"approve" | "retake">("approve");
     const [overrideReason, setOverrideReason] = useState("");
@@ -187,7 +189,7 @@ export default function CleanupVerificationCard({
             case "layer_3_mrcnn":
                 return "Waste Detection (Mask R-CNN)";
             case "layer_4_vlm":
-                return "Visual Scene Comparison (Gemini Flash)";
+                return geminiDisplay ? "Visual Scene Comparison (Gemini Flash)" : "Visual Site Verification";
             case "max_attempts_exceeded":
                 return "Safety Escalation (3 Attempts Reached)";
             case "all_passed":
@@ -311,7 +313,7 @@ export default function CleanupVerificationCard({
                         <Sparkles size={11} className="text-emerald-500" />
                         <span>
                             {parsed.layers?.find((l) => l.layer === "layer_3_mrcnn")?.status === "bypassed"
-                                ? "VLM Scene Check"
+                                ? (geminiDisplay ? "VLM Scene Check" : "Visual Scene Check")
                                 : details.remaining_ratio !== undefined
                                     ? details.remaining_ratio <= 0.05
                                         ? "Clean (0%)"
@@ -383,8 +385,8 @@ export default function CleanupVerificationCard({
                                                 {layer.layer === "layer_1_integrity" && <Camera size={12} className="text-primary" />}
                                                 {layer.layer === "layer_2_location" && <Compass size={12} className="text-primary" />}
                                                 {layer.layer === "layer_3_mrcnn" && <Scan size={12} className="text-primary" />}
-                                                {layer.layer === "layer_4_vlm" && <Sparkles size={12} className="text-primary" />}
-                                                {layer.name}
+                                                {layer.layer === "layer_4_vlm" && (geminiDisplay ? <Sparkles size={12} className="text-primary" /> : <ShieldCheck size={12} className="text-primary" />)}
+                                                {layer.layer === "layer_4_vlm" && !geminiDisplay ? "Visual Site Verification" : layer.name}
                                             </span>
                                             <span
                                                 className={`text-[10px] font-bold uppercase ${
@@ -421,8 +423,8 @@ export default function CleanupVerificationCard({
                                         {/* VLM details */}
                                         {layer.vlm && (
                                             <div className="mt-1.5 pt-1.5 border-t border-border/50 text-[10px] text-muted-foreground space-y-1">
-                                                <div className="italic">&ldquo;{layer.vlm.description || "Scene verified"}&rdquo;</div>
-                                                {userRole === "cenro" && layer.vlm.internal_reasoning && (
+                                                <div className="italic">&ldquo;{geminiDisplay ? (layer.vlm.description || "Scene verified") : "Cleaned site visually verified."}&rdquo;</div>
+                                                {geminiDisplay && userRole === "cenro" && layer.vlm.internal_reasoning && (
                                                     <div className="font-mono text-[9px] text-primary/80 bg-primary/5 p-1 rounded">
                                                         Internal Reasoning: {layer.vlm.internal_reasoning}
                                                     </div>
@@ -482,11 +484,11 @@ export default function CleanupVerificationCard({
                                         <div className="flex items-center justify-between font-semibold text-[11px] text-foreground">
                                             <span className="flex items-center gap-1.5">
                                                 <Sparkles size={12} className="text-primary" />
-                                                Phase D: Gemini VLM Scene Judge
+                                                {geminiDisplay ? "Phase D: Gemini VLM Scene Judge" : "Phase D: Automated Visual Verification"}
                                             </span>
                                         </div>
                                         <p className="text-[10px] text-muted-foreground mt-0.5 italic">
-                                            &ldquo;{String(details.vlm?.description || details.vlm?.remarks || fallbackVlm?.remarks || fallbackVlm?.description || "Scene verified")}&rdquo;
+                                            &ldquo;{geminiDisplay ? String(details.vlm?.description || details.vlm?.remarks || fallbackVlm?.remarks || fallbackVlm?.description || "Scene verified") : "Cleaned site visually verified."}&rdquo;
                                         </p>
                                     </div>
                                 )}

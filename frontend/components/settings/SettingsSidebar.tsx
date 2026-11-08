@@ -1,6 +1,6 @@
 "use client";
 
-import { Settings, HardDrive, Wifi, Download, ShieldCheck, Bell, Wrench, ChevronDown } from "lucide-react";
+import { Settings, HardDrive, Wifi, Download, ShieldCheck, Bell, ChevronDown } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
 interface SettingsSidebarProps {
@@ -33,7 +33,6 @@ const SETTINGS_CATEGORIES: SettingsCategory[] = [
     { key: "connectivity", label: "Connectivity", icon: Wifi, roles: ["cenro"] },
     { key: "export", label: "Data Export Hub", icon: Download, roles: ["cenro", "barangay"] },
     { key: "ai_policy", label: "AI Policy", icon: ShieldCheck, roles: ["cenro"] },
-    { key: "developer", label: "Developer Options", icon: Wrench, roles: ["cenro"] },
     { key: "notifications", label: "Notifications", icon: Bell, roles: ["cenro", "barangay", "cleaner", "citizen"] },
 ];
 
