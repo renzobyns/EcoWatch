@@ -34,6 +34,8 @@
 | **#19** | 🐛 Bug | Report marked as duplicate still shows AI Verified banner & cannot be approved | CENRO Drawer & Backend (`ReportDetailDrawer.tsx` / `backend/main.py:4145`) | `[/]` Fixed by Agent |
 | **#20** | 🐛 Bug | "Reassign Admin" crashes with 500 error page (`setShowReassignModal is not defined`) | Barangay Drawer (`BarangayDetailDrawer.tsx`) | `[/]` Fixed by Agent |
 | **#21** | 🐛 Bug | DevOptionsModal throws `Requires role: cenro` on open & fails to toggle presentation mode without CENRO session | Dev Options (`DevOptionsModal.tsx` & Backend) | `[/]` Fixed by Agent |
+| **#22** | 🐛 Bug | Date Reported on Track view displays UTC time (11:09 PM) instead of local time (7:09 AM) | Public Tracker (`/track/[id]`) & Date Utils | `[/]` Fixed by Agent |
+| **#23** | 🐛 Bug | Leaked VLM / Gemini Clues & Disguised AI Summary Card on Defense Mode | Report Drawer, Track Page, Cleanup Card | `[/]` Fixed by Agent |
 
 ---
 
@@ -344,3 +346,61 @@
   1. Click 5 times on the EcoWatch logo while logged in as citizen. Confirm Developer Options opens with zero `Requires role: cenro` console errors.
   2. Toggle Defense Mode on/off. Confirm toast confirms instantly and persists to the backend database.
   3. View report `EW-0030` (`/track/3a2bdb7e`) in Defense Mode. Confirm it renders as pure Mask R-CNN (`AI Verification (Mask R-CNN)`, `LOW CONFIDENCE`, `Model: Mask R-CNN (TensorFlow)`, `Backbone: ResNet-101 FPN`).
+
+---
+
+### - [/] 🐛 Bug #22: Date Reported on Track Page (`/track/[id]`) displays raw UTC time (11:09 PM) instead of local time (7:09 AM)
+
+* **Pages / Files:** Public Tracker (`frontend/app/track/[id]/page.tsx:439`), Date Utility (`frontend/lib/date-utils.ts`), Profile (`frontend/app/profile/page.tsx:124`), Analytics Drilldown (`frontend/components/portal/AnalyticsDrilldownModal.tsx:70`)
+* **Screenshots:**
+  ![CENRO Photo Evidence Detail showing 7:09 AM](./docs/bug-tracker/screenshots/bug22-cenro-photo-detail-709am.png)
+  ![Track view showing 11:09 PM](./docs/bug-tracker/screenshots/bug22-track-timezone-mismatch-1109pm.jpg)
+* **What happens:**
+  1. On the public tracking page (`/track/[id]`), "DATE REPORTED" shows `Nov 8, 2026, 11:09 PM`.
+  2. In the CENRO report inspection drawer ("Photo Evidence & Trust Details" tab), "REPORT SUBMITTED" shows `Nov 9, 2026, 7:09 AM` (the correct Philippine Standard Time / UTC+8).
+  3. Also in the CENRO drawer tab, "PHOTO TAKEN" displays `Invalid Date` when EXIF date format (`YYYY:MM:DD HH:MM:SS`) is present.
+* **Root Cause:**
+  1. Database datetimes in `backend/models.py` are naive UTC without timezone indicator (`tzinfo=None`), so the backend returns strings like `"2026-11-08T23:09:00"`.
+  2. In `frontend/app/track/[id]/page.tsx:439`, date formatting used raw `new Date(report.created_at).toLocaleString([], ...)`. Under ECMAScript rules, an ISO string without timezone indicator (`"Z"`) is interpreted as local time, incorrectly displaying 11:09 PM.
+  3. In contrast, `PhotoEvidenceDetail.tsx` uses `formatDateTime()` from `@/lib/date-utils.ts`, which normalizes naive timestamps by appending `"Z"` via `parseUTC()`, accurately shifting UTC to user local time (+8h = 7:09 AM).
+  4. In `PhotoEvidenceDetail.tsx`, camera EXIF timestamps often use colons (`YYYY:MM:DD HH:MM:SS`), which native `Date()` fails to parse, returning `Invalid Date`.
+* **Fix Plan:**
+  1. Update `frontend/app/track/[id]/page.tsx` to import and use `formatDateTime(report.created_at)` from `@/lib/date-utils`.
+  2. Enhance `parseUTC` in `frontend/lib/date-utils.ts` to sanitize EXIF date colons (`YYYY:MM:DD` -> `YYYY-MM-DD`) and space separators, fixing the `Invalid Date` issue.
+  3. Update `profile/page.tsx` and `AnalyticsDrilldownModal.tsx` to use centralized `formatDate` from `@/lib/date-utils` for consistency.
+* **Verification Step:**
+  1. Open `/track/[id]` for the report. Verify "Date Reported" displays `Nov 9, 2026, 7:09 AM` matching the CENRO detail view.
+  2. Inspect CENRO Photo Evidence tab. Confirm "Photo taken" does not display `Invalid Date`.
+
+---
+
+### - [/] 🐛 Bug #23: Leaked VLM / Gemini Clues and Disguised AI Summary Card on Defense Mode
+
+* **Pages / Files:** CENRO Drawer (`ReportDetailDrawer.tsx`), Public Tracker (`frontend/app/track/[id]/page.tsx`), Cleanup Proof Card (`CleanupVerificationCard.tsx`), Connectivity Tab (`ConnectivityTab.tsx`), Backend (`cleanup_verifier.py`)
+* **Screenshots:**
+  ![Track AI Verification Card](./docs/bug-tracker/screenshots/bug23-track-ai-verification-card.jpg)
+  ![Drawer VLM Disguise Card](./docs/bug-tracker/screenshots/bug23-drawer-vlm-disguise-card.png)
+  ![Drawer Mask R-CNN Summary Crop](./docs/bug-tracker/screenshots/bug23-drawer-mask-rcnn-summary-crop.png)
+* **What happens:**
+  1. In Defense Mode (`geminiDisplay === false`), a card titled `✦ Mask R-CNN Detection Summary` rendered in the report inspection drawer with a Google Gemini `<Sparkles>` icon, duplicating the main AI Verification card and hinting at an extra AI model layer.
+  2. The Human Verification action banner in the report drawer displayed `LAYER 2 VERIFICATION` in uppercase, prompting defense panelists to ask what Layer 1 and Layer 2 are.
+  3. On the public tracking page (`/track/[id]`), a disguised card titled `AI VERIFICATION (MASK R-CNN)` with "Detection: Instance segmentation evaluated across candidate bounding boxes" rendered below the photo.
+  4. In cleanup proof verification (`CleanupVerificationCard.tsx`), a fourth layer (`layer_4_vlm`) was displayed in the breakdown, remaining waste showed a `<Sparkles>` icon and "Visual Scene Check", and natural language scene descriptions generated by Gemini were quoted or displayed in summary messages.
+  5. In CENRO Settings `ConnectivityTab.tsx`, an extra service `"AI Vision Pre-Filter Service"` was listed.
+* **Root Cause:**
+  1. `ReportDetailDrawer.tsx` line 895 and `/track/[id]/page.tsx` line 460 rendered the VLM breakdown block unconditionally when `report.vlm_category` existed, attempting to disguise it with static text instead of hiding it when `!geminiDisplay`.
+  2. In `ReportDetailDrawer.tsx` line 531, the banner header had hardcoded `"Layer 2 Verification"`.
+  3. `CleanupVerificationCard.tsx` did not filter out `layer_4_vlm` from the visible layers array when in Defense Mode and quoted `layer.vlm.description`.
+  4. Default summary strings in `backend/cleanup_verifier.py` hardcoded phrases like `"via Gemini Flash VLM"` and quotes from `{vlm_desc}`.
+* **Fix Plan:**
+  1. Wrap the VLM card in `ReportDetailDrawer.tsx` and `/track/[id]/page.tsx` with `{geminiDisplay && report.vlm_category && (...)}`; completely hide it in Defense Mode.
+  2. Update the report drawer banner subtitle to `{geminiDisplay ? "Layer 2 Verification" : "Admin Triage"}`.
+  3. Filter out `layer_4_vlm` from `parsed.layers` in `CleanupVerificationCard.tsx` when `!geminiDisplay` so only Layer 1, Layer 2, and Layer 3 are displayed.
+  4. Replace `<Sparkles>` with `<Scan>` and "Visual Scene Check" with "Verified Clear" in the Remaining Waste indicator.
+  5. Sanitize cleanup summary messages and descriptions in Defense Mode to replace any Gemini/VLM words or image descriptions with standard Mask R-CNN status text.
+  6. Conditionally render the VLM service check in `ConnectivityTab.tsx` only when `geminiDisplay` is true.
+  7. Sanitize backend `backend/cleanup_verifier.py` summary messages and layer names to eliminate hardcoded "Gemini Flash" text.
+* **Verification Step:**
+  1. In Defense Mode, open report `EW-0036` on `/track/[id]` and in CENRO drawer. Confirm NO extra summary box with Sparkles icon appears, and banner reads `ADMIN TRIAGE`.
+  2. Inspect a resolved cleanup proof. Confirm exactly 3 layers are shown (Layer 1 Integrity, Layer 2 Landmarks, Layer 3 Mask R-CNN) with zero Gemini quotes or image descriptions.
+  3. Open Settings -> Connectivity tab. Confirm no VLM or Pre-Filter service is shown.

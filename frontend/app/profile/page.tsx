@@ -13,6 +13,7 @@ import {
     Eye, EyeOff, HelpCircle, Search, ArrowDownUp, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
+import { parseUTC } from "@/lib/date-utils";
 import { PortalShell, type PortalNavItem } from "@/components/portal/PortalShell";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { DateRange } from "react-day-picker";
@@ -121,7 +122,7 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 function formatDate(iso: string) {
-    return new Date(iso).toLocaleDateString("en-PH", {
+    return parseUTC(iso).toLocaleDateString("en-PH", {
         year: "numeric",
         month: "short",
         day: "numeric",
@@ -381,7 +382,7 @@ export default function ProfilePage() {
             const q = auditSearch.toLowerCase();
             data = data.filter((entry) => {
                 const displayAction = AUDIT_ACTION_DISPLAY[entry.action] ?? entry.action ?? "";
-                const trackingId = entry.tracking_id ?? entry.report_tracking_id ?? `WO-${entry.id}` ?? "";
+                const trackingId = entry.tracking_id ?? entry.report_tracking_id ?? `WO-${entry.id}`;
                 const targetId = entry.target_id ? String(entry.target_id) : "";
                 return (
                     displayAction.toLowerCase().includes(q) ||

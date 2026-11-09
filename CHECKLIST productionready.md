@@ -570,6 +570,7 @@
 | 2026-11-01 | CENRO Mobile UX Redesign & Tab Audits | GoTyme-inspired bottom nav bar + menu modal; fixed horizontal overflow blowout; converted SLA Management to 2x2 KPI grid + mobile breach incident cards; converted Evidence Gallery to 2x2 KPIs + 4:3 high-res photo viewer with 3-way segmented pill switcher (Original / AI Mask / Proof). |
 | 2026-11-03 | Full Production Deployment Sync | Merged `feat/offline-resilience-pwa` into `master` and pushed to GitHub (triggers Vercel). Synced updated backend with Supabase auto-migrations & 3-layer VLM verification to Hugging Face Spaces. |
 | 2026-11-08 | Defense Mode & Dev Options Unification | Fixed DevOptionsModal `Requires role: cenro` on non-CENRO sessions; introduced `POST /system-config/dev-toggle` and public email verification flag; disguised `NOT WASTE` to `Low Confidence` on public tracking page when in Defense Mode. |
+| 2026-11-09 | Defense Mode Pure Mask R-CNN Presentation | Concealed all Gemini VLM summary cards, Sparkle icons, and image descriptions in Defense Mode across CENRO drawer, Public Tracking, Cleanup Verification, and Connectivity tabs. |
 
 ---
 

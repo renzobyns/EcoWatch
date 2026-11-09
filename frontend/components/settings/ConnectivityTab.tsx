@@ -125,14 +125,12 @@ export function ConnectivityTab() {
                 {renderService("Backend API (FastAPI)", health?.backend)}
                 {renderService("Database (PostgreSQL/SQLite)", health?.database)}
                 {renderService("Supabase Storage", health?.supabase)}
-                {renderService(
-                    geminiDisplay ? "AI Layer 1 (Gemini Flash VLM)" : "AI Vision Pre-Filter Service",
+                {geminiDisplay && renderService(
+                    "AI Layer 1 (Gemini Flash VLM)",
                     health?.vlm
                         ? {
                               ...health.vlm,
-                              message: !geminiDisplay ? "Active (Operational)" : (health.vlm.message ? `${health.vlm.message} (RPD: ${health.vlm.daily_calls ?? 0}/${health.vlm.daily_limit ?? 1400} • Cache: ${health.vlm.cache_hit_rate_pct ?? 0}%)` : undefined),
-
-
+                              message: health.vlm.message ? `${health.vlm.message} (RPD: ${health.vlm.daily_calls ?? 0}/${health.vlm.daily_limit ?? 1400} • Cache: ${health.vlm.cache_hit_rate_pct ?? 0}%)` : undefined,
                           }
                         : undefined
                 )}

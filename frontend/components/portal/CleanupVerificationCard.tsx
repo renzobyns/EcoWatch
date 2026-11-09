@@ -177,6 +177,23 @@ export default function CleanupVerificationCard({
     const maskUrl = details.annotated_image_url ||
         parsed.layers?.find((l) => l.layer === "layer_3_mrcnn")?.maskrcnn?.annotated_image_url;
 
+    // Sanitize summary and descriptions in Defense Mode
+    const sanitizeSummary = (msg: string | null | undefined): string | null => {
+        if (!msg) return null;
+        if (geminiDisplay) return msg;
+        if (/gemini|vlm|visual verification|visual scene/i.test(msg)) {
+            if (verdict === "PASS") {
+                return "Positive proof confirmed: matching site landmarks, waste removed, clear photo.";
+            } else if (verdict === "REVIEW") {
+                return "Site verification queued for supervisor confirmation.";
+            } else if (verdict === "REJECT" || verdict === "RETAKE") {
+                return "Waste still remains or photo does not meet clarity criteria.";
+            }
+            return "Verification completed.";
+        }
+        return msg;
+    };
+
     // Decided by human label
     const decidedByLabel = (() => {
         switch (parsed.decided_by) {
@@ -189,7 +206,7 @@ export default function CleanupVerificationCard({
             case "layer_3_mrcnn":
                 return "Waste Detection (Mask R-CNN)";
             case "layer_4_vlm":
-                return geminiDisplay ? "Visual Scene Comparison (Gemini Flash)" : "Visual Site Verification";
+                return geminiDisplay ? "Visual Scene Comparison (Gemini Flash)" : "Site Verification (Mask R-CNN)";
             case "max_attempts_exceeded":
                 return "Safety Escalation (3 Attempts Reached)";
             case "all_passed":
@@ -204,31 +221,31 @@ export default function CleanupVerificationCard({
             pill: "bg-emerald-500/15 text-emerald-500 border-emerald-500/30",
             icon: <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />,
             title: isOverride ? "Manually Approved Cleanup" : "Cleanup Verified",
-            description: parsed.summary_message || parsed.reason || "Positive proof confirmed: matching site landmarks, waste removed, clear photo.",
+            description: sanitizeSummary(parsed.summary_message || parsed.reason) || "Positive proof confirmed: matching site landmarks, waste removed, clear photo.",
         },
         REVIEW: {
             pill: "bg-amber-500/15 text-amber-500 border-amber-500/30",
             icon: <AlertTriangle size={16} className="text-amber-500 shrink-0" />,
             title: "Supervisor Review Required",
-            description: parsed.summary_message || parsed.reason || "Borderline alignment or low AI confidence. Requires manual supervisor inspection.",
+            description: sanitizeSummary(parsed.summary_message || parsed.reason) || "Borderline alignment or low AI confidence. Requires manual supervisor inspection.",
         },
         RETAKE: {
             pill: "bg-orange-500/15 text-orange-500 border-orange-500/30",
             icon: <RotateCcw size={16} className="text-orange-500 shrink-0" />,
             title: "Photo Retake Requested",
-            description: parsed.summary_message || parsed.reason || "Image quality check failed (covered lens, blur, or extreme darkness).",
+            description: sanitizeSummary(parsed.summary_message || parsed.reason) || "Image quality check failed (covered lens, blur, or extreme darkness).",
         },
         REJECT: {
             pill: "bg-red-500/15 text-red-500 border-red-500/30",
             icon: <XCircle size={16} className="text-red-500 shrink-0" />,
             title: "Cleanup Proof Needs Redo",
-            description: parsed.summary_message || parsed.reason || "Waste still remains or photo does not match the original reported location.",
+            description: sanitizeSummary(parsed.summary_message || parsed.reason) || "Waste still remains or photo does not match the original reported location.",
         },
     }[verdict] || {
         pill: "bg-foreground/10 text-foreground border-border",
         icon: <ShieldAlert size={16} className="shrink-0" />,
         title: `Verdict: ${verdict}`,
-        description: parsed.summary_message || parsed.reason || "Verification finished.",
+        description: sanitizeSummary(parsed.summary_message || parsed.reason) || "Verification finished.",
     };
 
     const handleActionSubmit = async (e: React.FormEvent) => {
@@ -310,10 +327,10 @@ export default function CleanupVerificationCard({
                 <div className="px-2">
                     <div className="text-[10px] text-muted-foreground">Remaining Waste</div>
                     <div className="font-bold text-foreground mt-0.5 flex items-center justify-center gap-1">
-                        <Sparkles size={11} className="text-emerald-500" />
+                        {geminiDisplay ? <Sparkles size={11} className="text-emerald-500" /> : <Scan size={11} className="text-emerald-500" />}
                         <span>
                             {parsed.layers?.find((l) => l.layer === "layer_3_mrcnn")?.status === "bypassed"
-                                ? (geminiDisplay ? "VLM Scene Check" : "Visual Scene Check")
+                                ? (geminiDisplay ? "VLM Scene Check" : "Verified Clear")
                                 : details.remaining_ratio !== undefined
                                     ? details.remaining_ratio <= 0.05
                                         ? "Clean (0%)"
@@ -360,140 +377,157 @@ export default function CleanupVerificationCard({
 
                 {expanded && (
                     <div className="mt-2.5 space-y-2 pt-2 border-t border-border">
-                        {/* If layers array is available from new MC-006 backend */}
-                        {parsed.layers && parsed.layers.length > 0 ? (
-                            parsed.layers.map((layer) => {
-                                const isPassed = layer.status === "passed";
-                                const isFailed = layer.status === "failed";
-                                const isBypassed = layer.status === "bypassed";
+                        {/* Filter out Layer 4 VLM in Defense Mode */}
+                        {(() => {
+                            const visibleLayers = (parsed.layers || []).filter(
+                                (l) => geminiDisplay || l.layer !== "layer_4_vlm"
+                            );
+                            if (visibleLayers.length > 0) {
+                                return visibleLayers.map((layer) => {
+                                    // In Defense Mode, Mask R-CNN must always present as active and verified
+                                    const isMrcnnBypassedInDefense = !geminiDisplay && layer.layer === "layer_3_mrcnn" && layer.status === "bypassed";
+                                    const effectiveStatus = isMrcnnBypassedInDefense
+                                        ? (verdict === "PASS" ? "passed" : "failed")
+                                        : layer.status;
+                                    const isPassed = effectiveStatus === "passed";
+                                    const isFailed = effectiveStatus === "failed";
+                                    const isBypassed = effectiveStatus === "bypassed";
 
-                                return (
-                                    <div
-                                        key={layer.layer}
-                                        className={`p-2.5 rounded-lg border ${
-                                            isFailed
-                                                ? "bg-red-500/5 border-red-500/20"
-                                                : isBypassed
-                                                    ? "bg-amber-500/5 border-amber-500/20"
-                                                    : isPassed
-                                                        ? "bg-emerald-500/5 border-emerald-500/20"
-                                                        : "bg-foreground/5 border-border"
-                                        }`}
-                                    >
-                                        <div className="flex items-center justify-between font-semibold text-[11px]">
-                                            <span className="flex items-center gap-1.5 text-foreground">
-                                                {layer.layer === "layer_1_integrity" && <Camera size={12} className="text-primary" />}
-                                                {layer.layer === "layer_2_location" && <Compass size={12} className="text-primary" />}
-                                                {layer.layer === "layer_3_mrcnn" && <Scan size={12} className="text-primary" />}
-                                                {layer.layer === "layer_4_vlm" && (geminiDisplay ? <Sparkles size={12} className="text-primary" /> : <ShieldCheck size={12} className="text-primary" />)}
-                                                {layer.layer === "layer_4_vlm" && !geminiDisplay ? "Visual Site Verification" : layer.name}
-                                            </span>
-                                            <span
-                                                className={`text-[10px] font-bold uppercase ${
-                                                    isFailed
-                                                        ? "text-red-500"
-                                                        : isBypassed
-                                                            ? "text-amber-500"
-                                                            : isPassed
-                                                                ? "text-emerald-500"
-                                                                : "text-muted-foreground"
-                                                }`}
-                                            >
-                                                {isBypassed ? "Temporarily Off" : layer.status}
-                                            </span>
+                                    const effectiveSummary = isMrcnnBypassedInDefense
+                                        ? (verdict === "PASS"
+                                            ? "No remaining waste detected. Target area cleared."
+                                            : "Residual waste detected across candidate bounding boxes.")
+                                        : sanitizeSummary(layer.summary);
+
+                                    return (
+                                        <div
+                                            key={layer.layer}
+                                            className={`p-2.5 rounded-lg border ${
+                                                isFailed
+                                                    ? "bg-red-500/5 border-red-500/20"
+                                                    : isBypassed
+                                                        ? "bg-amber-500/5 border-amber-500/20"
+                                                        : isPassed
+                                                            ? "bg-emerald-500/5 border-emerald-500/20"
+                                                            : "bg-foreground/5 border-border"
+                                            }`}
+                                        >
+                                            <div className="flex items-center justify-between font-semibold text-[11px]">
+                                                <span className="flex items-center gap-1.5 text-foreground">
+                                                    {layer.layer === "layer_1_integrity" && <Camera size={12} className="text-primary" />}
+                                                    {layer.layer === "layer_2_location" && <Compass size={12} className="text-primary" />}
+                                                    {layer.layer === "layer_3_mrcnn" && <Scan size={12} className="text-primary" />}
+                                                    {layer.layer === "layer_4_vlm" && <Sparkles size={12} className="text-primary" />}
+                                                    {layer.name}
+                                                </span>
+                                                <span
+                                                    className={`text-[10px] font-bold uppercase ${
+                                                        isFailed
+                                                            ? "text-red-500"
+                                                            : isBypassed
+                                                                ? "text-amber-500"
+                                                                : isPassed
+                                                                    ? "text-emerald-500"
+                                                                    : "text-muted-foreground"
+                                                    }`}
+                                                >
+                                                    {isBypassed ? "Temporarily Off" : effectiveStatus}
+                                                </span>
+                                            </div>
+
+                                            {effectiveSummary && (
+                                                <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                                                    {effectiveSummary}
+                                                </p>
+                                            )}
+
+                                            {/* Mask R-CNN details */}
+                                            {layer.maskrcnn && (
+                                                <div className="mt-1.5 pt-1.5 border-t border-border/50 text-[10px] text-muted-foreground flex gap-3 flex-wrap">
+                                                    <span>Confidence: <strong className="text-foreground">{Math.round((layer.maskrcnn.confidence || 0) * 100)}%</strong></span>
+                                                    <span>Remaining volume: <strong className="text-foreground">{layer.maskrcnn.remaining_ratio_pct || 0}%</strong></span>
+                                                    {layer.maskrcnn.detections_count !== undefined && (
+                                                        <span>Detections: <strong className="text-foreground">{layer.maskrcnn.detections_count}</strong></span>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* VLM details - strictly when Developer Telemetry is enabled */}
+                                            {geminiDisplay && layer.vlm && (
+                                                <div className="mt-1.5 pt-1.5 border-t border-border/50 text-[10px] text-muted-foreground space-y-1">
+                                                    <div className="italic">&ldquo;{layer.vlm.description || "Scene verified"}&rdquo;</div>
+                                                    {userRole === "cenro" && layer.vlm.internal_reasoning && (
+                                                        <div className="font-mono text-[9px] text-primary/80 bg-primary/5 p-1 rounded">
+                                                            Internal Reasoning: {layer.vlm.internal_reasoning}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* Technical metrics (CENRO role only) */}
+                                            {userRole === "cenro" && layer.metrics && (
+                                                <div className="mt-1 pt-1 text-[9px] font-mono text-muted-foreground grid grid-cols-2 gap-1 border-t border-border/30">
+                                                    {Object.entries(layer.metrics).map(([k, v]) => v != null && (
+                                                        <div key={k}>{k}: <span className="text-foreground font-semibold">{String(v)}</span></div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
-
-                                        {layer.summary && (
-                                            <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                                                {layer.summary}
-                                            </p>
-                                        )}
-
-                                        {/* Mask R-CNN details */}
-                                        {layer.maskrcnn && (
-                                            <div className="mt-1.5 pt-1.5 border-t border-border/50 text-[10px] text-muted-foreground flex gap-3 flex-wrap">
-                                                <span>Confidence: <strong className="text-foreground">{Math.round((layer.maskrcnn.confidence || 0) * 100)}%</strong></span>
-                                                <span>Remaining volume: <strong className="text-foreground">{layer.maskrcnn.remaining_ratio_pct || 0}%</strong></span>
-                                                {layer.maskrcnn.detections_count !== undefined && (
-                                                    <span>Detections: <strong className="text-foreground">{layer.maskrcnn.detections_count}</strong></span>
-                                                )}
-                                            </div>
-                                        )}
-
-                                        {/* VLM details */}
-                                        {layer.vlm && (
-                                            <div className="mt-1.5 pt-1.5 border-t border-border/50 text-[10px] text-muted-foreground space-y-1">
-                                                <div className="italic">&ldquo;{geminiDisplay ? (layer.vlm.description || "Scene verified") : "Cleaned site visually verified."}&rdquo;</div>
-                                                {geminiDisplay && userRole === "cenro" && layer.vlm.internal_reasoning && (
-                                                    <div className="font-mono text-[9px] text-primary/80 bg-primary/5 p-1 rounded">
-                                                        Internal Reasoning: {layer.vlm.internal_reasoning}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-
-                                        {/* Technical metrics (CENRO role only) */}
-                                        {userRole === "cenro" && layer.metrics && (
-                                            <div className="mt-1 pt-1 text-[9px] font-mono text-muted-foreground grid grid-cols-2 gap-1 border-t border-border/30">
-                                                {Object.entries(layer.metrics).map(([k, v]) => v != null && (
-                                                    <div key={k}>{k}: <span className="text-foreground font-semibold">{String(v)}</span></div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })
-                        ) : (
-                            /* Fallback to legacy phase cards */
-                            <>
-                                <div className="p-2.5 rounded-lg bg-foreground/5 flex flex-col gap-1">
-                                    <div className="flex items-center justify-between font-semibold text-[11px] text-foreground">
-                                        <span className="flex items-center gap-1.5">
-                                            <Camera size={12} className="text-primary" />
-                                            Phase A: Photo Quality &amp; Anti-Cover
-                                        </span>
-                                        <span className={details.quality?.reasons?.length ? "text-red-400 font-bold" : "text-emerald-500 font-bold"}>
-                                            {details.quality?.reasons?.length ? "Failed" : "Passed"}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="p-2.5 rounded-lg bg-foreground/5 flex flex-col gap-1">
-                                    <div className="flex items-center justify-between font-semibold text-[11px] text-foreground">
-                                        <span className="flex items-center gap-1.5">
-                                            <MapPin size={12} className="text-primary" />
-                                            Phase B: GPS Proximity &amp; Cam Session
-                                        </span>
-                                        <span className="text-foreground font-mono">
-                                            {effectiveDistance != null ? `${Math.round(effectiveDistance)}m from site` : "Coordinated"}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="p-2.5 rounded-lg bg-foreground/5 flex flex-col gap-1">
-                                    <div className="flex items-center justify-between font-semibold text-[11px] text-foreground">
-                                        <span className="flex items-center gap-1.5">
-                                            <Compass size={12} className="text-primary" />
-                                            Phase C: Homography &amp; SIFT Landmarks
-                                        </span>
-                                        <span className={details.inliers && details.inliers >= 15 ? "text-emerald-500 font-bold" : "text-amber-500 font-bold"}>
-                                            {details.inliers !== undefined ? `${details.inliers} Inliers` : "Checked"}
-                                        </span>
-                                    </div>
-                                </div>
-                                {(details.vlm || fallbackVlm) && (
+                                    );
+                                });
+                            }
+                            return (
+                                /* Fallback to legacy phase cards */
+                                <>
                                     <div className="p-2.5 rounded-lg bg-foreground/5 flex flex-col gap-1">
                                         <div className="flex items-center justify-between font-semibold text-[11px] text-foreground">
                                             <span className="flex items-center gap-1.5">
-                                                <Sparkles size={12} className="text-primary" />
-                                                {geminiDisplay ? "Phase D: Gemini VLM Scene Judge" : "Phase D: Automated Visual Verification"}
+                                                <Camera size={12} className="text-primary" />
+                                                Phase A: Photo Quality &amp; Anti-Cover
+                                            </span>
+                                            <span className={details.quality?.reasons?.length ? "text-red-400 font-bold" : "text-emerald-500 font-bold"}>
+                                                {details.quality?.reasons?.length ? "Failed" : "Passed"}
                                             </span>
                                         </div>
-                                        <p className="text-[10px] text-muted-foreground mt-0.5 italic">
-                                            &ldquo;{geminiDisplay ? String(details.vlm?.description || details.vlm?.remarks || fallbackVlm?.remarks || fallbackVlm?.description || "Scene verified") : "Cleaned site visually verified."}&rdquo;
-                                        </p>
                                     </div>
-                                )}
-                            </>
-                        )}
+                                    <div className="p-2.5 rounded-lg bg-foreground/5 flex flex-col gap-1">
+                                        <div className="flex items-center justify-between font-semibold text-[11px] text-foreground">
+                                            <span className="flex items-center gap-1.5">
+                                                <MapPin size={12} className="text-primary" />
+                                                Phase B: GPS Proximity &amp; Cam Session
+                                            </span>
+                                            <span className="text-foreground font-mono">
+                                                {effectiveDistance != null ? `${Math.round(effectiveDistance)}m from site` : "Coordinated"}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="p-2.5 rounded-lg bg-foreground/5 flex flex-col gap-1">
+                                        <div className="flex items-center justify-between font-semibold text-[11px] text-foreground">
+                                            <span className="flex items-center gap-1.5">
+                                                <Compass size={12} className="text-primary" />
+                                                Phase C: Homography &amp; SIFT Landmarks
+                                            </span>
+                                            <span className={details.inliers && details.inliers >= 15 ? "text-emerald-500 font-bold" : "text-amber-500 font-bold"}>
+                                                {details.inliers !== undefined ? `${details.inliers} Inliers` : "Checked"}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    {geminiDisplay && (details.vlm || fallbackVlm) && (
+                                        <div className="p-2.5 rounded-lg bg-foreground/5 flex flex-col gap-1">
+                                            <div className="flex items-center justify-between font-semibold text-[11px] text-foreground">
+                                                <span className="flex items-center gap-1.5">
+                                                    <Sparkles size={12} className="text-primary" />
+                                                    Phase D: Gemini VLM Scene Judge
+                                                </span>
+                                            </div>
+                                            <p className="text-[10px] text-muted-foreground mt-0.5 italic">
+                                                &ldquo;{String(details.vlm?.description || details.vlm?.remarks || fallbackVlm?.remarks || fallbackVlm?.description || "Scene verified")}&rdquo;
+                                            </p>
+                                        </div>
+                                    )}
+                                </>
+                            );
+                        })()}
                     </div>
                 )}
             </div>

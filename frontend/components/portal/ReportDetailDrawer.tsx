@@ -222,6 +222,7 @@ export function ReportDetailDrawer({
     open, report, barangays, newBarangay, setNewBarangay,
     actionLoading, onClose, onReassign, onForceClose, onUpdated, userRole,
 }: Props) {
+    const { geminiDisplay } = useSystemDisplay();
     const [activeTab, setActiveTab] = useState<DrawerTab>("overview");
     const [activeReport, setActiveReport] = useState<QueueReport | null>(report);
 
@@ -528,7 +529,7 @@ export function ReportDetailDrawer({
                                 </span>
                             </div>
                             <span className="text-[10px] font-semibold text-muted-foreground uppercase">
-                                Layer 2 Verification
+                                {geminiDisplay ? "Layer 2 Verification" : "Admin Triage"}
                             </span>
                         </div>
                         <p className="text-xs text-foreground/80 leading-relaxed">
@@ -891,19 +892,19 @@ function OverviewTab({ report, detail, loading, error, onRetry, onDuplicateConfi
                 )}
             </div>
 
-            {/* VLM Semantic Pre-Filter (Layer 1) */}
-            {report.vlm_category && (
+            {/* VLM Semantic Pre-Filter (Layer 1) - Only visible when Gemini Telemetry is toggled ON */}
+            {geminiDisplay && report.vlm_category && (
                 <div className="bg-card rounded-lg border border-border shadow-sm p-4 space-y-2.5">
                     <div className="flex items-center justify-between">
                         <div className="text-sm font-semibold tracking-tight text-foreground flex items-center gap-1.5">
                             <Sparkles size={16} className="text-primary" />
-                            {geminiDisplay ? "VLM Semantic Check (Layer 1)" : "Mask R-CNN Detection Summary"}
+                            VLM Semantic Check (Layer 1)
                         </div>
                         <div className="flex items-center gap-1.5">
                             <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
-                                {geminiDisplay ? report.vlm_category.replace(/_/g, " ") : (report.status === "ai_rejected" || report.vlm_category === "not_waste" ? "Low Confidence" : "Verified")}
+                                {report.vlm_category.replace(/_/g, " ")}
                             </span>
-                            {geminiDisplay && report.vlm_confidence && (
+                            {report.vlm_confidence && (
                                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
                                     report.vlm_confidence === "high"
                                         ? "bg-emerald-500/15 text-emerald-500 border border-emerald-500/30"
@@ -918,17 +919,17 @@ function OverviewTab({ report, detail, loading, error, onRetry, onDuplicateConfi
                     </div>
                     {report.vlm_description && (
                         <div className="p-2.5 rounded-lg bg-muted/40 border border-border/50 text-xs text-foreground/85 leading-relaxed">
-                            {geminiDisplay ? report.vlm_description : "Instance segmentation masks and bounding boxes generated via Mask R-CNN (ResNet-101 FPN backbone)."}
+                            {report.vlm_description}
                         </div>
                     )}
                     {report.vlm_rejection_reason && (
                         <div className="text-[11px] text-red-400 font-medium bg-red-500/10 border border-red-500/20 rounded-md p-2">
-                            <strong>Rejection Note:</strong> {geminiDisplay ? report.vlm_rejection_reason : "Low detection confidence. Report routed for manual admin confirmation."}
+                            <strong>Rejection Note:</strong> {report.vlm_rejection_reason}
                         </div>
                     )}
                     <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-0.5">
-                        <span>Model: <strong className="font-mono text-foreground/70">{geminiDisplay ? (report.vlm_provider || "Gemini Flash") : "Mask R-CNN (TensorFlow)"}</strong></span>
-                        {geminiDisplay ? (report.vlm_latency_ms ? <span>{report.vlm_latency_ms}ms latency</span> : null) : <span>Backbone: ResNet-101 FPN</span>}
+                        <span>Model: <strong className="font-mono text-foreground/70">{report.vlm_provider || "Gemini Flash"}</strong></span>
+                        {report.vlm_latency_ms ? <span>{report.vlm_latency_ms}ms latency</span> : null}
                     </div>
                 </div>
             )}

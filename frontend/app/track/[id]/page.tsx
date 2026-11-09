@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useSystemDisplay } from "@/lib/useSystemDisplay";
+import { formatDateTime } from "@/lib/date-utils";
 
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
 import BeforeAfterCompare from "@/components/BeforeAfterCompare";
@@ -436,7 +437,7 @@ export default function TrackReportPage() {
                                 <div>
                                     <p className="text-[11px] font-medium text-foreground/40 uppercase tracking-wider mb-0.5">Date Reported</p>
                                     <p className="text-sm font-medium text-foreground/90">
-                                        {new Date(report.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                                        {formatDateTime(report.created_at)}
                                     </p>
                                 </div>
                             </div>
@@ -455,34 +456,34 @@ export default function TrackReportPage() {
                                 </div>
                             )}
 
-                            {/* Layer 1 & 2 AI Verification Breakdown */}
-                            {report.vlm_category && (
+                            {/* Layer 1 & 2 AI Verification Breakdown - Only visible in Developer Mode */}
+                            {geminiDisplay && report.vlm_category && (
                                 <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-2.5">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
                                             <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
                                             <span className="text-[11px] font-bold uppercase tracking-wider text-primary">
-                                                {geminiDisplay ? "AI Verification (3-Layer Pipeline)" : "AI Verification (Mask R-CNN)"}
+                                                AI Verification (3-Layer Pipeline)
                                             </span>
                                         </div>
                                         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase border ${report.vlm_category === 'not_waste' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
-                                            {geminiDisplay ? report.vlm_category.replace('_', ' ') : (report.status === 'ai_rejected' || report.vlm_category === 'not_waste' ? 'Low Confidence' : 'Verified')}
+                                            {report.vlm_category.replace('_', ' ')}
                                         </span>
                                     </div>
                                     {report.vlm_description && (
                                         <p className="text-xs text-foreground/80 leading-relaxed">
-                                            <span className="font-semibold text-foreground/90">{geminiDisplay ? "AI Scene: " : "Detection: "}</span>
-                                            {geminiDisplay ? report.vlm_description : "Instance segmentation evaluated across candidate bounding boxes."}
+                                            <span className="font-semibold text-foreground/90">AI Scene: </span>
+                                            {report.vlm_description}
                                         </p>
                                     )}
                                     {report.vlm_rejection_reason && (
                                         <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs">
-                                            <strong>Flagged: </strong> {geminiDisplay ? report.vlm_rejection_reason : "Low confidence score - routed for manual confirmation."}
+                                            <strong>Flagged: </strong> {report.vlm_rejection_reason}
                                         </div>
                                     )}
                                     <div className="flex items-center justify-between pt-1 text-[10px] text-foreground/50 border-t border-primary/10">
-                                        <span>Model: {geminiDisplay ? (report.vlm_provider || "Gemini Flash") : "Mask R-CNN (TensorFlow)"}</span>
-                                        {geminiDisplay ? (report.vlm_latency_ms && <span>Latency: {report.vlm_latency_ms}ms</span>) : <span>Backbone: ResNet-101 FPN</span>}
+                                        <span>Model: {report.vlm_provider || "Gemini Flash"}</span>
+                                        {report.vlm_latency_ms && <span>Latency: {report.vlm_latency_ms}ms</span>}
                                     </div>
                                 </div>
                             )}

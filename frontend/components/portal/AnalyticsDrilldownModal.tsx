@@ -1,6 +1,7 @@
 "use client";
 
 import { X, ExternalLink, AlertCircle } from "lucide-react";
+import { parseUTC } from "@/lib/date-utils";
 
 type BreakdownChip = {
     label: string;
@@ -67,7 +68,7 @@ const COL_LABEL: Record<string, string> = {
 function fmtDate(val: string | number | boolean | null | undefined): string {
     if (!val || typeof val !== "string") return "—";
     try {
-        return new Date(val).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" });
+        return parseUTC(val).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" });
     } catch {
         return val;
     }

@@ -184,7 +184,7 @@ class TestCleanupVerifier(unittest.TestCase):
         dec5 = cv.synthesize_cleanup_decision(good_quality, good_loc, False, 0.02, gps_distance_m=350.0)
         self.assertEqual(dec5["verdict"], "REJECT")
 
-        # 6. SIFT inliers high (48) + Mask R-CNN 0%, but Gemini VLM explicitly flags wall/not cleaned -> MUST REJECT
+        # 6. SIFT inliers high (48) + Mask R-CNN 0%, but VLM flags SCENE_MISMATCH -> routes to supervisor REVIEW
         vlm_wall_reject = {
             "cleaned": False,
             "confidence": "high",
@@ -193,9 +193,9 @@ class TestCleanupVerifier(unittest.TestCase):
             "description": "The cleanup image shows a close-up of a smooth painted wall rather than the street.",
         }
         dec6 = cv.synthesize_cleanup_decision(good_quality, good_loc, False, 0.0, vlm_result=vlm_wall_reject)
-        self.assertEqual(dec6["verdict"], "REJECT")
+        self.assertEqual(dec6["verdict"], "REVIEW")
         self.assertEqual(dec6["decided_by"], "layer_4_vlm")
-        self.assertEqual(dec6["reason_code"], "SCENE_MISMATCH")
+        self.assertEqual(dec6["reason_code"], "BORDERLINE_LANDMARKS")
 
         # 7. Mask R-CNN disabled (mrcnn_enabled=False) -> Layer 3 bypassed, VLM decides
         vlm_clean_pass = {

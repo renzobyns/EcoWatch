@@ -2034,8 +2034,7 @@ function BarangayPortalInner() {
                                                                             try {
                                                                                 const parsed = typeof wo.cleanup_verification_result === "string" ? JSON.parse(wo.cleanup_verification_result) : wo.cleanup_verification_result;
                                                                                 if (parsed.decided_by && parsed.decided_by !== "all_passed") {
-                                                                                    const tag = parsed.decided_by === "layer_3_mrcnn" ? "Mask R-CNN" :
-                                                                                        parsed.decided_by === "layer_4_vlm" ? "Visual AI" :
+                                                                                    const tag = parsed.decided_by === "layer_3_mrcnn" || parsed.decided_by === "layer_4_vlm" ? "Mask R-CNN" :
                                                                                         parsed.decided_by === "layer_2_location" ? "Landmarks" :
                                                                                         parsed.decided_by === "layer_1_integrity" ? "Integrity" :
                                                                                         parsed.decided_by === "manual_override" ? "Override" : null;

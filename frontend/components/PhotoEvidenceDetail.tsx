@@ -1,7 +1,7 @@
 "use client";
 
 import { TrustBadge } from "@/components/TrustBadge";
-import { formatDateTime } from "@/lib/date-utils";
+import { formatDateTime, formatExifDate } from "@/lib/date-utils";
 import { formatBytes } from "@/lib/format-utils";
 
 export interface PhotoEvidenceDetailProps {
@@ -167,7 +167,7 @@ export function PhotoEvidenceDetail({ photo, report }: PhotoEvidenceDetailProps)
                     <div className="space-y-0">
                         <Row
                             label="Photo taken"
-                            value={datetimeOriginal ? formatDateTime(datetimeOriginal) : formatDateTime(report.created_at)}
+                            value={datetimeOriginal ? formatExifDate(datetimeOriginal) : formatDateTime(report.created_at)}
                         />
                         <Row label="Report submitted" value={formatDateTime(report.created_at)} />
                         <Row label="Age" value={fmtAge(ageHours ?? 0)} warn={isFuture} />
