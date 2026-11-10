@@ -41,6 +41,7 @@
 | **#26** | 🐛 Bug | Low contrast & misleading blue color on "BREACHED" status pill | SLA Tab (`SlaManagementTab.tsx:78, 317`) | `[/]` Fixed by Agent |
 | **#27** | 🚀 Feature | Two-Tier SLA Architecture (Barangay Assignment SLA + Cleaner Resolution SLA) | SLA Engine & Portal (`SlaManagementTab.tsx`, `backend/main.py`) | `[/]` Fixed by Agent |
 | **#28** | 🐛 Bug | DBSCAN outer red stroke border & SLA tooltip opacity/stacking occlusion | Map & SLA Tab (`MapComponent.tsx`, `InfoTooltip.tsx`, `SlaManagementTab.tsx`) | `[/]` Fixed by Agent |
+| **#29** | 🐛 Bug | Broken cluster report thumbnail & SLA table column compression on deployed Vercel | CENRO Map & SLA Tab (`cenro/page.tsx`, `SlaManagementTab.tsx`) | `[/]` Fixed by Agent |
 
 ---
 
@@ -517,6 +518,30 @@
 * **User Verification Steps:**
   1. Open City Map (`/cenro`) and verify DBSCAN clusters render without an outer stroke border.
   2. Open SLA Management tab (`/cenro`), hover over KPI cards and card headers, and verify tooltips are 100% solid and float cleanly above all other elements without being cut off.
+
+---
+
+### - [/] 🐛 Bug #29: Broken cluster report thumbnail & SLA table column compression on deployed Vercel
+
+* **Pages / Files:** CENRO City Map (`frontend/app/cenro/page.tsx:1236-1262`), SLA Management Tab (`frontend/components/portal/SlaManagementTab.tsx:367-425, 702-720`)
+* **Screenshots:**
+  ![Broken Cluster Thumbnail](./docs/bug-tracker/screenshots/bug29-cenro-cluster-broken-thumbnail.jpg)
+  ![SLA Table Compressed on Deployed Vercel](./docs/bug-tracker/screenshots/bug29-sla-table-deployed-squished.jpg)
+  ![SLA Table Localhost Comparison](./docs/bug-tracker/screenshots/bug29-sla-table-localhost-comparison.jpg)
+* **What happens / Current Behavior:**
+  1. In CENRO City Map Active Hotspots breakdown list, report cards showed a broken image icon (404 image placeholder) instead of a thumbnail.
+  2. In the deployed Vercel SLA Management tab at 100% view, the Active Breaches table columns squished and compressed horizontally. Words with spaces wrapped awkwardly onto multiple lines (`Tungkong \n Mangga`, `5d \n 22h`), and the status badge `Barangay Dispatch` broke below `⚠️ BREACHED`.
+* **Root Cause:**
+  1. Report `image_url` is stored as a relative path (`/uploads/reports/...`). On Vercel, relative paths resolve to Vercel's host instead of the backend API, resulting in a 404; ephemeral backend storage also resets on restarts. In a narrow 300px sidebar, tiny 32px thumbnails add visual clutter, whereas clicking already opens the full high-res photo gallery in `ReportDetailDrawer`.
+  2. The table container lacked horizontal scrolling (`overflow-x-auto`), a minimum width (`min-w-[620px]`), and `whitespace-nowrap`. The status cell also had `flex-wrap`, which caused badge stacking on narrow viewports.
+* **Fix / Action Plan:**
+  1. Removed the broken 32px image thumbnail from `cenro/page.tsx:1236-1262`. The report row now renders clean typography with Tracking ID, Barangay, status badge, and `<ChevronRight size={12} />`.
+  2. Added `overflow-x-auto`, `min-w-[620px]`, and `whitespace-nowrap` across all cells and headers in both the Active Breaches table and the Per-Barangay Performance table in `SlaManagementTab.tsx`.
+  3. Changed `flex-wrap` to `shrink-0 whitespace-nowrap` in the status badge container so badges never break into vertical stacks.
+* **User Verification Steps:**
+  1. Open CENRO City Map (`/cenro`), click on any hotspot cluster, and verify the report items display clean badges and typography with no broken images.
+  2. Open SLA Management tab (`/cenro`) on deployed Vercel and verify table columns never squish, text never wraps onto awkward lines, and horizontal scroll engages gracefully if viewport width is narrow.
+
 
 
 

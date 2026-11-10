@@ -1233,33 +1233,27 @@ function CenroDashboardInner() {
                                                                             onClick={() => setSelectedReport(r)}
                                                                             className="flex items-center justify-between p-2 rounded-md bg-background/80 hover:bg-muted/80 border border-border/60 hover:border-primary/40 cursor-pointer transition-all gap-2"
                                                                         >
-                                                                            <div className="flex items-center gap-2 min-w-0">
-                                                                                {r.image_url ? (
-                                                                                    <img src={r.image_url} alt="" className="w-8 h-8 rounded object-cover border border-border shrink-0" />
-                                                                                ) : (
-                                                                                    <div className="w-8 h-8 rounded bg-muted border border-border flex items-center justify-center text-[10px] font-bold text-muted-foreground shrink-0">
-                                                                                        EW
-                                                                                    </div>
-                                                                                )}
-                                                                                <div className="min-w-0">
-                                                                                    <div className="font-mono text-xs font-bold text-foreground truncate">
-                                                                                        {r.tracking_id || `EW-${r.id.toString().padStart(4, "0")}`}
-                                                                                    </div>
-                                                                                    <div className="text-[10px] text-muted-foreground truncate">
-                                                                                        {r.barangay || "SJDM"}
-                                                                                    </div>
+                                                                            <div className="min-w-0">
+                                                                                <div className="font-mono text-xs font-bold text-foreground truncate">
+                                                                                    {r.tracking_id || `EW-${r.id.toString().padStart(4, "0")}`}
+                                                                                </div>
+                                                                                <div className="text-[10px] text-muted-foreground truncate font-medium">
+                                                                                    {r.barangay || "SJDM"}
                                                                                 </div>
                                                                             </div>
-                                                                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase shrink-0 ${
-                                                                                r.status === 'resolved' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30' :
-                                                                                r.status === 'assigned' ? 'bg-yellow-500/15 text-amber-900 dark:text-yellow-300 border border-yellow-500/30' :
-                                                                                r.status === 'in_progress' ? 'bg-blue-500/15 text-blue-900 dark:text-blue-300 border border-blue-500/30' :
-                                                                                r.status === 'verified' || r.status === 'ai_verified' ? 'bg-amber-500/15 text-amber-900 dark:text-amber-300 border border-amber-500/30' :
-                                                                                r.status === 'failed_cleanup' ? 'bg-destructive/15 text-destructive border border-destructive/30' :
-                                                                                'bg-muted text-muted-foreground border border-border'
-                                                                            }`}>
-                                                                                {r.status.replace(/_/g, " ")}
-                                                                            </span>
+                                                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase shrink-0 ${
+                                                                                    r.status === 'resolved' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30' :
+                                                                                    r.status === 'assigned' ? 'bg-yellow-500/15 text-amber-900 dark:text-yellow-300 border border-yellow-500/30' :
+                                                                                    r.status === 'in_progress' ? 'bg-blue-500/15 text-blue-900 dark:text-blue-300 border border-blue-500/30' :
+                                                                                    r.status === 'verified' || r.status === 'ai_verified' ? 'bg-amber-500/15 text-amber-900 dark:text-amber-300 border border-amber-500/30' :
+                                                                                    r.status === 'failed_cleanup' ? 'bg-destructive/15 text-destructive border border-destructive/30' :
+                                                                                    'bg-muted text-muted-foreground border border-border'
+                                                                                }`}>
+                                                                                    {r.status.replace(/_/g, " ")}
+                                                                                </span>
+                                                                                <ChevronRight size={12} className="text-muted-foreground/60" />
+                                                                            </div>
                                                                         </div>
                                                                     ))
                                                                 )}

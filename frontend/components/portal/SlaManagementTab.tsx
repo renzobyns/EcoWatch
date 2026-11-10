@@ -364,10 +364,10 @@ export function SlaManagementTab({
                                 </div>
 
                                 {/* Desktop Table (>= md) */}
-                                <div className="hidden md:block">
-                                    <table className="w-full text-left text-sm">
+                                <div className="hidden md:block overflow-x-auto">
+                                    <table className="w-full text-left text-sm min-w-[620px]">
                                         <thead>
-                                            <tr className="border-b border-border bg-muted/50 text-xs text-muted-foreground font-medium tracking-tight">
+                                            <tr className="border-b border-border bg-muted/50 text-xs text-muted-foreground font-medium tracking-tight whitespace-nowrap">
                                                 <th className="py-3 px-4 rounded-tl-lg">Report ID</th>
                                                 <th className="py-3 px-4">Barangay</th>
                                                 <th className="py-3 px-4">Priority</th>
@@ -389,21 +389,21 @@ export function SlaManagementTab({
                                                             }));
                                                         }
                                                     }}
-                                                    className="border-b border-border/50 hover:bg-muted/50 cursor-pointer transition-colors"
+                                                    className="border-b border-border/50 hover:bg-muted/50 cursor-pointer transition-colors whitespace-nowrap"
                                                 >
-                                                    <td className="py-3 px-4 font-mono text-xs text-foreground font-semibold">{wo.report_tracking_id || `WO-${wo.id}`}</td>
-                                                    <td className="py-3 px-4 text-foreground/80">{wo.report_barangay || "—"}</td>
-                                                    <td className="py-3 px-4">
+                                                    <td className="py-3 px-4 font-mono text-xs text-foreground font-semibold whitespace-nowrap">{wo.report_tracking_id || `WO-${wo.id}`}</td>
+                                                    <td className="py-3 px-4 text-foreground/80 font-medium whitespace-nowrap">{wo.report_barangay || "—"}</td>
+                                                    <td className="py-3 px-4 whitespace-nowrap">
                                                         <span className={`px-2 py-0.5 rounded text-[10px] font-semibold tracking-tight border ${PRIORITY_PILL[wo.priority] || "bg-muted text-muted-foreground border-border"}`}>
                                                             {wo.priority}
                                                         </span>
                                                     </td>
-                                                    <td className="py-3 px-4 text-destructive font-medium text-sm font-mono">
+                                                    <td className="py-3 px-4 text-destructive font-medium text-sm font-mono whitespace-nowrap">
                                                         {formatOverdue(wo.overdue_hours || 0, wo.overdue_days || 0)}
                                                     </td>
-                                                    <td className="py-3 px-4 text-foreground/80 text-xs">
+                                                    <td className="py-3 px-4 text-foreground/80 text-xs whitespace-nowrap">
                                                         {wo.stage === "assignment" ? (
-                                                            <div className="flex items-center gap-1.5">
+                                                            <div className="flex items-center gap-1.5 whitespace-nowrap">
                                                                 <span className="font-semibold text-amber-900 dark:text-amber-300">Unassigned</span>
                                                                 <span className="text-[10px] text-muted-foreground">(Pending Dispatch)</span>
                                                             </div>
@@ -411,13 +411,13 @@ export function SlaManagementTab({
                                                             <span>{wo.assigned_cleaner_name || "Unassigned"}</span>
                                                         )}
                                                     </td>
-                                                    <td className="py-3 px-4">
-                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <td className="py-3 px-4 whitespace-nowrap">
+                                                        <div className="flex items-center gap-1.5 shrink-0 whitespace-nowrap">
                                                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase bg-destructive/15 text-destructive border border-destructive/30 shrink-0">
                                                                 <AlertTriangle size={11} strokeWidth={2.5} />
                                                                 BREACHED
                                                             </span>
-                                                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold border ${wo.stage === "assignment" ? "bg-amber-500/15 text-amber-900 dark:text-amber-300 border-amber-500/30" : "bg-blue-500/15 text-blue-900 dark:text-blue-300 border-blue-500/30"}`}>
+                                                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold border shrink-0 ${wo.stage === "assignment" ? "bg-amber-500/15 text-amber-900 dark:text-amber-300 border-amber-500/30" : "bg-blue-500/15 text-blue-900 dark:text-blue-300 border-blue-500/30"}`}>
                                                                 {wo.stage === "assignment" ? "Barangay Dispatch" : "Cleaner Cleanup"}
                                                             </span>
                                                         </div>
@@ -700,10 +700,10 @@ export function SlaManagementTab({
                             </div>
 
                             {/* Desktop Table (>= md) */}
-                            <div className="hidden md:block">
-                                <table className="w-full text-left text-sm">
+                            <div className="hidden md:block overflow-x-auto">
+                                <table className="w-full text-left text-sm min-w-[620px]">
                                     <thead>
-                                        <tr className="border-b border-border bg-muted/50 text-xs text-muted-foreground font-medium tracking-tight">
+                                        <tr className="border-b border-border bg-muted/50 text-xs text-muted-foreground font-medium tracking-tight whitespace-nowrap">
                                             <th className="py-3 px-4 rounded-tl-lg">Barangay</th>
                                             <th className="py-3 px-4 text-right">Total WOs</th>
                                             <th className="py-3 px-4 text-right">Completed</th>
@@ -715,7 +715,7 @@ export function SlaManagementTab({
                                     </thead>
                                     <tbody>
                                         {byBarangay.map((b) => (
-                                            <tr key={b.barangay} className="border-b border-border/50 hover:bg-muted/50">
+                                            <tr key={b.barangay} className="border-b border-border/50 hover:bg-muted/50 whitespace-nowrap">
                                                 <td className="py-3 px-4 font-semibold text-foreground">{b.barangay}</td>
                                                 <td className="py-3 px-4 text-right text-foreground/70">{b.total_wos}</td>
                                                 <td className="py-3 px-4 text-right text-foreground/70">{b.total_completed}</td>
