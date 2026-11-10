@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { AlertTriangle, Clock, ShieldCheck, Activity, Settings2, History, Award, FileDown, RefreshCw, TrendingUp } from "lucide-react";
 import { formatDateTime } from "@/lib/date-utils";
 
@@ -10,6 +11,8 @@ type ComplianceData = {
         on_time: number;
         avg_resolution_days: number;
         active_breaches: number;
+        wo_active_breaches?: number;
+        assignment_breaches?: number;
         at_risk_24h: number;
     };
     by_barangay: Array<{
@@ -20,7 +23,11 @@ type ComplianceData = {
         compliance_rate: number;
         avg_resolution_days: number;
         active_breaches: number;
+        wo_breaches?: number;
+        assignment_breaches?: number;
     }>;
+    assignment_breaches?: Array<any>;
+    at_risk_assignments?: Array<any>;
 };
 
 type WorkOrder = {
@@ -29,6 +36,7 @@ type WorkOrder = {
     report_tracking_id: string | null;
     report_barangay: string | null;
     priority: string;
+    stage?: "assignment" | "cleanup";
     sla_deadline: string;
     status: string;
     assigned_cleaner_name: string | null;
@@ -61,7 +69,15 @@ interface Props {
     atRisk: WorkOrder[];
     history: HistoryEntry[];
     lastModified: LastModified;
-    slaPolicy: { low: number; medium: number; high: number; compliance_target: number };
+    slaPolicy: {
+        low: number;
+        medium: number;
+        high: number;
+        compliance_target: number;
+        assign_high_hours?: number;
+        assign_medium_hours?: number;
+        assign_low_hours?: number;
+    };
     exporting: boolean;
     onExport: () => void;
     onEditPolicy: () => void;
@@ -69,9 +85,9 @@ interface Props {
 }
 
 const PRIORITY_PILL: Record<string, string> = {
-    low: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-    medium: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
-    high: "bg-red-500/20 text-red-300 border-red-500/30",
+    low: "bg-blue-500/15 text-blue-900 dark:text-blue-300 border-blue-500/30",
+    medium: "bg-amber-500/15 text-amber-900 dark:text-amber-300 border-amber-500/30",
+    high: "bg-rose-500/15 text-rose-900 dark:text-rose-300 border-rose-500/30",
 };
 
 const WO_STATUS_PILL: Record<string, string> = {
@@ -142,12 +158,38 @@ export function SlaManagementTab({
     loading, compliance, breached, atRisk, history, lastModified, slaPolicy,
     exporting, onExport, onEditPolicy, onRefresh,
 }: Props) {
+    const [breachFilter, setBreachFilter] = useState<"all" | "dispatch" | "cleanup">("all");
+
     const cw = compliance?.city_wide;
     const byBarangay = compliance?.by_barangay || [];
     const topPerforming = [...byBarangay]
         .filter((b) => b.total_wos > 0)
         .sort((a, b) => b.compliance_rate - a.compliance_rate)
         .slice(0, 3);
+
+    // Unified Two-Tier SLA breaches list
+    const cleanupBreaches: WorkOrder[] = (breached || []).map((w) => ({ ...w, stage: "cleanup" as const }));
+    const dispatchBreaches: WorkOrder[] = (compliance?.assignment_breaches || []).map((b: any) => ({
+        id: b.id,
+        report_id: b.report_id,
+        report_tracking_id: b.report_tracking_id,
+        report_barangay: b.report_barangay,
+        priority: b.priority || "medium",
+        stage: "assignment" as const,
+        sla_deadline: b.sla_deadline,
+        status: "unassigned",
+        assigned_cleaner_name: "Unassigned (Barangay Dispatch)",
+        overdue_seconds: b.overdue_seconds,
+        overdue_hours: b.overdue_hours,
+        overdue_days: b.overdue_days,
+    }));
+
+    const totalBreaches = cleanupBreaches.length + dispatchBreaches.length;
+    const displayedBreaches = breachFilter === "dispatch"
+        ? dispatchBreaches
+        : breachFilter === "cleanup"
+        ? cleanupBreaches
+        : [...dispatchBreaches, ...cleanupBreaches];
 
     return (
         <div className="flex-1 flex flex-col gap-6 min-h-0 overflow-y-auto scrollbar-hide pb-8">
@@ -211,42 +253,69 @@ export function SlaManagementTab({
                 <div className="lg:col-span-2 bg-card p-6 rounded-lg border border-border shadow-sm">
                     <div className="flex items-center justify-between mb-5 relative z-10 flex-wrap gap-3">
                         <div className="flex items-center gap-3">
-                            <AlertTriangle size={20} className="text-red-400" />
+                            <AlertTriangle size={20} className="text-destructive" />
                             <h2 className="text-base font-bold text-foreground">Active Breaches</h2>
-                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-red-500/20 text-red-600 dark:text-red-400 tracking-tight">
-                                {breached.length} {breached.length === 1 ? "WO" : "WOs"}
+                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-destructive/15 text-destructive border border-destructive/30 tracking-tight">
+                                {totalBreaches} {totalBreaches === 1 ? "Incident" : "Incidents"}
                             </span>
                         </div>
-                        {breached.length > 0 && (
-                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/30 tracking-tight">
-                                Immediate Action Required
-                            </span>
-                        )}
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <div className="flex items-center gap-1 p-0.5 rounded-lg bg-muted border border-border text-xs">
+                                <button
+                                    type="button"
+                                    onClick={() => setBreachFilter("all")}
+                                    className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${breachFilter === "all" ? "bg-background text-foreground shadow-xs font-semibold" : "text-muted-foreground hover:text-foreground"}`}
+                                >
+                                    All ({totalBreaches})
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setBreachFilter("dispatch")}
+                                    className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${breachFilter === "dispatch" ? "bg-background text-foreground shadow-xs font-semibold" : "text-muted-foreground hover:text-foreground"}`}
+                                >
+                                    Barangay Dispatch ({dispatchBreaches.length})
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setBreachFilter("cleanup")}
+                                    className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${breachFilter === "cleanup" ? "bg-background text-foreground shadow-xs font-semibold" : "text-muted-foreground hover:text-foreground"}`}
+                                >
+                                    Cleaner Cleanup ({cleanupBreaches.length})
+                                </button>
+                            </div>
+                            {totalBreaches > 0 && (
+                                <span className="px-3 py-1 rounded-full text-xs font-medium bg-destructive/15 text-destructive border border-destructive/30 tracking-tight hidden sm:inline-block">
+                                    Immediate Action Required
+                                </span>
+                            )}
+                        </div>
                     </div>
                     <div className="relative z-10 overflow-x-auto">
                         {loading ? (
                             <SkeletonRows />
-                        ) : breached.length === 0 ? (
+                        ) : displayedBreaches.length === 0 ? (
                             <EmptyState
                                 icon={<ShieldCheck size={32} className="text-emerald-400/60" />}
-                                title="No active breaches"
-                                subtitle="All cleanup work orders are on schedule."
+                                title={breachFilter === "all" ? "No active breaches" : `No active ${breachFilter === "dispatch" ? "dispatch" : "cleanup"} breaches`}
+                                subtitle="All service level targets are currently on schedule."
                             />
                         ) : (
                             <>
                                 {/* Mobile Card List (< md) */}
                                 <div className="md:hidden space-y-3">
-                                    {breached.slice(0, 8).map((wo) => (
+                                    {displayedBreaches.slice(0, 8).map((wo) => (
                                         <div
-                                            key={wo.id}
+                                            key={`${wo.stage || "wo"}-${wo.id}`}
                                             onClick={() => {
                                                 if (typeof window !== "undefined") {
                                                     window.dispatchEvent(new CustomEvent("ecowatch:open-target", {
-                                                        detail: { report_id: wo.report_id, work_order_id: wo.id, kind: "work_order" }
+                                                        detail: wo.stage === "assignment"
+                                                            ? { report_id: wo.report_id, kind: "report" }
+                                                            : { report_id: wo.report_id, work_order_id: wo.id, kind: "work_order" }
                                                     }));
                                                 }
                                             }}
-                                            className="p-3.5 rounded-xl bg-background/60 border border-border/80 hover:border-red-500/40 active:scale-[0.99] transition-all space-y-2.5 shadow-sm cursor-pointer"
+                                            className="p-3.5 rounded-xl bg-background/60 border border-border/80 hover:border-destructive/40 active:scale-[0.99] transition-all space-y-2.5 shadow-sm cursor-pointer"
                                         >
                                             <div className="flex items-center justify-between gap-2">
                                                 <div className="flex items-center gap-2 min-w-0">
@@ -257,9 +326,15 @@ export function SlaManagementTab({
                                                         {wo.priority}
                                                     </span>
                                                 </div>
-                                                <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase bg-destructive/10 text-destructive border border-destructive/20 shrink-0">
-                                                    BREACHED
-                                                </span>
+                                                <div className="flex items-center gap-1.5 shrink-0">
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase bg-destructive/15 text-destructive border border-destructive/30 shrink-0">
+                                                        <AlertTriangle size={11} strokeWidth={2.5} />
+                                                        BREACHED
+                                                    </span>
+                                                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold border ${wo.stage === "assignment" ? "bg-amber-500/15 text-amber-900 dark:text-amber-300 border-amber-500/30" : "bg-blue-500/15 text-blue-900 dark:text-blue-300 border-blue-500/30"}`}>
+                                                        {wo.stage === "assignment" ? "Dispatch" : "Cleanup"}
+                                                    </span>
+                                                </div>
                                             </div>
 
                                             <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-border/40">
@@ -268,7 +343,7 @@ export function SlaManagementTab({
                                                     <span className="font-medium text-foreground truncate block">{wo.report_barangay || "—"}</span>
                                                 </div>
                                                 <div>
-                                                    <span className="text-muted-foreground block text-[10px]">Cleaner</span>
+                                                    <span className="text-muted-foreground block text-[10px]">Assignee</span>
                                                     <span className="font-medium text-foreground/80 truncate block">{wo.assigned_cleaner_name || "Unassigned"}</span>
                                                 </div>
                                             </div>
@@ -295,28 +370,55 @@ export function SlaManagementTab({
                                                 <th className="py-3 px-4">Barangay</th>
                                                 <th className="py-3 px-4">Priority</th>
                                                 <th className="py-3 px-4">Overdue</th>
-                                                <th className="py-3 px-4">Cleaner</th>
+                                                <th className="py-3 px-4">Assignee / Stage</th>
                                                 <th className="py-3 px-4 rounded-tr-lg">Status</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {breached.slice(0, 8).map((wo) => (
-                                                <tr key={wo.id} className="border-b border-border/50 hover:bg-muted/50">
-                                                    <td className="py-3 px-4 font-mono text-xs text-foreground">{wo.report_tracking_id || `WO-${wo.id}`}</td>
+                                            {displayedBreaches.slice(0, 8).map((wo) => (
+                                                <tr
+                                                    key={`${wo.stage || "wo"}-${wo.id}`}
+                                                    onClick={() => {
+                                                        if (typeof window !== "undefined") {
+                                                            window.dispatchEvent(new CustomEvent("ecowatch:open-target", {
+                                                                detail: wo.stage === "assignment"
+                                                                    ? { report_id: wo.report_id, kind: "report" }
+                                                                    : { report_id: wo.report_id, work_order_id: wo.id, kind: "work_order" }
+                                                            }));
+                                                        }
+                                                    }}
+                                                    className="border-b border-border/50 hover:bg-muted/50 cursor-pointer transition-colors"
+                                                >
+                                                    <td className="py-3 px-4 font-mono text-xs text-foreground font-semibold">{wo.report_tracking_id || `WO-${wo.id}`}</td>
                                                     <td className="py-3 px-4 text-foreground/80">{wo.report_barangay || "—"}</td>
                                                     <td className="py-3 px-4">
                                                         <span className={`px-2 py-0.5 rounded text-[10px] font-semibold tracking-tight border ${PRIORITY_PILL[wo.priority] || "bg-muted text-muted-foreground border-border"}`}>
                                                             {wo.priority}
                                                         </span>
                                                     </td>
-                                                    <td className="py-3 px-4 text-red-600 dark:text-red-400 font-medium text-sm">
+                                                    <td className="py-3 px-4 text-destructive font-medium text-sm font-mono">
                                                         {formatOverdue(wo.overdue_hours || 0, wo.overdue_days || 0)}
                                                     </td>
-                                                    <td className="py-3 px-4 text-foreground/80 text-xs">{wo.assigned_cleaner_name || "Unassigned"}</td>
+                                                    <td className="py-3 px-4 text-foreground/80 text-xs">
+                                                        {wo.stage === "assignment" ? (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="font-semibold text-amber-900 dark:text-amber-300">Unassigned</span>
+                                                                <span className="text-[10px] text-muted-foreground">(Pending Dispatch)</span>
+                                                            </div>
+                                                        ) : (
+                                                            <span>{wo.assigned_cleaner_name || "Unassigned"}</span>
+                                                        )}
+                                                    </td>
                                                     <td className="py-3 px-4">
-                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold tracking-tight ${WO_STATUS_PILL[wo.status] || "bg-muted text-muted-foreground"}`}>
-                                                            BREACHED
-                                                        </span>
+                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase bg-destructive/15 text-destructive border border-destructive/30 shrink-0">
+                                                                <AlertTriangle size={11} strokeWidth={2.5} />
+                                                                BREACHED
+                                                            </span>
+                                                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold border ${wo.stage === "assignment" ? "bg-amber-500/15 text-amber-900 dark:text-amber-300 border-amber-500/30" : "bg-blue-500/15 text-blue-900 dark:text-blue-300 border-blue-500/30"}`}>
+                                                                {wo.stage === "assignment" ? "Barangay Dispatch" : "Cleaner Cleanup"}
+                                                            </span>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))}
@@ -325,8 +427,8 @@ export function SlaManagementTab({
                                 </div>
                             </>
                         )}
-                        {breached.length > 8 && (
-                            <p className="text-[11px] text-foreground/50 mt-3 italic">+ {breached.length - 8} more breaches not shown — see full table below.</p>
+                        {displayedBreaches.length > 8 && (
+                            <p className="text-[11px] text-foreground/50 mt-3 italic">+ {displayedBreaches.length - 8} more breaches not shown — see full table below.</p>
                         )}
                     </div>
                 </div>
@@ -435,6 +537,15 @@ export function SlaManagementTab({
                                 <PolicyTile label="Low" value={slaPolicy.low} unit="d" />
                                 <PolicyTile label="Medium" value={slaPolicy.medium} unit="d" />
                                 <PolicyTile label="High" value={slaPolicy.high} unit="d" />
+                            </div>
+
+                            <div className="pt-1 border-t border-border/50 space-y-1.5">
+                                <span className="text-xs font-medium text-muted-foreground block">Barangay Dispatch SLA (Hours)</span>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <PolicyTile label="Low" value={slaPolicy.assign_low_hours || 48} unit="h" />
+                                    <PolicyTile label="Medium" value={slaPolicy.assign_medium_hours || 24} unit="h" />
+                                    <PolicyTile label="High" value={slaPolicy.assign_high_hours || 12} unit="h" />
+                                </div>
                             </div>
 
                             <div className="pt-1">

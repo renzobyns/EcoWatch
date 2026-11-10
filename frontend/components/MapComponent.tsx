@@ -59,7 +59,15 @@ const workOrderStatusIcons = {
 };
 
 // --- Map Controller for Zooming ---
-function MapController({ focusedBarangay, geoData }: { focusedBarangay: string | null, geoData: any }) {
+function MapController({
+    focusedBarangay,
+    focusedLocation,
+    geoData,
+}: {
+    focusedBarangay: string | null;
+    focusedLocation?: { lat: number; lon: number; zoom?: number } | null;
+    geoData: any;
+}) {
     const map = useMap();
 
     useEffect(() => {
@@ -90,6 +98,11 @@ function MapController({ focusedBarangay, geoData }: { focusedBarangay: string |
     }, [map]);
 
     useEffect(() => {
+        if (focusedLocation) {
+            map.flyTo([focusedLocation.lat, focusedLocation.lon], focusedLocation.zoom || 16, { duration: 1.2 });
+            return;
+        }
+
         if (!focusedBarangay) {
             // Reset to city view
             map.setView([14.82, 121.05], 12);
@@ -103,7 +116,7 @@ function MapController({ focusedBarangay, geoData }: { focusedBarangay: string |
                 map.fitBounds(layer.getBounds(), { padding: [50, 50], maxZoom: 15 });
             }
         }
-    }, [focusedBarangay, geoData, map]);
+    }, [focusedBarangay, focusedLocation, geoData, map]);
 
     return null;
 }
@@ -119,7 +132,9 @@ interface MapProps {
     reports?: any[];
     heatmaps?: any[];
     focusedBarangay?: string | null;
+    focusedLocation?: { lat: number; lon: number; zoom?: number } | null;
     onBarangayClick?: (barangay: string | null) => void;
+    onClusterClick?: (cluster: any) => void;
     // Cleaner additions:
     workOrders?: any[];                  // when provided, render WO pins instead of report pins
     pinColorBy?: "status" | "priority";  // default "priority" for workOrders, "status" for reports
@@ -136,7 +151,9 @@ export default function SJDMMap({
     reports = EMPTY_REPORTS,
     heatmaps = EMPTY_HEATMAPS,
     focusedBarangay = null,
+    focusedLocation = null,
     onBarangayClick,
+    onClusterClick,
     workOrders,
     pinColorBy,
     onPinClick,
@@ -181,6 +198,16 @@ export default function SJDMMap({
                 setGeoData(data);
             } catch (err: any) {
                 if (err.name !== "AbortError") {
+                    try {
+                        const localRes = await fetch("/data/sjdm_barangays.geojson", { signal: controller.signal });
+                        if (localRes.ok) {
+                            const localData = await localRes.json();
+                            setGeoData(localData);
+                            return;
+                        }
+                    } catch {
+                        // local fallback failed
+                    }
                     console.error("Failed to load GeoJSON:", err);
                     setError("Backend unavailable — map overlay disabled.");
                 }
@@ -392,7 +419,7 @@ export default function SJDMMap({
                 scrollWheelZoom={true}
                 style={{ height, width: "100%", background: mapBg }}
             >
-                <MapController focusedBarangay={focusedBarangay} geoData={geoData} />
+                <MapController focusedBarangay={focusedBarangay} focusedLocation={focusedLocation} geoData={geoData} />
 
                 <TileLayer
                     key={theme}
@@ -426,9 +453,13 @@ export default function SJDMMap({
                         radius={cluster.intensity * 15}
                         pathOptions={{
                             fillColor: "#ef4444",
-                            fillOpacity: 0.3,
-                            color: "transparent",
+                            fillOpacity: 0.35,
+                            color: "#dc2626",
+                            weight: 1.5,
                         }}
+                        eventHandlers={onClusterClick ? {
+                            click: () => onClusterClick(cluster),
+                        } : undefined}
                     />
                 ))}
 

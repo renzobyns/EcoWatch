@@ -62,14 +62,30 @@ from notifications import emit_notification, emit_to_barangay, emit_to_cenro, sw
 import email_service
 
 # SLA config keys + defaults (CENRO-editable at runtime via /config/sla)
-SLA_CONFIG_KEYS = ("sla_low_days", "sla_medium_days", "sla_high_days", "sla_compliance_target")
+SLA_CONFIG_KEYS = (
+    "sla_low_days",
+    "sla_medium_days",
+    "sla_high_days",
+    "sla_compliance_target",
+    "sla_assign_high_hours",
+    "sla_assign_medium_hours",
+    "sla_assign_low_hours",
+)
 SLA_CONFIG_DEFAULTS = {
     "sla_low_days": "7",
     "sla_medium_days": "3",
     "sla_high_days": "1",
     "sla_compliance_target": "95",
+    "sla_assign_high_hours": "12",
+    "sla_assign_medium_hours": "24",
+    "sla_assign_low_hours": "48",
 }
 PRIORITY_KEY_MAP = {"low": "sla_low_days", "medium": "sla_medium_days", "high": "sla_high_days"}
+ASSIGN_PRIORITY_KEY_MAP = {
+    "low": "sla_assign_low_hours",
+    "medium": "sla_assign_medium_hours",
+    "high": "sla_assign_high_hours",
+}
 
 # Root logger configuration — single source of formatted output
 logging.basicConfig(
@@ -374,6 +390,9 @@ class UpdateSlaConfigRequest(BaseModel):
     medium_days: Optional[int] = None
     high_days: Optional[int] = None
     compliance_target: Optional[int] = None
+    assign_high_hours: Optional[int] = None
+    assign_medium_hours: Optional[int] = None
+    assign_low_hours: Optional[int] = None
 
 
 class CreateWorkOrderRequest(BaseModel):
@@ -571,7 +590,7 @@ MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 
 
 def get_sla_policy(db: Session) -> dict:
-    """Return current SLA policy: priority day counts + compliance target %."""
+    """Return current SLA policy: priority day counts + compliance target % + assignment hours."""
     rows = db.query(models.SystemConfig).filter(models.SystemConfig.key.in_(SLA_CONFIG_KEYS)).all()
     policy = {k: int(SLA_CONFIG_DEFAULTS[k]) for k in SLA_CONFIG_DEFAULTS}
     for row in rows:
@@ -584,6 +603,9 @@ def get_sla_policy(db: Session) -> dict:
         "medium": policy["sla_medium_days"],
         "high": policy["sla_high_days"],
         "compliance_target": policy["sla_compliance_target"],
+        "assign_high_hours": policy.get("sla_assign_high_hours", 12),
+        "assign_medium_hours": policy.get("sla_assign_medium_hours", 24),
+        "assign_low_hours": policy.get("sla_assign_low_hours", 48),
     }
 
 
@@ -3918,6 +3940,18 @@ async def update_sla_config(
         if req.compliance_target < 0 or req.compliance_target > 100:
             raise HTTPException(status_code=400, detail="compliance_target must be between 0 and 100")
         updates["sla_compliance_target"] = str(req.compliance_target)
+    if req.assign_high_hours is not None:
+        if req.assign_high_hours < 1 or req.assign_high_hours > 720:
+            raise HTTPException(status_code=400, detail="assign_high_hours must be between 1 and 720")
+        updates["sla_assign_high_hours"] = str(req.assign_high_hours)
+    if req.assign_medium_hours is not None:
+        if req.assign_medium_hours < 1 or req.assign_medium_hours > 720:
+            raise HTTPException(status_code=400, detail="assign_medium_hours must be between 1 and 720")
+        updates["sla_assign_medium_hours"] = str(req.assign_medium_hours)
+    if req.assign_low_hours is not None:
+        if req.assign_low_hours < 1 or req.assign_low_hours > 720:
+            raise HTTPException(status_code=400, detail="assign_low_hours must be between 1 and 720")
+        updates["sla_assign_low_hours"] = str(req.assign_low_hours)
 
     if not updates:
         return old_policy  # No changes
@@ -5016,8 +5050,9 @@ async def get_at_risk_work_orders(
 
 
 def _compute_sla_compliance(db: Session) -> dict:
-    """Pure helper - city-wide + per-barangay SLA compliance stats from all WOs."""
+    """Pure helper - city-wide + per-barangay SLA compliance stats from all WOs and unassigned reports."""
     now = _utcnow()
+    policy = get_sla_policy(db)
 
     all_wos = (
         db.query(models.WorkOrder)
@@ -5044,6 +5079,7 @@ def _compute_sla_compliance(db: Session) -> dict:
                 "on_time": 0,
                 "resolution_seconds_total": 0,
                 "active_breaches": 0,
+                "assignment_breaches": 0,
             }
         bs = barangay_stats[bar]
         bs["total_wos"] += 1
@@ -5072,14 +5108,88 @@ def _compute_sla_compliance(db: Session) -> dict:
                 elif sla_deadline_utc <= horizon_24h:
                     at_risk_24h += 1
 
-    city_compliance_rate = (on_time_completed / total_completed * 100) if total_completed > 0 else 0.0
+    # Check Tier 1: Barangay Assignment SLA for unassigned verified reports
+    # Verified/AI_Verified reports that haven't been dispatched into an active work order
+    active_wo_report_ids = {
+        wo.report_id for wo in all_wos if wo.status in ACTIVE_WO_STATUSES
+    }
+    unassigned_reports = (
+        db.query(models.Report)
+        .filter(models.Report.status.in_([models.ReportStatus.VERIFIED, models.ReportStatus.AI_VERIFIED]))
+        .all()
+    )
+
+    assignment_breaches = []
+    at_risk_assignments = []
+
+    for rep in unassigned_reports:
+        if rep.id in active_wo_report_ids:
+            continue
+        bar = rep.barangay or "Unassigned"
+        if bar not in barangay_stats:
+            barangay_stats[bar] = {
+                "total_wos": 0,
+                "total_completed": 0,
+                "on_time": 0,
+                "resolution_seconds_total": 0,
+                "active_breaches": 0,
+                "assignment_breaches": 0,
+            }
+        bs = barangay_stats[bar]
+
+        anchor = _to_naive_utc(rep.human_verified_at or rep.created_at) or now
+        assign_hours = policy.get("assign_medium_hours", 24)
+        assign_deadline = anchor + timedelta(hours=assign_hours)
+
+        if assign_deadline < now:
+            overdue_secs = max(int((now - assign_deadline).total_seconds()), 0)
+            item = {
+                "id": rep.id,
+                "report_id": rep.id,
+                "report_tracking_id": rep.tracking_id or f"EW-{rep.id:04d}",
+                "report_barangay": rep.barangay,
+                "priority": "medium",
+                "stage": "assignment",
+                "sla_deadline": assign_deadline.isoformat(),
+                "created_at": rep.created_at.isoformat() if rep.created_at else None,
+                "status": "unassigned",
+                "assigned_cleaner_name": None,
+                "overdue_seconds": overdue_secs,
+                "overdue_hours": overdue_secs // 3600,
+                "overdue_days": overdue_secs // 86400,
+            }
+            assignment_breaches.append(item)
+            bs["assignment_breaches"] = bs.get("assignment_breaches", 0) + 1
+        elif assign_deadline <= horizon_24h:
+            remaining_secs = max(int((assign_deadline - now).total_seconds()), 0)
+            item = {
+                "id": rep.id,
+                "report_id": rep.id,
+                "report_tracking_id": rep.tracking_id or f"EW-{rep.id:04d}",
+                "report_barangay": rep.barangay,
+                "priority": "medium",
+                "stage": "assignment",
+                "sla_deadline": assign_deadline.isoformat(),
+                "created_at": rep.created_at.isoformat() if rep.created_at else None,
+                "status": "unassigned",
+                "assigned_cleaner_name": None,
+                "remaining_seconds": remaining_secs,
+                "remaining_hours": remaining_secs // 3600,
+            }
+            at_risk_assignments.append(item)
+
+    total_active_breaches = active_breaches + len(assignment_breaches)
+    total_evaluated = total_completed + total_active_breaches
+    city_compliance_rate = (on_time_completed / total_evaluated * 100) if total_evaluated > 0 else 0.0
     avg_resolution_days = (
         (resolution_seconds_total / total_completed / 86400) if total_completed > 0 else 0.0
     )
 
     by_barangay = []
     for name, bs in barangay_stats.items():
-        rate = (bs["on_time"] / bs["total_completed"] * 100) if bs["total_completed"] > 0 else 0.0
+        bar_breaches = bs["active_breaches"] + bs.get("assignment_breaches", 0)
+        bar_evaluated = bs["total_completed"] + bar_breaches
+        rate = (bs["on_time"] / bar_evaluated * 100) if bar_evaluated > 0 else 0.0
         avg_days = (
             (bs["resolution_seconds_total"] / bs["total_completed"] / 86400)
             if bs["total_completed"] > 0 else 0.0
@@ -5091,7 +5201,9 @@ def _compute_sla_compliance(db: Session) -> dict:
             "on_time": bs["on_time"],
             "compliance_rate": round(rate, 1),
             "avg_resolution_days": round(avg_days, 2),
-            "active_breaches": bs["active_breaches"],
+            "active_breaches": bar_breaches,
+            "wo_breaches": bs["active_breaches"],
+            "assignment_breaches": bs.get("assignment_breaches", 0),
         })
 
     by_barangay.sort(key=lambda b: (b["compliance_rate"], -b["active_breaches"]))
@@ -5102,11 +5214,25 @@ def _compute_sla_compliance(db: Session) -> dict:
             "total_completed": total_completed,
             "on_time": on_time_completed,
             "avg_resolution_days": round(avg_resolution_days, 2),
-            "active_breaches": active_breaches,
-            "at_risk_24h": at_risk_24h,
+            "active_breaches": total_active_breaches,
+            "wo_active_breaches": active_breaches,
+            "assignment_breaches": len(assignment_breaches),
+            "at_risk_24h": at_risk_24h + len(at_risk_assignments),
         },
         "by_barangay": by_barangay,
+        "assignment_breaches": assignment_breaches,
+        "at_risk_assignments": at_risk_assignments,
     }
+
+
+@app.get("/reports/assignment-breached")
+async def get_assignment_breached_reports(
+    db: Session = Depends(get_db),
+    _user: models.User = Depends(require_role("cenro")),
+):
+    """List unassigned verified reports past their Assignment SLA deadline. CENRO-only."""
+    res = _compute_sla_compliance(db)
+    return res.get("assignment_breaches", [])
 
 
 @app.get("/analytics/sla-compliance")

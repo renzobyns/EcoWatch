@@ -525,9 +525,10 @@
 - [ ] Add smart assignment suggestions ("Cleaner B has fewer active jobs")
 
 ### CENRO Improvements
-- [ ] Fix SLA City-Wide Compliance 100% calculation bug (include active breaches in denominator) (Bug #25)
-- [ ] Fix SLA Active Breaches table "BREACHED" blue badge & low contrast priority badges (Bug #26)
-- [ ] Clickable DBSCAN Hotspot Clusters & Detailed Reports Breakdown (Feature #24)
+- [/] Fix SLA City-Wide Compliance 100% calculation bug (include active breaches in denominator) (Bug #25)
+- [/] Fix SLA Active Breaches table "BREACHED" blue badge & low contrast priority badges (Bug #26)
+- [/] Clickable DBSCAN Hotspot Clusters & Detailed Reports Breakdown (Feature #24)
+- [/] Two-Tier SLA Architecture: Barangay Assignment SLA + Cleaner Resolution SLA (Feature #27)
 - [x] GoTyme-inspired mobile navigation & bottom menu drawer (`PortalShell.tsx`)
 - [x] SLA Management mobile layout: 2x2 KPI grid, responsive incident breach cards, and per-barangay cards (`SlaManagementTab.tsx`)
 - [x] Evidence Gallery mobile layout: 2x2 KPI grid, full-width search/dropdowns, and 4:3 high-res photo viewer with 3-way segmented switcher (`EvidenceGalleryTab.tsx`)

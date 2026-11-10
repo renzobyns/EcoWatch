@@ -27,6 +27,37 @@ export function slaInfo(
 }
 
 /**
+ * Compute Tier 1 Barangay Assignment SLA (dispatch deadline).
+ * Only applies to verified reports awaiting cleaner dispatch.
+ */
+export function assignmentSlaInfo(
+    createdAt: string,
+    status: string,
+    assignHours: number = 24
+): { isBreached: boolean; label: string; color: SLAColor } | null {
+    const isAwaitingDispatch = ["verified", "ai_verified"].includes(status);
+    if (!isAwaitingDispatch) return null;
+
+    const startMs = new Date(createdAt).getTime();
+    const deadlineMs = startMs + assignHours * 3600000;
+    const now = Date.now();
+    const deltaMs = deadlineMs - now;
+
+    if (deltaMs < 0) {
+        const overdueHours = Math.floor(Math.abs(deltaMs) / 3600000);
+        const overdueDays = Math.floor(overdueHours / 24);
+        const label = overdueDays > 0 ? `Overdue ${overdueDays}d` : `Overdue ${overdueHours}h`;
+        return { isBreached: true, label: `⚠️ Dispatch ${label}`, color: "red" };
+    } else {
+        const remainingHours = Math.floor(deltaMs / 3600000);
+        const remainingDays = Math.floor(remainingHours / 24);
+        const color: SLAColor = remainingHours <= 4 ? "red" : remainingHours <= 12 ? "yellow" : "green";
+        const label = remainingDays > 0 ? `Dispatch in ${remainingDays}d` : `Dispatch in ${remainingHours}h`;
+        return { isBreached: false, label: `⏱️ ${label}`, color };
+    }
+}
+
+/**
  * Format a work order SLA deadline as a relative time label.
  * E.g., "in 2 days", "2 hours ago", "overdue by 3 days"
  */

@@ -36,9 +36,10 @@
 | **#21** | 🐛 Bug | DevOptionsModal throws `Requires role: cenro` on open & fails to toggle presentation mode without CENRO session | Dev Options (`DevOptionsModal.tsx` & Backend) | `[/]` Fixed by Agent |
 | **#22** | 🐛 Bug | Date Reported on Track view displays UTC time (11:09 PM) instead of local time (7:09 AM) | Public Tracker (`/track/[id]`) & Date Utils | `[/]` Fixed by Agent |
 | **#23** | 🐛 Bug | Leaked VLM / Gemini Clues & Disguised AI Summary Card on Defense Mode | Report Drawer, Track Page, Cleanup Card | `[/]` Fixed by Agent |
-| **#24** | 🚀 Feature | Clickable DBSCAN Hotspot Clusters & Detailed Reports Breakdown | CENRO City Map (`cenro/page.tsx`, `backend/analytics.py`) | `[ ]` Open / Pending |
-| **#25** | 🐛 Bug | City-Wide SLA Compliance shows 100% when active breaches exist | Backend SLA Analytics (`backend/main.py:5075`) | `[ ]` Open / Pending |
-| **#26** | 🐛 Bug | Low contrast & misleading blue color on "BREACHED" status pill | SLA Tab (`SlaManagementTab.tsx:78, 317`) | `[ ]` Open / Pending |
+| **#24** | 🚀 Feature | Clickable DBSCAN Hotspot Clusters & Detailed Reports Breakdown | CENRO City Map (`cenro/page.tsx`, `backend/analytics.py`) | `[/]` Fixed by Agent |
+| **#25** | 🐛 Bug | City-Wide SLA Compliance shows 100% when active breaches exist | Backend SLA Analytics (`backend/main.py:5075`) | `[/]` Fixed by Agent |
+| **#26** | 🐛 Bug | Low contrast & misleading blue color on "BREACHED" status pill | SLA Tab (`SlaManagementTab.tsx:78, 317`) | `[/]` Fixed by Agent |
+| **#27** | 🚀 Feature | Two-Tier SLA Architecture (Barangay Assignment SLA + Cleaner Resolution SLA) | SLA Engine & Portal (`SlaManagementTab.tsx`, `backend/main.py`) | `[/]` Fixed by Agent |
 
 ---
 
@@ -410,7 +411,7 @@
 
 ---
 
-### - [ ] 🚀 Feature #24: Clickable Hotspot Clusters with Interactive Reports Breakdown
+### - [/] 🚀 Feature #24: Clickable Hotspot Clusters with Interactive Reports Breakdown
 
 * **Pages / Files:** CENRO City Map (`frontend/app/cenro/page.tsx:1161-1172`), Map Component (`frontend/components/MapComponent.tsx`), Backend Analytics (`backend/analytics.py:107-115`, `backend/main.py:4582`)
 * **Screenshots:**
@@ -439,7 +440,7 @@
 
 ---
 
-### - [ ] 🐛 Bug #25: City-Wide SLA Compliance calculates as 100% despite active overdue breaches
+### - [/] 🐛 Bug #25: City-Wide SLA Compliance calculates as 100% despite active overdue breaches
 
 * **Pages / Files:** SLA Backend Computation (`backend/main.py:5075, 5082`), CENRO SLA Management (`frontend/components/portal/SlaManagementTab.tsx:8`)
 * **Screenshots:**
@@ -460,7 +461,7 @@
 
 ---
 
-### - [ ] 🐛 Bug #26: Low contrast & semantic blue color on "BREACHED" status pill and yellow priority badges
+### - [/] 🐛 Bug #26: Low contrast & semantic blue color on "BREACHED" status pill and yellow priority badges
 
 * **Pages / Files:** SLA Management Tab (`frontend/components/portal/SlaManagementTab.tsx:71-83, 317`)
 * **Screenshots:**
@@ -479,5 +480,25 @@
   1. Open SLA Management tab in Light Mode.
   2. Inspect the Active Breaches table.
   3. Verify the "BREACHED" pill is bold red with clear contrast, and "medium" priority is easily readable.
+
+---
+
+### - [/] 🚀 Feature #27: Two-Tier SLA Architecture (Barangay Assignment SLA + Cleaner Resolution SLA)
+
+* **Pages / Files:** SLA Management (`SlaManagementTab.tsx`), Backend Engine (`backend/main.py:64-73, 573-588, 3900-3945, 5052-5120`), Barangay Portal (`barangay/page.tsx`), SLA Helpers (`lib/sla.ts`)
+* **What happens / Current Behavior:**
+  Previously, SLA tracking only initiated *after* a work order was created. If a Barangay took weeks to assign a cleaner to a verified report, zero SLA penalty was incurred, creating an accountability loophole.
+* **Fix / Action Plan:**
+  1. **Tier 1 (Barangay Assignment SLA)**: Priority-based deadline to dispatch a cleaner once verified (High = 12h, Medium = 24h, Low = 48h), fully configurable by CENRO in the SLA Policy modal.
+  2. **Tier 2 (Cleaner Resolution SLA)**: Cleaners receive their dedicated cleanup window (1d/3d/7d) once dispatched.
+  3. **Segmented Breaches View**: Active Breaches section supports tabbed filtering (`[ All | Barangay Dispatch | Cleaner Cleanup ]`) with distinct responsibility badges.
+  4. **Emergency Dispatch Integration**: Clicking an Assignment Breach opens the report drawer with CENRO's Emergency Dispatch action.
+  5. **Barangay Portal Awareness**: Shows assignment countdown pills (`⏱️ Dispatch in Xh` / `⚠️ Dispatch Overdue`) on unassigned reports.
+* **User Verification Steps:**
+  1. Open SLA Management tab (`/cenro`).
+  2. Toggle between "All", "Barangay Dispatch", and "Cleaner Cleanup" in Active Breaches.
+  3. Click "Edit SLA Policy" and verify Barangay Assignment SLA hours (High, Med, Low) are configurable.
+  4. Open Barangay portal (`/barangay`) and verify unassigned reports display the dispatch countdown pill.
+
 
 

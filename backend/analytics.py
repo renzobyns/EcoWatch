@@ -111,6 +111,7 @@ def get_heatmap_clusters(reports, eps=0.001, min_samples=2):
             "intensity": len(cluster_reports),
             "report_count": len(cluster_reports),
             "barangays": cluster_barangays,
+            "report_ids": [r.id for r in cluster_reports],
             "points": [{"lat": float(r.lat), "lon": float(r.lon)} for r in cluster_reports]
         })
 

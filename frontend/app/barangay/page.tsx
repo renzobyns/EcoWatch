@@ -7,7 +7,7 @@ import dynamic from "next/dynamic";
 import { Search, Camera, Clock, Download, LayoutDashboard, FileText, Map, ClipboardList, BookUser, MoreVertical, FileDown, Eye, EyeOff, Edit2, Key, UserCheck, UserX, Plus, ChevronRight, ChevronLeft, ArrowUpDown, Check, LayoutGrid, List, RefreshCw, AlertTriangle, ListChecks, Hourglass, CheckCircle2, ShieldCheck, Maximize2, X, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
-import { slaInfo, SLA_PILL_CLASSES, formatDurationDHMS, slaDeadlineColor, slaDeadlineLabel } from "@/lib/sla";
+import { slaInfo, assignmentSlaInfo, SLA_PILL_CLASSES, formatDurationDHMS, slaDeadlineColor, slaDeadlineLabel } from "@/lib/sla";
 import { formatDate, formatDateTime, formatRelative } from "@/lib/date-utils";
 import { PortalShell, type PortalNavItem } from "@/components/portal/PortalShell";
 import { TrustBadge } from "@/components/TrustBadge";
@@ -1060,6 +1060,7 @@ function BarangayPortalInner() {
                                         <ul className="space-y-2.5">
                                             {recentReports.map(r => {
                                                 const sla = slaInfo(r.created_at, r.status);
+                                                const assignSla = assignmentSlaInfo(r.created_at, r.status, (slaPolicy as any)?.assign_medium_hours || 24);
                                                 return (
                                                     <li
                                                         key={r.id}
@@ -1100,6 +1101,11 @@ function BarangayPortalInner() {
                                                                     }`}>
                                                                         {r.status.replace(/_/g, ' ')}
                                                                     </span>
+                                                                    {assignSla && (
+                                                                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${assignSla.isBreached ? "bg-destructive/15 text-destructive border-destructive/30" : SLA_PILL_CLASSES[assignSla.color]}`}>
+                                                                            {assignSla.label}
+                                                                        </span>
+                                                                    )}
                                                                 </div>
                                                                 <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground truncate">
                                                                     <span>{formatDate(r.created_at)}</span>
@@ -1208,7 +1214,7 @@ function BarangayPortalInner() {
                                     </p>
                                 </div>
                                 <button
-                                    onClick={fetchReviewQueue}
+                                    onClick={() => fetchReviewQueue()}
                                     disabled={reviewLoading}
                                     className="px-4 py-2 bg-muted/60 border border-border text-foreground text-xs font-semibold rounded-lg hover:bg-muted transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm"
                                 >
@@ -1376,7 +1382,7 @@ function BarangayPortalInner() {
                                     </p>
                                     <button
                                         type="button"
-                                        onClick={fetchReviewQueue}
+                                        onClick={() => fetchReviewQueue()}
                                         className="mt-4 px-4 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5"
                                     >
                                         <RefreshCw size={12} />
@@ -2799,6 +2805,7 @@ function BarangayPortalInner() {
                                                 ) : (
                                                     paginatedReports.map(report => {
                                                         const sla = slaInfo(report.created_at, report.status);
+                                                        const assignSla = assignmentSlaInfo(report.created_at, report.status, (slaPolicy as any)?.assign_medium_hours || 24);
                                                         return (
                                                             <tr 
                                                                 key={report.id} 
@@ -2818,20 +2825,27 @@ function BarangayPortalInner() {
                                                                 </td>
                                                                 <td className="p-4 text-sm text-muted-foreground">{formatDate(report.created_at)}</td>
                                                                 <td className="p-4">
-                                                                    <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
-                                                                        report.status === 'resolved' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' :
-                                                                        report.status === 'verified' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' :
-                                                                        report.status === 'ai_verified' ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30' :
-                                                                        report.status === 'ai_rejected' ? 'bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30' :
-                                                                        report.status === 'assigned' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20' :
-                                                                        report.status === 'in_progress' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' :
-                                                                        report.status === 'pending' ? 'bg-destructive/10 text-destructive border border-destructive/20' :
-                                                                        report.status === 'failed_cleanup' ? 'bg-destructive/10 text-destructive border border-destructive/20' :
-                                                                        report.status === 'rejected' ? 'bg-muted text-muted-foreground border border-border' :
-                                                                        'bg-muted text-foreground border border-border'
-                                                                    }`}>
-                                                                        {report.status.replace(/_/g, " ")}
-                                                                    </span>
+                                                                    <div className="flex flex-col gap-1 items-start">
+                                                                        <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
+                                                                            report.status === 'resolved' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' :
+                                                                            report.status === 'verified' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' :
+                                                                            report.status === 'ai_verified' ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30' :
+                                                                            report.status === 'ai_rejected' ? 'bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30' :
+                                                                            report.status === 'assigned' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20' :
+                                                                            report.status === 'in_progress' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' :
+                                                                            report.status === 'pending' ? 'bg-destructive/10 text-destructive border border-destructive/20' :
+                                                                            report.status === 'failed_cleanup' ? 'bg-destructive/10 text-destructive border border-destructive/20' :
+                                                                            report.status === 'rejected' ? 'bg-muted text-muted-foreground border border-border' :
+                                                                            'bg-muted text-foreground border border-border'
+                                                                        }`}>
+                                                                            {report.status.replace(/_/g, " ")}
+                                                                        </span>
+                                                                        {assignSla && (
+                                                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${assignSla.isBreached ? "bg-destructive/15 text-destructive border-destructive/30" : SLA_PILL_CLASSES[assignSla.color]}`}>
+                                                                                {assignSla.label}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
                                                                 </td>
                                                                 <td className="p-4">
                                                                     {sla ? (

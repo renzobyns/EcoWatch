@@ -7,7 +7,7 @@ import { LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, XAx
 import {
     Search, Download, Plus, AlertTriangle, Copy, X,
     LayoutDashboard, Map, FileText, ShieldCheck, BarChart3, Building2, Image as ImageIcon, History, BookUser,
-    Phone, MoreVertical, Upload, FileDown, RefreshCw, Eye, EyeOff, Edit2, Key, UserCheck, UserX, ChevronLeft, ChevronRight,
+    Phone, MoreVertical, Upload, FileDown, RefreshCw, Eye, EyeOff, Edit2, Key, UserCheck, UserX, ChevronLeft, ChevronRight, ChevronDown,
     AlertCircle, Activity, CheckCircle2
 } from "lucide-react";
 import { toast } from "sonner";
@@ -173,13 +173,36 @@ function CenroDashboardInner() {
 
     // C3 — SLA Breaches & Config
     const [slaBreaches, setSlaBreaches] = useState<any[]>([]);
-    const [slaPolicy, setSlaPolicy] = useState({ low: 7, medium: 3, high: 1, compliance_target: 95 });
+    const [slaPolicy, setSlaPolicy] = useState<{
+        low: number;
+        medium: number;
+        high: number;
+        compliance_target: number;
+        assign_high_hours?: number;
+        assign_medium_hours?: number;
+        assign_low_hours?: number;
+    }>({
+        low: 7,
+        medium: 3,
+        high: 1,
+        compliance_target: 95,
+        assign_high_hours: 12,
+        assign_medium_hours: 24,
+        assign_low_hours: 48,
+    });
     const [showSlaModal, setShowSlaModal] = useState(false);
     const [slaDraftLow, setSlaDraftLow] = useState(7);
     const [slaDraftMed, setSlaDraftMed] = useState(3);
     const [slaDraftHigh, setSlaDraftHigh] = useState(1);
     const [slaDraftTarget, setSlaDraftTarget] = useState(95);
+    const [slaDraftAssignHigh, setSlaDraftAssignHigh] = useState(12);
+    const [slaDraftAssignMed, setSlaDraftAssignMed] = useState(24);
+    const [slaDraftAssignLow, setSlaDraftAssignLow] = useState(48);
     const [slaModalLoading, setSlaModalLoading] = useState(false);
+
+    // City Map Cluster selection
+    const [selectedClusterId, setSelectedClusterId] = useState<number | null>(null);
+    const [focusedLocation, setFocusedLocation] = useState<{ lat: number; lon: number; zoom?: number } | null>(null);
 
     // SLA Management tab data
     const [slaCompliance, setSlaCompliance] = useState<any>(null);
@@ -393,6 +416,9 @@ function CenroDashboardInner() {
             setSlaDraftMed(data.medium);
             setSlaDraftHigh(data.high);
             setSlaDraftTarget(data.compliance_target ?? 95);
+            setSlaDraftAssignHigh(data.assign_high_hours ?? 12);
+            setSlaDraftAssignMed(data.assign_medium_hours ?? 24);
+            setSlaDraftAssignLow(data.assign_low_hours ?? 48);
         } catch (err) {
             console.error("Failed to fetch SLA policy:", err);
         }
@@ -408,6 +434,9 @@ function CenroDashboardInner() {
                     medium_days: parseInt(slaDraftMed.toString()),
                     high_days: parseInt(slaDraftHigh.toString()),
                     compliance_target: parseInt(slaDraftTarget.toString()),
+                    assign_high_hours: parseInt(slaDraftAssignHigh.toString()),
+                    assign_medium_hours: parseInt(slaDraftAssignMed.toString()),
+                    assign_low_hours: parseInt(slaDraftAssignLow.toString()),
                 }),
             });
             setSlaPolicy(data);
@@ -1154,22 +1183,99 @@ function CenroDashboardInner() {
                                             </div>
                                         </InfoTooltip>
                                     </div>
-                                    <div className="p-4 pt-0 flex-1 overflow-y-auto space-y-1.5 scrollbar-hide">
+                                    <div className="p-4 pt-0 flex-1 overflow-y-auto space-y-2 scrollbar-hide">
                                         {heatmaps.length === 0 ? (
                                             <p className="text-[11px] text-muted-foreground italic">No significant hotspots detected.</p>
                                         ) : (
-                                            heatmaps.map((h, i) => (
-                                                <div key={i} className="flex items-center justify-between py-2 group border-b border-border last:border-0">
-                                                    <div className="min-w-0 pr-2">
-                                                        <div className="text-[13px] font-medium text-foreground">Cluster {h.cluster_id}</div>
-                                                        <div className="text-[10px] text-muted-foreground mt-0.5 font-medium leading-tight truncate" title={formatClusterLocation(h.barangays)}>
-                                                            {formatClusterLocation(h.barangays)}
+                                            heatmaps.map((h, i) => {
+                                                const isSelected = selectedClusterId === h.cluster_id;
+                                                const clusterReports = reports.filter(r => (h.report_ids || []).includes(r.id));
+                                                return (
+                                                    <div
+                                                        key={i}
+                                                        className={`rounded-lg border transition-all ${isSelected ? "border-primary/50 bg-primary/5 shadow-xs" : "border-border/60 hover:bg-muted/40 hover:border-border"}`}
+                                                    >
+                                                        <div
+                                                            onClick={() => {
+                                                                if (isSelected) {
+                                                                    setSelectedClusterId(null);
+                                                                } else {
+                                                                    setSelectedClusterId(h.cluster_id);
+                                                                    setFocusedLocation({ lat: h.lat, lon: h.lon, zoom: 16 });
+                                                                }
+                                                            }}
+                                                            className="flex items-center justify-between p-2.5 cursor-pointer"
+                                                        >
+                                                            <div className="min-w-0 pr-2">
+                                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                                    <span className="text-[13px] font-semibold text-foreground">Cluster {h.cluster_id}</span>
+                                                                    <span className="text-[9px] text-destructive font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-destructive/10">
+                                                                        {h.intensity} Intensity
+                                                                    </span>
+                                                                </div>
+                                                                <div className="text-[10px] text-muted-foreground mt-0.5 font-medium leading-tight truncate" title={formatClusterLocation(h.barangays)}>
+                                                                    {formatClusterLocation(h.barangays)}
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                                <div className="text-xs font-extrabold px-2 py-0.5 rounded bg-muted text-foreground/80">
+                                                                    {h.report_count} reports
+                                                                </div>
+                                                                <ChevronDown size={14} className={`text-muted-foreground transition-transform duration-200 ${isSelected ? "rotate-180" : ""}`} />
+                                                            </div>
                                                         </div>
-                                                        <div className="text-[9px] text-red-500 font-semibold mt-1 uppercase tracking-wider">{h.intensity} Intensity</div>
+
+                                                        {/* Expanded Reports Breakdown */}
+                                                        {isSelected && (
+                                                            <div className="px-2.5 pb-2.5 pt-1 border-t border-border/40 space-y-1.5 animate-in fade-in-50 duration-200">
+                                                                <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
+                                                                    <span>Incident Reports ({clusterReports.length})</span>
+                                                                    <span className="text-[9px] text-primary">Click to view</span>
+                                                                </div>
+                                                                {clusterReports.length === 0 ? (
+                                                                    <p className="text-[10px] text-muted-foreground italic py-1">No loaded report details for this cluster.</p>
+                                                                ) : (
+                                                                    clusterReports.map((r) => (
+                                                                        <div
+                                                                            key={r.id}
+                                                                            onClick={() => setSelectedReport(r)}
+                                                                            className="flex items-center justify-between p-2 rounded-md bg-background/80 hover:bg-muted/80 border border-border/60 hover:border-primary/40 cursor-pointer transition-all gap-2"
+                                                                        >
+                                                                            <div className="flex items-center gap-2 min-w-0">
+                                                                                {r.image_url ? (
+                                                                                    <img src={r.image_url} alt="" className="w-8 h-8 rounded object-cover border border-border shrink-0" />
+                                                                                ) : (
+                                                                                    <div className="w-8 h-8 rounded bg-muted border border-border flex items-center justify-center text-[10px] font-bold text-muted-foreground shrink-0">
+                                                                                        EW
+                                                                                    </div>
+                                                                                )}
+                                                                                <div className="min-w-0">
+                                                                                    <div className="font-mono text-xs font-bold text-foreground truncate">
+                                                                                        {r.tracking_id || `EW-${r.id.toString().padStart(4, "0")}`}
+                                                                                    </div>
+                                                                                    <div className="text-[10px] text-muted-foreground truncate">
+                                                                                        {r.barangay || "SJDM"}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase shrink-0 ${
+                                                                                r.status === 'resolved' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30' :
+                                                                                r.status === 'assigned' ? 'bg-yellow-500/15 text-amber-900 dark:text-yellow-300 border border-yellow-500/30' :
+                                                                                r.status === 'in_progress' ? 'bg-blue-500/15 text-blue-900 dark:text-blue-300 border border-blue-500/30' :
+                                                                                r.status === 'verified' || r.status === 'ai_verified' ? 'bg-amber-500/15 text-amber-900 dark:text-amber-300 border border-amber-500/30' :
+                                                                                r.status === 'failed_cleanup' ? 'bg-destructive/15 text-destructive border border-destructive/30' :
+                                                                                'bg-muted text-muted-foreground border border-border'
+                                                                            }`}>
+                                                                                {r.status.replace(/_/g, " ")}
+                                                                            </span>
+                                                                        </div>
+                                                                    ))
+                                                                )}
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                    <div className="text-xs font-extrabold px-2 py-1 rounded bg-muted text-foreground/80 shrink-0">{h.report_count} reports</div>
-                                                </div>
-                                            ))
+                                                );
+                                            })
                                         )}
                                     </div>
                                 </div>
@@ -1189,6 +1295,11 @@ function CenroDashboardInner() {
                                     reports={reports}
                                     heatmaps={heatmaps}
                                     focusedBarangay={null}
+                                    focusedLocation={focusedLocation}
+                                    onClusterClick={(c) => {
+                                        setSelectedClusterId(c.cluster_id);
+                                        setFocusedLocation({ lat: c.lat, lon: c.lon, zoom: 16 });
+                                    }}
                                     onBarangayClick={() => {}}
                                     filterClassName="top-3 right-3"
                                 />
@@ -1318,6 +1429,44 @@ function CenroDashboardInner() {
                                     className="w-full px-3 py-2 rounded-md bg-background border border-border text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                                 />
                                 <p className="text-xs text-muted-foreground mt-1">City-wide on-time completion target.</p>
+                            </div>
+                            <div className="pt-2 border-t border-border space-y-2">
+                                <div className="text-xs font-semibold text-foreground uppercase tracking-wider">
+                                    Barangay Assignment SLA (Hours to Dispatch)
+                                </div>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <div>
+                                        <label className="text-xs text-muted-foreground mb-1 block">High (hrs)</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={slaDraftAssignHigh}
+                                            onChange={(e) => setSlaDraftAssignHigh(parseInt(e.target.value) || 1)}
+                                            className="w-full px-2.5 py-1.5 rounded-md bg-background border border-border text-sm focus:outline-none focus:ring-1 focus:ring-ring font-mono"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-muted-foreground mb-1 block">Med (hrs)</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={slaDraftAssignMed}
+                                            onChange={(e) => setSlaDraftAssignMed(parseInt(e.target.value) || 1)}
+                                            className="w-full px-2.5 py-1.5 rounded-md bg-background border border-border text-sm focus:outline-none focus:ring-1 focus:ring-ring font-mono"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-muted-foreground mb-1 block">Low (hrs)</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={slaDraftAssignLow}
+                                            onChange={(e) => setSlaDraftAssignLow(parseInt(e.target.value) || 1)}
+                                            className="w-full px-2.5 py-1.5 rounded-md bg-background border border-border text-sm focus:outline-none focus:ring-1 focus:ring-ring font-mono"
+                                        />
+                                    </div>
+                                </div>
+                                <p className="text-[11px] text-muted-foreground">Deadline for a Barangay to dispatch a cleaner once report is verified.</p>
                             </div>
                             <div className="flex gap-3 pt-2">
                                 <button

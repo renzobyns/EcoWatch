@@ -34,11 +34,14 @@ export default function LandingPage() {
 
         // Fetch heatmaps once
         fetch(`${API_URL}/spatial/heatmaps`)
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+                return res.json();
+            })
             .then(data => {
                 if (data && Array.isArray(data.hotspots)) setHeatmaps(data.hotspots);
             })
-            .catch(err => console.error("Failed to load heatmaps", err));
+            .catch(err => console.warn("Could not load live heatmaps:", err?.message || err));
 
         // Open sidebar slightly delayed for effect
         const timer = setTimeout(() => setSidebarOpen(true), 1000);
@@ -52,11 +55,14 @@ export default function LandingPage() {
             : `${API_URL}/reports/recent`;
 
         fetch(reportUrl)
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+                return res.json();
+            })
             .then(data => {
                 if (Array.isArray(data)) setReports(data);
             })
-            .catch(err => console.error("Failed to load reports", err))
+            .catch(err => console.warn("Could not load reports:", err?.message || err))
             .finally(() => setIsLoading(false));
     }, [feedMode, user?.id]);
 
