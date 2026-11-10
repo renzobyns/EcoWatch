@@ -40,6 +40,7 @@
 | **#25** | 🐛 Bug | City-Wide SLA Compliance shows 100% when active breaches exist | Backend SLA Analytics (`backend/main.py:5075`) | `[/]` Fixed by Agent |
 | **#26** | 🐛 Bug | Low contrast & misleading blue color on "BREACHED" status pill | SLA Tab (`SlaManagementTab.tsx:78, 317`) | `[/]` Fixed by Agent |
 | **#27** | 🚀 Feature | Two-Tier SLA Architecture (Barangay Assignment SLA + Cleaner Resolution SLA) | SLA Engine & Portal (`SlaManagementTab.tsx`, `backend/main.py`) | `[/]` Fixed by Agent |
+| **#28** | 🐛 Bug | DBSCAN outer red stroke border & SLA tooltip opacity/stacking occlusion | Map & SLA Tab (`MapComponent.tsx`, `InfoTooltip.tsx`, `SlaManagementTab.tsx`) | `[/]` Fixed by Agent |
 
 ---
 
@@ -499,6 +500,24 @@
   2. Toggle between "All", "Barangay Dispatch", and "Cleaner Cleanup" in Active Breaches.
   3. Click "Edit SLA Policy" and verify Barangay Dispatch SLA deadline (e.g., 24h) is configurable as a single standard window.
   4. Open Barangay portal (`/barangay`) and verify unassigned reports display the dispatch countdown pill.
+
+---
+
+### - [/] 🐛 Bug #28: DBSCAN outer red stroke border & SLA tooltip opacity/stacking occlusion
+
+* **Pages / Files:** Map Component (`frontend/components/MapComponent.tsx`), Tooltip Component (`frontend/components/ui/InfoTooltip.tsx`), SLA Management Tab (`frontend/components/portal/SlaManagementTab.tsx`)
+* **What happens / Current Behavior:**
+  1. DBSCAN clusters on the City Map rendered with a rigid red stroke border (`weight: 1.5, color: "#dc2626"`), appearing as harsh geometric bubbles rather than ambient heatmap hotspots.
+  2. SLA Management tooltips were semi-translucent (`bg-background/95 backdrop-blur-xl`), causing text underneath to bleed through.
+  3. Tooltips in Row 1 KPI cards and card headers were occluded or cut off by lower cards and card bodies due to CSS animation stacking contexts.
+* **Fix / Action Plan:**
+  1. Set `stroke: false, weight: 0, color: "transparent", fillOpacity: 0.28` on `CircleMarker` in `MapComponent.tsx`.
+  2. Upgraded `InfoTooltip.tsx` to 100% solid, fully opaque `bg-popover text-popover-foreground` with elevated z-index.
+  3. Assigned descending stacking contexts across grid rows (`z-30`, `z-20`, `z-10`, `z-0`) and elevated card headers (`z-30`) above bodies (`z-10`) in `SlaManagementTab.tsx`.
+* **User Verification Steps:**
+  1. Open City Map (`/cenro`) and verify DBSCAN clusters render without an outer stroke border.
+  2. Open SLA Management tab (`/cenro`), hover over KPI cards and card headers, and verify tooltips are 100% solid and float cleanly above all other elements without being cut off.
+
 
 
 

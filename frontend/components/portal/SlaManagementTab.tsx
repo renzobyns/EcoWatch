@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AlertTriangle, Clock, ShieldCheck, Activity, Settings2, History, Award, FileDown, RefreshCw, TrendingUp } from "lucide-react";
 import { formatDateTime } from "@/lib/date-utils";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 
 type ComplianceData = {
     city_wide: {
@@ -212,41 +213,50 @@ export function SlaManagementTab({
             </div>
 
             {/* Row 1 - 4 KPI cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 shrink-0 animate-slide-up">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 shrink-0 animate-slide-up relative z-30">
                 <KpiCard
                     label="Active Breaches"
                     value={cw ? cw.active_breaches.toString() : "—"}
                     icon={<AlertTriangle size={22} />}
                     tone={cw && cw.active_breaches > 0 ? "red" : "default"}
+                    tooltip="Unresolved reports or cleanups that have exceeded their SLA time limit. Demands urgent action from CENRO or the responsible barangay."
+                    tooltipAlign="left"
                 />
                 <KpiCard
                     label="At-Risk Next 24h"
                     value={cw ? cw.at_risk_24h.toString() : "—"}
                     icon={<Clock size={22} />}
                     tone={cw && cw.at_risk_24h > 0 ? "yellow" : "default"}
+                    tooltip="Proactive early warning: cleanups scheduled to breach their SLA deadline within the next 24 hours."
+                    tooltipAlign="left"
                 />
                 <KpiCard
                     label="City-Wide Compliance"
                     value={cw ? `${cw.compliance_rate}%` : "—"}
                     icon={<ShieldCheck size={22} />}
                     tone={cw ? (cw.compliance_rate >= slaPolicy.compliance_target ? "default" : cw.compliance_rate >= slaPolicy.compliance_target - 10 ? "yellow" : "red") : "default"}
+                    tooltip="City-wide on-time resolution rate across all completed work orders plus active overdue breaches. Formula: (On-Time / (Total Completed + Active Breaches)) × 100."
+                    tooltipAlign="left"
                 />
                 <KpiCard
                     label="Avg Resolution Time"
                     value={cw ? `${cw.avg_resolution_days}d` : "—"}
                     icon={<Activity size={22} />}
                     tone="default"
+                    tooltip="Average days taken from report assignment to successful cleanup resolution across all completed work orders in San Jose del Monte."
+                    tooltipAlign="right"
                 />
             </div>
 
             {/* Row 2 - Active Breaches (left) + At-Risk Queue (right) */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 shrink-0 animate-slide-up stagger-2">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 shrink-0 animate-slide-up stagger-2 relative z-20">
                 {/* Active Breaches */}
                 <div className="lg:col-span-2 bg-card p-6 rounded-lg border border-border shadow-sm">
-                    <div className="flex items-center justify-between mb-5 relative z-10 flex-wrap gap-3">
-                        <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-between mb-5 relative z-30 flex-wrap gap-3">
+                        <div className="flex items-center gap-2 flex-wrap">
                             <AlertTriangle size={20} className="text-destructive" />
                             <h2 className="text-base font-bold text-foreground">Active Breaches</h2>
+                            <InfoTooltip content="All current overdue violations across the city. Includes unassigned reports past their 24h dispatch deadline and ongoing cleanups past their resolution target." />
                             <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-destructive/15 text-destructive border border-destructive/30 tracking-tight">
                                 {totalBreaches} {totalBreaches === 1 ? "Incident" : "Incidents"}
                             </span>
@@ -427,10 +437,14 @@ export function SlaManagementTab({
 
                 {/* At-Risk Queue */}
                 <div className="lg:col-span-1 bg-card p-6 rounded-lg border border-border shadow-sm">
-                    <div className="flex items-center justify-between mb-5 relative z-10">
+                    <div className="flex items-center justify-between mb-5 relative z-30">
                         <div className="flex items-center gap-2">
                             <Clock size={18} className="text-muted-foreground" />
                             <h2 className="text-base font-bold text-foreground">At-Risk Queue (24h)</h2>
+                            <InfoTooltip
+                                align="right"
+                                content="Early-warning countdown radar. Lists ongoing cleanups whose SLA deadline will breach within the next 24 hours, giving supervisors a window to intervene before a violation occurs."
+                            />
                         </div>
                         <span className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-tight bg-yellow-500/20 text-yellow-600 dark:text-yellow-400">
                             {atRisk.length} {atRisk.length === 1 ? "WO" : "WOs"}
@@ -467,12 +481,13 @@ export function SlaManagementTab({
             </div>
 
             {/* Row 3 - History (left) + Policy Config + Top Performing (right) */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 shrink-0 animate-slide-up stagger-3">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 shrink-0 animate-slide-up stagger-3 relative z-10">
                 {/* SLA Policy History (timeline) */}
                 <div className="lg:col-span-2 bg-card p-6 rounded-lg border border-border shadow-sm">
-                    <div className="flex items-center gap-2 mb-5 relative z-10">
+                    <div className="flex items-center gap-2 mb-5 relative z-30">
                         <History size={18} className="text-muted-foreground" />
                         <h2 className="text-base font-bold text-foreground">SLA Policy History</h2>
+                        <InfoTooltip content="Audit log tracking every modification made to city-wide SLA thresholds, who authorized the update, and the exact parameter changes." />
                     </div>
                     <div className="relative z-10">
                         {loading ? (
@@ -517,10 +532,14 @@ export function SlaManagementTab({
                 <div className="lg:col-span-1 flex flex-col gap-6">
                     {/* SLA Policy Config */}
                     <div className="bg-card p-6 rounded-lg border border-border shadow-sm">
-                        <div className="flex items-center justify-between mb-4 relative z-10">
+                        <div className="flex items-center justify-between mb-4 relative z-30">
                             <div className="flex items-center gap-2">
                                 <Settings2 size={18} className="text-muted-foreground" />
                                 <h2 className="text-base font-bold text-foreground">SLA Policy Config</h2>
+                                <InfoTooltip
+                                    align="right"
+                                    content="Operational thresholds for SJDM: Tier 1 gives barangays a standard 24h window to dispatch cleaners; Tier 2 gives cleaners 1 to 7 days based on waste severity."
+                                />
                             </div>
                         </div>
 
@@ -584,9 +603,13 @@ export function SlaManagementTab({
 
                     {/* Top Performing Barangays */}
                     <div className="bg-card p-6 rounded-lg border border-border shadow-sm">
-                        <div className="flex items-center gap-2 mb-4 relative z-10">
+                        <div className="flex items-center gap-2 mb-4 relative z-30">
                             <Award size={18} className="text-muted-foreground" />
                             <h2 className="text-base font-bold text-foreground">Top Performing Barangays</h2>
+                            <InfoTooltip
+                                align="right"
+                                content="Barangays ranked by on-time SLA compliance and fastest cleanup resolution speeds."
+                            />
                         </div>
                         <div className="relative z-10 space-y-3">
                             {loading ? (
@@ -617,11 +640,12 @@ export function SlaManagementTab({
             </div>
 
             {/* Row 4 - Full Per-Barangay Performance Table */}
-            <div className="bg-card p-6 rounded-lg border border-border shadow-sm shrink-0 animate-slide-up stagger-4">
-                <div className="flex items-center justify-between mb-5 relative z-10 flex-wrap gap-3">
+            <div className="bg-card p-6 rounded-lg border border-border shadow-sm shrink-0 animate-slide-up stagger-4 relative z-0">
+                <div className="flex items-center justify-between mb-5 relative z-30 flex-wrap gap-3">
                     <div className="flex items-center gap-2">
                         <TrendingUp size={18} className="text-muted-foreground" />
                         <h2 className="text-base font-bold text-foreground">Per-Barangay SLA Performance</h2>
+                        <InfoTooltip content="Jurisdiction-by-jurisdiction scorecard for all 59 SJDM barangays, sorted to highlight jurisdictions with active breaches or low compliance rates." />
                         <span className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-tight bg-muted text-muted-foreground">
                             sorted worst → best
                         </span>
@@ -724,7 +748,21 @@ export function SlaManagementTab({
 
 // Sub-components
 
-function KpiCard({ label, value, icon, tone = "default" }: { label: string; value: string; icon: React.ReactNode; tone?: "red" | "yellow" | "emerald" | "blue" | "default" }) {
+function KpiCard({
+    label,
+    value,
+    icon,
+    tone = "default",
+    tooltip,
+    tooltipAlign = "left",
+}: {
+    label: string;
+    value: string;
+    icon: React.ReactNode;
+    tone?: "red" | "yellow" | "emerald" | "blue" | "default";
+    tooltip?: string;
+    tooltipAlign?: "left" | "right";
+}) {
     const toneClasses = {
         red: "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20",
         yellow: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20",
@@ -735,7 +773,10 @@ function KpiCard({ label, value, icon, tone = "default" }: { label: string; valu
     return (
         <div className="bg-card border border-border shadow-sm p-3.5 sm:p-5 rounded-xl flex items-center justify-between gap-2 sm:gap-4">
             <div className="min-w-0 flex-1">
-                <div className="text-xs sm:text-sm font-medium text-muted-foreground mb-0.5 sm:mb-1 truncate">{label}</div>
+                <div className="flex items-center gap-1.5 mb-0.5 sm:mb-1">
+                    <span className="text-xs sm:text-sm font-medium text-muted-foreground truncate">{label}</span>
+                    {tooltip && <InfoTooltip content={tooltip} label={`${label} information`} align={tooltipAlign} />}
+                </div>
                 <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{value}</div>
             </div>
             <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0 ${toneClasses[tone]}`}>

@@ -453,9 +453,10 @@ export default function SJDMMap({
                         radius={cluster.intensity * 15}
                         pathOptions={{
                             fillColor: "#ef4444",
-                            fillOpacity: 0.35,
-                            color: "#dc2626",
-                            weight: 1.5,
+                            fillOpacity: 0.28,
+                            stroke: false,
+                            weight: 0,
+                            color: "transparent",
                         }}
                         eventHandlers={onClusterClick ? {
                             click: () => onClusterClick(cluster),
