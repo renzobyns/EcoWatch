@@ -2785,7 +2785,15 @@ function BarangayPortalInner() {
                                                     <th className="p-4">Tracking ID</th>
                                                     <th className="p-4">Date</th>
                                                     <th className="p-4">Status</th>
-                                                    <th className="p-4">Open</th>
+                                                    <th className="p-4">
+                                                        <div className="inline-flex items-center gap-1.5">
+                                                            <span>Duration</span>
+                                                            <InfoTooltip
+                                                                content="Active reports show elapsed open time with SLA urgency coding. Resolved reports show total time to completion."
+                                                                align="left"
+                                                            />
+                                                        </div>
+                                                    </th>
                                                     <th className="p-4 text-right">AI Score</th>
                                                 </tr>
                                             </thead>
@@ -2849,16 +2857,23 @@ function BarangayPortalInner() {
                                                                 </td>
                                                                 <td className="p-4">
                                                                     {sla ? (
-                                                                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-mono text-xs font-bold ${SLA_PILL_CLASSES[sla.color]}`}>
-                                                                            <Clock size={11} className="opacity-70" />
+                                                                        <span
+                                                                            title={`Active SLA: open for ${sla.days} day(s)`}
+                                                                            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-mono text-xs font-bold ${SLA_PILL_CLASSES[sla.color]}`}
+                                                                        >
+                                                                            <Clock size={11} className="opacity-70 shrink-0" />
                                                                             {formatDurationDHMS(report.created_at, report.resolved_at)}
                                                                         </span>
                                                                     ) : report.status === "resolved" ? (
-                                                                        <span className="inline-flex items-center gap-1 font-mono text-xs text-muted-foreground">
+                                                                        <span
+                                                                            title={`Resolved in ${formatDurationDHMS(report.created_at, report.resolved_at)}`}
+                                                                            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-mono text-xs font-medium bg-muted/60 text-muted-foreground border border-border/60"
+                                                                        >
+                                                                            <CheckCircle2 size={11} className="text-emerald-500 shrink-0" />
                                                                             {formatDurationDHMS(report.created_at, report.resolved_at)}
                                                                         </span>
                                                                     ) : (
-                                                                        <span className="text-muted-foreground text-sm">—</span>
+                                                                        <span className="text-muted-foreground text-sm pl-2">—</span>
                                                                     )}
                                                                 </td>
                                                                 <td className="p-4 text-right text-sm font-medium text-foreground">

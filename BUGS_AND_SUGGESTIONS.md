@@ -42,6 +42,7 @@
 | **#27** | 🚀 Feature | Two-Tier SLA Architecture (Barangay Assignment SLA + Cleaner Resolution SLA) | SLA Engine & Portal (`SlaManagementTab.tsx`, `backend/main.py`) | `[/]` Fixed by Agent |
 | **#28** | 🐛 Bug | DBSCAN outer red stroke border & SLA tooltip opacity/stacking occlusion | Map & SLA Tab (`MapComponent.tsx`, `InfoTooltip.tsx`, `SlaManagementTab.tsx`) | `[/]` Fixed by Agent |
 | **#29** | 🐛 Bug | Broken cluster report thumbnail & SLA table column compression on deployed Vercel | CENRO Map & SLA Tab (`cenro/page.tsx`, `SlaManagementTab.tsx`) | `[/]` Fixed by Agent |
+| **#30** | 🐛 Bug | "Open" column in CENRO & Barangay Reports shows unstyled plain text for resolved reports & ambiguous header | CENRO & Barangay Reports (`OversightTab.tsx`, `barangay/page.tsx`) | `[/]` Fixed by Agent |
 
 ---
 
@@ -542,7 +543,26 @@
   1. Open CENRO City Map (`/cenro`), click on any hotspot cluster, and verify the report items display clean badges and typography with no broken images.
   2. Open SLA Management tab (`/cenro`) on deployed Vercel and verify table columns never squish, text never wraps onto awkward lines, and horizontal scroll engages gracefully if viewport width is narrow.
 
+---
 
+### - [/] 🐛 Bug #30: "Open" column in CENRO & Barangay Reports shows unstyled plain text for resolved reports & ambiguous header label
 
-
-
+* **Pages / Files:** CENRO Oversight Tab (`frontend/components/portal/OversightTab.tsx:438-444, 490-510`), Barangay Reports (`frontend/app/barangay/page.tsx:2785-2795, 2850-2870`)
+* **Screenshots:**
+  ![Open Column Detail](./docs/bug-tracker/screenshots/bug30-cenro-open-column-detail.png)
+  ![CENRO Reports Overview](./docs/bug-tracker/screenshots/bug30-cenro-open-column-overview.jpg)
+* **What happens / Current Behavior:**
+  1. In CENRO Reports and Barangay Reports tables, active reports (`AI VERIFIED`, `VERIFIED`, `ASSIGNED`) display a styled colored pill badge with a clock icon (`⏱ 01:14:17:30`).
+  2. Resolved reports (`RESOLVED`) display raw, unstyled monospace text (`00:00:03:49`) with no badge container, border, or icon, appearing broken or missing styling.
+  3. The column is labeled "Open", which is semantically misleading for resolved tickets because they are completed/closed; the number shown represents Total Resolution Duration, not open time.
+* **Root Cause:**
+  `slaInfo()` returns `null` for `resolved` and `rejected` statuses because SLA timers only apply to active tickets. When `sla` is null, the code fell back to bare `<span className="font-mono text-xs text-muted-foreground">` without styling parity with the active SLA pill.
+* **Fix / Action Plan:**
+  1. Updated table cell renderer in both `OversightTab.tsx` and `barangay/page.tsx` so `report.status === 'resolved'` displays a dedicated completed badge: `bg-muted/60 text-muted-foreground border border-border/60` with `<CheckCircle2 size={11} className="text-emerald-500 shrink-0" />` and tooltip `Resolved in DD:HH:MM:SS`.
+  2. Renamed column header from "Open" to "Duration" with an `InfoTooltip` explaining SLA active time vs. total resolution completion.
+  3. Styled non-applicable statuses (`rejected`, `duplicate`) with a clean muted dash (`—`).
+* **User Verification Steps:**
+  1. Open CENRO Reports tab (`/cenro` → Reports).
+  2. Verify the column header is labeled "Duration" with an informational tooltip.
+  3. Verify resolved reports now display a clean badge with a green checkmark icon matching table padding and height.
+  4. Open Barangay Reports tab (`/barangay` → Reports) and verify identical styling.
