@@ -67,25 +67,16 @@ SLA_CONFIG_KEYS = (
     "sla_medium_days",
     "sla_high_days",
     "sla_compliance_target",
-    "sla_assign_high_hours",
-    "sla_assign_medium_hours",
-    "sla_assign_low_hours",
+    "sla_assign_hours",
 )
 SLA_CONFIG_DEFAULTS = {
     "sla_low_days": "7",
     "sla_medium_days": "3",
     "sla_high_days": "1",
     "sla_compliance_target": "95",
-    "sla_assign_high_hours": "12",
-    "sla_assign_medium_hours": "24",
-    "sla_assign_low_hours": "48",
+    "sla_assign_hours": "24",
 }
 PRIORITY_KEY_MAP = {"low": "sla_low_days", "medium": "sla_medium_days", "high": "sla_high_days"}
-ASSIGN_PRIORITY_KEY_MAP = {
-    "low": "sla_assign_low_hours",
-    "medium": "sla_assign_medium_hours",
-    "high": "sla_assign_high_hours",
-}
 
 # Root logger configuration — single source of formatted output
 logging.basicConfig(
@@ -390,9 +381,8 @@ class UpdateSlaConfigRequest(BaseModel):
     medium_days: Optional[int] = None
     high_days: Optional[int] = None
     compliance_target: Optional[int] = None
-    assign_high_hours: Optional[int] = None
-    assign_medium_hours: Optional[int] = None
-    assign_low_hours: Optional[int] = None
+    assign_hours: Optional[int] = None
+    assign_medium_hours: Optional[int] = None  # Backward-compatibility alias
 
 
 class CreateWorkOrderRequest(BaseModel):
@@ -598,14 +588,14 @@ def get_sla_policy(db: Session) -> dict:
             policy[row.key] = int(row.value)
         except (TypeError, ValueError):
             pass
+    assign_h = policy.get("sla_assign_hours", 24)
     return {
         "low": policy["sla_low_days"],
         "medium": policy["sla_medium_days"],
         "high": policy["sla_high_days"],
         "compliance_target": policy["sla_compliance_target"],
-        "assign_high_hours": policy.get("sla_assign_high_hours", 12),
-        "assign_medium_hours": policy.get("sla_assign_medium_hours", 24),
-        "assign_low_hours": policy.get("sla_assign_low_hours", 48),
+        "assign_hours": assign_h,
+        "assign_medium_hours": assign_h,  # Backward compatibility alias
     }
 
 
@@ -3940,18 +3930,11 @@ async def update_sla_config(
         if req.compliance_target < 0 or req.compliance_target > 100:
             raise HTTPException(status_code=400, detail="compliance_target must be between 0 and 100")
         updates["sla_compliance_target"] = str(req.compliance_target)
-    if req.assign_high_hours is not None:
-        if req.assign_high_hours < 1 or req.assign_high_hours > 720:
-            raise HTTPException(status_code=400, detail="assign_high_hours must be between 1 and 720")
-        updates["sla_assign_high_hours"] = str(req.assign_high_hours)
-    if req.assign_medium_hours is not None:
-        if req.assign_medium_hours < 1 or req.assign_medium_hours > 720:
-            raise HTTPException(status_code=400, detail="assign_medium_hours must be between 1 and 720")
-        updates["sla_assign_medium_hours"] = str(req.assign_medium_hours)
-    if req.assign_low_hours is not None:
-        if req.assign_low_hours < 1 or req.assign_low_hours > 720:
-            raise HTTPException(status_code=400, detail="assign_low_hours must be between 1 and 720")
-        updates["sla_assign_low_hours"] = str(req.assign_low_hours)
+    target_assign_hours = req.assign_hours if req.assign_hours is not None else req.assign_medium_hours
+    if target_assign_hours is not None:
+        if target_assign_hours < 1 or target_assign_hours > 720:
+            raise HTTPException(status_code=400, detail="assign_hours must be between 1 and 720")
+        updates["sla_assign_hours"] = str(target_assign_hours)
 
     if not updates:
         return old_policy  # No changes
@@ -5138,7 +5121,7 @@ def _compute_sla_compliance(db: Session) -> dict:
         bs = barangay_stats[bar]
 
         anchor = _to_naive_utc(rep.human_verified_at or rep.created_at) or now
-        assign_hours = policy.get("assign_medium_hours", 24)
+        assign_hours = policy.get("assign_hours", 24)
         assign_deadline = anchor + timedelta(hours=assign_hours)
 
         if assign_deadline < now:
@@ -5148,7 +5131,7 @@ def _compute_sla_compliance(db: Session) -> dict:
                 "report_id": rep.id,
                 "report_tracking_id": rep.tracking_id or f"EW-{rep.id:04d}",
                 "report_barangay": rep.barangay,
-                "priority": "medium",
+                "priority": "standard",
                 "stage": "assignment",
                 "sla_deadline": assign_deadline.isoformat(),
                 "created_at": rep.created_at.isoformat() if rep.created_at else None,
@@ -5167,7 +5150,7 @@ def _compute_sla_compliance(db: Session) -> dict:
                 "report_id": rep.id,
                 "report_tracking_id": rep.tracking_id or f"EW-{rep.id:04d}",
                 "report_barangay": rep.barangay,
-                "priority": "medium",
+                "priority": "standard",
                 "stage": "assignment",
                 "sla_deadline": assign_deadline.isoformat(),
                 "created_at": rep.created_at.isoformat() if rep.created_at else None,

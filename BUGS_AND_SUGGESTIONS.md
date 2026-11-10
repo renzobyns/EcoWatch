@@ -485,19 +485,19 @@
 
 ### - [/] 🚀 Feature #27: Two-Tier SLA Architecture (Barangay Assignment SLA + Cleaner Resolution SLA)
 
-* **Pages / Files:** SLA Management (`SlaManagementTab.tsx`), Backend Engine (`backend/main.py:64-73, 573-588, 3900-3945, 5052-5120`), Barangay Portal (`barangay/page.tsx`), SLA Helpers (`lib/sla.ts`)
+* **Pages / Files:** SLA Management (`SlaManagementTab.tsx`), Backend Engine (`backend/main.py`), Barangay Portal (`barangay/page.tsx`), SLA Helpers (`lib/sla.ts`), CENRO Portal (`cenro/page.tsx`)
 * **What happens / Current Behavior:**
   Previously, SLA tracking only initiated *after* a work order was created. If a Barangay took weeks to assign a cleaner to a verified report, zero SLA penalty was incurred, creating an accountability loophole.
 * **Fix / Action Plan:**
-  1. **Tier 1 (Barangay Assignment SLA)**: Priority-based deadline to dispatch a cleaner once verified (High = 12h, Medium = 24h, Low = 48h), fully configurable by CENRO in the SLA Policy modal.
-  2. **Tier 2 (Cleaner Resolution SLA)**: Cleaners receive their dedicated cleanup window (1d/3d/7d) once dispatched.
+  1. **Tier 1 (Barangay Assignment SLA)**: Unified standard deadline (Default: 24h) for a Barangay to review and dispatch a cleaner once a report is verified. Reports not yet dispatched have no prior priority, so a clean unified window avoids confusing multi-tier dispatch settings and is fully configurable by CENRO in the SLA Policy modal.
+  2. **Tier 2 (Cleaner Resolution SLA)**: Cleaners receive their dedicated cleanup window (High: 1d, Med: 3d, Low: 7d) once dispatched based on evaluated waste severity.
   3. **Segmented Breaches View**: Active Breaches section supports tabbed filtering (`[ All | Barangay Dispatch | Cleaner Cleanup ]`) with distinct responsibility badges.
   4. **Emergency Dispatch Integration**: Clicking an Assignment Breach opens the report drawer with CENRO's Emergency Dispatch action.
   5. **Barangay Portal Awareness**: Shows assignment countdown pills (`⏱️ Dispatch in Xh` / `⚠️ Dispatch Overdue`) on unassigned reports.
 * **User Verification Steps:**
   1. Open SLA Management tab (`/cenro`).
   2. Toggle between "All", "Barangay Dispatch", and "Cleaner Cleanup" in Active Breaches.
-  3. Click "Edit SLA Policy" and verify Barangay Assignment SLA hours (High, Med, Low) are configurable.
+  3. Click "Edit SLA Policy" and verify Barangay Dispatch SLA deadline (e.g., 24h) is configurable as a single standard window.
   4. Open Barangay portal (`/barangay`) and verify unassigned reports display the dispatch countdown pill.
 
 

@@ -186,18 +186,14 @@ function CenroDashboardInner() {
         medium: 3,
         high: 1,
         compliance_target: 95,
-        assign_high_hours: 12,
-        assign_medium_hours: 24,
-        assign_low_hours: 48,
+        assign_hours: 24,
     });
     const [showSlaModal, setShowSlaModal] = useState(false);
     const [slaDraftLow, setSlaDraftLow] = useState(7);
     const [slaDraftMed, setSlaDraftMed] = useState(3);
     const [slaDraftHigh, setSlaDraftHigh] = useState(1);
     const [slaDraftTarget, setSlaDraftTarget] = useState(95);
-    const [slaDraftAssignHigh, setSlaDraftAssignHigh] = useState(12);
-    const [slaDraftAssignMed, setSlaDraftAssignMed] = useState(24);
-    const [slaDraftAssignLow, setSlaDraftAssignLow] = useState(48);
+    const [slaDraftAssignHours, setSlaDraftAssignHours] = useState(24);
     const [slaModalLoading, setSlaModalLoading] = useState(false);
 
     // City Map Cluster selection
@@ -416,9 +412,7 @@ function CenroDashboardInner() {
             setSlaDraftMed(data.medium);
             setSlaDraftHigh(data.high);
             setSlaDraftTarget(data.compliance_target ?? 95);
-            setSlaDraftAssignHigh(data.assign_high_hours ?? 12);
-            setSlaDraftAssignMed(data.assign_medium_hours ?? 24);
-            setSlaDraftAssignLow(data.assign_low_hours ?? 48);
+            setSlaDraftAssignHours(data.assign_hours ?? data.assign_medium_hours ?? 24);
         } catch (err) {
             console.error("Failed to fetch SLA policy:", err);
         }
@@ -434,9 +428,7 @@ function CenroDashboardInner() {
                     medium_days: parseInt(slaDraftMed.toString()),
                     high_days: parseInt(slaDraftHigh.toString()),
                     compliance_target: parseInt(slaDraftTarget.toString()),
-                    assign_high_hours: parseInt(slaDraftAssignHigh.toString()),
-                    assign_medium_hours: parseInt(slaDraftAssignMed.toString()),
-                    assign_low_hours: parseInt(slaDraftAssignLow.toString()),
+                    assign_hours: parseInt(slaDraftAssignHours.toString()),
                 }),
             });
             setSlaPolicy(data);
@@ -1431,42 +1423,18 @@ function CenroDashboardInner() {
                                 <p className="text-xs text-muted-foreground mt-1">City-wide on-time completion target.</p>
                             </div>
                             <div className="pt-2 border-t border-border space-y-2">
-                                <div className="text-xs font-semibold text-foreground uppercase tracking-wider">
-                                    Barangay Assignment SLA (Hours to Dispatch)
-                                </div>
-                                <div className="grid grid-cols-3 gap-2">
-                                    <div>
-                                        <label className="text-xs text-muted-foreground mb-1 block">High (hrs)</label>
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            value={slaDraftAssignHigh}
-                                            onChange={(e) => setSlaDraftAssignHigh(parseInt(e.target.value) || 1)}
-                                            className="w-full px-2.5 py-1.5 rounded-md bg-background border border-border text-sm focus:outline-none focus:ring-1 focus:ring-ring font-mono"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs text-muted-foreground mb-1 block">Med (hrs)</label>
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            value={slaDraftAssignMed}
-                                            onChange={(e) => setSlaDraftAssignMed(parseInt(e.target.value) || 1)}
-                                            className="w-full px-2.5 py-1.5 rounded-md bg-background border border-border text-sm focus:outline-none focus:ring-1 focus:ring-ring font-mono"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs text-muted-foreground mb-1 block">Low (hrs)</label>
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            value={slaDraftAssignLow}
-                                            onChange={(e) => setSlaDraftAssignLow(parseInt(e.target.value) || 1)}
-                                            className="w-full px-2.5 py-1.5 rounded-md bg-background border border-border text-sm focus:outline-none focus:ring-1 focus:ring-ring font-mono"
-                                        />
-                                    </div>
-                                </div>
-                                <p className="text-[11px] text-muted-foreground">Deadline for a Barangay to dispatch a cleaner once report is verified.</p>
+                                <label className="text-sm font-medium text-muted-foreground mb-1 block">
+                                    Barangay Dispatch Deadline (Hours)
+                                </label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="720"
+                                    value={slaDraftAssignHours}
+                                    onChange={(e) => setSlaDraftAssignHours(parseInt(e.target.value) || 1)}
+                                    className="w-full px-3 py-2 rounded-md bg-background border border-border text-sm focus:outline-none focus:ring-1 focus:ring-ring font-mono"
+                                />
+                                <p className="text-xs text-muted-foreground">Standard time window for a barangay to review and assign a cleaner to a verified report (Default: 24h).</p>
                             </div>
                             <div className="flex gap-3 pt-2">
                                 <button

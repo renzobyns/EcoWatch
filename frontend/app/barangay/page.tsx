@@ -1060,7 +1060,7 @@ function BarangayPortalInner() {
                                         <ul className="space-y-2.5">
                                             {recentReports.map(r => {
                                                 const sla = slaInfo(r.created_at, r.status);
-                                                const assignSla = assignmentSlaInfo(r.created_at, r.status, (slaPolicy as any)?.assign_medium_hours || 24);
+                                                const assignSla = assignmentSlaInfo(r.created_at, r.status, (slaPolicy as any)?.assign_hours || (slaPolicy as any)?.assign_medium_hours || 24);
                                                 return (
                                                     <li
                                                         key={r.id}
@@ -2805,7 +2805,7 @@ function BarangayPortalInner() {
                                                 ) : (
                                                     paginatedReports.map(report => {
                                                         const sla = slaInfo(report.created_at, report.status);
-                                                        const assignSla = assignmentSlaInfo(report.created_at, report.status, (slaPolicy as any)?.assign_medium_hours || 24);
+                                                        const assignSla = assignmentSlaInfo(report.created_at, report.status, (slaPolicy as any)?.assign_hours || (slaPolicy as any)?.assign_medium_hours || 24);
                                                         return (
                                                             <tr 
                                                                 key={report.id} 

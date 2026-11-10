@@ -74,9 +74,8 @@ interface Props {
         medium: number;
         high: number;
         compliance_target: number;
-        assign_high_hours?: number;
+        assign_hours?: number;
         assign_medium_hours?: number;
-        assign_low_hours?: number;
     };
     exporting: boolean;
     onExport: () => void;
@@ -88,14 +87,7 @@ const PRIORITY_PILL: Record<string, string> = {
     low: "bg-blue-500/15 text-blue-900 dark:text-blue-300 border-blue-500/30",
     medium: "bg-amber-500/15 text-amber-900 dark:text-amber-300 border-amber-500/30",
     high: "bg-rose-500/15 text-rose-900 dark:text-rose-300 border-rose-500/30",
-};
-
-const WO_STATUS_PILL: Record<string, string> = {
-    assigned: "bg-blue-500/20 text-blue-300",
-    in_progress: "bg-yellow-500/20 text-yellow-300",
-    needs_redo: "bg-orange-500/20 text-orange-300",
-    completed: "bg-emerald-500/20 text-emerald-300",
-    verified: "bg-emerald-500/20 text-emerald-300",
+    standard: "bg-slate-500/15 text-slate-800 dark:text-slate-300 border-slate-500/30",
 };
 
 function formatOverdue(hours: number, days: number): string {
@@ -533,18 +525,28 @@ export function SlaManagementTab({
                         </div>
 
                         <div className="relative z-10 space-y-3">
-                            <div className="grid grid-cols-3 gap-2">
-                                <PolicyTile label="Low" value={slaPolicy.low} unit="d" />
-                                <PolicyTile label="Medium" value={slaPolicy.medium} unit="d" />
-                                <PolicyTile label="High" value={slaPolicy.high} unit="d" />
+                            <div>
+                                <span className="text-xs font-medium text-muted-foreground block mb-1.5">Cleaner Resolution SLA</span>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <PolicyTile label="Low" value={slaPolicy.low} unit="d" />
+                                    <PolicyTile label="Medium" value={slaPolicy.medium} unit="d" />
+                                    <PolicyTile label="High" value={slaPolicy.high} unit="d" />
+                                </div>
                             </div>
 
-                            <div className="pt-1 border-t border-border/50 space-y-1.5">
-                                <span className="text-xs font-medium text-muted-foreground block">Barangay Dispatch SLA (Hours)</span>
-                                <div className="grid grid-cols-3 gap-2">
-                                    <PolicyTile label="Low" value={slaPolicy.assign_low_hours || 48} unit="h" />
-                                    <PolicyTile label="Medium" value={slaPolicy.assign_medium_hours || 24} unit="h" />
-                                    <PolicyTile label="High" value={slaPolicy.assign_high_hours || 12} unit="h" />
+                            <div className="pt-2 border-t border-border/50">
+                                <div className="flex items-center justify-between mb-1.5">
+                                    <span className="text-xs font-medium text-muted-foreground">Barangay Dispatch SLA</span>
+                                    <span className="text-[11px] text-muted-foreground/80">Standard Window</span>
+                                </div>
+                                <div className="p-3 rounded-lg border bg-muted/50 border-border flex items-center justify-between">
+                                    <div>
+                                        <div className="text-xs font-semibold text-foreground">Review & Deploy</div>
+                                        <div className="text-[11px] text-muted-foreground">Time limit to assign a cleaner once verified</div>
+                                    </div>
+                                    <div className="text-xl font-bold text-foreground font-mono">
+                                        {slaPolicy.assign_hours || slaPolicy.assign_medium_hours || 24}h
+                                    </div>
                                 </div>
                             </div>
 
