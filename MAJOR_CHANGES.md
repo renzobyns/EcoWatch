@@ -272,6 +272,39 @@ In field operations across San Jose del Monte (e.g. riverbanks, isolated agricul
 
 ---
 
+### 8️⃣ Generation 8: DBSCAN Geospatial Hotspots & Operational Decision Support Analytics (MC-009)
+* **Status**: In Progress
+* **Planned**: November 10, 2026
+* **Execution**: Pending
+
+#### Problem Statement & Rationale:
+The CENRO Analytics page previously suffered from metric inflation, visual duplication, and descriptive stagnation:
+1. **In-Page Redundancy**: Row 2's "Period vs Period" card was an exact 1:1 duplicate of Row 1's "Hero KPI" cards, consuming 33% of prime dashboard width without providing new intelligence.
+2. **Tab Cannibalization & Math Inconsistencies**: The Analytics tab duplicated raw counts from the Dashboard and Barangay Management tabs, but used conflicting formulas (e.g. Success Rate vs Resolution Rate having different denominators).
+3. **Missing Capstone Differentiators**: EcoWatch's academic thesis centers on DBSCAN geospatial clustering and multi-layer AI verification. However, the Analytics tab had zero DBSCAN hotspot intelligence, zero recurrence/recidivism tracking, and only showed a bimodal Mask R-CNN histogram that omitted Layer 1 (Gemini VLM) and Layer 3 (CENRO Human Triage).
+4. **Descriptive "Information" vs. Diagnostic "Analytics"**: The page reported passive volume counts rather than answering *where* illegal dumping concentrates, *whether* dumps recur at cleaned sites, and *where* operational bottlenecks occur.
+
+#### Architectural Enhancements:
+1. **DBSCAN Chronic Hotspot & Recidivism Intelligence**:
+   - Integrates backend DBSCAN clustering (`eps=0.001° ~ 100m`, `min_samples=2`) directly into `compute_insights()`.
+   - Computes City-Wide Active Hotspots and a **Chronic Recidivism Index** (% of reports falling in repeat hotspot zones).
+   - Replaces the redundant "Period vs Period" card with a Top Hotspots & Recidivism widget featuring modal drilldown into underlying reports.
+2. **Operational Stage Pipeline & Duplicate Resolution**:
+   - Transforms the e-commerce style "funnel" into a municipal **Operational Pipeline Flow** (`Submitted` → `Ready for Dispatch` → `Under Cleanup` → `Resolved`).
+   - Fixes the backend aggregation bug where duplicate reports were dropped from funnel stages, eliminating in-page count discrepancies.
+   - Surfaces explicit branches for Duplicates Filtered, AI Rejected, and Redos.
+3. **Three-Layer AI Verification Health Card**:
+   - Replaces the legacy Mask R-CNN histogram with a comprehensive 3-Layer Verification Breakdown:
+     - Layer 1 (Gemini Flash VLM): Pre-filter pass/reject rate and savings.
+     - Layer 2 (Mask R-CNN): Mean segmentation confidence.
+     - Layer 3 (CENRO Human Triage): Override rate vs automated confirmations.
+4. **Barangay Hotspot & SLA Ranking**:
+   - Transforms the redundant Top 10 volume table into an analytical ranking tracking active hotspots per barangay, repeat dumping rates, and SLA compliance.
+5. **Cross-Portal Metric Formula Standardization**:
+   - Standardizes "Resolution Rate" across Dashboard, Analytics, and Barangay Management to consistently evaluate actionable eligible reports, with clear mathematical tooltips.
+
+---
+
 ## 📜 Master Registry of Major System Changes
 
 | ID | Change Title | Planned Date | Execution Date | Status | Primary Impact |
@@ -284,6 +317,7 @@ In field operations across San Jose del Monte (e.g. riverbanks, isolated agricul
 | **MC-006** | **Cleanup Verification Result Transparency** | 2026-10-23 | 2026-10-23 | Completed | Exposes multi-layer verification results (integrity, SIFT landmarks, Mask R-CNN, VLM) to cleaners with actionable retake guidance, role-based visibility, and CENRO manual override. |
 | **MC-007** | **Muzon 4-Way Administrative & Geospatial Partitioning** | 2026-10-24 | 2026-10-24 | Completed | Subdivides Muzon into 4 barangays (62 total), updates GeoJSON boundaries, ray-casting routing, dedicated barangay & cleaner portals. |
 | **MC-008** | **Offline-First Resilience & Outbox Synchronization** | 2026-10-31 | 2026-10-31 | Completed | IndexedDB photo/draft persistence, client-side zero-network ray-casting, background auto-retry sync queue for interrupted connections. |
+| **MC-009** | **DBSCAN Geospatial Hotspots & Operational Decision Support Analytics** | 2026-11-10 | — | In Progress | Eliminates in-page KPI redundancy, integrates DBSCAN hotspot & recidivism intelligence, adds 3-layer AI metrics, and standardizes cross-tab resolution rate math. |
 
 ---
 

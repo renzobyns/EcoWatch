@@ -525,6 +525,9 @@
 - [ ] Add smart assignment suggestions ("Cleaner B has fewer active jobs")
 
 ### CENRO Improvements
+- [ ] Fix SLA City-Wide Compliance 100% calculation bug (include active breaches in denominator) (Bug #25)
+- [ ] Fix SLA Active Breaches table "BREACHED" blue badge & low contrast priority badges (Bug #26)
+- [ ] Clickable DBSCAN Hotspot Clusters & Detailed Reports Breakdown (Feature #24)
 - [x] GoTyme-inspired mobile navigation & bottom menu drawer (`PortalShell.tsx`)
 - [x] SLA Management mobile layout: 2x2 KPI grid, responsive incident breach cards, and per-barangay cards (`SlaManagementTab.tsx`)
 - [x] Evidence Gallery mobile layout: 2x2 KPI grid, full-width search/dropdowns, and 4:3 high-res photo viewer with 3-way segmented switcher (`EvidenceGalleryTab.tsx`)
@@ -556,6 +559,16 @@
 - [x] Client-side zero-network ray-casting using local sjdm_barangays.geojson
 - [x] Outbox queue with auto-retry sync on online window event
 - [x] PWA service worker + app shell caching for /report and /cleaner portals
+
+### 🧠 MC-009 — DBSCAN Geospatial Hotspots & Operational Decision Support Analytics
+- [/] **Architecture & Documentation**: Logged MC-009 in `MAJOR_CHANGES.md` with problem statement and technical architecture
+- [ ] **Backend Aggregation**: Integrate `get_heatmap_clusters` and recidivism metrics into `compute_insights()` in `backend/analytics.py`
+- [ ] **Backend Fix**: Include `duplicate` reports in funnel/pipeline aggregation to eliminate 45 vs 42 count mismatch
+- [ ] **Backend 3-Layer Metrics**: Add Layer 1 VLM pre-filter rate and Layer 3 human triage override metrics to `_build_ai_quality`
+- [ ] **Frontend Row 2**: Replace redundant "Period vs Period" (`PvpRow`) with interactive DBSCAN Top Hotspots & Recidivism Card
+- [ ] **Frontend Row 3**: Upgrade Funnel to an Operational Stage Pipeline Flow (with modal drilldowns) and 3-Layer AI Health Card
+- [ ] **Frontend Row 4**: Transform Barangay Leaderboard into "Barangay Hotspot & SLA Ranking"
+- [ ] **Cross-Tab Consistency**: Standardize "Resolution Rate" formula on actionable eligible reports across Dashboard and Analytics
 
 ---
 

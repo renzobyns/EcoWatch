@@ -36,6 +36,9 @@
 | **#21** | 🐛 Bug | DevOptionsModal throws `Requires role: cenro` on open & fails to toggle presentation mode without CENRO session | Dev Options (`DevOptionsModal.tsx` & Backend) | `[/]` Fixed by Agent |
 | **#22** | 🐛 Bug | Date Reported on Track view displays UTC time (11:09 PM) instead of local time (7:09 AM) | Public Tracker (`/track/[id]`) & Date Utils | `[/]` Fixed by Agent |
 | **#23** | 🐛 Bug | Leaked VLM / Gemini Clues & Disguised AI Summary Card on Defense Mode | Report Drawer, Track Page, Cleanup Card | `[/]` Fixed by Agent |
+| **#24** | 🚀 Feature | Clickable DBSCAN Hotspot Clusters & Detailed Reports Breakdown | CENRO City Map (`cenro/page.tsx`, `backend/analytics.py`) | `[ ]` Open / Pending |
+| **#25** | 🐛 Bug | City-Wide SLA Compliance shows 100% when active breaches exist | Backend SLA Analytics (`backend/main.py:5075`) | `[ ]` Open / Pending |
+| **#26** | 🐛 Bug | Low contrast & misleading blue color on "BREACHED" status pill | SLA Tab (`SlaManagementTab.tsx:78, 317`) | `[ ]` Open / Pending |
 
 ---
 
@@ -404,3 +407,77 @@
   1. In Defense Mode, open report `EW-0036` on `/track/[id]` and in CENRO drawer. Confirm NO extra summary box with Sparkles icon appears, and banner reads `ADMIN TRIAGE`.
   2. Inspect a resolved cleanup proof. Confirm exactly 3 layers are shown (Layer 1 Integrity, Layer 2 Landmarks, Layer 3 Mask R-CNN) with zero Gemini quotes or image descriptions.
   3. Open Settings -> Connectivity tab. Confirm no VLM or Pre-Filter service is shown.
+
+---
+
+### - [ ] 🚀 Feature #24: Clickable Hotspot Clusters with Interactive Reports Breakdown
+
+* **Pages / Files:** CENRO City Map (`frontend/app/cenro/page.tsx:1161-1172`), Map Component (`frontend/components/MapComponent.tsx`), Backend Analytics (`backend/analytics.py:107-115`, `backend/main.py:4582`)
+* **Screenshots:**
+  ![CENRO Active Hotspots Overview](./docs/bug-tracker/screenshots/feat24-cenro-cluster-list-overview.jpg)
+  ![Active Hotspot Cluster Zoom](./docs/bug-tracker/screenshots/feat24-cenro-cluster-hotspot-item-zoom.png)
+* **What happens / Current Behavior:**
+  In the CENRO City Map view (`/cenro`), the "Active Hotspots" panel displays a list of DBSCAN clusters (e.g., "Cluster 0", "Minuyan Proper", "2 INTENSITY", "2 reports"). Currently, each cluster item is rendered as a plain, static `div` with no click handler or interactive behavior. Admins cannot click on a cluster to see which specific reports belong to that cluster, inspect their details/thumbnails/status, or zoom into their location on the map.
+* **Root Cause:**
+  1. In `frontend/app/cenro/page.tsx:1161-1172`, `heatmaps.map(...)` renders a plain unclickable `<div>` without `onClick` actions, active state styling, or an expanded/modal report list.
+  2. In `backend/analytics.py:107-115`, `get_heatmap_clusters()` only returns `{cluster_id, lat, lon, intensity, report_count, barangays, points}` without report identifiers (`report_ids`), making it impossible for the client to directly resolve which reports belong to the cluster without re-running distance calculations.
+* **Fix / Action Plan:**
+  1. **Backend Enrichment (`backend/analytics.py`)**:
+     - Add `"report_ids": [r.id for r in cluster_reports]` to each cluster dict in `get_heatmap_clusters()`.
+  2. **Interactive UI & Drilldown (`frontend/app/cenro/page.tsx`)**:
+     - Make cluster list items interactive with hover effects, cursor pointer, and active selection indicator.
+     - When a cluster is clicked:
+       - Zoom / pan the map to the cluster centroid coordinates (`lat`, `lon`).
+       - Expand an inline breakdown accordion or open an inspection modal/sheet showing all reports in the cluster (thumbnail, tracking ID `EW-XXXX`, barangay, status badge, date submitted).
+       - Clicking any report in the cluster list opens the existing `ReportDetailDrawer` for full report inspection and triage.
+* **User Verification Steps:**
+  1. Navigate to CENRO Portal -> City Map tab (`/cenro`).
+  2. In the "Active Hotspots" sidebar, click on "Cluster 0".
+  3. Verify the map flies/pans to the cluster centroid.
+  4. Verify the cluster item reveals or opens a list of the reports in that cluster with tracking IDs and status.
+  5. Click on one of the reports and confirm the report detail drawer opens for full inspection.
+
+---
+
+### - [ ] 🐛 Bug #25: City-Wide SLA Compliance calculates as 100% despite active overdue breaches
+
+* **Pages / Files:** SLA Backend Computation (`backend/main.py:5075, 5082`), CENRO SLA Management (`frontend/components/portal/SlaManagementTab.tsx:8`)
+* **Screenshots:**
+  ![SLA Compliance 100% with Active Breach](./docs/bug-tracker/screenshots/bug25-sla-compliance-100-active-breach.jpg)
+* **What happens / Current Behavior:**
+  On the CENRO SLA Management page, the KPI card for "Active Breaches" shows `1`, yet the "City-Wide Compliance" card displays `100%`.
+* **Root Cause:**
+  In `backend/main.py:5075`, compliance rate is computed strictly as:
+  `city_compliance_rate = (on_time_completed / total_completed * 100) if total_completed > 0 else 0.0`
+  Active breaches that are overdue have not completed yet, so they are entirely excluded from `total_completed`. However, active breaches are already past their SLA deadline and can never be completed on time. Excluding them creates a false 100% compliance score.
+* **Fix / Action Plan:**
+  Update the denominator in `backend/main.py` (`_compute_sla_compliance`) to include active breaches:
+  `compliance_rate = (on_time_completed / (total_completed + active_breaches) * 100)` for both city-wide and per-barangay metrics.
+* **User Verification Steps:**
+  1. Have 1 completed on-time work order and 1 active breached work order in the database.
+  2. Open SLA Management tab (`/cenro`).
+  3. Verify "City-Wide Compliance" shows `50%` instead of `100%`.
+
+---
+
+### - [ ] 🐛 Bug #26: Low contrast & semantic blue color on "BREACHED" status pill and yellow priority badges
+
+* **Pages / Files:** SLA Management Tab (`frontend/components/portal/SlaManagementTab.tsx:71-83, 317`)
+* **Screenshots:**
+  ![Low Contrast Blue Breached Pill](./docs/bug-tracker/screenshots/bug26-sla-breached-blue-pill-contrast.png)
+* **What happens / Current Behavior:**
+  In the Active Breaches table on desktop:
+  1. The "BREACHED" status badge is rendered in pale blue (`bg-blue-500/20 text-blue-300`), which violates semantic color convention (danger/breach must be red/rose, not blue/informational) and severely fails WCAG AA/AAA contrast guidelines on light backgrounds.
+  2. Priority badge "medium" uses `bg-yellow-500/20 text-yellow-300`, making it barely legible on light theme.
+* **Root Cause:**
+  In `SlaManagementTab.tsx:317`, the desktop table assigns className `${WO_STATUS_PILL[wo.status]}` while hardcoding the text as `"BREACHED"`. Because the underlying `wo.status` was `"assigned"`, it inherited `assigned: "bg-blue-500/20 text-blue-300"`.
+* **Fix / Action Plan:**
+  1. In `SlaManagementTab.tsx:317`, give the "BREACHED" badge an explicit high-contrast danger styling:
+     `bg-destructive/15 text-destructive border border-destructive/30 font-bold uppercase` (matching the mobile card at line 260).
+  2. Fix priority pills to use high-contrast theme-aware tokens for both light and dark mode (e.g. `bg-amber-500/15 text-amber-900 dark:text-amber-300 border-amber-500/30` for medium).
+* **User Verification Steps:**
+  1. Open SLA Management tab in Light Mode.
+  2. Inspect the Active Breaches table.
+  3. Verify the "BREACHED" pill is bold red with clear contrast, and "medium" priority is easily readable.
+
+
