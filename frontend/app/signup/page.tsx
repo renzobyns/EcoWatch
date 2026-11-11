@@ -9,7 +9,7 @@ import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://renzobyns-ecowatch-backend.hf.space";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api/backend";
 
 export default function SignUpPage() {
     const router = useRouter();

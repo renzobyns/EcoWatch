@@ -22,7 +22,7 @@ import CleanupVerificationCard from "@/components/portal/CleanupVerificationCard
 
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
 const MapComponent = dynamic(() => import("@/components/MapComponent"), { ssr: false });
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://renzobyns-ecowatch-backend.hf.space";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api/backend";
 
 export const REJECTION_PRESETS = [
     { value: "false_report", label: "False report / No waste visible", desc: "Clean street, selfie, or non-waste photo" },

@@ -15,7 +15,7 @@ import BeforeAfterCompare from "@/components/BeforeAfterCompare";
 import CleanupVerificationCard from "@/components/portal/CleanupVerificationCard";
 import { useSystemDisplay } from "@/lib/useSystemDisplay";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://renzobyns-ecowatch-backend.hf.space";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api/backend";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

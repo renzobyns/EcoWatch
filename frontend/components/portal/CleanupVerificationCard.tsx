@@ -111,7 +111,7 @@ interface CleanupVerificationCardProps {
     actionLoading?: boolean;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://renzobyns-ecowatch-backend.hf.space";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api/backend";
 
 function getAssetUrl(url: string | null | undefined): string {
     if (!url) return "";

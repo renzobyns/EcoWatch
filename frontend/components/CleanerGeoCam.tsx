@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import piexif from "piexifjs";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://renzobyns-ecowatch-backend.hf.space";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api/backend";
 
 /**
  * A cleanup photo captured by the in-app cleaner geo-camera.

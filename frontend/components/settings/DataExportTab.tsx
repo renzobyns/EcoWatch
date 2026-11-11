@@ -4,7 +4,7 @@ import { FileText, Database, Image as ImageIcon, BarChart3 } from "lucide-react"
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://renzobyns-ecowatch-backend.hf.space";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api/backend";
 
 function getUserIdHeader(): Record<string, string> {
     if (typeof window === "undefined") return {};

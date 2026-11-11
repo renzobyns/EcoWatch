@@ -27,7 +27,7 @@ const MiniMap = dynamic(() => import("@/components/MiniMap"), {
     loading: () => <div className="w-full h-full bg-foreground/5 animate-pulse flex items-center justify-center"><p className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest">Map Loading...</p></div>
 });
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://renzobyns-ecowatch-backend.hf.space";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api/backend";
 const MAX_PHOTOS = 5;
 const MAX_BYTES = 10 * 1024 * 1024;
 

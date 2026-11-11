@@ -9,7 +9,7 @@ import { formatDateTime } from "@/lib/date-utils";
 
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
 import BeforeAfterCompare from "@/components/BeforeAfterCompare";
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://renzobyns-ecowatch-backend.hf.space";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api/backend";
 
 const STATUS_STEPS = ["pending", "verified", "assigned", "in_progress", "resolved"];
 

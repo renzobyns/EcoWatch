@@ -19,7 +19,7 @@ import {
 const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
 const CleanerGeoCam = dynamic(() => import("@/components/CleanerGeoCam"), { ssr: false });
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://renzobyns-ecowatch-backend.hf.space";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api/backend";
 
 function getImageUrl(url: string | null | undefined): string {
     if (!url) return "";
