@@ -1085,7 +1085,7 @@ function EvidenceTab({
                                         {p.mask_url ? (
                                             <>
                                                 <img 
-                                                    src={polledData && polledData.photos?.[i]?.mask_url ? `${API_URL}${polledData.photos[i].mask_url}` : `${API_URL}${p.mask_url}`} 
+                                                    src={`${API_URL}${p.mask_url}`} 
                                                     alt="AI mask" 
                                                     className="w-full h-full object-cover"
                                                     onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
