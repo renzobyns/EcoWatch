@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { GeoPhoto } from "@/components/GeoTagCamera";
 import { api, ApiError } from "@/lib/api";
-import { getBarangayOffline } from "@/lib/geo";
 import {
     saveCitizenDraft,
     getCitizenDraft,
@@ -27,9 +26,7 @@ const MiniMap = dynamic(() => import("@/components/MiniMap"), {
     loading: () => <div className="w-full h-full bg-foreground/5 animate-pulse flex items-center justify-center"><p className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest">Map Loading...</p></div>
 });
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api/backend";
 const MAX_PHOTOS = 5;
-const MAX_BYTES = 10 * 1024 * 1024;
 
 
 interface ReportPhoto {
@@ -583,10 +580,15 @@ export default function ReportPage() {
                             </Button>
                         </div>
                         <p className="mt-3 text-center text-[11px] text-foreground/50 leading-relaxed">
-                            By submitting, you agree that uploaded photos will be verified using AI (Mask R-CNN Instance Segmentation) with all EXIF metadata stripped locally under RA 10173.{" "}
-                            <Link href="/privacy" className="text-primary hover:underline font-medium">
+                            By submitting, you agree to our{" "}
+                            <Link href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">
+                                Terms of Service
+                            </Link>{" "}
+                            and{" "}
+                            <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">
                                 Privacy Policy
                             </Link>
+                            . Photos are geotagged and verified by AI (Mask R-CNN Instance Segmentation) under RA 10173.
                         </p>
                     </div>
                 )}

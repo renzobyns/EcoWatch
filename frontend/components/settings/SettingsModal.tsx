@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { X, ChevronLeft } from "lucide-react";
 
 import { SettingsSidebar } from "@/components/settings/SettingsSidebar";
@@ -90,15 +91,32 @@ export function SettingsModal({ open, onClose, role = "cenro" }: SettingsModalPr
                 <SettingsSidebar activeTab={activeTab} onTabChange={setActiveTab} role={role.toLowerCase() as "cenro" | "barangay" | "cleaner" | "citizen" | "guest"} />
                 
                 {/* Right content */}
-                <div className="flex-1 overflow-y-auto p-5 pb-12 md:p-8">
-                    {activeTab === "language" && <GeneralTab section="language" />}
-                    {activeTab === "appearance" && <GeneralTab section="appearance" />}
-                    {activeTab === "shortcuts" && <GeneralTab section="shortcuts" />}
-                    {activeTab === "storage" && <StorageSettingsTab />}
-                    {activeTab === "connectivity" && <ConnectivityTab />}
-                    {activeTab === "export" && <DataExportTab />}
-                    {activeTab === "ai_policy" && <AiPolicyTab />}
-                    {activeTab === "notifications" && <NotificationsTab />}
+                <div className="flex-1 overflow-y-auto p-5 pb-12 md:p-8 flex flex-col justify-between">
+                    <div>
+                        {activeTab === "language" && <GeneralTab section="language" />}
+                        {activeTab === "appearance" && <GeneralTab section="appearance" />}
+                        {activeTab === "shortcuts" && <GeneralTab section="shortcuts" />}
+                        {activeTab === "storage" && <StorageSettingsTab />}
+                        {activeTab === "connectivity" && <ConnectivityTab />}
+                        {activeTab === "export" && <DataExportTab />}
+                        {activeTab === "ai_policy" && <AiPolicyTab />}
+                        {activeTab === "notifications" && <NotificationsTab />}
+                    </div>
+
+                    {/* Legal & Policies Link Section */}
+                    <div className="mt-8 pt-5 border-t border-border/50 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                            <span className="font-semibold text-foreground/80">Legal &amp; Policies:</span>
+                            <Link href="/terms" target="_blank" rel="noopener noreferrer" className="hover:text-primary hover:underline transition-colors">
+                                Terms of Service
+                            </Link>
+                            <span>•</span>
+                            <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-primary hover:underline transition-colors">
+                                Privacy Policy
+                            </Link>
+                        </div>
+                        <span className="text-[11px] text-muted-foreground/60">RA 10173 • City of SJDM</span>
+                    </div>
                 </div>
             </div>
         </div>

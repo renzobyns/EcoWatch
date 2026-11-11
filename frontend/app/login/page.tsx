@@ -221,8 +221,8 @@ export default function LoginPage() {
 
                 {/* Footer Links */}
                 <div className="relative z-10 flex gap-6 text-[9px] font-bold uppercase tracking-widest text-foreground/40 mt-4">
-                    <Link href="/privacy" className="hover:text-primary transition-colors">Privacy</Link>
-                    <Link href="/terms" className="hover:text-primary transition-colors">Terms</Link>
+                    <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Privacy</Link>
+                    <Link href="/terms" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Terms</Link>
                     <span>© 2026 EcoWatch SJDM</span>
                 </div>
             </div>
@@ -393,6 +393,13 @@ export default function LoginPage() {
                         <p className="text-[10px] text-muted-foreground leading-snug">
                             All 62 barangays: <span className="font-mono text-foreground/80">&lt;name&gt;@barangay.com</span> &amp; <span className="font-mono text-foreground/80">&lt;name&gt;@cleaners.com</span> (e.g., <span className="font-mono text-primary font-medium">muzonproper@barangay.com</span>)
                         </p>
+                    </div>
+
+                    {/* Mobile Legal Links */}
+                    <div className="lg:hidden mt-6 pt-4 border-t border-border/40 flex items-center justify-center gap-4 text-[11px] text-foreground/50">
+                        <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Privacy Policy</Link>
+                        <span>•</span>
+                        <Link href="/terms" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Terms of Service</Link>
                     </div>
                 </div>
             </div>

@@ -47,7 +47,8 @@ export function DevOptionsModal() {
                     }
                     if (typeof data.gemini_display === "boolean") {
                         setGeminiDisplay(data.gemini_display);
-                        localStorage.setItem("ecowatch_gemini_display", String(data.gemini_display));
+                        localStorage.setItem("ecowatch_dev_telemetry", String(data.gemini_display));
+                        localStorage.removeItem("ecowatch_gemini_display");
                     }
                     if (typeof data.email_verification_enabled === "boolean") {
                         setEmailVerificationEnabled(data.email_verification_enabled);
@@ -65,10 +66,23 @@ export function DevOptionsModal() {
             } catch (err) {
                 console.error("Failed to load dev config", err);
                 // Fallback to local storage
-                const localGemini = localStorage.getItem("ecowatch_gemini_display");
-                if (localGemini !== null) setGeminiDisplay(localGemini === "true");
-                const localMrcnn = localStorage.getItem("ecowatch_enable_cleanup_mrcnn");
-                if (localMrcnn !== null) setEnableCleanupMrcnn(localMrcnn === "true");
+                try {
+                    const localTelemetry = localStorage.getItem("ecowatch_dev_telemetry");
+                    const legacyGemini = localStorage.getItem("ecowatch_gemini_display");
+                    if (legacyGemini !== null) {
+                        if (localTelemetry === null) {
+                            localStorage.setItem("ecowatch_dev_telemetry", legacyGemini);
+                            setGeminiDisplay(legacyGemini === "true");
+                        }
+                        localStorage.removeItem("ecowatch_gemini_display");
+                    } else if (localTelemetry !== null) {
+                        setGeminiDisplay(localTelemetry === "true");
+                    }
+                    const localMrcnn = localStorage.getItem("ecowatch_enable_cleanup_mrcnn");
+                    if (localMrcnn !== null) setEnableCleanupMrcnn(localMrcnn === "true");
+                } catch {
+                    // Ignore storage access errors
+                }
             }
         };
 
@@ -98,7 +112,8 @@ export function DevOptionsModal() {
 
     const updateGeminiDisplay = async (val: boolean) => {
         setGeminiDisplay(val);
-        localStorage.setItem("ecowatch_gemini_display", String(val));
+        localStorage.setItem("ecowatch_dev_telemetry", String(val));
+        localStorage.removeItem("ecowatch_gemini_display");
         try {
             await api("/system-config/dev-toggle", {
                 method: "POST",

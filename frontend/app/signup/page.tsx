@@ -350,11 +350,11 @@ export default function SignUpPage() {
                             />
                             <label htmlFor="terms-consent" className="text-[11px] text-foreground/70 leading-relaxed cursor-pointer select-none">
                                 I agree to the{" "}
-                                <Link href="/terms" target="_blank" className="text-primary font-medium hover:underline underline-offset-2">
+                                <Link href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline underline-offset-2">
                                     Terms of Service
                                 </Link>{" "}
                                 and acknowledge the{" "}
-                                <Link href="/privacy" target="_blank" className="text-primary font-medium hover:underline underline-offset-2">
+                                <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline underline-offset-2">
                                     Privacy Policy
                                 </Link>{" "}
                                 in accordance with RA 10173.
@@ -380,7 +380,18 @@ export default function SignUpPage() {
                             </div>
                         </div>
 
-                        <div className="flex justify-center w-full">
+                        <div className="flex flex-col items-center gap-2.5 w-full">
+                            <p className="text-[11px] text-foreground/60 text-center leading-relaxed">
+                                By continuing with Google, you agree to our{" "}
+                                <Link href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline">
+                                    Terms of Service
+                                </Link>{" "}
+                                and{" "}
+                                <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline">
+                                    Privacy Policy
+                                </Link>
+                                .
+                            </p>
                             <GoogleLogin
                                 onSuccess={handleGoogleSuccess}
                                 onError={() => setError("Google login was canceled or failed.")}

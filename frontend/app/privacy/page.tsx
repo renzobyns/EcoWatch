@@ -21,6 +21,7 @@ import {
     AlertCircle
 } from "lucide-react";
 import Footer from "@/components/Footer";
+import { useSystemDisplay } from "@/lib/useSystemDisplay";
 
 // Centralized Contact & DPO Details (Easily Editable)
 const LEGAL_CONFIG = {
@@ -30,8 +31,8 @@ const LEGAL_CONFIG = {
     email: "ecowatch.sjdm@gmail.com",
     backupEmail: "cenro.sjdm@gmail.com",
     officeHours: "Monday – Friday, 8:00 AM – 5:00 PM PST",
-    lastUpdated: "August 30, 2026",
-    effectiveDate: "August 16, 2026",
+    lastUpdated: "February 28, 2026",
+    effectiveDate: "January 15, 2026",
     version: "1.0.0"
 };
 
@@ -46,6 +47,7 @@ const SECTIONS = [
 ];
 
 export default function PrivacyPolicyPage() {
+    const { geminiDisplay } = useSystemDisplay();
     const [activeSection, setActiveSection] = useState("overview");
 
     const scrollToSection = (id: string) => {
@@ -236,7 +238,11 @@ export default function PrivacyPolicyPage() {
                                 </div>
                                 <div>
                                     <h2 className="text-lg sm:text-xl font-bold text-foreground">3. AI & Computer Vision Processing</h2>
-                                    <p className="text-xs text-foreground/50">Multi-Stage Verification Pipeline (Mask R-CNN + CENRO Review)</p>
+                                    <p className="text-xs text-foreground/50">
+                                        {geminiDisplay 
+                                            ? "Multi-Stage Verification Pipeline (Semantic Pre-Filtering + Mask R-CNN + CENRO Review)" 
+                                            : "Mask R-CNN Instance Segmentation & Spatial Verification Pipeline"}
+                                    </p>
                                 </div>
                             </div>
 
@@ -245,15 +251,28 @@ export default function PrivacyPolicyPage() {
                                     EcoWatch SJDM employs an Automated Verification Pipeline to ensure the authenticity, privacy, and efficiency of report intake and cleanup verification:
                                 </p>
                                 <ul className="space-y-2.5 list-disc list-inside text-foreground/70">
-                                    <li>
-                                        <strong>Stage 1: Semantic Verification &amp; Scene Pre-Filtering</strong>: Citizen report photos and worker cleanup proofs are analyzed for visual context (differentiating actual illegal dumping from non-waste items, selfies, or clean surfaces). Before processing image data, our server <strong>strips all EXIF metadata (including GPS coordinates, device serials, and timestamps)</strong>, ensuring that only anonymized visual pixels are evaluated.
-                                    </li>
-                                    <li>
-                                        <strong>Layer 2: Deep Instance Segmentation (Mask R-CNN)</strong>: Confirmed waste images are processed locally by our custom-trained Mask R-CNN model to detect garbage clusters, compute segmentation confidence scores, and generate visual polygon mask overlays without relying on external cloud APIs.
-                                    </li>
-                                    <li>
-                                        <strong>Layer 3: Human-in-the-Loop Review (CENRO SJDM)</strong>: Reports with conflicting AI classifications or borderline confidence are automatically queued for side-by-side inspection and manual resolution by authorized CENRO personnel.
-                                    </li>
+                                    {geminiDisplay ? (
+                                        <>
+                                            <li>
+                                                <strong>Stage 1: Semantic Verification &amp; Scene Pre-Filtering</strong>: Citizen report photos and worker cleanup proofs are analyzed for visual context (differentiating actual illegal dumping from non-waste items, selfies, or clean surfaces). Only anonymized visual pixels are evaluated during cloud verification.
+                                            </li>
+                                            <li>
+                                                <strong>Layer 2: Deep Instance Segmentation (Mask R-CNN)</strong>: Confirmed waste images are processed locally by our custom-trained Mask R-CNN model to detect garbage clusters, compute segmentation confidence scores, and generate visual polygon mask overlays without relying on external cloud APIs.
+                                            </li>
+                                            <li>
+                                                <strong>Layer 3: Human-in-the-Loop Review (CENRO SJDM)</strong>: Reports with conflicting AI classifications or borderline confidence are automatically queued for side-by-side inspection and manual resolution by authorized CENRO personnel.
+                                            </li>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <li>
+                                                <strong>Mask R-CNN Deep Instance Segmentation</strong>: Uploaded citizen photos and cleanup remediation proofs are processed directly by our custom-trained Mask R-CNN deep learning architecture to detect municipal waste instances, calculate pixel-level segmentation masks, and evaluate detection confidence.
+                                            </li>
+                                            <li>
+                                                <strong>Human-in-the-Loop Review (CENRO SJDM)</strong>: Reports with borderline detection confidence or flagged for manual inspection are automatically routed to authorized CENRO personnel for side-by-side inspection and manual resolution.
+                                            </li>
+                                        </>
+                                    )}
                                     <li>
                                         <strong>Spatial Ray-Casting</strong>: GPS points are tested against San Jose del Monte&apos;s 59 barangay boundary polygons (`sjdm_barangays.geojson`) using Shapely point-in-polygon algorithms to automatically assign jurisdictional responsibility.
                                     </li>
@@ -294,7 +313,7 @@ export default function PrivacyPolicyPage() {
                                     </div>
                                     <div className="flex items-start gap-2.5">
                                         <CheckCircle2 size={16} className="text-primary mt-0.5 shrink-0" />
-                                        <span><strong>Infrastructure Partners:</strong> Secure cloud infrastructure (Supabase PostgreSQL, Vercel hosting, AI assistance services) processing data under strict data protection terms.</span>
+                                        <span><strong>Infrastructure Partners:</strong> Secure cloud infrastructure (Supabase PostgreSQL, Vercel hosting{geminiDisplay ? ", AI assistance services" : ""}) processing data under strict data protection terms.</span>
                                     </div>
                                 </div>
                                 <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs flex items-start gap-2.5 mt-4">
@@ -414,7 +433,11 @@ export default function PrivacyPolicyPage() {
                                 </div>
 
                                 <p className="text-[11px] text-foreground/50 italic">
-                                    Note: You may also file a formal complaint with the National Privacy Commission (NPC) of the Philippines via https://privacy.gov.ph if you believe your rights have been compromised.
+                                    Note: You may also file a formal complaint with the National Privacy Commission (NPC) of the Philippines via{" "}
+                                    <a href="https://privacy.gov.ph" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                                        https://privacy.gov.ph
+                                    </a>{" "}
+                                    if you believe your rights have been compromised.
                                 </p>
                             </div>
                         </section>

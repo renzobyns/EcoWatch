@@ -19,6 +19,7 @@ import {
     UserCheck
 } from "lucide-react";
 import Footer from "@/components/Footer";
+import { useSystemDisplay } from "@/lib/useSystemDisplay";
 
 // Centralized Contact & Legal Configuration (Easily Editable)
 const LEGAL_CONFIG = {
@@ -27,8 +28,8 @@ const LEGAL_CONFIG = {
     email: "ecowatch.sjdm@gmail.com",
     backupEmail: "cenro.sjdm@gmail.com",
     officeHours: "Monday – Friday, 8:00 AM – 5:00 PM PST",
-    lastUpdated: "August 30, 2026",
-    effectiveDate: "August 16, 2026",
+    lastUpdated: "February 28, 2026",
+    effectiveDate: "January 15, 2026",
     version: "1.0.0"
 };
 
@@ -44,6 +45,7 @@ const SECTIONS = [
 ];
 
 export default function TermsOfServicePage() {
+    const { geminiDisplay } = useSystemDisplay();
     const [activeSection, setActiveSection] = useState("acceptance");
 
     const scrollToSection = (id: string) => {
@@ -279,13 +281,17 @@ export default function TermsOfServicePage() {
                                 </div>
                                 <div>
                                     <h2 className="text-lg sm:text-xl font-bold text-foreground">5. AI Verification Disclaimer</h2>
-                                    <p className="text-xs text-foreground/50">Machine learning models as assistive decision support</p>
+                                    <p className="text-xs text-foreground/50">
+                                        {geminiDisplay 
+                                            ? "Multi-stage automated decision support pipeline" 
+                                            : "Machine learning models as assistive decision support"}
+                                    </p>
                                 </div>
                             </div>
 
                             <div className="text-xs sm:text-sm text-foreground/80 leading-relaxed space-y-3 pt-2">
                                 <p>
-                                    EcoWatch uses <strong>Mask R-CNN</strong> deep learning algorithms and spatial heuristics to assist verification. While these models achieve high precision in municipal waste detection, they are assistive decision-support tools:
+                                    EcoWatch uses <strong>Mask R-CNN</strong> deep learning algorithms and spatial heuristics{geminiDisplay ? " alongside semantic pre-filtering" : ""} to assist verification. While these models achieve high precision in municipal waste detection, they are assistive decision-support tools:
                                 </p>
                                 <ul className="space-y-2 list-disc list-inside text-foreground/70">
                                     <li>AI verification confidence scores do not replace official barangay or CENRO sanitary inspection findings.</li>
