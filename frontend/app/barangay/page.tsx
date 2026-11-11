@@ -1251,7 +1251,7 @@ function BarangayPortalInner() {
                                     <div>
                                         <p className="text-xs font-medium text-muted-foreground">AI Rejected</p>
                                         <h3 className="text-2xl font-bold text-foreground mt-0.5">{aiRejectedCount}</h3>
-                                        <p className="text-[11px] text-red-600 dark:text-red-400 mt-1">Override candidates</p>
+                                        <p className="text-[11px] text-red-600 dark:text-red-400 mt-1">Awaiting confirmation</p>
                                     </div>
                                     <div className="size-10 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center">
                                         <AlertTriangle size={18} />
@@ -1511,7 +1511,7 @@ function BarangayPortalInner() {
                                                         }`}>
                                                             {isAiRejected ? (
                                                                 <span>
-                                                                    <strong>AI Verdict:</strong> Waste not detected ({report.ai_confidence ? `${Math.round(report.ai_confidence * 100)}%` : "0%"}). Review and override if garbage is visible.
+                                                                    <strong>AI Verdict:</strong> Waste not detected ({report.ai_confidence ? `${Math.round(report.ai_confidence * 100)}%` : "0%"}). Confirm rejection to finalize report archive.
                                                                 </span>
                                                             ) : (
                                                                 <span>
@@ -1522,31 +1522,33 @@ function BarangayPortalInner() {
 
                                                         {/* Action Buttons */}
                                                         <div className="flex items-center gap-2 pt-1 relative">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleHumanVerify(report.id, "approve")}
-                                                                disabled={isActioning}
-                                                                className="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-all shadow-sm disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center gap-1.5"
-                                                            >
-                                                                {isActioning ? (
-                                                                    <>
-                                                                        <RefreshCw size={13} className="animate-spin" />
-                                                                        <span>Processing...</span>
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <CheckCircle2 size={14} />
-                                                                        <span>{isAiRejected ? "Override & Approve" : "Confirm & Approve"}</span>
-                                                                    </>
-                                                                )}
-                                                            </button>
+                                                            {!isAiRejected && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleHumanVerify(report.id, "approve")}
+                                                                    disabled={isActioning}
+                                                                    className="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-all shadow-sm disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                                                >
+                                                                    {isActioning ? (
+                                                                        <>
+                                                                            <RefreshCw size={13} className="animate-spin" />
+                                                                            <span>Processing...</span>
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <CheckCircle2 size={14} />
+                                                                            <span>Confirm & Approve</span>
+                                                                        </>
+                                                                    )}
+                                                                </button>
+                                                            )}
 
-                                                            <div className="relative">
+                                                            <div className={`relative ${isAiRejected ? "w-full flex-1" : ""}`}>
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => setShowRejectDropdown(isDropdownOpen ? null : report.id)}
                                                                     disabled={isActioning}
-                                                                    className="py-2 px-3 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition-all shadow-sm disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-1"
+                                                                    className={`${isAiRejected ? "w-full justify-center" : ""} py-2 px-3 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition-all shadow-sm disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-1`}
                                                                     title="Select rejection preset reason"
                                                                 >
                                                                     <span>{isAiRejected ? "Confirm Reject" : "Reject"}</span>
@@ -3268,13 +3270,16 @@ function BarangayPortalInner() {
                                                 <ShieldCheck size={16} /> AI Rejected Report
                                             </div>
                                             <p className="text-xs text-foreground/70">
-                                                Mask R-CNN did not detect waste in this photo ({selectedReport.ai_confidence ? `${Math.round(selectedReport.ai_confidence * 100)}%` : "0%"}). If this is a false negative, you can review the photo and manually approve it.
+                                                AI verification determined no waste is present in this photo ({selectedReport.ai_confidence ? `${Math.round(selectedReport.ai_confidence * 100)}%` : "0%"}). Confirm rejection to finalize and archive the ticket.
                                             </p>
                                             <button
-                                                onClick={() => setVerifyGateReport(selectedReport)}
+                                                onClick={() => {
+                                                    setVerifyGateReport(selectedReport);
+                                                    setGateRejectMode(true);
+                                                }}
                                                 className="w-full py-2 px-3 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors flex items-center justify-center gap-1.5"
                                             >
-                                                <ShieldCheck size={14} /> Review & Override AI Rejection
+                                                <AlertTriangle size={14} /> Confirm Rejection
                                             </button>
                                         </div>
                                     )}
@@ -3685,23 +3690,25 @@ function BarangayPortalInner() {
                         <div className="p-4 border-t border-border bg-muted/20 flex flex-col sm:flex-row gap-2">
                             {!gateRejectMode ? (
                                 <>
-                                    <button
-                                        onClick={async () => {
-                                            await handleHumanVerify(verifyGateReport.id, "approve");
-                                        }}
-                                        disabled={reviewActionLoading === verifyGateReport.id}
-                                        className="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
-                                    >
-                                        <CheckCircle2 size={15} />
-                                        {reviewActionLoading === verifyGateReport.id ? "Verifying..." : verifyGateReport.status === 'ai_rejected' ? "Approve (Override AI)" : "Approve & Mark Verified"}
-                                    </button>
+                                    {verifyGateReport.status !== 'ai_rejected' && (
+                                        <button
+                                            onClick={async () => {
+                                                await handleHumanVerify(verifyGateReport.id, "approve");
+                                            }}
+                                            disabled={reviewActionLoading === verifyGateReport.id}
+                                            className="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                        >
+                                            <CheckCircle2 size={15} />
+                                            {reviewActionLoading === verifyGateReport.id ? "Verifying..." : "Approve & Mark Verified"}
+                                        </button>
+                                    )}
 
                                     <button
                                         onClick={() => setGateRejectMode(true)}
                                         disabled={reviewActionLoading === verifyGateReport.id}
-                                        className="py-2.5 px-4 bg-red-600/90 hover:bg-red-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50"
+                                        className={`${verifyGateReport.status === 'ai_rejected' ? "flex-1" : ""} py-2.5 px-4 bg-red-600/90 hover:bg-red-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50`}
                                     >
-                                        Reject Report...
+                                        {verifyGateReport.status === 'ai_rejected' ? "Confirm Rejection..." : "Reject Report..."}
                                     </button>
 
                                     <button

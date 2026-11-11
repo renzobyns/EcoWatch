@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import {
-    X, FileText, Camera, Shield, Clock, MapPin, User, Mail, Phone, ExternalLink, ClipboardList, RefreshCw, ShieldCheck, CheckCircle2, Sparkles, Truck, AlertTriangle
+    X, FileText, Camera, Shield, Clock, MapPin, User, Mail, Phone, ExternalLink, ClipboardList, ShieldCheck, CheckCircle2, Sparkles, Truck, AlertTriangle
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { TrustBadge } from "@/components/TrustBadge";
@@ -525,7 +525,7 @@ export function ReportDetailDrawer({
                             <div className="flex items-center gap-2">
                                 <ShieldCheck size={16} />
                                 <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-                                    {currentReport.status === "ai_rejected" ? "AI Rejected — Human Review" : "AI Verified — Confirmation Needed"}
+                                    {currentReport.status === "ai_rejected" ? "AI Rejected — Confirmation Needed" : "AI Verified — Confirmation Needed"}
                                 </span>
                             </div>
                             <span className="text-[10px] font-semibold text-muted-foreground uppercase">
@@ -534,29 +534,34 @@ export function ReportDetailDrawer({
                         </div>
                         <p className="text-xs text-foreground/80 leading-relaxed">
                             {currentReport.status === "ai_rejected"
-                                ? "AI did not detect garbage. Review the evidence photo and approve if this is a genuine report."
+                                ? "AI did not detect garbage. Confirm rejection to finalize and archive this report."
                                 : "AI detected garbage. Confirm the report evidence to authorize cleanup deployment."}
                         </p>
                         <div className="flex items-center gap-2 pt-1">
-                            <button
-                                onClick={() => handleDrawerHumanVerify("approve")}
-                                disabled={drawerVerifyLoading}
-                                className="flex-1 py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
-                            >
-                                <CheckCircle2 size={13} />
-                                {drawerVerifyLoading ? "Processing..." : currentReport.status === "ai_rejected" ? "Override & Approve" : "Confirm & Approve"}
-                            </button>
+                            {currentReport.status !== "ai_rejected" && (
+                                <button
+                                    onClick={() => handleDrawerHumanVerify("approve")}
+                                    disabled={drawerVerifyLoading}
+                                    className="flex-1 py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                >
+                                    <CheckCircle2 size={13} />
+                                    {drawerVerifyLoading ? "Processing..." : "Confirm & Approve"}
+                                </button>
+                            )}
                             <button
                                 onClick={() => {
-                                    const reason = prompt("Enter rejection reason:", "False report / No waste visible");
+                                    const defaultReason = currentReport.status === "ai_rejected" 
+                                        ? "Confirmed AI rejection: No waste detected" 
+                                        : "False report / No waste visible";
+                                    const reason = prompt("Enter rejection reason:", defaultReason);
                                     if (reason && reason.trim().length >= 3) {
                                         handleDrawerHumanVerify("reject", reason.trim());
                                     }
                                 }}
                                 disabled={drawerVerifyLoading}
-                                className="py-1.5 px-3 bg-red-600/90 hover:bg-red-600 text-white rounded-lg text-xs font-bold transition-all shadow-sm disabled:opacity-50"
+                                className={`${currentReport.status === "ai_rejected" ? "w-full flex-1" : "py-1.5 px-3"} bg-red-600/90 hover:bg-red-600 text-white rounded-lg text-xs font-bold transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5`}
                             >
-                                Reject
+                                {drawerVerifyLoading ? "Processing..." : currentReport.status === "ai_rejected" ? "Confirm Reject" : "Reject"}
                             </button>
                         </div>
                     </div>
@@ -994,7 +999,7 @@ function EvidenceTab({
     error,
     onRetry,
     userRole,
-    onUpdated,
+    onUpdated: _onUpdated,
     onForceApprove,
     onRequestRetake,
     actionLoading,
@@ -1011,59 +1016,6 @@ function EvidenceTab({
     actionLoading?: boolean;
 }) {
     const [lightbox, setLightbox] = useState<string | null>(null);
-    const [reverifyLoading, setReverifyLoading] = useState(false);
-    // Progress state: null = idle, "pending" = polling, "done" = success, "failed" = error
-    const [reverifyStatus, setReverifyStatus] = useState<"pending" | "done" | "failed" | null>(null);
-    const [reverifyError, setReverifyError] = useState<string | null>(null);
-    const [polledData, setPolledData] = useState<any>(null);
-    const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-    const stopPolling = () => {
-        if (pollRef.current) {
-            clearInterval(pollRef.current);
-            pollRef.current = null;
-        }
-    };
-
-    const handleReverify = async () => {
-        setReverifyLoading(true);
-        setReverifyStatus(null);
-        setReverifyError(null);
-        setPolledData(null);
-        try {
-            await api(`/report/${report.id}/reverify`, { method: "POST" });
-            toast.success(`Re-verification started for ${report.tracking_id}`);
-            if (onUpdated) onUpdated();
-            // Start polling
-            setReverifyStatus("pending");
-            setReverifyLoading(false);
-            pollRef.current = setInterval(async () => {
-                try {
-                    const statusData = await api(`/report/${report.id}/verification-status`);
-                    if (!statusData.verification_pending) {
-                        stopPolling();
-                        setPolledData(statusData);
-                        if (statusData.ai_mask_url || statusData.photos?.some((p: any) => p.mask_url)) {
-                            setReverifyStatus("done");
-                        } else {
-                            setReverifyStatus("failed");
-                            setReverifyError(statusData.verification_error || "AI could not process the photo. The original image may be missing.");
-                        }
-                    }
-                } catch {
-                    stopPolling();
-                    setReverifyStatus("failed");
-                    setReverifyError("Could not check verification status.");
-                }
-            }, 3000);
-        } catch (err: any) {
-            toast.error(err?.message || "Failed to re-verify");
-            setReverifyLoading(false);
-        }
-    };
-
-    // Cleanup interval on unmount
-    useEffect(() => { return () => stopPolling(); }, []);
 
     useEffect(() => {
         if (!lightbox) return;
@@ -1108,49 +1060,7 @@ function EvidenceTab({
                 <div>
                     <div className="flex items-center justify-between mb-2">
                         <div className="text-sm font-semibold tracking-tight text-foreground">Citizen Evidence</div>
-                        {(userRole === "cenro" || userRole === "barangay") && report.status !== "rejected" && report.status !== "resolved" && (
-                            <button
-                                onClick={handleReverify}
-                                disabled={reverifyLoading || report.verification_pending}
-                                className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-[11px] font-bold disabled:opacity-50"
-                            >
-                                <RefreshCw size={12} className={reverifyLoading ? "animate-spin" : ""} />
-                                {reverifyLoading ? "Re-verifying..." : "Re-verify"}
-                            </button>
-                        )}
                     </div>
-                    {reverifyStatus && (
-                        <div className="mb-4 p-3 rounded-lg border text-sm flex flex-col gap-2 bg-card">
-                            <div className="flex items-center gap-2">
-                                {reverifyStatus === "pending" && (
-                                    <>
-                                        <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                                        <span className="font-semibold text-primary">AI is analyzing the photo...</span>
-                                    </>
-                                )}
-                                {reverifyStatus === "done" && (
-                                    <>
-                                        <div className="h-4 w-4 bg-green-500 rounded-full flex items-center justify-center text-white text-[10px]">✓</div>
-                                        <span className="font-semibold text-green-600">Re-verification complete!</span>
-                                    </>
-                                )}
-                                {reverifyStatus === "failed" && (
-                                    <>
-                                        <div className="h-4 w-4 bg-destructive rounded-full flex items-center justify-center text-white text-[10px]">✕</div>
-                                        <span className="font-semibold text-destructive">Re-verification failed</span>
-                                    </>
-                                )}
-                            </div>
-                            {reverifyStatus === "failed" && reverifyError && (
-                                <p className="text-xs text-muted-foreground ml-6">{reverifyError}</p>
-                            )}
-                            {reverifyStatus === "pending" && (
-                                <div className="h-1.5 w-full bg-primary/20 rounded-full overflow-hidden mt-1">
-                                    <div className="h-full bg-primary w-1/2 rounded-full animate-[pulse_1s_ease-in-out_infinite]" style={{ animationDuration: '1.5s' }} />
-                                </div>
-                            )}
-                        </div>
-                    )}
                     <div className="flex flex-col gap-4">
                         {citizenPhotos.map((p, i) => (
                             <div key={i} className="bg-card rounded-lg border border-border shadow-sm p-3">
