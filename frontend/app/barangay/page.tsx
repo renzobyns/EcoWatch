@@ -138,8 +138,6 @@ function BarangayPortalInner() {
     const [reverifyError, setReverifyError] = useState<string | null>(null);
     const [reverifyPolledData, setReverifyPolledData] = useState<any>(null);
     const reverifyPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-    const [cleanupImage, setCleanupImage] = useState<File | null>(null);
-    const [cleanupPreview, setCleanupPreview] = useState<string | null>(null);
     const [deploymentNotes, setDeploymentNotes] = useState("");
     const [selectedPriority, setSelectedPriority] = useState("medium");
     const [selectedCleaner, setSelectedCleaner] = useState<number | null>(null);
@@ -408,64 +406,6 @@ function BarangayPortalInner() {
         }
     };
 
-    const handleResolve = async (reportId: number) => {
-        if (!cleanupImage) {
-            toast.error("Please upload a cleanup verification photo.");
-            return;
-        }
-        setActionLoading(true);
-
-        const formData = new FormData();
-        formData.append("cleanup_images", cleanupImage);
-
-        try {
-            const data = await api(`/report/${reportId}/resolve`, {
-                method: "POST",
-                body: formData,
-            });
-            // 202: photo saved, AI runs in background. Show "verifying" then poll.
-            const reportSnapshot = data.report;
-            setReports(prev => prev.map(r => r.id === reportId ? { ...r, ...reportSnapshot } : r));
-            setSelectedReport((prev: any) => prev ? { ...prev, ...reportSnapshot } : prev);
-            setCleanupImage(null);
-            setCleanupPreview(null);
-            toast.info("Cleanup photo uploaded. AI verifying…");
-            pollResolveOutcome(reportId, reportSnapshot.tracking_id);
-        } catch (err) {
-            toast.error(err instanceof ApiError ? err.message : "Network error.");
-        } finally {
-            setActionLoading(false);
-        }
-    };
-
-    const pollResolveOutcome = (reportId: number, trackingId: string | null) => {
-        if (!trackingId) return;
-        let attempts = 0;
-        const MAX_ATTEMPTS = 40; // ~2 minutes at 3s
-        const tick = async () => {
-            attempts++;
-            try {
-                const res = await fetch(`${API_URL}/report/track/${trackingId}`);
-                if (res.ok) {
-                    const fresh = await res.json();
-                    setReports(prev => prev.map(r => r.id === reportId ? { ...r, ...fresh } : r));
-                    setSelectedReport((prev: any) => prev?.id === reportId ? { ...prev, ...fresh } : prev);
-                    if (!fresh.verification_pending) {
-                        if (fresh.status === "failed_cleanup") {
-                            toast.warning("AI detected waste is still present. Please clean thoroughly and try again.");
-                        } else if (fresh.status === "resolved") {
-                            toast.success("Report resolved!");
-                            setSelectedReport((prev: any) => prev?.id === reportId ? null : prev);
-                        }
-                        return;
-                    }
-                }
-            } catch { /* transient — retry */ }
-            if (attempts < MAX_ATTEMPTS) setTimeout(tick, 3000);
-            else toast.error("AI verification is taking longer than expected. Refresh later for the result.");
-        };
-        setTimeout(tick, 1500);
-    };
 
     const handleExport = async () => {
         try {
@@ -1067,8 +1007,6 @@ function BarangayPortalInner() {
                                                         className="group flex items-center justify-between gap-3 p-2.5 rounded-xl bg-background/50 hover:bg-muted/60 transition-all border border-border/60 hover:border-border cursor-pointer shadow-xs"
                                                         onClick={() => {
                                                             setSelectedReport(r);
-                                                            setCleanupPreview(null);
-                                                            setCleanupImage(null);
                                                             setDeploymentNotes("");
                                                         }}
                                                     >
@@ -2822,8 +2760,6 @@ function BarangayPortalInner() {
                                                                 className="border-b border-border hover:bg-muted/50 transition-colors cursor-pointer"
                                                                 onClick={() => {
                                                                     setSelectedReport(report);
-                                                                    setCleanupPreview(null);
-                                                                    setCleanupImage(null);
                                                                     setDeploymentNotes("");
                                                                 }}
                                                             >
@@ -2904,8 +2840,6 @@ function BarangayPortalInner() {
                                         paginatedReports.map(report => (
                                             <div key={report.id} onClick={() => {
                                                 setSelectedReport(report);
-                                                setCleanupPreview(null);
-                                                setCleanupImage(null);
                                                 setDeploymentNotes("");
                                             }} className="bg-card rounded-xl border border-border p-4 hover:shadow-md hover:border-primary/50 transition-all cursor-pointer flex flex-col gap-3">
                                                 <div className="flex items-center justify-between">
@@ -3303,44 +3237,20 @@ function BarangayPortalInner() {
                                     )}
 
                                     {(selectedReport.status === 'assigned' || selectedReport.status === 'in_progress') && (
-                                        <div>
-                                            <p className="text-xs text-foreground/60 mb-4">
+                                        <div className="p-4 rounded-xl border border-blue-500/20 bg-blue-500/5 space-y-2.5">
+                                            <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-bold text-xs uppercase tracking-wider">
+                                                <Clock size={15} /> Cleanup Team Dispatched
+                                            </div>
+                                            <p className="text-xs text-foreground/70 leading-relaxed">
                                                 {selectedReport.status === 'in_progress'
-                                                    ? "Cleaner is actively working. Upload a clear photo of the cleaned area to resolve."
-                                                    : "Team is assigned. Upload a clear photo of the cleaned area to resolve."}
+                                                    ? "Cleaner is actively working on-site."
+                                                    : "Team is assigned. Awaiting cleaner dispatch."}
+                                                {" "}To maintain anti-fraud integrity, cleanup resolution proof must be submitted on-site by the cleaner using the Geo-Camera.
                                             </p>
-
-                                            <label className="block w-full h-32 border-2 border-dashed border-foreground/20 hover:border-primary/50 rounded-xl mb-4 cursor-pointer overflow-hidden relative group">
-                                                <input
-                                                    type="file"
-                                                    accept="image/*"
-                                                    capture="environment"
-                                                    className="hidden"
-                                                    onChange={(e) => {
-                                                        const file = e.target.files?.[0];
-                                                        if (file) {
-                                                            setCleanupImage(file);
-                                                            setCleanupPreview(URL.createObjectURL(file));
-                                                        }
-                                                    }}
-                                                />
-                                                {cleanupPreview ? (
-                                                    <img src={cleanupPreview} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-foreground/40 group-hover:text-primary transition-colors">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                                                        <span className="text-xs font-bold mt-2">Upload Cleanup Proof</span>
-                                                    </div>
-                                                )}
-                                            </label>
-
-                                            <button
-                                                onClick={() => handleResolve(selectedReport.id)}
-                                                disabled={!cleanupImage || actionLoading}
-                                                className="w-full py-3 bg-primary hover:bg-emerald-400 text-white rounded-xl font-bold shadow-lg shadow-emerald-900/50 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
-                                            >
-                                                {actionLoading ? "AI Verifying..." : "Mark as Resolved"}
-                                            </button>
+                                            <div className="flex items-center gap-2 pt-1 text-[11px] text-muted-foreground border-t border-blue-500/10">
+                                                <ShieldCheck size={13} className="text-emerald-500" />
+                                                <span>Resolution proof restricted to Cleaners & CENRO</span>
+                                            </div>
                                         </div>
                                     )}
 
